@@ -1,0 +1,12 @@
+[tool.poetry]
+name = "ars"
+version = "1.0.0"
+description = "ARS Applied Reservation System"
+authors = []
+
+[tool.poetry.dependencies]
+python = "^3.11"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
