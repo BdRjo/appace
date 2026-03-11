@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'تعديل' if edit_mode else 'حظر' }} فترة — ARS{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>
+    <i class="bi bi-slash-circle me-2"></i>
+    {{ 'تعديل الفترة المحظورة' if edit_mode else 'حظر فترة جديدة' }}
+  </h1>
+</div>
+<div class="row justify-content-center">
+  <div class="col-md-7">
+    <div class="card">
+      <div class="card-body p-4">
+        <form method="POST" action="{{ url_for('blocked.edit', bp_id=bp_id) if edit_mode else url_for('blocked.new') }}">
+          <div class="mb-3">
+            <label class="form-label fw-bold" data-i18n="venue"><span data-i18n="t_venue">القاعة</span></label>
+            <select name="venue_id" class="form-select">
+              <option value="">— اختر القاعة —</option>
+              {% for v in venues %}
+              <option value="{{ v.id }}" {{ 'selected' if form and form.venue_id==v.id }}>{{ v.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold" data-i18n="locations">الموقع (اختياري)</label>
+            <select name="location_id" class="form-select">
+              <option value="">— اختر الموقع —</option>
+              {% for l in locations %}
+              <option value="{{ l.id }}" {{ 'selected' if form and form.location_id==l.id }}>{{ l.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-6">
+              <label class="form-label fw-bold" data-i18n="block_start"><span data-i18n="t_block_start"><span data-i18n="z_fb4f0b">بداية الفترة</span></span></label>
+              <input type="datetime-local" name="start_time" class="form-control" required
+                     value="{{ form.start_time.strftime('%Y-%m-%dT%H:%M') if form and hasattr(form,'start_time') and form.start_time else '' }}">
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-bold" data-i18n="block_end"><span data-i18n="t_block_end"><span data-i18n="z_8da3a0">نهاية الفترة</span></span></label>
+              <input type="datetime-local" name="end_time" class="form-control" required
+                     value="{{ form.end_time.strftime('%Y-%m-%dT%H:%M') if form and hasattr(form,'end_time') and form.end_time else '' }}">
+            </div>
+          </div>
+          <div class="mb-4">
+            <label class="form-label fw-bold" data-i18n="block_reason"><span data-i18n="t_block_reason"><span data-i18n="z_188f67">سبب الحظر</span></span></label>
+            <textarea name="reason" class="form-control" rows="3" placeholder="صيانة / حجب / غير ذلك...">{{ form.reason if form and hasattr(form,'reason') else '' }}</textarea>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary-ars px-4">
+              <i class="bi bi-check-lg me-1"></i><span data-i18n="save">حفظ</span>
+            </button>
+            <a href="{{ url_for('blocked.index') }}" class="btn btn-outline-secondary" data-i18n="cancel"><span data-i18n="t_cancel">إلغاء</span></a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

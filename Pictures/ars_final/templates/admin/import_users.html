@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block title %}استيراد مستخدمين من CSV — ARS{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-people me-2"></i>استيراد مستخدمين من CSV</h1>
+</div>
+
+<div class="row g-4">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header">📥 رفع ملف المستخدمين</div>
+      <div class="card-body">
+        <div class="alert alert-info">
+          💡 يجب أن يحتوي الملف على الأعمدة التالية:<br>
+          <code>username, email, full_name, password</code>
+          <br><span class="text-muted small">اختيارية: phone, is_active (1/0), is_verified (1/0)</span>
+        </div>
+
+        <form method="POST" enctype="multipart/form-data">
+          <div class="mb-3">
+            <label class="form-label fw-bold">📂 ملف CSV</label>
+            <input type="file" name="file" class="form-control" accept=".csv" required>
+          </div>
+          <div class="alert alert-warning small">
+            ⚠️ سيتم إرسال بريد ترحيب لكل مستخدم جديد يحتوي على بيانات الدخول
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-success px-4">
+              <i class="bi bi-upload me-1"></i>استيراد المستخدمين
+            </button>
+            <a href="{{ url_for('users.index') }}" class="btn btn-secondary px-4"><span data-i18n="t_cancel">إلغاء</span></a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header">📋 أعمدة الملف</div>
+      <div class="card-body">
+        <table class="table table-sm">
+          <thead><tr><th>العمود</th><th>وصف</th></tr></thead>
+          <tbody>
+            <tr><td><code>username</code></td><td>اسم المستخدم (مطلوب)</td></tr>
+            <tr><td><code>email</code></td><td>البريد الإلكتروني (مطلوب)</td></tr>
+            <tr><td><code>full_name</code></td><td>الاسم الكامل (مطلوب)</td></tr>
+            <tr><td><code>password</code></td><td>كلمة المرور (مطلوب)</td></tr>
+            <tr><td><code>phone</code></td><td><span data-i18n="t_phone"><span data-i18n="z_0947ad">رقم الهاتف</span></span></td></tr>
+            <tr><td><code>is_active</code></td><td>نشط: 1 أو 0</td></tr>
+            <tr><td><code>is_verified</code></td><td>موثّق: 1 أو 0</td></tr>
+          </tbody>
+        </table>
+        <div class="text-muted small mt-2">الدور الافتراضي للمستخدمين المستوردين: <strong><span data-i18n="x_f1beeb">مستخدم</span></strong></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

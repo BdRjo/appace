@@ -1,0 +1,27 @@
+{% extends "base.html" %}{% block title %}المستخدمون — ARS{% endblock %}
+{% block content %}
+<div class="page-header"><h1><i class="bi bi-people me-2"></i>المستخدمون ({{ users|length }})</h1></div>
+<div class="card"><div class="card-body p-0">
+<div class="table-responsive">
+<table class="table table-hover mb-0">
+  <thead><tr><th>#</th><th><span data-i18n="t_name">الاسم</span></th><th><span data-i18n="t_username"><span data-i18n="z_f089c3">اسم المستخدم</span></span></th><th><span data-i18n="x_c707d7">البريد</span></th><th><span data-i18n="t_role">الدور</span></th><th><span data-i18n="t_status">الحالة</span></th><th><span data-i18n="x_f7ed03">آخر دخول</span></th></tr></thead>
+  <tbody>
+    {% for u in users %}
+    <tr>
+      <td class="text-muted small">{{ u.id }}</td>
+      <td class="fw-bold">{{ u.full_name or '—' }}</td>
+      <td><code>{{ u.username }}</code></td>
+      <td><small class="text-muted">{{ u.email }}</small></td>
+      <td><span class="badge bg-secondary">{{ u.role.name if u.role else '—' }}</span></td>
+      <td>
+        {% if u.is_active %}<span class="badge bg-success"><span data-i18n="t_active">نشط</span></span>
+        {% else %}<span class="badge bg-danger"><span data-i18n="x_75e3d9">موقوف</span></span>{% endif %}
+      </td>
+      <td><small class="text-muted">{{ u.last_login.strftime('%Y-%m-%d') if u.last_login else 'لم يدخل' }}</small></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+</div></div>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends "base.html" %}{% block title %}الأدوار — ARS{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h1><i class="bi bi-shield me-2"></i><span data-i18n="t_roles"><span data-i18n="z_9ea11f">الأدوار والصلاحيات</span></span></h1>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('users.index') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-people me-1"></i><span data-i18n="t_users">المستخدمون</span>
+    </a>
+    <a href="{{ url_for('users.new_role') }}" class="btn btn-primary-ars">
+      <i class="bi bi-plus-lg me-1"></i>دور جديد
+    </a>
+  </div>
+</div>
+<div class="row g-3">
+  {% for role in roles %}
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <h5 class="fw-bold mb-0" style="color:#1A555C">
+            <i class="bi bi-shield-check me-2"></i>{{ role.name }}
+          </h5>
+          <span class="badge bg-secondary">{{ role._user_count }} مستخدم</span>
+        </div>
+        {% if role.description %}
+        <p class="text-muted small mb-3">{{ role.description }}</p>
+        {% endif %}
+        <a href="{{ url_for('users.role_permissions', role_id=role.id) }}"
+           class="btn btn-outline-primary btn-sm w-100">
+          <i class="bi bi-sliders me-1"></i>تعديل الصلاحيات
+        </a>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

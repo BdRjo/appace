@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}جهات الاتصال — ARS{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h1><i class="bi bi-person-lines-fill me-2"></i>جهات الاتصال ({{ contacts|length }})</h1>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('contacts.import_csv') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-upload me-1"></i><span data-i18n="t_import_csv"><span data-i18n="z_27eee2">استيراد CSV</span></span>
+    </a>
+    <a href="{{ url_for('contacts.export_csv') }}" class="btn btn-outline-success btn-sm">
+      <i class="bi bi-filetype-csv me-1"></i><span data-i18n="t_export_csv"><span data-i18n="z_91cafe">تصدير CSV</span></span>
+    </a>
+    <a href="{{ url_for('contacts.new') }}" class="btn btn-primary-ars">
+      <i class="bi bi-person-plus me-1"></i>إضافة جهة
+    </a>
+  </div>
+</div>
+<div class="card mb-3"><div class="card-body py-2">
+  <form method="GET" class="d-flex gap-2">
+    <input type="text" name="q" class="form-control form-control-sm"
+           placeholder="🔍 بحث بالاسم أو البريد" value="{{ search }}" style="max-width:300px">
+    <button class="btn btn-primary-ars btn-sm"><span data-i18n="t_search">بحث</span></button>
+    <a href="{{ url_for('contacts.index') }}" class="btn btn-outline-secondary btn-sm">إعادة</a>
+  </form>
+</div></div>
+<div class="card"><div class="card-body p-0">
+{% if contacts %}
+<div class="table-responsive">
+<table class="table table-hover mb-0">
+  <thead><tr>
+    <th><span data-i18n="t_first_name">الاسم الأول</span></th><th><span data-i18n="t_last_name">الاسم الأخير</span></th><th><span data-i18n="t_email"><span data-i18n="z_2436aa">البريد الإلكتروني</span></span></th><th>الهاتف</th><th><span data-i18n="t_date_added">تاريخ الإضافة</span></th><th><span data-i18n="t_actions">إجراءات</span></th>
+  </tr></thead>
+  <tbody>
+  {% for c in contacts %}
+  <tr>
+    <td class="fw-bold">{{ c.first_name }}</td>
+    <td>{{ c.last_name or '—' }}</td>
+    <td><a href="mailto:{{ c.email }}">{{ c.email }}</a></td>
+    <td>{{ c.phone or '—' }}</td>
+    <td><small class="text-muted">{{ c.created_at.strftime('%Y-%m-%d') if c.created_at else '' }}</small></td>
+    <td>
+      <div class="d-flex gap-1">
+        <a href="{{ url_for('contacts.edit', cid=c.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
+        <form method="POST" action="{{ url_for('contacts.delete', cid=c.id) }}"
+              onsubmit="return confirm('حذف {{ c.first_name }}؟')">
+          <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+        </form>
+      </div>
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<div class="text-center py-5 text-muted">
+  <i class="bi bi-person-x fs-1 d-block mb-2"></i>لا توجد جهات اتصال
+  <div class="mt-2">
+    <a href="{{ url_for('contacts.new') }}" class="btn btn-primary-ars btn-sm">إضافة جهة</a>
+    <a href="{{ url_for('contacts.import_csv') }}" class="btn btn-outline-secondary btn-sm ms-2"><span data-i18n="t_import_csv"><span data-i18n="z_27eee2">استيراد CSV</span></span></a>
+  </div>
+</div>
+{% endif %}
+</div></div>
+{% endblock %}

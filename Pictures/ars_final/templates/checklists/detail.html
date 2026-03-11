@@ -1,0 +1,394 @@
+{% extends "base.html" %}
+{% block title %}{{ cl.name }} — ARS{% endblock %}
+{% block extra_css %}
+<style>
+:root { --cl-color: {{ cl.color or '#1A555C' }}; }
+.cl-hero {
+  background: linear-gradient(135deg, var(--cl-color), color-mix(in srgb, var(--cl-color) 70%, #000));
+  border-radius: 16px; padding: 2rem; color: #fff; margin-bottom: 1.5rem;
+  position: relative; overflow: hidden;
+}
+.cl-hero::before {
+  content:''; position:absolute; top:-40px; left:-40px;
+  width:200px; height:200px; border-radius:50%;
+  background:rgba(255,255,255,.06);
+}
+.cl-hero::after {
+  content:''; position:absolute; bottom:-60px; right:-20px;
+  width:160px; height:160px; border-radius:50%;
+  background:rgba(255,255,255,.04);
+}
+.progress-ring { transform: rotate(-90deg); }
+.progress-ring-bg { fill:none; stroke:rgba(255,255,255,.2); stroke-width:6; }
+.progress-ring-fill { fill:none; stroke:#fff; stroke-width:6;
+  stroke-linecap:round; transition:stroke-dashoffset .6s ease; }
+
+.item-row {
+  display:flex; align-items:flex-start; gap:12px;
+  padding:12px 14px; border-radius:12px; transition:.2s;
+  border:1.5px solid #f0f2f4; margin-bottom:8px; background:#fff;
+}
+.item-row:hover { border-color:var(--cl-color); box-shadow:0 2px 10px rgba(0,0,0,.06); }
+.item-row.done { background:#f8fffe; border-color:#d1f7f0; opacity:.8; }
+.item-check {
+  width:22px; height:22px; border-radius:50%; border:2px solid #ccc;
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  flex-shrink:0; transition:.2s; margin-top:2px;
+}
+.item-check.checked { background:var(--cl-color); border-color:var(--cl-color); }
+.item-check.checked::after { content:'✓'; color:#fff; font-size:.75rem; font-weight:700; }
+.item-text { flex:1; min-width:0; }
+.item-title { font-size:.9rem; font-weight:500; }
+.item-title.checked { text-decoration:line-through; color:#9aa; }
+.item-note { font-size:.75rem; color:#888; margin-top:2px; }
+.item-meta { display:flex; gap:6px; align-items:center; margin-top:4px; flex-wrap:wrap; }
+.badge-prio { font-size:.65rem; padding:2px 7px; border-radius:20px; font-weight:600; }
+.prio-1 { background:#e8f5e9; color:#2e7d32; }
+.prio-2 { background:#fff3e0; color:#e65100; }
+.prio-3 { background:#fce4ec; color:#c62828; }
+.due-soon { color:#e65100; }
+.due-overdue { color:#c62828; }
+.due-ok { color:#6c757d; }
+
+.quick-add {
+  display:flex; gap:8px; padding:10px 14px;
+  border:2px dashed #dee2e6; border-radius:12px;
+  margin-top:4px; transition:.2s;
+}
+.quick-add:focus-within { border-color:var(--cl-color); background:#fafffe; }
+.quick-add input { border:none; outline:none; flex:1; font-size:.9rem; background:transparent; }
+
+.filter-tab { padding:4px 14px; border-radius:20px; font-size:.78rem;
+  border:1.5px solid #dee2e6; background:#fff; cursor:pointer; transition:.15s; }
+.filter-tab.active { background:var(--cl-color); color:#fff; border-color:var(--cl-color); }
+
+.stats-mini { display:flex; gap:16px; }
+.stat-m { text-align:center; }
+.stat-m .n { font-size:1.4rem; font-weight:800; color:#fff; line-height:1; }
+.stat-m .l { font-size:.68rem; color:rgba(255,255,255,.7); }
+</style>
+{% endblock %}
+{% block content %}
+
+<!-- Hero -->
+<div class="cl-hero">
+  <a href="{{ url_for('checklists.index') }}" class="btn btn-sm mb-3"
+     style="background:rgba(255,255,255,.15);color:#fff;border:none">
+    <i class="bi bi-arrow-right me-1"></i>كل القوائم
+  </a>
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-3" style="position:relative;z-index:1">
+    <div class="d-flex align-items-center gap-3">
+      <span style="font-size:3rem;line-height:1">{{ cl.emoji or '📋' }}</span>
+      <div>
+        <h2 class="mb-1" style="color:#fff;font-weight:800">{{ cl.name }}</h2>
+        {% if cl.description %}<p class="mb-0" style="color:rgba(255,255,255,.8);font-size:.88rem">{{ cl.description }}</p>{% endif %}
+        <div class="mt-1" style="font-size:.75rem;color:rgba(255,255,255,.65)">
+          <i class="bi bi-person me-1"></i>{{ cl.creator.full_name if cl.creator else '—' }} &nbsp;|&nbsp;
+          <i class="bi bi-globe me-1"></i>{{ 'عام' if cl.is_public else 'خاص' }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Progress ring + stats -->
+    <div class="d-flex align-items-center gap-4">
+      <div class="stats-mini">
+        <div class="stat-m"><div class="n">{{ total }}</div><div class="l"><span data-i18n="t_total">إجمالي</span></div></div>
+        <div class="stat-m"><div class="n">{{ done }}</div><div class="l"><span data-i18n="t_s_completed">مكتمل</span></div></div>
+        <div class="stat-m"><div class="n">{{ total - done }}</div><div class="l">متبقي</div></div>
+      </div>
+      {% set pct = ((done/total*100)|int) if total > 0 else 0 %}
+      {% set circ = 3.14159 * 2 * 28 %}
+      <svg width="72" height="72" viewBox="0 0 72 72">
+        <circle class="progress-ring-bg" cx="36" cy="36" r="28" style="transform:rotate(-90deg);transform-origin:50% 50%"/>
+        <circle class="progress-ring-fill" cx="36" cy="36" r="28"
+          style="transform:rotate(-90deg);transform-origin:50% 50%;
+                 stroke-dasharray:{{ circ }};stroke-dashoffset:{{ circ - (circ * pct / 100) }}"
+          id="progressRing"/>
+        <text x="36" y="40" text-anchor="middle" fill="white" font-size="14" font-weight="800">{{ pct }}%</text>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- Main: items -->
+  <div class="col-lg-8">
+    <div class="card" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(0,0,0,.07)">
+      <div class="card-body p-3">
+
+        <!-- Filter tabs -->
+        <div class="d-flex gap-2 mb-3 flex-wrap">
+          <button class="filter-tab active" data-filter="all">الكل ({{ total }})</button>
+          <button class="filter-tab" data-filter="pending">قيد التنفيذ ({{ total - done }})</button>
+          <button class="filter-tab" data-filter="done">مكتمل ({{ done }})</button>
+          {% set high = items|selectattr('priority','ge',2)|list|length %}
+          {% if high > 0 %}
+          <button class="filter-tab" data-filter="high">⚡ أولوية عالية ({{ high }})</button>
+          {% endif %}
+        </div>
+
+        <!-- Items list -->
+        <div id="itemsList">
+          {% if items %}
+            {% for item in items %}
+            {% set is_done = item.is_checked %}
+            {% set prio_class = '' %}
+            {% if item.priority == 3 %}{% set prio_class = 'prio-3' %}{% set prio_label = '🔴 عاجل'%}
+            {% elif item.priority == 2 %}{% set prio_class = 'prio-2' %}{% set prio_label = '🟠 مهم' %}
+            {% elif item.priority == 1 %}{% set prio_class = 'prio-1' %}{% set prio_label = '🟢 عادي' %}
+            {% else %}{% set prio_class = '' %}{% set prio_label = '' %}{% endif %}
+
+            <div class="item-row {{ 'done' if is_done else '' }}"
+                 data-status="{{ 'done' if is_done else 'pending' }}"
+                 data-prio="{{ item.priority }}"
+                 id="item-{{ item.id }}">
+              <!-- Checkbox -->
+              <div class="item-check {{ 'checked' if is_done else '' }}"
+                   onclick="toggleItem({{ item.id }}, this)"
+                   style="{{ 'background:' ~ (cl.color or '#1A555C') ~ ';border-color:' ~ (cl.color or '#1A555C') if is_done else '' }}">
+              </div>
+              <!-- Content -->
+              <div class="item-text">
+                <div class="item-title {{ 'checked' if is_done else '' }}">{{ item.content }}</div>
+                {% if item.note %}
+                <div class="item-note"><i class="bi bi-sticky me-1"></i>{{ item.note }}</div>
+                {% endif %}
+                <div class="item-meta">
+                  {% if item.priority > 0 %}
+                  <span class="badge-prio {{ prio_class }}">{{ prio_label }}</span>
+                  {% endif %}
+                  {% if item.due_date %}
+                  {% set now = namespace(v=0) %}
+                  <span class="small {% if item.due_date < today %}due-overdue{% elif item.due_date <= today_plus2 %}due-soon{% else %}due-ok{% endif %}">
+                    <i class="bi bi-calendar3 me-1"></i>{{ item.due_date.strftime('%Y-%m-%d') }}
+                  </span>
+                  {% endif %}
+                  {% if item.is_checked and item.checked_at %}
+                  <span class="small text-muted"><i class="bi bi-check2-circle me-1"></i>{{ item.checked_at.strftime('%Y-%m-%d') }}</span>
+                  {% endif %}
+                </div>
+              </div>
+              <!-- Delete -->
+              {% if perms.can('checklists_edit') or cl.created_by_id == current_user.id %}
+              <button class="btn btn-sm text-muted" style="border:none;background:none;padding:2px 6px;opacity:.4"
+                      onclick="deleteItem({{ item.id }}, this)" title="حذف">
+                <i class="bi bi-x-lg"></i>
+              </button>
+              {% endif %}
+            </div>
+            {% endfor %}
+          {% else %}
+          <div class="text-center py-4 text-muted">
+            <i class="bi bi-list-check fs-2 d-block mb-2 opacity-25"></i>
+            لا توجد عناصر — أضف أول مهمة أدناه
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- Quick add -->
+        {% if perms.can('checklists_edit') or cl.created_by_id == current_user.id %}
+        <div class="quick-add mt-3" id="quickAddBox">
+          <i class="bi bi-plus-circle text-muted" style="margin-top:3px;font-size:1rem"></i>
+          <input type="text" id="quickInput" placeholder="أضف مهمة جديدة بسرعة..."
+                 onkeydown="if(event.key==='Enter') quickAdd()">
+          <button onclick="quickAdd()" class="btn btn-sm" style="background:var(--cl-color);color:#fff;border:none;border-radius:8px;padding:4px 12px"><span data-i18n="t_add">إضافة</span></button>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar: notes + actions -->
+  <div class="col-lg-4">
+    <!-- Actions card -->
+    <div class="card mb-3" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(0,0,0,.07)">
+      <div class="card-body p-3">
+        <h6 class="fw-bold mb-3" style="color:var(--cl-color)">⚙️ الإجراءات</h6>
+        <div class="d-flex flex-column gap-2">
+          {% if perms.can('checklists_edit') or cl.created_by_id == current_user.id %}
+          <a href="{{ url_for('checklists.edit', cl_id=cl.id) }}" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-pencil me-1"></i><span data-i18n="t_edit_list">تعديل القائمة</span>
+          </a>
+          {% endif %}
+          <button onclick="window.print()" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-printer me-1"></i><span data-i18n="t_print"><span data-i18n="z_88c5d1">طباعة</span></span>
+          </button>
+          <button onclick="exportCSV()" class="btn btn-sm btn-outline-success">
+            <i class="bi bi-file-earmark-excel me-1"></i><span data-i18n="t_export_csv"><span data-i18n="z_91cafe">تصدير CSV</span></span>
+          </button>
+          {% if perms.can('checklists_delete') or cl.created_by_id == current_user.id %}
+          <form method="POST" action="{{ url_for('checklists.delete', cl_id=cl.id) }}"
+                onsubmit="return confirm('حذف القائمة نهائياً؟')">
+            <button class="btn btn-sm btn-outline-danger w-100">
+              <i class="bi bi-trash me-1"></i><span data-i18n="t_del_list">حذف القائمة</span>
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Notes card -->
+    <div class="card" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(0,0,0,.07)">
+      <div class="card-body p-3">
+        <h6 class="fw-bold mb-2" style="color:var(--cl-color)">📝 ملاحظات القائمة</h6>
+        {% if cl.description %}
+        <p class="text-muted small mb-2">{{ cl.description }}</p>
+        {% endif %}
+        <div style="background:#f8f9fa;border-radius:10px;padding:12px">
+          <div class="d-flex justify-content-between text-muted small mb-1">
+            <span><span data-i18n="t_created_at">تاريخ الإنشاء</span></span>
+            <span>{{ cl.created_at.strftime('%Y-%m-%d') if cl.created_at else '—' }}</span>
+          </div>
+          <div class="d-flex justify-content-between text-muted small mb-1">
+            <span>عناصر مكتملة</span>
+            <span>{{ done }} / {{ total }}</span>
+          </div>
+          <div class="d-flex justify-content-between text-muted small">
+            <span><span data-i18n="t_status">الحالة</span></span>
+            <span>{{ '✅ مكتملة' if done == total and total > 0 else '🔄 قيد التنفيذ' }}</span>
+          </div>
+        </div>
+
+        <!-- Priority breakdown -->
+        {% if items %}
+        <hr class="my-2">
+        <div class="small text-muted mb-1 fw-bold">توزيع الأولويات</div>
+        {% set high_c = items|selectattr('priority','eq',3)|list|length %}
+        {% set med_c  = items|selectattr('priority','eq',2)|list|length %}
+        {% set low_c  = items|selectattr('priority','eq',1)|list|length %}
+        {% if high_c %}<div class="d-flex justify-content-between small"><span>🔴 عاجل</span><span class="badge-prio prio-3">{{ high_c }}</span></div>{% endif %}
+        {% if med_c  %}<div class="d-flex justify-content-between small mt-1"><span>🟠 مهم</span><span class="badge-prio prio-2">{{ med_c }}</span></div>{% endif %}
+        {% if low_c  %}<div class="d-flex justify-content-between small mt-1"><span>🟢 عادي</span><span class="badge-prio prio-1">{{ low_c }}</span></div>{% endif %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+{% block extra_js %}
+<script>
+const CL_ID = {{ cl.id }};
+const CL_COLOR = '{{ cl.color or "#1A555C" }}';
+
+// Toggle item via AJAX
+function toggleItem(id, el) {
+  fetch(`/checklists/item/${id}/toggle`, {method:'POST',headers:{'X-CSRFToken':'','Content-Type':'application/json'}})
+    .then(r=>r.json()).then(d=>{
+      if(!d.ok) return;
+      const row = document.getElementById('item-'+id);
+      if(d.checked) {
+        el.classList.add('checked');
+        el.style.background = CL_COLOR;
+        el.style.borderColor = CL_COLOR;
+        row.classList.add('done');
+        row.dataset.status = 'done';
+        row.querySelector('.item-title')?.classList.add('checked');
+      } else {
+        el.classList.remove('checked');
+        el.style.background = '';
+        el.style.borderColor = '';
+        row.classList.remove('done');
+        row.dataset.status = 'pending';
+        row.querySelector('.item-title')?.classList.remove('checked');
+      }
+      updateProgress(d.done, d.total);
+    });
+}
+
+// Quick add via AJAX
+function quickAdd() {
+  const inp = document.getElementById('quickInput');
+  const val = inp.value.trim();
+  if(!val) return;
+  fetch(`/checklists/${CL_ID}/add-item`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({content: val})
+  }).then(r=>r.json()).then(d=>{
+    if(!d.ok) return;
+    inp.value = '';
+    const list = document.getElementById('itemsList');
+    const div = document.createElement('div');
+    div.className = 'item-row'; div.id = 'item-'+d.id;
+    div.dataset.status = 'pending'; div.dataset.prio = '0';
+    div.innerHTML = `
+      <div class="item-check" onclick="toggleItem(${d.id},this)" style=""></div>
+      <div class="item-text"><div class="item-title">${d.content}</div></div>
+      <button class="btn btn-sm text-muted" style="border:none;background:none;padding:2px 6px;opacity:.4"
+              onclick="deleteItem(${d.id},this)"><i class="bi bi-x-lg"></i></button>`;
+    // Remove empty state if present
+    list.querySelector('.text-center')?.remove();
+    // Insert before quick-add box
+    list.appendChild(div);
+    updateFilterCounts();
+  });
+}
+
+// Delete item via AJAX
+function deleteItem(id, btn) {
+  if(!confirm('حذف هذه المهمة؟')) return;
+  fetch(`/checklists/item/${id}/delete`, {method:'POST'})
+    .then(r=>{ if(r.ok || r.redirected) {
+      document.getElementById('item-'+id)?.remove();
+      updateFilterCounts();
+    }});
+}
+
+// Update progress ring
+function updateProgress(done, total) {
+  const pct = total > 0 ? Math.round(done/total*100) : 0;
+  const circ = Math.PI * 2 * 28;
+  const ring = document.getElementById('progressRing');
+  if(ring) {
+    ring.style.strokeDashoffset = circ - (circ * pct / 100);
+    ring.previousElementSibling.nextElementSibling.textContent = pct+'%';
+  }
+  document.querySelectorAll('.stat-m .n')[1].textContent = done;
+  document.querySelectorAll('.stat-m .n')[2].textContent = total - done;
+}
+
+// Filter tabs
+document.querySelectorAll('.filter-tab').forEach(btn => {
+  btn.addEventListener('click', function(){
+    document.querySelectorAll('.filter-tab').forEach(b=>b.classList.remove('active'));
+    this.classList.add('active');
+    const f = this.dataset.filter;
+    document.querySelectorAll('.item-row[id]').forEach(row => {
+      let show = true;
+      if(f==='done') show = row.dataset.status === 'done';
+      else if(f==='pending') show = row.dataset.status === 'pending';
+      else if(f==='high') show = parseInt(row.dataset.prio||0) >= 2;
+      row.style.display = show ? '' : 'none';
+    });
+  });
+});
+
+function updateFilterCounts() { /* simplified */ }
+
+// Export CSV
+function exportCSV() {
+  const rows = [['المهمة','الحالة','الأولوية','الملاحظة']];
+  document.querySelectorAll('.item-row[id]').forEach(row => {
+    const title = row.querySelector('.item-title')?.textContent?.trim() || '';
+    const status = row.dataset.status === 'done' ? 'مكتمل' : 'قيد التنفيذ';
+    const prio = ['—','عادي','مهم','عاجل'][parseInt(row.dataset.prio||0)] || '—';
+    const note = row.querySelector('.item-note')?.textContent?.trim() || '';
+    rows.push([title, status, prio, note]);
+  });
+  const csv = '\ufeff' + rows.map(r=>r.join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download = 'checklist.csv'; a.click();
+}
+</script>
+<style>
+@media print {
+  .sidebar,.topbar,.col-lg-4,.quick-add,.filter-tab,.btn,.alert{display:none!important}
+  .main-content{margin:0!important}
+  .col-lg-8{width:100%!important;flex:0 0 100%!important;max-width:100%!important}
+  .item-row{border:1px solid #ddd!important;break-inside:avoid}
+}
+</style>
+{% endblock %}

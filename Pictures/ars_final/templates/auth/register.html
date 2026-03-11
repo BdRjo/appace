@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" id="htmlRoot">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>تسجيل حساب جديد — ARS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" id="bsCSS">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'Tajawal', sans-serif; }
+    body {
+      background: linear-gradient(135deg, #1A555C 0%, #0d3b40 55%, #133F45 100%);
+      background-attachment: fixed;
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 1.5rem 0;
+      position: relative;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3C!-- Calendar icon --%3E%3Crect x='8' y='14' width='36' height='32' rx='4' fill='none' stroke='rgba(255,255,255,0.07)' stroke-width='1.5'/%3E%3Cline x1='8' y1='22' x2='44' y2='22' stroke='rgba(255,255,255,0.07)' stroke-width='1.5'/%3E%3Cline x1='18' y1='10' x2='18' y2='18' stroke='rgba(255,255,255,0.07)' stroke-width='1.5' stroke-linecap='round'/%3E%3Cline x1='34' y1='10' x2='34' y2='18' stroke='rgba(255,255,255,0.07)' stroke-width='1.5' stroke-linecap='round'/%3E%3Ccircle cx='18' cy='30' r='2' fill='rgba(255,255,255,0.07)'/%3E%3Ccircle cx='26' cy='30' r='2' fill='rgba(255,255,255,0.07)'/%3E%3Ccircle cx='34' cy='30' r='2' fill='rgba(255,255,255,0.07)'/%3E%3Ccircle cx='18' cy='38' r='2' fill='rgba(255,255,255,0.07)'/%3E%3Ccircle cx='26' cy='38' r='2' fill='rgba(255,255,255,0.07)'/%3E%3C!-- Clock --%3E%3Ccircle cx='120' cy='28' r='18' fill='none' stroke='rgba(212,168,83,0.1)' stroke-width='1.5'/%3E%3Cline x1='120' y1='28' x2='120' y2='16' stroke='rgba(212,168,83,0.1)' stroke-width='1.5' stroke-linecap='round'/%3E%3Cline x1='120' y1='28' x2='130' y2='34' stroke='rgba(212,168,83,0.1)' stroke-width='1.5' stroke-linecap='round'/%3E%3C!-- Star --%3E%3Cpolygon points='80,55 83,65 93,65 85,71 88,81 80,75 72,81 75,71 67,65 77,65' fill='none' stroke='rgba(255,255,255,0.06)' stroke-width='1.2'/%3E%3C!-- Location pin --%3E%3Ccircle cx='28' cy='96' r='8' fill='none' stroke='rgba(255,255,255,0.07)' stroke-width='1.5'/%3E%3Cline x1='28' y1='104' x2='28' y2='116' stroke='rgba(255,255,255,0.07)' stroke-width='1.5' stroke-linecap='round'/%3E%3C!-- Bell --%3E%3Cpath d='M130,80 Q130,68 120,68 Q110,68 110,80 L108,90 L132,90 Z' fill='none' stroke='rgba(212,168,83,0.1)' stroke-width='1.5'/%3E%3Cline x1='120' y1='90' x2='120' y2='94' stroke='rgba(212,168,83,0.1)' stroke-width='1.5' stroke-linecap='round'/%3E%3C!-- Small calendar bottom --%3E%3Crect x='50' y='118' width='28' height='24' rx='3' fill='none' stroke='rgba(255,255,255,0.06)' stroke-width='1.2'/%3E%3Cline x1='50' y1='126' x2='78' y2='126' stroke='rgba(255,255,255,0.06)' stroke-width='1.2'/%3E%3Cline x1='58' y1='114' x2='58' y2='120' stroke='rgba(255,255,255,0.06)' stroke-width='1.2' stroke-linecap='round'/%3E%3Cline x1='70' y1='114' x2='70' y2='120' stroke='rgba(255,255,255,0.06)' stroke-width='1.2' stroke-linecap='round'/%3E%3C!-- Checkmark --%3E%3Ccircle cx='140' cy='115' r='10' fill='none' stroke='rgba(255,255,255,0.06)' stroke-width='1.5'/%3E%3Cpolyline points='134,115 138,119 146,111' fill='none' stroke='rgba(255,255,255,0.06)' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-size: 160px 160px;
+      background-repeat: repeat;
+      opacity: 1;
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 15% 20%, rgba(212,168,83,.12) 0%, transparent 45%),
+        radial-gradient(ellipse at 85% 75%, rgba(46,139,143,.15) 0%, transparent 45%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .register-card {
+      background: rgba(255,255,255,.96);
+      backdrop-filter: blur(12px);
+      border-radius: 18px;
+      padding: 2rem 1.8rem;
+      width: 100%; max-width: 400px;
+      box-shadow: 0 24px 64px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.12);
+      position: relative;
+      z-index: 1;
+    }
+    .lang-btn {
+      position: absolute;
+      top: 16px; left: 16px;
+      background: rgba(26,85,92,.1);
+      border: 1.5px solid #1A555C;
+      color: #1A555C;
+      border-radius: 8px;
+      padding: 3px 12px;
+      font-size: .82rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: .2s;
+    }
+    .lang-btn:hover { background: #1A555C; color: #fff; }
+    .logo-circle {
+      width: 64px; height: 64px;
+      background: linear-gradient(135deg,#1A555C,#2E94A0);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto .8rem;
+      font-size: 1.8rem; color: #fff;
+      box-shadow: 0 4px 16px rgba(26,85,92,.4);
+    }
+    .brand-title { font-size: 1.4rem; font-weight: 800; color: #1A555C; }
+    .brand-sub   { font-size: .82rem; color: #888; }
+    .form-control { border-radius: 10px; padding: .55rem 1rem; border: 1.5px solid #e0e7e9; font-size: .9rem; }
+    .form-control:focus { border-color: #1A555C; box-shadow: 0 0 0 3px rgba(26,85,92,.12); }
+    .form-label { font-weight: 700; font-size: .85rem; margin-bottom: .3rem; }
+    .btn-register {
+      background: linear-gradient(90deg,#1A555C,#2E94A0);
+      border: none; color: #fff;
+      border-radius: 10px; padding: .7rem;
+      font-size: 1rem; font-weight: 700;
+      width: 100%;
+      transition: opacity .2s;
+    }
+    .btn-register:hover { opacity: .9; color: #fff; }
+    .divider { border-top: 1px solid #eee; margin: 1.2rem 0; }
+    .pw-strength { height: 5px; border-radius: 5px; transition: .3s; }
+  </style>
+</head>
+<body>
+<div class="register-card">
+  <button class="lang-btn" id="langBtn" onclick="toggleLang()">EN</button>
+
+  <div class="text-center mb-3">
+    <div class="logo-circle"><i class="bi bi-person-plus"></i></div>
+    <div class="brand-title">ARS</div>
+    <div class="brand-sub" data-ar="إنشاء حساب جديد" data-en="Create New Account">إنشاء حساب جديد</div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+    <div class="alert alert-{{ 'danger' if cat == 'error' else cat }} py-2 small">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <form method="POST" action="{{ url_for('auth.register') }}">
+    <div class="mb-3">
+      <label class="form-label" data-ar="الاسم الكامل" data-en="Full Name"><span data-i18n="t_full_name"><span data-i18n="z_90f911">الاسم الكامل</span></span> <span class="text-danger">*</span></label>
+      <input type="text" name="full_name" class="form-control" required
+             data-ar-ph="أدخل اسمك الكامل" data-en-ph="Enter your full name"
+             placeholder="أدخل اسمك الكامل"
+             value="{{ form.get('full_name','') if form else '' }}">
+    </div>
+    <div class="mb-3">
+      <label class="form-label" data-ar="اسم المستخدم" data-en="Username"><span data-i18n="t_username"><span data-i18n="z_f089c3">اسم المستخدم</span></span> <span class="text-danger">*</span></label>
+      <input type="text" name="username" class="form-control" required
+             data-ar-ph="اسم المستخدم (فريد)" data-en-ph="Username (unique)"
+             placeholder="اسم المستخدم (فريد)"
+             value="{{ form.get('username','') if form else '' }}">
+    </div>
+    <div class="mb-3">
+      <label class="form-label" data-ar="البريد الإلكتروني" data-en="Email"><span data-i18n="t_email"><span data-i18n="z_2436aa">البريد الإلكتروني</span></span> <span class="text-danger">*</span></label>
+      <input type="email" name="email" class="form-control" required
+             data-ar-ph="example@email.com" data-en-ph="example@email.com"
+             placeholder="example@email.com"
+             value="{{ form.get('email','') if form else '' }}">
+    </div>
+    <div class="mb-3">
+      <label class="form-label" data-ar="رقم الهاتف (اختياري)" data-en="Phone (optional)">رقم الهاتف (اختياري)</label>
+      <input type="tel" name="phone" class="form-control"
+             data-ar-ph="05xxxxxxxx" data-en-ph="05xxxxxxxx"
+             placeholder="05xxxxxxxx"
+             value="{{ form.get('phone','') if form else '' }}">
+    </div>
+    <div class="mb-3">
+      <label class="form-label" data-ar="كلمة المرور" data-en="Password"><span data-i18n="t_password"><span data-i18n="z_bcb75e">كلمة المرور</span></span> <span class="text-danger">*</span></label>
+      <input type="password" name="password" id="pw" class="form-control" required minlength="6"
+             data-ar-ph="6 أحرف على الأقل" data-en-ph="At least 6 characters"
+             placeholder="6 أحرف على الأقل" oninput="checkStrength(this.value)">
+      <div class="mt-1"><div class="pw-strength" id="pwBar"></div></div>
+      <div class="small mt-1" id="pwLabel" style="color:#888"></div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label" data-ar="تأكيد كلمة المرور" data-en="Confirm Password"><span data-i18n="t_confirm_pw"><span data-i18n="z_6a507e">تأكيد كلمة المرور</span></span> <span class="text-danger">*</span></label>
+      <input type="password" name="password2" class="form-control" required minlength="6"
+             data-ar-ph="أعد إدخال كلمة المرور" data-en-ph="Re-enter password"
+             placeholder="أعد إدخال كلمة المرور">
+    </div>
+    <button type="submit" class="btn-register">
+      <i class="bi bi-person-check me-2"></i>
+      <span data-ar="إنشاء الحساب" data-en="Create Account">إنشاء الحساب</span>
+    </button>
+  </form>
+
+  <div class="divider"></div>
+  <div class="text-center small">
+    <span data-ar="لديك حساب؟" data-en="Already have an account?">لديك حساب؟</span>
+    <a href="{{ url_for('auth.login') }}" style="color:#1A555C;font-weight:700"
+       data-ar="تسجيل الدخول" data-en="Sign In"><span data-i18n="t_login"><span data-i18n="z_b5dcde">تسجيل الدخول</span></span></a>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function checkStrength(pw) {
+  const bar = document.getElementById('pwBar');
+  const lbl = document.getElementById('pwLabel');
+  const isEn = document.getElementById('htmlRoot').getAttribute('lang') === 'en';
+  if (!pw) { bar.style.width='0'; bar.style.background=''; lbl.textContent=''; return; }
+  let score = 0;
+  if (pw.length >= 6) score++;
+  if (pw.length >= 10) score++;
+  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
+  if (/[0-9]/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+  const levels = isEn
+    ? [['Weak','#dc3545'],['Fair','#fd7e14'],['Good','#ffc107'],['Strong','#198754'],['Very Strong','#0d6efd']]
+    : [['ضعيفة','#dc3545'],['مقبولة','#fd7e14'],['جيدة','#ffc107'],['قوية','#198754'],['قوية جداً','#0d6efd']];
+  const [text, color] = levels[Math.min(score-1,4)] || levels[0];
+  bar.style.width = (score*20)+'%';
+  bar.style.background = color;
+  lbl.style.color = color;
+  lbl.textContent = text;
+}
+
+function toggleLang() {
+  const html = document.getElementById('htmlRoot');
+  const btn  = document.getElementById('langBtn');
+  const isAr = html.getAttribute('lang') === 'ar';
+  const bsCSS = document.getElementById('bsCSS');
+
+  if (isAr) {
+    html.setAttribute('lang','en'); html.setAttribute('dir','ltr');
+    btn.innerText = 'ع';
+    bsCSS.href = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css';
+    localStorage.setItem('ars_lang','en');
+  } else {
+    html.setAttribute('lang','ar'); html.setAttribute('dir','rtl');
+    btn.innerText = 'EN';
+    bsCSS.href = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css';
+    localStorage.setItem('ars_lang','ar');
+  }
+
+  document.querySelectorAll('[data-ar]').forEach(el => {
+    el.textContent = isAr ? el.getAttribute('data-en') : el.getAttribute('data-ar');
+  });
+  document.querySelectorAll('[data-ar-ph]').forEach(el => {
+    el.placeholder = isAr ? el.getAttribute('data-en-ph') : el.getAttribute('data-ar-ph');
+  });
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  if (localStorage.getItem('ars_lang') === 'en') toggleLang();
+});
+</script>
+</body>
+</html>
