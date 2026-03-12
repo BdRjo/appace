@@ -1,4 +1,5 @@
 """قوائم المهام — مساحة شخصية عصرية"""
+from utils.flash_helper import flash_msg
 from flask import (Blueprint, render_template, redirect, url_for,
                    request, flash, abort, jsonify)
 from flask_login import login_required, current_user
@@ -55,7 +56,7 @@ def new():
         prios  = request.form.getlist('priorities[]')
         dues   = request.form.getlist('due_dates[]')
         if not name:
-            flash('اسم القائمة مطلوب', 'danger')
+            flash_msg('اسم القائمة مطلوب', 'danger')
             return render_template('checklists/form.html', cl=None, form=request.form)
         cl = Checklist(name=name, description=desc, is_template=True,
                        is_public=public, created_by_id=current_user.id,
@@ -74,7 +75,7 @@ def new():
                     due_date=due, order_index=i
                 ))
         db.commit()
-        flash(f'✅ تمت إضافة القائمة: {name}', 'success')
+        flash_msg(f'✅ تمت إضافة القائمة: {name}', 'success')
         return redirect(url_for('checklists.detail', cl_id=cl.id))
     return render_template('checklists/form.html', cl=None, form={})
 
@@ -111,7 +112,7 @@ def edit(cl_id):
                     due_date=due, order_index=i
                 ))
         db.commit()
-        flash('✅ تم تحديث القائمة', 'success')
+        flash_msg('✅ تم تحديث القائمة', 'success')
         return redirect(url_for('checklists.detail', cl_id=cl.id))
     return render_template('checklists/form.html', cl=cl, form={})
 
@@ -124,7 +125,7 @@ def delete(cl_id):
     if not cl: abort(404)
     if not perms.can('checklists_delete') and cl.created_by_id != current_user.id: abort(403)
     db.delete(cl); db.commit()
-    flash('تم حذف القائمة', 'success')
+    flash_msg('تم حذف القائمة', 'success')
     return redirect(url_for('checklists.index'))
 
 
@@ -268,9 +269,18 @@ def reservation_checklist(res_id):
     if request.method == 'POST':
         action = request.form.get('action')
         if action == 'add_item':
-            content = request.form.get('content','').strip()
+            content  = request.form.get('content','').strip()
+            priority = request.form.get('priority', 1, type=int)
+            due_date_str = request.form.get('due_date','').strip()
+            due_date = None
+            if due_date_str:
+                try:
+                    from datetime import datetime as _dt
+                    due_date = _dt.strptime(due_date_str, '%Y-%m-%d')
+                except: pass
             if content:
-                db.add(ChecklistItem(reservation_id=res_id, content=content))
+                db.add(ChecklistItem(reservation_id=res_id, content=content,
+                                     priority=priority, due_date=due_date))
                 db.commit()
         elif action == 'toggle':
             item_id = request.form.get('item_id', type=int)

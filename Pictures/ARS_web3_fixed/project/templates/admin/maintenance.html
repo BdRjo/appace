@@ -1,0 +1,482 @@
+{% extends 'base.html' %}
+{% block title %}الصيانة — ARS{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h1><i class="bi bi-tools me-2"></i><span data-i18n="maintenance"><span data-i18n="t_maintenance">الصيانة</span></span></h1>
+</div>
+
+<div class="row g-4">
+  <!-- DB Operations -->
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header" data-i18n="db_operations">🔧 عمليات قاعدة البيانات</div>
+      <div class="card-body d-flex flex-column gap-3">
+        <form method="POST" action="{{ url_for('admin.backup') }}" onsubmit="return confirm('هل تريد إنشاء نسخة احتياطية؟')">
+          <button class="btn w-100 text-white fw-bold py-2" style="background:#1A555C" data-i18n="backup">💾 نسخ احتياطي</button>
+        </form>
+        <form method="POST" action="{{ url_for('admin.clean_logs') }}" onsubmit="return confirm('سيتم حذف السجلات الأقدم من 30 يوم. متابعة؟')">
+          <button class="btn w-100 text-white fw-bold py-2" style="background:#2E8B8F">
+            <span data-i18n="clean_logs">🧹 تنظيف السجلات القديمة</span>
+            <span class="badge bg-light text-dark ms-2">{{ log_count }} سجل</span>
+          </button>
+        </form>
+        <form method="POST" action="{{ url_for('admin.optimize') }}" onsubmit="return confirm('تحسين قاعدة البيانات؟')">
+          <button class="btn w-100 text-white fw-bold py-2" style="background:#D4A853" data-i18n="optimize_db">⚡ تحسين قاعدة البيانات</button>
+        </form>
+        <a href="{{ url_for('admin.settings') }}" class="btn w-100 text-white fw-bold py-2" style="background:#0f343a" data-i18n="email_settings">📧 إعداد البريد الإلكتروني</a>
+        <a href="{{ url_for('admin.system_log') }}" class="btn w-100 text-white fw-bold py-2" style="background:#D4A853" data-i18n="system_log">🛡️ سجل النظام والأمان</a>
+        <a href="{{ url_for('users.login_log') }}" class="btn w-100 text-white fw-bold py-2" style="background:#2E6B8A">
+          <i class="bi bi-clock-history me-2"></i>سجل تسجيل الدخول
+        </a>
+        <a href="{{ url_for('admin.audit_log') }}" class="btn w-100 text-white fw-bold py-2" style="background:#1A555C">
+          <i class="bi bi-journal-text me-2"></i><span data-i18n="t_audit_log">سجل الأنشطة (Audit Log)</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- System Settings -->
+  <div class="col-md-6">
+    <div class="card mb-4">
+      <div class="card-header" data-i18n="sys_settings">⚙️ إعدادات النظام</div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('admin.toggle_maintenance') }}">
+          <div class="d-flex align-items-center justify-content-between p-3 rounded mb-3 {{ 'border' if mcfg.system_suspended else 'border' }}">
+            <div>
+              <div class="fw-bold">{{ '🔴 النظام معلّق (وضع الصيانة)' if mcfg.system_suspended else '✅ النظام نشط' }}</div>
+              <div class="text-muted small">تعليق النظام يمنع المستخدمين من الوصول</div>
+            </div>
+            <button type="submit" name="toggle" value="system" class="btn btn-sm {{ 'btn-primary-ars' if mcfg.system_suspended else 'btn-outline-secondary' }}">
+              {{ 'تفعيل النظام' if mcfg.system_suspended else 'تعليق النظام' }}
+            </button>
+          </div>
+        </form>
+        <form method="POST" action="{{ url_for('admin.toggle_maintenance') }}">
+          <div class="d-flex align-items-center justify-content-between p-3 rounded {{ 'border' if mcfg.registration_suspended else 'border' }}">
+            <div>
+              <div class="fw-bold">{{ '🔴 تسجيل المستخدمين معلّق' if mcfg.registration_suspended else '🟢 تسجيل المستخدمين مفعّل' }}</div>
+              <div class="text-muted small">تعليق تسجيل الحسابات الجديدة</div>
+            </div>
+            <button type="submit" name="toggle" value="registration" class="btn btn-sm {{ 'btn-success' if mcfg.registration_suspended else 'btn-danger' }}">
+              {{ 'تفعيل التسجيل' if mcfg.registration_suspended else 'تعليق التسجيل' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <!-- Quick links -->
+    <div class="card">
+      <div class="card-header">🔗 روابط سريعة</div>
+      <div class="card-body d-flex flex-column gap-2">
+        <a href="{{ url_for('users.roles') }}" class="btn btn-outline-secondary text-start"><i class="bi bi-shield me-2"></i>إدارة الأدوار والصلاحيات</a>
+        <a href="{{ url_for('reports.comparison') }}" class="btn btn-outline-secondary text-start"><i class="bi bi-bar-chart-steps me-2"></i><span data-i18n="t_comparison">المقارنة المتقدمة</span></a>
+        <a href="{{ url_for('blocked.index') }}" class="btn btn-outline-secondary text-start"><i class="bi bi-slash-circle me-2"></i><span data-i18n="t_blocked">الفترات المحظورة</span></a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ LOGO & BRANDING ════════════════════════════════════════════════════ -->
+<div class="row g-4 mt-2">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">🎨 الشعار وترويسة التقارير</div>
+      <div class="card-body">
+        <div class="row g-4">
+          <div class="col-md-6">
+            <h6 class="fw-bold" style="color:#1A555C">🖼 شعار النظام (Sidebar)</h6>
+            <p class="small text-muted">يظهر بجانب اسم النظام في الشريط الجانبي</p>
+            <form method="POST" action="{{ url_for('admin.maintenance') }}" enctype="multipart/form-data">
+              <input type="hidden" name="ticker_action" value="save_logo">
+              <div class="d-flex align-items-center gap-3 mb-3">
+                {% if mcfg.get('logo_b64') %}
+                <img src="{{ mcfg.logo_b64 }}" style="height:40px;width:auto;border-radius:6px;background:#1A555C;padding:4px">
+                {% else %}
+                <div class="text-muted small p-3 border rounded">لا يوجد شعار</div>
+                {% endif %}
+              </div>
+              <input type="file" name="logo_file" class="form-control mb-2" accept=".png,.jpg,.jpeg,.svg,.gif">
+              <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary-ars btn-sm">💾 رفع الشعار</button>
+                {% if mcfg.get('logo_b64') %}
+                <button type="submit" name="remove_logo" value="1" class="btn btn-outline-danger btn-sm">🗑 إزالة</button>
+                {% endif %}
+              </div>
+            </form>
+          </div>
+          <div class="col-md-6">
+            <h6 class="fw-bold" style="color:#1A555C">📄 ترويسة التقارير والطباعة</h6>
+            <p class="small text-muted">تظهر في أعلى كل تقرير مطبوع أو PDF</p>
+            <form method="POST" action="{{ url_for('admin.maintenance') }}" id="headerForm">
+              <input type="hidden" name="ticker_action" value="save_report_header">
+              <div class="mb-2">
+                <label class="form-label small fw-bold">اسم المؤسسة / الجهة</label>
+                <input type="text" id="hTitle" name="report_header_title" class="form-control form-control-sm mb-2"
+                       placeholder="مثال: وزارة التعليم"
+                       value="{{ mcfg.get('report_header_title','') }}" oninput="previewHeader()">
+                <label class="form-label small fw-bold">العنوان الفرعي</label>
+                <input type="text" id="hSubtitle" name="report_header_subtitle" class="form-control form-control-sm mb-2"
+                       placeholder="مثال: إدارة الحجوزات"
+                       value="{{ mcfg.get('report_header_subtitle','') }}" oninput="previewHeader()">
+                <label class="form-label small fw-bold">footer / تذييل</label>
+                <input type="text" id="hFooter" name="report_header_footer" class="form-control form-control-sm mb-2"
+                       placeholder="مثال: جميع الحقوق محفوظة © 2025"
+                       value="{{ mcfg.get('report_header_footer','') }}" oninput="previewHeader()">
+                <label class="form-label small fw-bold">معلومات إضافية</label>
+                <textarea id="hExtra" name="report_header_extra" class="form-control form-control-sm" rows="2"
+                          placeholder="اختياري..." oninput="previewHeader()">{{ mcfg.get('report_header_extra','') }}</textarea>
+              </div>
+              <div class="d-flex gap-2 mt-3">
+                <button type="submit" class="btn btn-primary-ars btn-sm">💾 حفظ الترويسة</button>
+                <button type="button" onclick="showHeaderPreview()" class="btn btn-outline-secondary btn-sm">
+                  <i class="bi bi-eye me-1"></i><span data-i18n="t_preview">معاينة</span>
+                </button>
+              </div>
+            </form>
+
+            <!-- Header Preview Modal -->
+            <div id="headerPreviewBox" class="mt-3 d-none" style="border:1px solid #dde8ea;border-radius:10px;padding:12px;background:#f8fbfc">
+              <div class="text-center mb-2" style="border-bottom:2px solid #1A555C;padding-bottom:8px">
+                <div id="pvHTitle" class="fw-bold" style="color:#1A555C;font-size:1rem"></div>
+                <div id="pvHSub" class="text-muted small"></div>
+                <div id="pvHExtra" class="text-muted" style="font-size:.75rem"></div>
+              </div>
+              <div class="text-center text-muted small" style="font-size:.7rem;font-style:italic">
+                [ محتوى التقرير هنا ]
+              </div>
+              <div class="text-center mt-2" style="border-top:1px solid #9ab3b8;padding-top:6px">
+                <div id="pvHFooter" class="text-muted" style="font-size:.72rem"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TICKER MANAGEMENT — v54 exact: font/color/opacity/preview ══════════ -->
+<div class="row g-4 mt-2">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header" data-i18n="ticker_mgmt">📢 إدارة شريط الأخبار (Ticker)</div>
+      <div class="card-body">
+        <div class="row g-4">
+          <!-- Left: Messages -->
+          <div class="col-lg-7">
+            <ul class="nav nav-tabs mb-3" id="tickerTabs">
+              <li class="nav-item">
+                <a class="nav-link active" data-bs-toggle="tab" href="#tickerAR" data-i18n="ticker_ar_tab">🇸🇦 عربي</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#tickerEN" data-i18n="ticker_en_tab">🇬🇧 English</a>
+              </li>
+            </ul>
+            <div class="tab-content">
+              <!-- AR tab -->
+              <div class="tab-pane fade show active" id="tickerAR">
+                <form method="POST" action="{{ url_for('admin.maintenance') }}" class="mb-3">
+                  <div class="mb-2 d-flex gap-2 align-items-center">
+                    <div class="form-check form-switch mb-0">
+                      <input class="form-check-input" type="checkbox" id="htmlModeAR" onchange="toggleHtmlMode('AR')">
+                      <label class="form-check-label small" for="htmlModeAR">HTML</label>
+                    </div>
+                    <small class="text-muted">تفعيل HTML للروابط والتنسيق</small>
+                  </div>
+                  <input type="hidden" name="ticker_action" value="add_ar">
+                  <div class="d-flex gap-2">
+                    <input type="text" id="tickerInputAR" name="ticker_text_ar" class="form-control" placeholder="أضف رسالة (نص / HTML / رابط / إيموجي)..." required>
+                    <button class="btn btn-primary-ars px-4" data-i18n="add"><span data-i18n="t_add">إضافة</span></button>
+                  </div>
+                  <div id="htmlPreviewAR" class="mt-1 p-2 border rounded small text-muted d-none"></div>
+                </form>
+                <div class="list-group" id="tickerListAR">
+                  {% for msg in ticker_messages_ar %}
+                  <div class="list-group-item d-flex align-items-center gap-2 py-2">
+                    <span class="flex-grow-1 small">{{ msg }}</span>
+                    <form method="POST" action="{{ url_for('admin.maintenance') }}" class="mb-0">
+                      <input type="hidden" name="ticker_action" value="del_ar">
+                      <input type="hidden" name="ticker_idx" value="{{ loop.index0 }}">
+                      <button class="btn btn-sm btn-outline-danger py-0 px-2" onclick="return confirm('حذف؟')">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </form>
+                  </div>
+                  {% else %}
+                  <p class="text-muted small p-2">لا توجد رسائل. أضف رسالة أعلاه.</p>
+                  {% endfor %}
+                </div>
+              </div>
+              <!-- EN tab -->
+              <div class="tab-pane fade" id="tickerEN">
+                <form method="POST" action="{{ url_for('admin.maintenance') }}" class="d-flex gap-2 mb-3">
+                  <input type="hidden" name="ticker_action" value="add_en">
+                  <input type="text" name="ticker_text_en" class="form-control" placeholder="Add new English message..." required>
+                  <button class="btn btn-primary-ars px-4">Add</button>
+                </form>
+                <div class="list-group" id="tickerListEN">
+                  {% for msg in ticker_messages_en %}
+                  <div class="list-group-item d-flex align-items-center gap-2 py-2">
+                    <span class="flex-grow-1 small">{{ msg }}</span>
+                    <form method="POST" action="{{ url_for('admin.maintenance') }}" class="mb-0">
+                      <input type="hidden" name="ticker_action" value="del_en">
+                      <input type="hidden" name="ticker_idx" value="{{ loop.index0 }}">
+                      <button class="btn btn-sm btn-outline-danger py-0 px-2" onclick="return confirm('Delete?')">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </form>
+                  </div>
+                  {% else %}
+                  <p class="text-muted small p-2">No messages. Add one above.</p>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Appearance — v54 exact (font/size/text color/bg color/opacity/speed) -->
+          <div class="col-lg-5">
+            <form method="POST" action="{{ url_for('admin.maintenance') }}" id="tickerAppForm">
+              <input type="hidden" name="ticker_action" value="save_appearance">
+              <h6 class="fw-bold mb-3" style="color:#1A555C" data-i18n="appearance">🎨 المظهر</h6>
+
+              <div class="row g-3 mb-3">
+                <div class="col-6">
+                  <label class="form-label small fw-bold" data-i18n="font">الخط</label>
+                  <select name="ticker_font" class="form-select form-select-sm" id="tFont" onchange="previewTicker()">
+                    {% for f in ['Segoe UI','Arial','Tahoma','Calibri','Georgia','Courier New'] %}
+                    <option value="{{ f }}" {{ 'selected' if ticker_cfg.get('font')==f }}>{{ f }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-6">
+                  <label class="form-label small fw-bold" data-i18n="font_size">حجم الخط</label>
+                  <select name="ticker_size" class="form-select form-select-sm" id="tSize" onchange="previewTicker()">
+                    {% for s in [9,10,11,12,13,14] %}
+                    <option value="{{ s }}" {{ 'selected' if ticker_cfg.get('size',11)|int==s }}>{{ s }}px</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-6">
+                  <label class="form-label small fw-bold" data-i18n="text_color">لون النص</label>
+                  <div class="d-flex align-items-center gap-2">
+                    <input type="color" name="ticker_fg" id="tFg" value="{{ ticker_cfg.get('fg','#F2C99A') }}"
+                           class="form-control form-control-color" style="width:48px;height:34px;padding:2px"
+                           oninput="previewTicker()">
+                    <code id="tFgVal" class="small">{{ ticker_cfg.get('fg','#F2C99A') }}</code>
+                  </div>
+                </div>
+                <div class="col-6">
+                  <label class="form-label small fw-bold" data-i18n="bg_color">لون الخلفية</label>
+                  <div class="d-flex align-items-center gap-2">
+                    <input type="color" name="ticker_bg" id="tBg" value="{{ ticker_cfg.get('bg','#1A555C') }}"
+                           class="form-control form-control-color" style="width:48px;height:34px;padding:2px"
+                           oninput="previewTicker()">
+                    <code id="tBgVal" class="small">{{ ticker_cfg.get('bg','#1A555C') }}</code>
+                  </div>
+                </div>
+                <div class="col-12">
+                  <label class="form-label small fw-bold">
+                    <span data-i18n="bg_opacity">شفافية الخلفية %</span>:
+                    <strong id="opacityVal">{{ ticker_cfg.get('opacity',0) }}%</strong>
+                  </label>
+                  <input type="range" name="ticker_opacity" id="tOpacity" class="form-range"
+                         min="0" max="100" step="5" value="{{ ticker_cfg.get('opacity',0) }}"
+                         oninput="document.getElementById('opacityVal').textContent=this.value+'%';previewTicker()">
+                </div>
+                <div class="col-12">
+                  <label class="form-label small fw-bold">
+                    <span data-i18n="speed">السرعة</span>:
+                    <strong id="speedVal">{{ ticker_cfg.get('speed',35) }}s</strong>
+                  </label>
+                  <input type="range" name="ticker_speed" id="tSpeed" class="form-range"
+                         min="10" max="80" step="5" value="{{ ticker_cfg.get('speed',35) }}"
+                         oninput="document.getElementById('speedVal').textContent=this.value+'s';previewTicker()">
+                </div>
+              </div>
+
+              <!-- Live preview — v54 exact -->
+              <label class="form-label small fw-bold" data-i18n="live_preview">معاينة حية</label>
+              <div id="tickerPreview" style="height:36px;overflow:hidden;border-radius:6px;display:flex;align-items:center;border:1px solid #ddd;margin-bottom:12px">
+                <div id="pvLabel" style="background:#D4A853;color:#fff;font-size:.72rem;font-weight:700;padding:0 12px;height:100%;display:flex;align-items:center;white-space:nowrap">📢 أخبار</div>
+                <div style="flex:1;overflow:hidden;height:100%;display:flex;align-items:center">
+                  <div id="pvTrack" style="white-space:nowrap;animation:tickerScroll 35s linear infinite;padding:0 40px">
+                    <span id="pvText" style="font-weight:600;color:#F2C99A">معاينة شريط الأخبار — Preview Ticker</span>
+                  </div>
+                </div>
+              </div>
+
+              <button type="submit" class="btn btn-primary-ars w-100" data-i18n="save_apply">💾 حفظ وتطبيق</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function previewTicker() {
+  const bg      = document.getElementById('tBg').value;
+  const fg      = document.getElementById('tFg').value;
+  const font    = document.getElementById('tFont').value;
+  const size    = document.getElementById('tSize').value;
+  const opacity = parseInt(document.getElementById('tOpacity').value) / 100;
+  const speed   = document.getElementById('tSpeed').value;
+
+  // Update hex labels
+  document.getElementById('tFgVal').textContent = fg;
+  document.getElementById('tBgVal').textContent = bg;
+
+  // Parse bg hex → rgba
+  const r = parseInt(bg.slice(1,3),16);
+  const g = parseInt(bg.slice(3,5),16);
+  const b2= parseInt(bg.slice(5,7),16);
+
+  const preview = document.getElementById('tickerPreview');
+  preview.style.background = `rgba(${r},${g},${b2},${opacity})`;
+  document.getElementById('pvText').style.color     = fg;
+  document.getElementById('pvText').style.fontFamily= font;
+  document.getElementById('pvText').style.fontSize  = size + 'px';
+  document.getElementById('pvTrack').style.animationDuration = speed + 's';
+
+  // Also update live ticker bar
+  const wrap  = document.getElementById('tickerWrap');
+  const track = document.getElementById('tickerTrack');
+  const txt   = document.getElementById('tickerText');
+  if (wrap)  wrap.style.background  = `rgba(${r},${g},${b2},${opacity})`;
+  if (txt)   { txt.style.color = fg; txt.style.fontFamily = font; txt.style.fontSize = size+'px'; }
+  if (track) track.style.animationDuration = speed + 's';
+}
+// Init preview on load
+document.addEventListener('DOMContentLoaded', previewTicker);
+
+// Header preview
+function previewHeader() {
+  document.getElementById('pvHTitle').textContent  = document.getElementById('hTitle')?.value || '';
+  document.getElementById('pvHSub').textContent    = document.getElementById('hSubtitle')?.value || '';
+  document.getElementById('pvHExtra').textContent  = document.getElementById('hExtra')?.value || '';
+  document.getElementById('pvHFooter').textContent = document.getElementById('hFooter')?.value || '';
+}
+function showHeaderPreview() {
+  previewHeader();
+  const box = document.getElementById('headerPreviewBox');
+  box.classList.toggle('d-none');
+}
+document.addEventListener('DOMContentLoaded', previewHeader);
+
+// HTML mode toggle for ticker
+function toggleHtmlMode(lang) {
+  const cb = document.getElementById('htmlMode' + lang);
+  const input = document.getElementById('tickerInput' + lang);
+  const preview = document.getElementById('htmlPreview' + lang);
+  if (cb.checked) {
+    preview.classList.remove('d-none');
+    input.addEventListener('input', () => { preview.innerHTML = input.value; });
+    preview.innerHTML = input.value;
+    input.placeholder = '<a href="#">رابط</a> أو <strong>نص عريض</strong>';
+  } else {
+    preview.classList.add('d-none');
+    input.placeholder = 'أضف رسالة جديدة...';
+  }
+}
+</script>
+
+<!-- ══ LIVE USERS & CONNECTION INFO ══════════════════════════════════════ -->
+<div class="row g-4 mt-2">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>👥 <span data-i18n="t_live_users">المستخدمون النشطون</span></span>
+        <span class="badge" style="background:var(--primary)" id="liveCount">—</span>
+      </div>
+      <div class="card-body p-0">
+        <div id="liveUsersList" style="max-height:280px;overflow-y:auto">
+          <div class="text-center text-muted py-3 small" id="liveLoading">جاري التحميل...</div>
+        </div>
+      </div>
+      <div class="card-footer py-1 d-flex justify-content-between align-items-center">
+        <small class="text-muted">تحديث كل 30 ثانية</small>
+        <button onclick="loadLiveUsers()" class="btn btn-sm btn-outline-secondary py-0">
+          <i class="bi bi-arrow-clockwise"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-person-badge me-2"></i><span data-i18n="t_your_info">معلومات اتصالك الحالي</span></div>
+      <div class="card-body">
+        <div class="mb-2 p-2 rounded" style="background:#f4f9fa">
+          <div class="small text-muted mb-1">📡 عنوان IP</div>
+          <div class="fw-bold" id="myIP" style="font-family:monospace;color:var(--primary)">—</div>
+        </div>
+        <div class="p-2 rounded" style="background:#f4f9fa">
+          <div class="small text-muted mb-1">🌐 المتصفح</div>
+          <div class="fw-bold" id="myBrowser" style="color:var(--primary)">—</div>
+          <div class="small text-muted mt-1" id="myAgent" style="word-break:break-all"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+{% block extra_js_extra %}
+<script>
+// Live users loader
+function loadLiveUsers() {
+  fetch('/admin/live-users')
+    .then(r => r.json())
+    .then(data => {
+      const el = document.getElementById('liveUsersList');
+      const ct = document.getElementById('liveCount');
+      if (ct) ct.textContent = data.count || 0;
+      if (!data.users || !data.users.length) {
+        el.innerHTML = '<div class="text-center text-muted py-3 small">لا يوجد مستخدمون نشطون الآن</div>';
+        return;
+      }
+      el.innerHTML = data.users.map(u => `
+        <div class="d-flex align-items-center gap-2 p-2 border-bottom">
+          <div style="width:32px;height:32px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.8rem;flex-shrink:0">
+            ${(u.full_name||u.username||'?')[0].toUpperCase()}
+          </div>
+          <div class="flex-grow-1 small">
+            <div class="fw-bold">${u.full_name || u.username}</div>
+            <div class="text-muted" style="font-size:.75rem">🕐 ${u.time}</div>
+          </div>
+          <div class="small text-end" style="font-size:.72rem">
+            <div style="font-family:monospace;color:var(--primary)">${u.ip}</div>
+            <div class="text-muted">${u.browser}</div>
+          </div>
+        </div>
+      `).join('');
+    }).catch(() => {
+      const el = document.getElementById('liveUsersList');
+      if (el) el.innerHTML = '<div class="text-center text-muted py-3 small">تعذر التحميل</div>';
+    });
+}
+
+// My info loader
+function loadMyInfo() {
+  fetch('/admin/my-info')
+    .then(r => r.json())
+    .then(data => {
+      const ip = document.getElementById('myIP');
+      const br = document.getElementById('myBrowser');
+      const ag = document.getElementById('myAgent');
+      if (ip) ip.textContent = data.ip || '—';
+      if (br) br.textContent = data.browser || '—';
+      if (ag) ag.textContent = data.agent || '';
+    }).catch(() => {});
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadLiveUsers();
+  loadMyInfo();
+  setInterval(loadLiveUsers, 30000);
+});
+</script>
+{% endblock %}

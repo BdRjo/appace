@@ -3,6 +3,7 @@
 """
 import csv, io
 from datetime import datetime
+from utils.flash_helper import flash_msg
 from flask import (Blueprint, render_template, redirect, url_for,
                    request, flash, abort, Response)
 from flask_login import login_required, current_user
@@ -44,13 +45,13 @@ def new():
         is_active = request.form.get('is_active') == 'on'
 
         if not name:
-            flash('اسم الموقع مطلوب','danger')
+            flash_msg('اسم الموقع مطلوب', 'danger')
             return render_template('admin/location_form.html', loc=None, form=request.form)
 
         loc = Location(name=name, name_en=name_en, city=city, area=area, is_active=is_active)
         db.add(loc); db.commit()
         syslog('ADD_LOCATION', f'موقع جديد: {name}')
-        flash(f'✅ تمت إضافة الموقع: {name}','success')
+        flash_msg(f'✅ تمت إضافة الموقع: {name}', 'success')
         return redirect(url_for('locations.index'))
 
     return render_template('admin/location_form.html', loc=None, form={},
@@ -85,7 +86,7 @@ def edit(loc_id):
 
         db.commit()
         syslog('EDIT_LOCATION', f'تعديل الموقع: {loc.name}')
-        flash('✅ تم تحديث الموقع','success')
+        flash_msg('✅ تم تحديث الموقع', 'success')
         return redirect(url_for('locations.index'))
 
     assigned = {u.id for u in loc.allowed_users}
@@ -101,11 +102,11 @@ def delete(loc_id):
     loc = db.query(Location).get(loc_id)
     if not loc: abort(404)
     if loc.venues:
-        flash('لا يمكن حذف موقع يحتوي على قاعات','danger')
+        flash_msg('لا يمكن حذف موقع يحتوي على قاعات', 'danger')
         return redirect(url_for('locations.index'))
     name = loc.name; db.delete(loc); db.commit()
     syslog('DELETE_LOCATION', f'حذف الموقع: {name}')
-    flash(f'تم حذف الموقع: {name}','success')
+    flash_msg(f'تم حذف الموقع: {name}', 'success')
     return redirect(url_for('locations.index'))
 
 
@@ -121,7 +122,7 @@ def export_csv():
     for l in db.query(Location).order_by(Location.name).all():
         w.writerow([l.name, l.name_en or '', l.city or '', l.area or '',
                     '1' if l.is_active else '0'])
-    content = b'\xff\xfe' + out.getvalue().encode('utf-16-le')
+    content = b'\xef\xbb\xbf' + out.getvalue().encode('utf-8')
     return Response(content, mimetype='text/csv',
                     headers={'Content-Disposition':'attachment; filename=locations.csv'})
 
@@ -134,7 +135,7 @@ def import_csv():
     db = get_db()
     if request.method == 'POST':
         f = request.files.get('file')
-        if not f: flash('يرجى رفع ملف CSV','danger'); return redirect(url_for('locations.import_csv'))
+        if not f: flash_msg('يرجى رفع ملف CSV', 'danger'); return redirect(url_for('locations.import_csv'))
 
         content  = f.stream.read().decode('utf-8-sig')
         reader   = csv.DictReader(io.StringIO(content))
@@ -164,7 +165,7 @@ def import_csv():
                 imported += 1
         db.commit()
         syslog('IMPORT_LOCATIONS', f'استيراد: جديد={imported}, محدّث={updated}, متخطى={skipped}, خطأ={errors}')
-        flash(f'✅ استيراد مكتمل — جديد: {imported}، محدّث: {updated}، متخطى: {skipped}، أخطاء: {errors}','success')
+        flash_msg(f'✅ استيراد مكتمل — جديد: {imported}، محدّث: {updated}، متخطى: {skipped}، أخطاء: {errors}', 'success')
         return redirect(url_for('locations.index'))
 
     return render_template('admin/import_csv.html', mode='locations',
@@ -211,7 +212,7 @@ def new():
         requires = request.form.get('requires_approval') == 'on'
         is_active= request.form.get('is_active') == 'on'
 
-        if not name: flash('اسم القاعة مطلوب','danger'); return render_template('admin/venue_form.html', venue=None, locations=locs, form=request.form, all_users=[], assigned_users=set())
+        if not name: flash_msg('اسم القاعة مطلوب', 'danger'); return render_template('admin/venue_form.html', venue=None, locations=locs, form=request.form, all_users=[], assigned_users=set())
 
         try: cap = int(capacity) if capacity else None
         except: cap = None
@@ -222,7 +223,7 @@ def new():
                   requires_approval=requires, is_active=is_active)
         db.add(v); db.commit()
         syslog('ADD_VENUE', f'قاعة جديدة: {name}')
-        flash(f'✅ تمت إضافة القاعة: {name}','success')
+        flash_msg(f'✅ تمت إضافة القاعة: {name}', 'success')
         return redirect(url_for('venues_mgmt.index'))
 
     return render_template('admin/venue_form.html', venue=None, locations=locs,
@@ -260,7 +261,7 @@ def edit(venue_id):
 
         db.commit()
         syslog('EDIT_VENUE', f'تعديل القاعة: {venue.name}')
-        flash('✅ تم تحديث القاعة','success')
+        flash_msg('✅ تم تحديث القاعة', 'success')
         return redirect(url_for('venues_mgmt.index'))
 
     assigned = {u.id for u in venue.allowed_users}
@@ -278,7 +279,7 @@ def delete(venue_id):
     if not venue: abort(404)
     name = venue.name; db.delete(venue); db.commit()
     syslog('DELETE_VENUE', f'حذف القاعة: {name}')
-    flash(f'تم حذف القاعة: {name}','success')
+    flash_msg(f'تم حذف القاعة: {name}', 'success')
     return redirect(url_for('venues_mgmt.index'))
 
 
@@ -290,7 +291,7 @@ def export_csv():
     db  = get_db()
     out = io.StringIO()
     # Use tab delimiter to avoid column merging issues in Excel with Arabic content
-    w   = csv.writer(out, delimiter='\t', quoting=csv.QUOTE_ALL)
+    w   = csv.writer(out)
     w.writerow(['name','name_en','location_name','code','capacity','equipment','notes','requires_approval','is_active'])
     for v in db.query(Venue).order_by(Venue.name).all():
         w.writerow([v.name, v.name_en or '',
@@ -299,9 +300,9 @@ def export_csv():
                     v.equipment or '', v.notes or '',
                     '1' if v.requires_approval else '0',
                     '1' if v.is_active else '0'])
-    content = b'\xff\xfe' + out.getvalue().encode('utf-16-le')
-    return Response(content, mimetype='text/tab-separated-values',
-                    headers={'Content-Disposition':'attachment; filename=venues.tsv'})
+    content = b'\xef\xbb\xbf' + out.getvalue().encode('utf-8')
+    return Response(content, mimetype='text/csv; charset=utf-8',
+                    headers={'Content-Disposition':'attachment; filename=venues.csv'})
 
 
 # ── CSV import — مطابق لـ v54 ImportCSVWindow (mode=venues) ──────────────────
@@ -312,7 +313,7 @@ def import_csv():
     db = get_db()
     if request.method == 'POST':
         f = request.files.get('file')
-        if not f: flash('يرجى رفع ملف CSV','danger'); return redirect(url_for('venues_mgmt.import_csv'))
+        if not f: flash_msg('يرجى رفع ملف CSV', 'danger'); return redirect(url_for('venues_mgmt.import_csv'))
 
         content  = f.stream.read().decode('utf-8-sig')
         reader   = csv.DictReader(io.StringIO(content))
@@ -354,7 +355,7 @@ def import_csv():
                 imported += 1
         db.commit()
         syslog('IMPORT_VENUES', f'استيراد: جديد={imported}, محدّث={updated}')
-        flash(f'✅ استيراد مكتمل — جديد: {imported}، محدّث: {updated}، متخطى: {skipped}، أخطاء: {errors}','success')
+        flash_msg(f'✅ استيراد مكتمل — جديد: {imported}، محدّث: {updated}، متخطى: {skipped}، أخطاء: {errors}', 'success')
         return redirect(url_for('venues_mgmt.index'))
 
     return render_template('admin/import_csv.html', mode='venues',

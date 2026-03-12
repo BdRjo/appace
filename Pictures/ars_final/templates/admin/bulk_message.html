@@ -1,39 +1,39 @@
 {% extends 'base.html' %}
-{% block title %}رسالة جماعية — ARS{% endblock %}
+{% block title %}{% if current_lang=="en" %}Bulk Message — ARS{% else %}رسالة جماعية — ARS{% endif %}{% endblock %}
 {% block content %}
 <div class="page-header">
-  <h1><i class="bi bi-envelope-paper me-2"></i><span data-i18n="z_5a7ab4">إرسال رسالة جماعية</span></h1>
+  <h1><i class="bi bi-envelope-paper me-2"></i><span>{{ _('إرسال رسالة جماعية') }}</h1>
 </div>
 
 <div class="card">
-  <div class="card-header">📧 إرسال بريد إلكتروني للمستخدمين</div>
+  <div class="card-header">{{ _('📧 إرسال بريد إلكتروني للمستخدمين') }}</div>
   <div class="card-body">
     <form method="POST">
       <div class="row g-3">
         <div class="col-12">
-          <label class="form-label fw-bold"><span data-i18n="t_subject"><span data-i18n="z_881c23">الموضوع</span></span> <span class="text-danger">*</span></label>
+          <label class="form-label fw-bold">{{ _('الموضوع') }} *</label>
           <input type="text" name="subject" class="form-control" required
-                 placeholder="موضوع الرسالة...">
+                 placeholder="{{ _('موضوع الرسالة...') }}">
         </div>
         <div class="col-12">
-          <label class="form-label fw-bold">نص الرسالة <span class="text-danger">*</span></label>
+          <label class="form-label fw-bold">{{ _('نص الرسالة') }}*</label>
           <textarea name="body" class="form-control" rows="8" required
-                    placeholder="اكتب نص الرسالة هنا..."></textarea>
+                    placeholder="{{ _('اكتب نص الرسالة هنا...') }}"></textarea>
         </div>
         <div class="col-12">
-          <label class="form-label fw-bold"><span data-i18n="z_c448a8">المستلمون</span></label>
+          <label class="form-label fw-bold"><span>{{ _('المستلمون') }}</label>
           <div class="mb-2 d-flex gap-3">
             <div class="form-check">
               <input class="form-check-input" type="radio" name="recipient"
                      value="all" id="recpAll" checked onchange="toggleUsers(false)">
               <label class="form-check-label" for="recpAll">
-                جميع المستخدمين النشطين ({{ users|length }})
+                {% if current_lang=='en' %}All Active Users ({{ users|length }}){% else %}جميع المستخدمين النشطين ({{ users|length }}){% endif %}
               </label>
             </div>
             <div class="form-check">
               <input class="form-check-input" type="radio" name="recipient"
                      value="selected" id="recpSel" onchange="toggleUsers(true)">
-              <label class="form-check-label" for="recpSel"><span data-i18n="z_3cc96f">مستخدمون محددون</span></label>
+              <label class="form-check-label" for="recpSel"><span>{{ _('مستخدمون محددون') }}</label>
             </div>
           </div>
           <div id="userListDiv" style="display:none;max-height:220px;overflow-y:auto;
@@ -43,7 +43,7 @@
               <input class="form-check-input" type="checkbox" name="user_ids"
                      value="{{ u.id }}" id="usr{{ u.id }}">
               <label class="form-check-label" for="usr{{ u.id }}">
-                {{ u.full_name }} — <span class="text-muted small">{{ u.email or '—' }}</span>
+                {{ u.full_name }} — {{ u.email or '—' }}
               </label>
             </div>
             {% endfor %}
@@ -52,10 +52,10 @@
       </div>
       <div class="mt-4 d-flex gap-2">
         <button type="submit" class="btn btn-success px-4"
-                onclick="return confirm('هل تريد إرسال الرسالة؟ سيتم الإرسال بالخلفية.')">
-          <i class="bi bi-send me-1"></i>📧 إرسال
+                onclick="return confirm('{% if current_lang=="en" %}Send message? It will be sent in the background.{% else %}هل تريد إرسال الرسالة؟ سيتم الإرسال بالخلفية.{% endif %}')">
+          <i class="bi bi-send me-1"></i>{% if current_lang=="en" %}📧 Send{% else %}📧 إرسال{% endif %}
         </button>
-        <a href="{{ url_for('users.index') }}" class="btn btn-secondary px-4"><span data-i18n="t_cancel">إلغاء</span></a>
+        <a href="{{ url_for('users.index') }}" class="btn btn-secondary px-4">{{ _('إلغاء') }}</a>
       </div>
     </form>
   </div>

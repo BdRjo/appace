@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
-{% block title %}الفترات المحظورة — ARS{% endblock %}
+{% block title %}{% if current_lang=="en" %}Blocked Periods — ARS{% else %}الفترات المحظورة — ARS{% endif %}{% endblock %}
 {% block content %}
 <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-  <h1><i class="bi bi-slash-circle me-2"></i><span data-i18n="blocked_periods"><span data-i18n="z_52294a">الفترات المحظورة</span></span></h1>
+  <h1><i class="bi bi-slash-circle me-2"></i>{{ _('الفترات المحظورة') }}</h1>
   <a href="{{ url_for('blocked.new') }}" class="btn btn-primary-ars">
-    <i class="bi bi-plus-lg me-1"></i><span data-i18n="block_period">حظر فترة جديدة</span>
+    <i class="bi bi-plus-lg me-1"></i><span>{{ _('حظر فترة جديدة') }}
   </a>
 </div>
 
@@ -13,18 +13,18 @@
   <div class="card-body py-2">
     <form class="row g-2 align-items-end" method="GET">
       <div class="col-md-4">
-        <label class="form-label small fw-bold" data-i18n="filter_venue">تصفية بالقاعة</label>
+        <label class="form-label small fw-bold">{{ _('تصفية بالقاعة') }}</label>
         <select name="venue_id" class="form-select form-select-sm" onchange="this.form.submit()">
-          <option value="" data-i18n="all_venues"><span data-i18n="t_all_venues"><span data-i18n="z_359360">كل القاعات</span></span></option>
+          <option value="">{{ _('كل القاعات') }}</option>
           {% for v in venues %}
           <option value="{{ v.id }}" {{ 'selected' if sel_venue==v.id }}>{{ v.name }}</option>
           {% endfor %}
         </select>
       </div>
       <div class="col-md-4">
-        <label class="form-label small fw-bold" data-i18n="locations">تصفية بالموقع</label>
+        <label class="form-label small fw-bold">{{ _('تصفية بالموقع') }}</label>
         <select name="location_id" class="form-select form-select-sm" onchange="this.form.submit()">
-          <option value="">كل المواقع</option>
+          <option value="">{{ _('كل المواقع') }}</option>
           {% for l in locations %}
           <option value="{{ l.id }}" {{ 'selected' if sel_location==l.id }}>{{ l.name }}</option>
           {% endfor %}
@@ -41,12 +41,12 @@
         <thead>
           <tr>
             <th>#</th>
-            <th data-i18n="venue"><span data-i18n="t_venue">القاعة</span></th>
-            <th data-i18n="locations"><span data-i18n="t_location">الموقع</span></th>
-            <th data-i18n="block_reason">السبب</th>
-            <th data-i18n="block_start"><span data-i18n="t_block_start"><span data-i18n="z_fb4f0b">بداية الفترة</span></span></th>
-            <th data-i18n="block_end"><span data-i18n="t_block_end"><span data-i18n="z_8da3a0">نهاية الفترة</span></span></th>
-            <th data-i18n="actions"><span data-i18n="t_actions">إجراءات</span></th>
+            <th>{{ _('القاعة') }}</th>
+            <th>{{ _('الموقع') }}</th>
+            <th>{{ _('السبب') }}</th>
+            <th>{{ _('بداية الفترة') }}</th>
+            <th>{{ _('نهاية الفترة') }}</th>
+            <th>{{ _('إجراءات') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -64,7 +64,7 @@
                   <i class="bi bi-pencil"></i>
                 </a>
                 <form method="POST" action="{{ url_for('blocked.delete', bp_id=bp.id) }}" class="mb-0">
-                  <button class="btn btn-sm btn-outline-danger" onclick="return confirm('حذف الفترة المحظورة؟')">
+                  <button class="btn btn-sm btn-outline-danger" onclick="return confirm('{% if current_lang=="en" %}Delete blocked period?{% else %}حذف الفترة المحظورة؟{% endif %}')">
                     <i class="bi bi-trash"></i>
                   </button>
                 </form>
@@ -72,7 +72,7 @@
             </td>
           </tr>
           {% else %}
-          <tr><td colspan="7" class="text-center text-muted py-4" data-i18n="no_data"><span data-i18n="t_no_data"><span data-i18n="z_9dbf18">لا توجد بيانات</span></span></td></tr>
+          <tr><td colspan="7" class="text-center text-muted py-4">{{ _('لا توجد بيانات') }}</td></tr>
           {% endfor %}
         </tbody>
       </table>

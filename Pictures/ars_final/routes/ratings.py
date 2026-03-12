@@ -1,4 +1,5 @@
 """تقييمات القاعات"""
+from utils.flash_helper import flash_msg
 from flask import Blueprint, render_template, redirect, url_for, request, flash, abort, jsonify
 from flask_login import login_required, current_user
 from models.database import Rating, Reservation, Venue
@@ -27,21 +28,21 @@ def add(res_id):
     if not res: abort(404)
     if res.user_id != current_user.id: abort(403)
     if res.status not in ('approved','completed'):
-        flash('لا يمكن التقييم إلا للحجوزات المعتمدة', 'warning')
+        flash_msg('لا يمكن التقييم إلا للحجوزات المعتمدة', 'warning')
         return redirect(url_for('reservations.detail', res_id=res_id))
     existing = db.query(Rating).filter_by(reservation_id=res_id, user_id=current_user.id).first()
     if existing:
-        flash('لقد قيّمت هذا الحجز مسبقاً', 'info')
+        flash_msg('لقد قيّمت هذا الحجز مسبقاً', 'info')
         return redirect(url_for('reservations.detail', res_id=res_id))
     if request.method == 'POST':
         score   = request.form.get('rating', type=int)
         comment = request.form.get('comment','').strip()
         if not score or score < 1 or score > 5:
-            flash('يرجى اختيار تقييم من 1 إلى 5', 'danger')
+            flash_msg('يرجى اختيار تقييم من 1 إلى 5', 'danger')
             return render_template('ratings/form.html', res=res, form=request.form)
         r = Rating(user_id=current_user.id, venue_id=res.venue_id,
                    reservation_id=res_id, rating=score, comment=comment)
         db.add(r); db.commit()
-        flash('✅ شكراً على تقييمك!', 'success')
+        flash_msg('✅ شكراً على تقييمك!', 'success')
         return redirect(url_for('reservations.detail', res_id=res_id))
     return render_template('ratings/form.html', res=res, form={})

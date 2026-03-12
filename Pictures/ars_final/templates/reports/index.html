@@ -1,29 +1,29 @@
 {% extends 'base.html' %}
-{% block title %}التقارير — ARS{% endblock %}
+{% block title %}{% if current_lang=="en" %}Reports — ARS{% else %}التقارير — ARS{% endif %}{% endblock %}
 {% block extra_css %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 {% endblock %}
 {% block content %}
 <div class="page-header d-flex justify-content-between align-items-center">
-  <h1><i class="bi bi-bar-chart me-2"></i><span data-i18n="t_reports">التقارير والإحصاءات</span></h1>
+  <h1><i class="bi bi-bar-chart me-2"></i><span>{{ _('التقارير والإحصاءات') }}</h1>
   <div class="d-flex gap-2">
     <a href="{{ url_for('reports.export_csv', type=rtype, filter=filter, start=start, end=end) }}"
        class="btn btn-outline-success btn-sm">
-      <i class="bi bi-filetype-csv me-1"></i><span data-i18n="export_csv"><span data-i18n="z_91cafe">تصدير CSV</span></span>
+      <i class="bi bi-filetype-csv me-1"></i>{{ _('تصدير CSV') }}
     </a>
     <a href="{{ url_for('reports.export_excel', type=rtype, filter=filter, start=start, end=end) }}"
        class="btn btn-outline-success btn-sm">
-      <i class="bi bi-file-earmark-excel me-1"></i><span data-i18n="export_excel"><span data-i18n="z_1d2926">تصدير Excel</span></span>
+      <i class="bi bi-file-earmark-excel me-1"></i>{{ _('تصدير Excel') }}
     </a>
     <a href="{{ url_for('reports.export_pdf', type=rtype, filter=filter, start=start, end=end) }}"
        class="btn btn-outline-danger btn-sm">
-      <i class="bi bi-file-earmark-pdf me-1"></i><span data-i18n="export_pdf"><span data-i18n="z_a6d89e">تصدير PDF</span></span>
+      <i class="bi bi-file-earmark-pdf me-1"></i>{{ _('تصدير PDF') }}
     </a>
     <button onclick="window.print()" class="btn btn-outline-secondary btn-sm">
-      <i class="bi bi-printer me-1"></i><span data-i18n="print"><span data-i18n="z_88c5d1">طباعة</span></span>
+      <i class="bi bi-printer me-1"></i>{{ _('طباعة') }}
     </button>
     <a href="{{ url_for('reports.comparison') }}" class="btn btn-outline-primary btn-sm">
-      <i class="bi bi-bar-chart-steps me-1"></i><span data-i18n="nav.comparison">المقارنة</span>
+      <i class="bi bi-bar-chart-steps me-1"></i>{{ _('المقارنة') }}
     </a>
   </div>
 </div>
@@ -33,7 +33,7 @@
   <div class="card-body py-3">
     <form method="GET" class="row g-2 align-items-end">
       <div class="col-auto">
-        <span class="fw-bold text-primary"><span data-i18n="t_report_type">نوع التقرير:</span></span>
+        <span class="fw-bold text-primary">{{ _('نوع التقرير:') }}
       </div>
       {% for k, lbl, col in [
         ('my_reservations', 'حجوزاتي', '#247680'),
@@ -56,13 +56,13 @@
         <a href="{{ url_for('reports.index', type='users', filter=filter) }}"
            class="btn btn-sm {{ 'text-white' if rtype=='users' else 'btn-outline-secondary' }}"
            style="{{ 'background:#8E44AD;border-color:#8E44AD' if rtype=='users' else '' }}">
-          <span data-i18n="t_users">المستخدمون</span>
+          {{ _('المستخدمون') }}
         </a>
       </div>
       {% endif %}
 
       <div class="col-auto ms-3">
-        <span class="fw-bold text-secondary"><span data-i18n="t_filter_lbl">الفلتر:</span></span>
+        <span class="fw-bold text-secondary">{{ _('الفلتر:') }}
       </div>
       <div class="col-auto">
         <select name="filter" class="form-select form-select-sm" onchange="this.form.submit()">
@@ -79,7 +79,7 @@
         <input type="date" name="end" class="form-control form-control-sm" value="{{ end }}">
       </div>
       <div class="col-auto">
-        <button type="submit" class="btn btn-primary btn-sm"><span data-i18n="t_apply">تطبيق</span></button>
+        <button type="submit" class="btn btn-primary btn-sm">{{ _('تطبيق') }}</button>
       </div>
       {% endif %}
       <input type="hidden" name="type" value="{{ rtype }}">
@@ -109,39 +109,39 @@
   {% elif rtype == 'venues' %}
     <div class="col-6 col-md-3">
       <div class="stat-card" style="background:linear-gradient(135deg,#a38079,#c09080)">
-        <div class="num">{{ stats.total_venues }}</div><div class="lbl">إجمالي القاعات</div>
+        <div class="num">{{ stats.total_venues }}</div><div class="lbl"><span>{{ _('إجمالي القاعات') }}</div>
       </div>
     </div>
     <div class="col-6 col-md-3">
       <div class="stat-card" style="background:linear-gradient(135deg,#198754,#27AE60)">
-        <div class="num">{{ stats.active_venues }}</div><div class="lbl">قاعات نشطة</div>
+        <div class="num">{{ stats.active_venues }}</div><div class="lbl">{{ _('قاعات نشطة') }}</div>
       </div>
     </div>
   {% elif rtype == 'locations' %}
     <div class="col-6 col-md-3">
       <div class="stat-card" style="background:linear-gradient(135deg,#2E6B8A,#3498DB)">
-        <div class="num">{{ stats.total_locations }}</div><div class="lbl">إجمالي المواقع</div>
+        <div class="num">{{ stats.total_locations }}</div><div class="lbl"><span>{{ _('إجمالي المواقع') }}</div>
       </div>
     </div>
     <div class="col-6 col-md-3">
       <div class="stat-card" style="background:linear-gradient(135deg,#198754,#27AE60)">
-        <div class="num">{{ stats.active_locations }}</div><div class="lbl">مواقع نشطة</div>
+        <div class="num">{{ stats.active_locations }}</div><div class="lbl">{{ _('مواقع نشطة') }}</div>
       </div>
     </div>
   {% elif rtype == 'users' %}
     <div class="col-6 col-md-3">
       <div class="stat-card" style="background:linear-gradient(135deg,#8E44AD,#9B59B6)">
-        <div class="num">{{ stats.total_users }}</div><div class="lbl">إجمالي المستخدمين</div>
+        <div class="num">{{ stats.total_users }}</div><div class="lbl"><span>{{ _('إجمالي المستخدمين') }}</div>
       </div>
     </div>
     <div class="col-6 col-md-3">
       <div class="stat-card" style="background:linear-gradient(135deg,#198754,#27AE60)">
-        <div class="num">{{ stats.active_users }}</div><div class="lbl">مستخدمون نشطون</div>
+        <div class="num">{{ stats.active_users }}</div><div class="lbl">{{ _('مستخدمون نشطون') }}</div>
       </div>
     </div>
     <div class="col-6 col-md-3">
       <div class="stat-card" style="background:linear-gradient(135deg,#2E6B8A,#3498DB)">
-        <div class="num">{{ stats.verified_users }}</div><div class="lbl">موثّقون</div>
+        <div class="num">{{ stats.verified_users }}</div><div class="lbl">{{ _('موثّقون') }}</div>
       </div>
     </div>
   {% endif %}
@@ -153,13 +153,13 @@
 <div class="row g-3 mb-4">
   <div class="col-md-8">
     <div class="card">
-      <div class="card-header"><i class="bi bi-graph-up me-2"></i>الحجوزات شهرياً (آخر 12 شهر)</div>
+      <div class="card-header"><i class="bi bi-graph-up me-2"></i>{{ _('الحجوزات شهرياً (آخر 12 شهر)') }}</div>
       <div class="card-body"><canvas id="monthlyChart" height="100"></canvas></div>
     </div>
   </div>
   <div class="col-md-4">
     <div class="card">
-      <div class="card-header"><i class="bi bi-pie-chart me-2"></i><span data-i18n="t_status_dist">توزيع الحالات</span></div>
+      <div class="card-header"><i class="bi bi-pie-chart me-2"></i>{{ _('توزيع الحالات') }}</div>
       <div class="card-body d-flex align-items-center justify-content-center">
         <canvas id="statusChart" height="200"></canvas>
       </div>
@@ -171,14 +171,14 @@
 <!-- Top venues -->
 {% if top_venues and rtype in ('my_reservations','all_reservations') %}
 <div class="card mb-4">
-  <div class="card-header"><i class="bi bi-trophy me-2"></i><span data-i18n="t_top_venues">أكثر القاعات حجزاً</span></div>
+  <div class="card-header"><i class="bi bi-trophy me-2"></i>{{ _('أكثر القاعات حجزاً') }}</div>
   <div class="card-body">
     {% for name, cnt in top_venues %}
     <div class="d-flex align-items-center mb-2">
-      <span class="me-2 fw-bold text-primary" style="min-width:24px">{{ loop.index }}</span>
+      {{ loop.index }}
       <div class="flex-grow-1">
         <div class="d-flex justify-content-between mb-1">
-          <span>{{ name }}</span><span class="text-muted small">{{ cnt }}</span>
+          <span>{{ name }}</span>{{ cnt }}
         </div>
         {% set pct = (cnt / (top_venues[0][1] if top_venues[0][1] > 0 else 1) * 100)|int %}
         <div class="progress" style="height:6px">
@@ -195,8 +195,8 @@
 {% if rows %}
 <div class="card">
   <div class="card-header d-flex justify-content-between align-items-center">
-    <span><i class="bi bi-table me-2"></i>البيانات ({{ total_count }} سجل)</span>
-    <small class="text-white opacity-75">صفحة {{ page }} من {{ total_pages }}</small>
+    <span><i class="bi bi-table me-2"></i>{% if current_lang=="en" %}Data ({{ total_count }} records){% else %}البيانات ({{ total_count }} سجل){% endif %}</span>
+    <small class="text-white opacity-75">{% if current_lang=="en" %}Page {{ page }} of {{ total_pages }}{% else %}صفحة {{ page }} من {{ total_pages }}{% endif %}</small>
   </div>
   <div class="table-responsive">
     <table class="table table-hover mb-0">
@@ -211,10 +211,10 @@
             {% if loop.index == columns|length and rtype in ('my_reservations','all_reservations') %}
               {% set s = cell %}
               <span class="badge badge-{{ s }}">
-                {{ {'pending':'معلق','approved':'موافق','rejected':'مرفوض','cancelled':'ملغي','completed':'مكتمل'}.get(s,s) }}
+                {% if current_lang=='en' %}{{ {'pending':'Pending','approved':'Approved','rejected':'Rejected','cancelled':'Cancelled','completed':'Completed'}.get(s,s) }}{% else %}{{ {'pending':'معلق','approved':'موافق','rejected':'مرفوض','cancelled':'ملغي','completed':'مكتمل'}.get(s,s) }}{% endif %}
               </span>
-            {% elif cell == '✓' %}<span class="text-success fw-bold">✓</span>
-            {% elif cell == '✗' %}<span class="text-danger">✗</span>
+            {% elif cell == '✓' %}✓
+            {% elif cell == '✗' %}✗
             {% else %}{{ cell }}{% endif %}
           </td>
           {% endfor %}
@@ -227,12 +227,12 @@
   <div class="card-footer d-flex justify-content-center gap-2">
     {% if page > 1 %}
     <a href="{{ url_for('reports.index', type=rtype, filter=filter, start=start, end=end, page=page-1) }}"
-       class="btn btn-sm btn-outline-primary">« السابق</a>
+       class="btn btn-sm btn-outline-primary">{{ _('« السابق') }}</a>
     {% endif %}
-    <span class="btn btn-sm btn-primary disabled">{{ page }} / {{ total_pages }}</span>
+    {{ page }} / {{ total_pages }}
     {% if page < total_pages %}
     <a href="{{ url_for('reports.index', type=rtype, filter=filter, start=start, end=end, page=page+1) }}"
-       class="btn btn-sm btn-outline-primary">التالي »</a>
+       class="btn btn-sm btn-outline-primary">{{ _('التالي »') }}</a>
     {% endif %}
   </div>
   {% endif %}
@@ -241,7 +241,7 @@
 <div class="card">
   <div class="card-body text-center py-5 text-muted">
     <i class="bi bi-inbox" style="font-size:3rem;color:#ccc"></i>
-    <p class="mt-3">لا توجد بيانات لعرضها</p>
+    <p class="mt-3">{{ _('لا توجد بيانات لعرضها') }}</p>
   </div>
 </div>
 {% endif %}
@@ -255,7 +255,7 @@ new Chart(document.getElementById('monthlyChart'), {
   type: 'bar',
   data: {
     labels: monthLabels,
-    datasets: [{ label: 'الحجوزات', data: monthData,
+    datasets: [{ label: '{{ _("الحجوزات") }}', data: monthData,
       backgroundColor: 'rgba(26,85,92,0.75)', borderColor: '#1A555C',
       borderWidth: 1, borderRadius: 6 }]
   },
@@ -269,7 +269,7 @@ if (document.getElementById('statusChart')) {
   new Chart(document.getElementById('statusChart'), {
     type: 'doughnut',
     data: {
-      labels: ['موافقة','معلقة','مرفوضة','ملغية'],
+      labels: ['{{ _("موافقة") }}','{{ _("معلقة") }}','{{ _("مرفوضة") }}','{{ _("ملغية") }}'],
       datasets: [{ data: [s.approved||0, s.pending||0, s.rejected||0, s.cancelled||0],
         backgroundColor: ['#198754','#FFC107','#DC3545','#6C757D'],
         borderWidth: 2 }]

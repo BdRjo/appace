@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}{{ 'تعديل' if loc else 'إضافة' }} موقع — ARS{% endblock %}
+{% block title %}{% if current_lang=="en" %}{{ '{% else %}تعديل' if loc else '{% if current_lang=="en" %}Add{% else %}إضافة{% endif %}' }} موقع — ARS{% endif %}{% endblock %}
 {% block content %}
 <div class="page-header">
   <h1><i class="bi bi-geo-alt me-2"></i>{{ 'تعديل: ' + loc.name if loc else 'إضافة موقع جديد' }}</h1>
@@ -9,26 +9,26 @@
   <div class="row g-4">
     <div class="col-md-8">
       <div class="card">
-        <div class="card-header">📍 بيانات الموقع</div>
+        <div class="card-header">{{ _('📍 بيانات الموقع') }}</div>
         <div class="card-body">
           <div class="row g-3">
             <div class="col-md-6">
-              <label class="form-label fw-bold"><span data-i18n="t_name_ar">الاسم بالعربية</span> <span class="text-danger">*</span></label>
+              <label class="form-label fw-bold">{{ _('الاسم بالعربية') }} *</label>
               <input type="text" name="name" class="form-control"
                      value="{{ loc.name if loc else '' }}" required>
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-bold"><span data-i18n="t_name_en">الاسم بالإنجليزية</span></label>
+              <label class="form-label fw-bold">{{ _('الاسم بالإنجليزية') }}</label>
               <input type="text" name="name_en" class="form-control"
                      value="{{ loc.name_en or '' if loc else '' }}">
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-bold"><span data-i18n="t_city">المدينة</span></label>
+              <label class="form-label fw-bold">{{ _('المدينة') }}</label>
               <input type="text" name="city" class="form-control"
                      value="{{ loc.city or '' if loc else '' }}">
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-bold"><span data-i18n="t_area">المنطقة</span></label>
+              <label class="form-label fw-bold">{{ _('المنطقة') }}</label>
               <input type="text" name="area" class="form-control"
                      value="{{ loc.area or '' if loc else '' }}">
             </div>
@@ -36,7 +36,7 @@
               <div class="form-check form-switch">
                 <input class="form-check-input" type="checkbox" name="is_active" id="isActive"
                        {{ 'checked' if (not loc) or loc.is_active else '' }}>
-                <label class="form-check-label fw-bold" for="isActive">موقع نشط</label>
+                <label class="form-check-label fw-bold" for="isActive">{{ _('موقع نشط') }}</label>
               </div>
             </div>
           </div>
@@ -48,8 +48,8 @@
     <div class="col-md-4">
       <div class="card">
         <div class="card-header">
-          <i class="bi bi-people me-2"></i>👥 صلاحيات المستخدمين
-          <small class="opacity-75 d-block">المديرون والمشرفون يرون الكل تلقائياً</small>
+          <i class="bi bi-people me-2"></i>{% if current_lang=="en" %}👥 User Permissions{% else %}👥 صلاحيات المستخدمين{% endif %}
+          <small class="opacity-75 d-block">{{ _('المديرون والمشرفون يرون الكل تلقائياً') }}</small>
         </div>
         <div class="card-body p-2" style="max-height:280px;overflow-y:auto">
           {% if all_users %}
@@ -59,12 +59,12 @@
                    value="{{ u.id }}" id="usr{{ u.id }}"
                    {{ 'checked' if u.id in assigned_users else '' }}>
             <label class="form-check-label small" for="usr{{ u.id }}">
-              {{ u.full_name }} <span class="text-muted">({{ u.username }})</span>
+              {{ u.full_name }} ({{ u.username }})
             </label>
           </div>
           {% endfor %}
           {% else %}
-          <div class="text-muted small p-2">لا توجد مستخدمون عاديون</div>
+          <div class="text-muted small p-2">{{ _('لا توجد مستخدمون عاديون') }}</div>
           {% endif %}
         </div>
       </div>
@@ -73,9 +73,9 @@
 
   <div class="mt-4 d-flex gap-2">
     <button type="submit" class="btn btn-primary px-4">
-      <i class="bi bi-check-lg me-1"></i>{{ 'حفظ' if loc else 'إضافة' }}
+      <i class="bi bi-check-lg me-1"></i>{{ 'حفظ' if loc else '{% if current_lang=="en" %}Add{% else %}إضافة{% endif %}' }}
     </button>
-    <a href="{{ url_for('locations.index') }}" class="btn btn-secondary px-4"><span data-i18n="t_cancel">إلغاء</span></a>
+    <a href="{{ url_for('locations.index') }}" class="btn btn-secondary px-4">{{ _('إلغاء') }}</a>
   </div>
 </form>
 {% endblock %}

@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% block title %}سجل الأنشطة — ARS{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <h1><i class="bi bi-journal-text me-2"></i><span data-i18n="t_audit_log">سجل الأنشطة</span></h1>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('admin.maintenance') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-right me-1"></i>الصيانة
+    </a>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <form method="GET" class="d-flex gap-2 flex-wrap align-items-end">
+      <div>
+        <label class="form-label small mb-1">بحث في الإجراء / الوصف</label>
+        <input type="text" name="q" value="{{ search }}" class="form-control form-control-sm" placeholder="بحث...">
+      </div>
+      <div>
+        <label class="form-label small mb-1">المستخدم</label>
+        <select name="user" class="form-select form-select-sm">
+          <option value="">الكل</option>
+          {% for u in users %}
+          <option value="{{ u.id }}" {% if user_f == u.id|string %}selected{% endif %}>{{ u.full_name or u.username }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="align-self-end">
+        <button type="submit" class="btn btn-primary-ars btn-sm">تصفية</button>
+        <a href="{{ url_for('admin.audit_log') }}" class="btn btn-outline-secondary btn-sm">مسح</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-shield-check me-2"></i>سجل أنشطة النظام</span>
+    <span class="badge" style="background:var(--primary)">{{ total }} سجل</span>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table mb-0">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>الإجراء</th>
+            <th>الوصف</th>
+            <th>المستخدم</th>
+            <th>المستوى</th>
+            <th>التوقيت</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in logs %}
+          <tr>
+            <td class="text-muted small">{{ log.id }}</td>
+            <td>
+              <code style="font-size:.8rem;color:var(--primary)">{{ log.action or '—' }}</code>
+            </td>
+            <td class="small">{{ log.description or '—' }}</td>
+            <td class="small">
+              {% if log.user %}
+              <span class="badge" style="background:rgba(26,85,92,.1);color:var(--primary)">
+                {{ log.user.full_name or log.user.username }}
+              </span>
+              {% else %}—{% endif %}
+            </td>
+            <td>
+              {% set lv = log.level or 'info' %}
+              <span class="badge {% if lv=='error' %}bg-secondary{% elif lv=='warning' %}badge-pending{% else %}badge-approved{% endif %}">
+                {{ lv }}
+              </span>
+            </td>
+            <td class="small text-muted">{{ log.created_at.strftime('%Y-%m-%d %H:%M') if log.created_at else '—' }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="text-center text-muted py-4">لا توجد سجلات</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% if total_pages > 1 %}
+  <div class="card-footer">
+    <nav>
+      <ul class="pagination pagination-sm justify-content-center mb-0">
+        {% if page > 1 %}<li class="page-item"><a class="page-link" href="?page={{ page-1 }}&q={{ search }}&user={{ user_f }}">‹</a></li>{% endif %}
+        {% for p in range(1, total_pages+1) %}
+        <li class="page-item {% if p==page %}active{% endif %}">
+          <a class="page-link" href="?page={{ p }}&q={{ search }}&user={{ user_f }}">{{ p }}</a>
+        </li>
+        {% endfor %}
+        {% if page < total_pages %}<li class="page-item"><a class="page-link" href="?page={{ page+1 }}&q={{ search }}&user={{ user_f }}">›</a></li>{% endif %}
+      </ul>
+    </nav>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

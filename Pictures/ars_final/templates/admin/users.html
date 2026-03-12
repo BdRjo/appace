@@ -1,10 +1,10 @@
-{% extends "base.html" %}{% block title %}المستخدمون — ARS{% endblock %}
+{% extends "base.html" %}{% block title %}{% if current_lang=="en" %}Users — ARS{% else %}المستخدمون — ARS{% endif %}{% endblock %}
 {% block content %}
-<div class="page-header"><h1><i class="bi bi-people me-2"></i>المستخدمون ({{ users|length }})</h1></div>
+<div class="page-header"><h1><i class="bi bi-people me-2"></i>{% if current_lang=='en' %}Users{% else %}المستخدمون{% endif %} ({{ users|length }})</h1></div>
 <div class="card"><div class="card-body p-0">
 <div class="table-responsive">
 <table class="table table-hover mb-0">
-  <thead><tr><th>#</th><th><span data-i18n="t_name">الاسم</span></th><th><span data-i18n="t_username"><span data-i18n="z_f089c3">اسم المستخدم</span></span></th><th><span data-i18n="x_c707d7">البريد</span></th><th><span data-i18n="t_role">الدور</span></th><th><span data-i18n="t_status">الحالة</span></th><th><span data-i18n="x_f7ed03">آخر دخول</span></th></tr></thead>
+  <thead><tr><th>#</th><th>{{ _('الاسم') }}</th><th>{{ _('اسم المستخدم') }}</th><th><span>{{ _('البريد') }}</th><th>{{ _('الدور') }}</th><th>{{ _('الحالة') }}</th><th><span>{{ _('آخر دخول') }}</th></tr></thead>
   <tbody>
     {% for u in users %}
     <tr>
@@ -12,10 +12,10 @@
       <td class="fw-bold">{{ u.full_name or '—' }}</td>
       <td><code>{{ u.username }}</code></td>
       <td><small class="text-muted">{{ u.email }}</small></td>
-      <td><span class="badge bg-secondary">{{ u.role.name if u.role else '—' }}</span></td>
+      <td>{{ u.role.name if u.role else '—' }}</td>
       <td>
-        {% if u.is_active %}<span class="badge bg-success"><span data-i18n="t_active">نشط</span></span>
-        {% else %}<span class="badge bg-danger"><span data-i18n="x_75e3d9">موقوف</span></span>{% endif %}
+        {% if u.is_active %}<span class="badge bg-success">{{ _('نشط') }}
+        {% else %}<span class="badge bg-danger">{{ _('موقوف') }}{% endif %}
       </td>
       <td><small class="text-muted">{{ u.last_login.strftime('%Y-%m-%d') if u.last_login else 'لم يدخل' }}</small></td>
     </tr>

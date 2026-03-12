@@ -10,37 +10,37 @@
 <div class="row g-4">
   <div class="col-md-8">
     <div class="card">
-      <div class="card-header">📥 رفع الملف</div>
+      <div class="card-header">{{ _('📥 رفع الملف') }}</div>
       <div class="card-body">
         <!-- تلميح القالب -->
         <div class="alert alert-info">
-          💡 يجب أن يحتوي الملف على الأعمدة التالية:
+          {% if current_lang=="en" %}💡 File must contain these columns:{% else %}💡 يجب أن يحتوي الملف على الأعمدة التالية:{% endif %}
           <code>{{ fields | join(', ') }}</code>
         </div>
 
         <form method="POST" enctype="multipart/form-data">
           <div class="mb-3">
-            <label class="form-label fw-bold">📂 ملف CSV</label>
+            <label class="form-label fw-bold"><span>{{ _('📂 ملف CSV') }}</label>
             <input type="file" name="file" class="form-control" accept=".csv" required>
           </div>
           <div class="mb-3 d-flex gap-4">
             <div class="form-check">
               <input class="form-check-input" type="checkbox" name="skip_dup" id="skipDup" checked>
-              <label class="form-check-label" for="skipDup">⚠️ تخطي المكررات</label>
+              <label class="form-check-label" for="skipDup"><span>{{ _('⚠️ تخطي المكررات') }}</label>
             </div>
             <div class="form-check">
               <input class="form-check-input" type="checkbox" name="update_dup" id="updateDup">
-              <label class="form-check-label" for="updateDup">🔄 تحديث المكررات</label>
+              <label class="form-check-label" for="updateDup">{{ _('🔄 تحديث المكررات') }}</label>
             </div>
           </div>
           <div class="d-flex gap-2">
             <button type="submit" class="btn btn-success px-4">
-              <i class="bi bi-upload me-1"></i>استيراد الآن
+              <i class="bi bi-upload me-1"></i>{% if current_lang=="en" %}Import Now{% else %}استيراد الآن{% endif %}
             </button>
             {% if mode == 'locations' %}
-            <a href="{{ url_for('locations.index') }}" class="btn btn-secondary px-4"><span data-i18n="t_cancel">إلغاء</span></a>
+            <a href="{{ url_for('locations.index') }}" class="btn btn-secondary px-4">{{ _('إلغاء') }}</a>
             {% else %}
-            <a href="{{ url_for('venues_mgmt.index') }}" class="btn btn-secondary px-4"><span data-i18n="t_cancel">إلغاء</span></a>
+            <a href="{{ url_for('venues_mgmt.index') }}" class="btn btn-secondary px-4">{{ _('إلغاء') }}</a>
             {% endif %}
           </div>
         </form>
@@ -50,27 +50,27 @@
 
   <div class="col-md-4">
     <div class="card">
-      <div class="card-header">📋 أعمدة الملف المطلوبة</div>
+      <div class="card-header">{{ _('📋 أعمدة الملف المطلوبة') }}</div>
       <div class="card-body">
         <table class="table table-sm">
-          <thead><tr><th>العمود</th><th>وصف</th></tr></thead>
+          <thead><tr><th><span>{{ _('العمود') }}</th><th>{{ _('وصف') }}</th></tr></thead>
           <tbody>
             {% if mode == 'locations' %}
-            <tr><td><code>name</code></td><td>اسم الموقع (مطلوب)</td></tr>
-            <tr><td><code>name_en</code></td><td><span data-i18n="t_name_en">الاسم بالإنجليزية</span></td></tr>
-            <tr><td><code>city</code></td><td><span data-i18n="t_city">المدينة</span></td></tr>
-            <tr><td><code>area</code></td><td><span data-i18n="t_area">المنطقة</span></td></tr>
-            <tr><td><code>is_active</code></td><td>نشط: 1 أو 0</td></tr>
+            <tr><td><code>name</code></td><td><span>{{ _('اسم الموقع (مطلوب)') }}</td></tr>
+            <tr><td><code>name_en</code></td><td>{{ _('الاسم بالإنجليزية') }}</td></tr>
+            <tr><td><code>city</code></td><td>{{ _('المدينة') }}</td></tr>
+            <tr><td><code>area</code></td><td>{{ _('المنطقة') }}</td></tr>
+            <tr><td><code>is_active</code></td><td><span>{{ _('نشط: 1 أو 0') }}</td></tr>
             {% else %}
-            <tr><td><code>name</code></td><td>اسم القاعة (مطلوب)</td></tr>
-            <tr><td><code>name_en</code></td><td><span data-i18n="t_name_en">الاسم بالإنجليزية</span></td></tr>
-            <tr><td><code>location_name</code></td><td>اسم الموقع (مطلوب)</td></tr>
-            <tr><td><code>code</code></td><td><span data-i18n="x_c26137">رمز القاعة</span></td></tr>
-            <tr><td><code>capacity</code></td><td><span data-i18n="t_capacity">السعة</span></td></tr>
-            <tr><td><code>equipment</code></td><td><span data-i18n="t_equipment">المعدات</span></td></tr>
-            <tr><td><code>notes</code></td><td><span data-i18n="t_notes">ملاحظات</span></td></tr>
-            <tr><td><code>requires_approval</code></td><td>يحتاج موافقة: 1/0</td></tr>
-            <tr><td><code>is_active</code></td><td>نشط: 1 أو 0</td></tr>
+            <tr><td><code>name</code></td><td><span>{{ _('اسم القاعة (مطلوب)') }}</td></tr>
+            <tr><td><code>name_en</code></td><td>{{ _('الاسم بالإنجليزية') }}</td></tr>
+            <tr><td><code>location_name</code></td><td><span>{{ _('اسم الموقع (مطلوب)') }}</td></tr>
+            <tr><td><code>code</code></td><td><span>{{ _('رمز القاعة') }}</td></tr>
+            <tr><td><code>capacity</code></td><td>{{ _('السعة') }}</td></tr>
+            <tr><td><code>equipment</code></td><td>{{ _('المعدات') }}</td></tr>
+            <tr><td><code>notes</code></td><td>{{ _('ملاحظات') }}</td></tr>
+            <tr><td><code>requires_approval</code></td><td><span>{{ _('يحتاج موافقة: 1/0') }}</td></tr>
+            <tr><td><code>is_active</code></td><td><span>{{ _('نشط: 1 أو 0') }}</td></tr>
             {% endif %}
           </tbody>
         </table>

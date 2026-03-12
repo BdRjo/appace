@@ -1,0 +1,52 @@
+# ===========================================================================
+# نافذة التقارير المحسنة مع دعم العربية (بالتعديلات النهائية)
+# ===========================================================================
+# ===========================================================================
+# نافذة التقارير - نسخة مبسطة ومضمونة
+# ===========================================================================
+class ReportsWindow(BaseWindow):
+    def __init__(self, parent, db_session, current_user):
+        self.db_session = db_session
+        self.current_user = current_user
+        super().__init__(parent, 'reports', 1000, 700)
+        self.create_content()
+    
+    def create_content(self):
+        # إطار رئيسي
+        main = tk.Frame(self.main_frame, bg='white', padx=20, pady=20)
+        main.pack(fill='both', expand=True)
+        
+        # عنوان
+        title_frame = tk.Frame(main, bg='white')
+        title_frame.pack(fill='x', pady=10)
+        
+        tk.Label(title_frame, text="📊 التقارير", 
+                font=('Arial', 24, 'bold'),
+                bg='white', fg=self.colors.PRIMARY).pack()
+        
+        # رسالة
+        tk.Label(main, text="قريباً - سيتم إضافة التقارير قريباً",
+                font=('Arial', 16),
+                bg='white', fg=self.colors.TEXT_DARK).pack(pady=50)
+        
+        # أزرار تجريبية
+        buttons_frame = tk.Frame(main, bg='white')
+        buttons_frame.pack(pady=20)
+        
+        tk.Button(buttons_frame, text="تقرير الحجوزات",
+                 bg=self.colors.PRIMARY, fg='white',
+                 font=('Arial', 12),
+                 padx=20, pady=10, bd=0,
+                 command=lambda: messagebox.showinfo("معلومات", "سيتم تفعيل التقرير قريباً")).pack(side='left', padx=10)
+        
+        tk.Button(buttons_frame, text="تقرير القاعات",
+                 bg=self.colors.SUCCESS, fg='white',
+                 font=('Arial', 12),
+                 padx=20, pady=10, bd=0,
+                 command=lambda: messagebox.showinfo("معلومات", "سيتم تفعيل التقرير قريباً")).pack(side='left', padx=10)
+        
+        tk.Button(buttons_frame, text="تقرير المستخدمين",
+                 bg=self.colors.ACCENT, fg='white',
+                 font=('Arial', 12),
+                 padx=20, pady=10, bd=0,
+                 command=lambda: messagebox.showinfo("معلومات", "سيتم تفعيل التقرير قريباً")).pack(side='left', padx=10)

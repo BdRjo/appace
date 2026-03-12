@@ -1,17 +1,17 @@
 {% extends 'base.html' %}
-{% block title %}إعدادات البريد — ARS{% endblock %}
+{% block title %}{% if current_lang=="en" %}Email Settings — ARS{% else %}إعدادات البريد — ARS{% endif %}{% endblock %}
 {% block content %}
 <div class="page-header">
-  <h1><i class="bi bi-envelope-gear me-2"></i>إعداد مزود خدمة البريد الإلكتروني</h1>
+  <h1><i class="bi bi-envelope-gear me-2"></i>{{ _('إعداد مزود خدمة البريد الإلكتروني') }}</h1>
 </div>
 <div class="row g-4">
   <div class="col-md-8">
     <div class="card">
-      <div class="card-header">📧 إعدادات SMTP</div>
+      <div class="card-header">{{ _('📧 إعدادات SMTP') }}</div>
       <div class="card-body">
         <form method="POST">
           <div class="mb-3">
-            <label class="form-label fw-bold">مزود الخدمة</label>
+            <label class="form-label fw-bold">{{ _('مزود الخدمة') }}</label>
             <div class="row g-2">
               {% for key, p in providers.items() %}
               <div class="col-6 col-md-4">
@@ -33,27 +33,27 @@
 
           <div class="row g-3">
             <div class="col-md-8">
-              <label class="form-label fw-bold">خادم SMTP</label>
+              <label class="form-label fw-bold">{{ _('خادم SMTP') }}</label>
               <input type="text" name="smtp_server" id="smtpServer" class="form-control"
                      value="{{ cfg.smtp_server }}" required>
             </div>
             <div class="col-md-4">
-              <label class="form-label fw-bold"><span data-i18n="t_smtp_port">المنفذ</span></label>
+              <label class="form-label fw-bold">{{ _('المنفذ') }}</label>
               <input type="number" name="smtp_port" id="smtpPort" class="form-control"
                      value="{{ cfg.smtp_port }}" required>
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-bold">البريد الإلكتروني للإرسال</label>
+              <label class="form-label fw-bold">{{ _('البريد الإلكتروني للإرسال') }}</label>
               <input type="email" name="sender_email" class="form-control"
                      value="{{ cfg.sender_email }}" required>
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-bold">كلمة المرور / App Password</label>
+              <label class="form-label fw-bold">{{ _('كلمة المرور / App Password') }}</label>
               <input type="password" name="sender_password" class="form-control"
                      value="{{ cfg.sender_password }}">
             </div>
             <div class="col-md-8">
-              <label class="form-label fw-bold"><span data-i18n="t_sender_name">اسم المرسل</span></label>
+              <label class="form-label fw-bold"><span>{{ _('اسم المرسل') }}</label>
               <input type="text" name="sender_name" class="form-control"
                      value="{{ cfg.sender_name }}">
             </div>
@@ -62,18 +62,18 @@
               <div class="form-check form-switch mt-2">
                 <input class="form-check-input" type="checkbox" name="use_tls" id="useTls"
                        {% if cfg.use_tls %}checked{% endif %}>
-                <label class="form-check-label" for="useTls">تفعيل TLS</label>
+                <label class="form-check-label" for="useTls">{{ _('تفعيل TLS') }}</label>
               </div>
             </div>
           </div>
 
           <div class="mt-4 d-flex gap-2">
             <button type="submit" name="action" value="save" class="btn btn-primary px-4">
-              💾 حفظ الإعدادات
+              {% if current_lang=="en" %}💾 Save Settings{% else %}💾 حفظ الإعدادات{% endif %}
             </button>
             <button type="submit" name="action" value="test" class="btn btn-outline-success px-4"
-                    onclick="return confirm('سيتم اختبار الاتصال بالخادم. تأكد من صحة البيانات.')">
-              🔗 اختبار الاتصال
+                    onclick="return confirm('{% if current_lang=="en" %}Test server connection. Make sure settings are correct.{% else %}سيتم اختبار الاتصال بالخادم. تأكد من صحة البيانات.{% endif %}')">
+              {% if current_lang=="en" %}🔗 Test Connection{% else %}🔗 اختبار الاتصال{% endif %}
             </button>
           </div>
         </form>
@@ -83,12 +83,12 @@
 
   <div class="col-md-4">
     <div class="card">
-      <div class="card-header">ℹ️ مزودو الخدمة</div>
+      <div class="card-header">{{ _('ℹ️ مزودو الخدمة') }}</div>
       <div class="card-body small">
         {% for key, p in providers.items() %}
         <div class="mb-3 pb-3 border-bottom" id="help_{{ key }}">
           <strong>{{ p.label }}</strong><br>
-          <span class="text-muted">{{ p.smtp }}:{{ p.port }}</span><br>
+          {{ p.smtp }}:{{ p.port }}<br>
           <span>{{ p.help }}</span>
         </div>
         {% endfor %}

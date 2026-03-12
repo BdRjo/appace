@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}{{ 'تعديل' if venue else 'إضافة' }} قاعة — ARS{% endblock %}
+{% block title %}{% if current_lang=="en" %}{{ '{% else %}تعديل' if venue else '{% if current_lang=="en" %}Add{% else %}إضافة{% endif %}' }} قاعة — ARS{% endif %}{% endblock %}
 {% block content %}
 <div class="page-header">
   <h1><i class="bi bi-building me-2"></i>{{ 'تعديل: ' + venue.name if venue else 'إضافة قاعة جديدة' }}</h1>
@@ -9,23 +9,23 @@
   <div class="row g-4">
     <div class="col-md-8">
       <div class="card">
-        <div class="card-header">🏢 بيانات القاعة</div>
+        <div class="card-header">{{ _('🏢 بيانات القاعة') }}</div>
         <div class="card-body">
           <div class="row g-3">
             <div class="col-md-6">
-              <label class="form-label fw-bold"><span data-i18n="t_name_ar">الاسم بالعربية</span> <span class="text-danger">*</span></label>
+              <label class="form-label fw-bold">{{ _('الاسم بالعربية') }} *</label>
               <input type="text" name="name" class="form-control"
                      value="{{ venue.name if venue else '' }}" required>
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-bold"><span data-i18n="t_name_en">الاسم بالإنجليزية</span></label>
+              <label class="form-label fw-bold">{{ _('الاسم بالإنجليزية') }}</label>
               <input type="text" name="name_en" class="form-control"
                      value="{{ venue.name_en or '' if venue else '' }}">
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-bold"><span data-i18n="t_location">الموقع</span></label>
+              <label class="form-label fw-bold">{{ _('الموقع') }}</label>
               <select name="location_id" class="form-select">
-                <option value="">بدون موقع</option>
+                <option value="">{{ _('بدون موقع') }}</option>
                 {% for l in locations %}
                 <option value="{{ l.id }}"
                         {% if venue and venue.location_id == l.id %}selected{% endif %}>
@@ -35,37 +35,37 @@
               </select>
             </div>
             <div class="col-md-3">
-              <label class="form-label fw-bold"><span data-i18n="x_8272b4">الرمز</span></label>
+              <label class="form-label fw-bold"><span>{{ _('الرمز') }}</label>
               <input type="text" name="code" class="form-control"
                      value="{{ venue.code or '' if venue else '' }}">
             </div>
             <div class="col-md-3">
-              <label class="form-label fw-bold"><span data-i18n="t_capacity">السعة</span></label>
+              <label class="form-label fw-bold">{{ _('السعة') }}</label>
               <input type="number" name="capacity" class="form-control"
                      value="{{ venue.capacity or '' if venue else '' }}">
             </div>
             <div class="col-12">
-              <label class="form-label fw-bold">المعدات والتجهيزات</label>
+              <label class="form-label fw-bold">{{ _('المعدات والتجهيزات') }}</label>
               <input type="text" name="equipment" class="form-control"
                      value="{{ venue.equipment or '' if venue else '' }}"
-                     placeholder="مثال: بروجيكتور، شاشة، سبورة">
+                     placeholder="{{ _('مثال: بروجيكتور، شاشة، سبورة') }}">
             </div>
             <div class="col-12">
-              <label class="form-label fw-bold"><span data-i18n="t_notes">ملاحظات</span></label>
+              <label class="form-label fw-bold">{{ _('ملاحظات') }}</label>
               <textarea name="notes" class="form-control" rows="2">{{ venue.notes or '' if venue else '' }}</textarea>
             </div>
             <div class="col-md-6">
               <div class="form-check form-switch">
                 <input class="form-check-input" type="checkbox" name="requires_approval" id="reqAppr"
                        {{ 'checked' if (not venue) or venue.requires_approval else '' }}>
-                <label class="form-check-label fw-bold" for="reqAppr">يتطلب موافقة</label>
+                <label class="form-check-label fw-bold" for="reqAppr">{{ _('يتطلب موافقة') }}</label>
               </div>
             </div>
             <div class="col-md-6">
               <div class="form-check form-switch">
                 <input class="form-check-input" type="checkbox" name="is_active" id="isActive"
                        {{ 'checked' if (not venue) or venue.is_active else '' }}>
-                <label class="form-check-label fw-bold" for="isActive">قاعة نشطة</label>
+                <label class="form-check-label fw-bold" for="isActive">{{ _('قاعة نشطة') }}</label>
               </div>
             </div>
           </div>
@@ -77,8 +77,8 @@
     <div class="col-md-4">
       <div class="card">
         <div class="card-header">
-          <i class="bi bi-people me-2"></i>👥 صلاحيات المستخدمين
-          <small class="opacity-75 d-block">المديرون يرون الكل تلقائياً</small>
+          <i class="bi bi-people me-2"></i>{% if current_lang=="en" %}👥 User Permissions{% else %}👥 صلاحيات المستخدمين{% endif %}
+          <small class="opacity-75 d-block">{{ _('المديرون يرون الكل تلقائياً') }}</small>
         </div>
         <div class="card-body p-2" style="max-height:350px;overflow-y:auto">
           {% if all_users %}
@@ -88,12 +88,12 @@
                    value="{{ u.id }}" id="usr{{ u.id }}"
                    {{ 'checked' if u.id in assigned_users else '' }}>
             <label class="form-check-label small" for="usr{{ u.id }}">
-              {{ u.full_name }} <span class="text-muted">({{ u.username }})</span>
+              {{ u.full_name }} ({{ u.username }})
             </label>
           </div>
           {% endfor %}
           {% else %}
-          <div class="text-muted small p-2">لا توجد مستخدمون عاديون</div>
+          <div class="text-muted small p-2">{{ _('لا توجد مستخدمون عاديون') }}</div>
           {% endif %}
         </div>
       </div>
@@ -102,9 +102,9 @@
 
   <div class="mt-4 d-flex gap-2">
     <button type="submit" class="btn btn-primary px-4">
-      <i class="bi bi-check-lg me-1"></i>{{ 'حفظ' if venue else 'إضافة' }}
+      <i class="bi bi-check-lg me-1"></i>{{ 'حفظ' if venue else '{% if current_lang=="en" %}Add{% else %}إضافة{% endif %}' }}
     </button>
-    <a href="{{ url_for('venues_mgmt.index') }}" class="btn btn-secondary px-4"><span data-i18n="t_cancel">إلغاء</span></a>
+    <a href="{{ url_for('venues_mgmt.index') }}" class="btn btn-secondary px-4">{{ _('إلغاء') }}</a>
   </div>
 </form>
 {% endblock %}

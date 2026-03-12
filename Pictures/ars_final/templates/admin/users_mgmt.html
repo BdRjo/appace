@@ -1,26 +1,26 @@
 {% extends 'base.html' %}
-{% block title %}إدارة المستخدمين — ARS{% endblock %}
+{% block title %}{% if current_lang=="en" %}Manage Users — ARS{% else %}إدارة المستخدمين — ARS{% endif %}{% endblock %}
 {% block content %}
 <div class="page-header d-flex justify-content-between align-items-center">
-  <h1><i class="bi bi-people me-2"></i><span data-i18n="t_users_mgmt">إدارة المستخدمين</span></h1>
+  <h1><i class="bi bi-people me-2"></i>{{ _('إدارة المستخدمين') }}</h1>
   <div class="d-flex gap-2 flex-wrap">
     <a href="{{ url_for('users.new') }}" class="btn btn-primary-ars btn-sm">
-      <i class="bi bi-person-plus me-1"></i><span data-i18n="t_add_user">إضافة مستخدم</span>
+      <i class="bi bi-person-plus me-1"></i><span>{{ _('إضافة مستخدم') }}
     </a>
     <a href="{{ url_for('users.import_csv') }}" class="btn btn-outline-success btn-sm">
-      <i class="bi bi-upload me-1"></i><span data-i18n="t_import_csv"><span data-i18n="z_27eee2">استيراد CSV</span></span>
+      <i class="bi bi-upload me-1"></i>{{ _('استيراد CSV') }}
     </a>
     <a href="{{ url_for('users.export_csv') }}" class="btn btn-outline-secondary btn-sm">
-      <i class="bi bi-download me-1"></i><span data-i18n="t_export_csv"><span data-i18n="z_91cafe">تصدير CSV</span></span>
+      <i class="bi bi-download me-1"></i>{{ _('تصدير CSV') }}
     </a>
     <a href="{{ url_for('users.bulk_message') }}" class="btn btn-outline-info btn-sm">
-      <i class="bi bi-envelope-paper me-1"></i><span data-i18n="t_bulk_msg">رسالة جماعية</span>
+      <i class="bi bi-envelope-paper me-1"></i>{{ _('رسالة جماعية') }}
     </a>
     <a href="{{ url_for('users.roles') }}" class="btn btn-outline-warning btn-sm">
-      <i class="bi bi-shield me-1"></i><span data-i18n="t_roles_s">الأدوار</span>
+      <i class="bi bi-shield me-1"></i><span>{{ _('الأدوار') }}
     </a>
     <a href="{{ url_for('users.login_log') }}" class="btn btn-outline-dark btn-sm">
-      <i class="bi bi-clock-history me-1"></i><span data-i18n="t_loginlog"><span data-i18n="z_a4a3cc">سجل الدخول</span></span>
+      <i class="bi bi-clock-history me-1"></i>{{ _('سجل الدخول') }}
     </a>
   </div>
 </div>
@@ -31,20 +31,20 @@
     <form method="GET" class="row g-2 align-items-end">
       <div class="col-md-4">
         <input type="text" name="q" class="form-control form-control-sm"
-               placeholder="🔍 بحث بالاسم أو اسم المستخدم أو البريد"
+               placeholder="{{ _('🔍 بحث بالاسم أو اسم المستخدم أو البريد') }}"
                value="{{ search }}">
       </div>
       <div class="col-md-3">
         <select name="role_id" class="form-select form-select-sm">
-          <option value="">كل الأدوار</option>
+          <option value="">{{ _('كل الأدوار') }}</option>
           {% for r in roles %}
           <option value="{{ r.id }}" {% if role_f==r.id|string %}selected{% endif %}>{{ r.name }}</option>
           {% endfor %}
         </select>
       </div>
       <div class="col-auto d-flex gap-2">
-        <button type="submit" class="btn btn-primary-ars btn-sm"><span data-i18n="t_filter">تصفية</span></button>
-        <a href="{{ url_for('users.index') }}" class="btn btn-outline-secondary btn-sm">إعادة</a>
+        <button type="submit" class="btn btn-primary-ars btn-sm">{{ _('تصفية') }}</button>
+        <a href="{{ url_for('users.index') }}" class="btn btn-outline-secondary btn-sm">{{ _('إعادة') }}</a>
       </div>
     </form>
   </div>
@@ -52,28 +52,27 @@
 
 <!-- Stats badges -->
 <div class="mb-3 d-flex gap-2 flex-wrap">
-  <span class="badge bg-primary fs-6">إجمالي: {{ total }}</span>
-  <span class="badge bg-success">نشطون: {{ users | selectattr('is_active') | list | length }}</span>
+  {% if current_lang=='en' %}Total: {{ total }} Active: {{ users | selectattr('is_active') | list | length }}{% else %}إجمالي: {{ total }} نشطون: {{ users | selectattr('is_active') | list | length }}{% endif %}
 </div>
 
 <!-- Table -->
 <div class="card">
   <div class="card-header d-flex justify-content-between">
-    <span><i class="bi bi-table me-2"></i>المستخدمون ({{ total }})</span>
-    <small class="text-white opacity-75">صفحة {{ page }}/{{ total_pages }}</small>
+    <span><i class="bi bi-table me-2"></i>{% if current_lang=="en" %}Users ({{ total }}){% else %}المستخدمون ({{ total }}){% endif %}</span>
+    <small class="text-white opacity-75">{% if current_lang=="en" %}Page {{ page }}/{{ total_pages }}{% else %}صفحة {{ page }}/{{ total_pages }}{% endif %}</small>
   </div>
   <div class="table-responsive">
     <table class="table table-hover mb-0">
       <thead>
         <tr>
-          <th><span data-i18n="t_full_name"><span data-i18n="z_90f911">الاسم الكامل</span></span></th>
-          <th><span data-i18n="t_username"><span data-i18n="z_f089c3">اسم المستخدم</span></span></th>
-          <th><span data-i18n="x_c707d7">البريد</span></th>
-          <th><span data-i18n="t_role">الدور</span></th>
-          <th><span data-i18n="t_reservations">الحجوزات</span></th>
-          <th><span data-i18n="t_status">الحالة</span></th>
-          <th><span data-i18n="x_f7ed03">آخر دخول</span></th>
-          <th><span data-i18n="t_actions">إجراءات</span></th>
+          <th>{{ _('الاسم الكامل') }}</th>
+          <th>{{ _('اسم المستخدم') }}</th>
+          <th><span>{{ _('البريد') }}</th>
+          <th>{{ _('الدور') }}</th>
+          <th>{{ _('الحجوزات') }}</th>
+          <th>{{ _('الحالة') }}</th>
+          <th><span>{{ _('آخر دخول') }}</th>
+          <th>{{ _('إجراءات') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -85,7 +84,7 @@
           </td>
           <td><code>{{ u.username }}</code></td>
           <td class="small text-muted">{{ u.email or '—' }}</td>
-          <td><span class="badge bg-secondary">{{ u.role.name if u.role else '—' }}</span></td>
+          <td>{{ u.role.name if u.role else '—' }}</td>
           <td class="text-center">{{ u.reservations|length }}</td>
           <td>
             <span class="badge {{ 'bg-success' if u.is_active else 'bg-secondary' }}">
@@ -97,13 +96,13 @@
           </td>
           <td>
             <div class="d-flex gap-1">
-              <a href="{{ url_for('users.edit', user_id=u.id) }}" class="btn btn-xs btn-outline-warning" title="تعديل">
+              <a href="{{ url_for('users.edit', user_id=u.id) }}" class="btn btn-xs btn-outline-warning" title="{{ _('تعديل') }}">
                 <i class="bi bi-pencil"></i>
               </a>
               {% if u.id != current_user.id %}
               <form method="POST" action="{{ url_for('users.delete', user_id=u.id) }}"
                     onsubmit="return confirm('حذف المستخدم: {{ u.username }}؟')">
-                <button type="submit" class="btn btn-xs btn-outline-danger" title="حذف">
+                <button type="submit" class="btn btn-xs btn-outline-danger" title="{{ _('حذف') }}">
                   <i class="bi bi-trash"></i>
                 </button>
               </form>
@@ -112,7 +111,7 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="8" class="text-center text-muted py-4">لا يوجد مستخدمون</td></tr>
+        <tr><td colspan="8" class="text-center text-muted py-4">{{ _('لا يوجد مستخدمون') }}</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -120,11 +119,11 @@
   {% if total_pages > 1 %}
   <div class="card-footer d-flex justify-content-center gap-2">
     {% if page > 1 %}
-    <a href="{{ url_for('users.index', page=page-1, q=search, role_id=role_f) }}" class="btn btn-sm btn-outline-primary">« السابق</a>
+    <a href="{{ url_for('users.index', page=page-1, q=search, role_id=role_f) }}" class="btn btn-sm btn-outline-primary">{{ _('« السابق') }}</a>
     {% endif %}
-    <span class="btn btn-sm btn-primary disabled">{{ page }} / {{ total_pages }}</span>
+    {{ page }} / {{ total_pages }}
     {% if page < total_pages %}
-    <a href="{{ url_for('users.index', page=page+1, q=search, role_id=role_f) }}" class="btn btn-sm btn-outline-primary">التالي »</a>
+    <a href="{{ url_for('users.index', page=page+1, q=search, role_id=role_f) }}" class="btn btn-sm btn-outline-primary">{{ _('التالي »') }}</a>
     {% endif %}
   </div>
   {% endif %}

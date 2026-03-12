@@ -4,6 +4,7 @@
 """
 import hashlib, csv, io
 from datetime import datetime
+from utils.flash_helper import flash_msg
 from flask import (Blueprint, render_template, redirect, url_for,
                    request, flash, abort, jsonify, Response)
 from flask_login import login_required, current_user
@@ -89,7 +90,7 @@ def new():
         except: pass
 
         _log(db,'ADD_USER',f'مستخدم جديد: {username}')
-        flash(f'✅ تمت إضافة المستخدم: {username}','success')
+        flash_msg(f'✅ تمت إضافة المستخدم: {username}', 'success')
         return redirect(url_for('users.index'))
 
     return render_template('admin/user_form.html', user=None, roles=roles, form={})
@@ -115,7 +116,7 @@ def edit(user_id):
         new_pw = request.form.get('password','').strip()
         if new_pw:
             if len(new_pw) < 6:
-                flash('كلمة المرور 6 أحرف على الأقل','danger')
+                flash_msg('كلمة المرور 6 أحرف على الأقل', 'danger')
                 return render_template('admin/user_form.html',
                                        user=user, roles=roles, form=request.form)
             user.password_hash = _hash(new_pw)
@@ -132,7 +133,7 @@ def edit(user_id):
 
         db.commit()
         _log(db,'EDIT_USER',f'تعديل المستخدم: {user.username}')
-        flash(f'✅ تم تحديث بيانات: {user.username}','success')
+        flash_msg(f'✅ تم تحديث بيانات: {user.username}', 'success')
         return redirect(url_for('users.index'))
 
     locs   = db.query(Location).all()
@@ -153,12 +154,12 @@ def delete(user_id):
     user = db.query(User).get(user_id)
     if not user: abort(404)
     if user.id == current_user.id:
-        flash('لا يمكنك حذف حسابك الخاص','danger')
+        flash_msg('لا يمكنك حذف حسابك الخاص', 'danger')
         return redirect(url_for('users.index'))
     uname = user.username
     db.delete(user); db.commit()
     _log(db,'DELETE_USER',f'حذف المستخدم: {uname}')
-    flash(f'تم حذف المستخدم: {uname}','success')
+    flash_msg(f'تم حذف المستخدم: {uname}', 'success')
     return redirect(url_for('users.index'))
 
 
@@ -172,10 +173,10 @@ def change_password(user_id):
     if not user: abort(404)
     pw = request.form.get('password','').strip()
     if len(pw) < 6:
-        flash('كلمة المرور 6 أحرف على الأقل','danger')
+        flash_msg('كلمة المرور 6 أحرف على الأقل', 'danger')
         return redirect(url_for('users.index'))
     user.password_hash = _hash(pw); db.commit()
-    flash('✅ تم تغيير كلمة المرور','success')
+    flash_msg('✅ تم تغيير كلمة المرور', 'success')
     return redirect(url_for('users.index'))
 
 
@@ -188,7 +189,7 @@ def import_csv():
     if request.method == 'POST':
         f = request.files.get('file')
         if not f or not f.filename.endswith('.csv'):
-            flash('يرجى رفع ملف CSV','danger')
+            flash_msg('يرجى رفع ملف CSV', 'danger')
             return redirect(url_for('users.import_csv'))
 
         content = f.stream.read().decode('utf-8-sig')
@@ -196,12 +197,12 @@ def import_csv():
         required_fields = ['username','email','full_name','password']
 
         if not reader.fieldnames or not all(fld in reader.fieldnames for fld in required_fields):
-            flash(f'الملف يجب أن يحتوي على الأعمدة: {", ".join(required_fields)}','danger')
+            flash_msg(f'الملف يجب أن يحتوي على الأعمدة: {", ".join(required_fields)}', 'danger')
             return redirect(url_for('users.import_csv'))
 
         default_role = db.query(Role).filter_by(name='مستخدم').first()
         if not default_role:
-            flash('لم يتم العثور على دور المستخدم الافتراضي','danger')
+            flash_msg('لم يتم العثور على دور المستخدم الافتراضي', 'danger')
             return redirect(url_for('users.import_csv'))
 
         success_count = error_count = 0
@@ -292,7 +293,7 @@ def bulk_message():
         user_ids  = request.form.getlist('user_ids', type=int)
 
         if not subject or not body:
-            flash('عنوان ومحتوى الرسالة مطلوبان','danger')
+            flash_msg('عنوان ومحتوى الرسالة مطلوبان', 'danger')
             return redirect(url_for('users.bulk_message'))
 
         if recipient == 'all':
@@ -305,11 +306,11 @@ def bulk_message():
             from utils.email_helper import send_bulk
             send_bulk(targets, subject, body)
         except Exception as e:
-            flash(f'خطأ في الإرسال: {e}','danger')
+            flash_msg(f'خطأ في الإرسال: {e}', 'danger')
             return redirect(url_for('users.bulk_message'))
 
         syslog('BULK_MESSAGE', f'رسالة جماعية إلى {len(targets)} مستخدم: {subject}')
-        flash(f'✅ تم إرسال الرسالة إلى {len(targets)} مستخدم','success')
+        flash_msg(f'✅ تم إرسال الرسالة إلى {len(targets)} مستخدم', 'success')
         return redirect(url_for('users.index'))
 
     users = db.query(User).filter_by(is_active=True).order_by(User.full_name).all()
@@ -336,12 +337,12 @@ def new_role():
         name_en = request.form.get('name_en','').strip()
         desc    = request.form.get('description','').strip()
         if not name:
-            flash('اسم الدور مطلوب','danger')
+            flash_msg('اسم الدور مطلوب', 'danger')
             return render_template('admin/role_form.html', role=None, form=request.form)
         r = Role(name=name, name_en=name_en, description=desc)
         db.add(r); db.commit()
         _log(db,'ADD_ROLE',f'دور جديد: {name}')
-        flash(f'✅ تم إنشاء الدور: {name}','success')
+        flash_msg(f'✅ تم إنشاء الدور: {name}', 'success')
         return redirect(url_for('users.roles'))
     return render_template('admin/role_form.html', role=None, form={})
 
@@ -359,7 +360,7 @@ def edit_role(role_id):
         role.description = request.form.get('description','').strip()
         db.commit()
         _log(db,'EDIT_ROLE',f'تعديل الدور: {role.name}')
-        flash('✅ تم تحديث الدور','success')
+        flash_msg('✅ تم تحديث الدور', 'success')
         return redirect(url_for('users.roles'))
     return render_template('admin/role_form.html', role=role, form={})
 
@@ -372,11 +373,11 @@ def delete_role(role_id):
     role = db.query(Role).get(role_id)
     if not role: abort(404)
     if role.users:
-        flash('لا يمكن حذف دور مرتبط بمستخدمين','danger')
+        flash_msg('لا يمكن حذف دور مرتبط بمستخدمين', 'danger')
         return redirect(url_for('users.roles'))
     name = role.name; db.delete(role); db.commit()
     _log(db,'DELETE_ROLE',f'حذف الدور: {name}')
-    flash(f'تم حذف الدور: {name}','success')
+    flash_msg(f'تم حذف الدور: {name}', 'success')
     return redirect(url_for('users.roles'))
 
 
@@ -407,7 +408,7 @@ def role_permissions(role_id):
                 db.add(rp)
         db.commit()
         _log(db,'EDIT_PERMISSIONS',f'تعديل صلاحيات دور: {role.name}')
-        flash('✅ تم حفظ الصلاحيات','success')
+        flash_msg('✅ تم حفظ الصلاحيات', 'success')
         return redirect(url_for('users.roles'))
 
     # بناء خريطة الصلاحيات الحالية
@@ -482,6 +483,6 @@ def export_pdf():
         return Response(buf.read(), mimetype='application/pdf',
                         headers={'Content-Disposition': 'attachment;filename=ARS_Users.pdf'})
     except ImportError:
-        flash('يرجى تثبيت reportlab', 'danger')
+        flash_msg('يرجى تثبيت reportlab', 'danger')
         return redirect(url_for('users.index'))
 

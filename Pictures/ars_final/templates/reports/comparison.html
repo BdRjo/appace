@@ -1,13 +1,13 @@
 {% extends 'base.html' %}
-{% block title %}المقارنة المتقدمة — ARS{% endblock %}
+{% block title %}{% if current_lang=="en" %}Advanced Comparison — ARS{% else %}المقارنة المتقدمة — ARS{% endif %}{% endblock %}
 {% block extra_css %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 {% endblock %}
 {% block content %}
 <div class="page-header d-flex justify-content-between align-items-center">
-  <h1><i class="bi bi-bar-chart-steps me-2"></i><span data-i18n="t_comparison">المقارنة المتقدمة</span></h1>
+  <h1><i class="bi bi-bar-chart-steps me-2"></i><span>{{ _('المقارنة المتقدمة') }}</h1>
   <a href="{{ url_for('reports.index') }}" class="btn btn-outline-secondary">
-    <i class="bi bi-arrow-right me-1"></i><span data-i18n="t_reports_s">التقارير</span>
+    <i class="bi bi-arrow-right me-1"></i>{{ _('التقارير') }}
   </a>
 </div>
 
@@ -17,7 +17,7 @@
     <form method="GET" id="compForm">
       <div class="row g-3 align-items-end">
         <div class="col-md-3">
-          <label class="form-label fw-bold">وضع المقارنة</label>
+          <label class="form-label fw-bold">{{ _('وضع المقارنة') }}</label>
           <select name="mode" class="form-select" onchange="this.form.submit()">
             {% for k,lbl in [('venue','قاعة ↔ قاعة'),('location','موقع ↔ موقع'),
                              ('period','فترة ↔ فترة'),('user','مستخدم ↔ مستخدم'),('status','توزيع الحالات')] %}
@@ -28,66 +28,66 @@
 
         {% if mode == 'venue' %}
         <div class="col-md-3">
-          <label class="form-label fw-bold">القاعة أ</label>
+          <label class="form-label fw-bold">{{ _('القاعة أ') }}</label>
           <select name="a" class="form-select">
-            <option value="">اختر...</option>
+            <option value="">{{ _('اختر...') }}</option>
             {% for v in venues %}<option value="{{ v.name }}" {% if a==v.name %}selected{% endif %}>{{ v.name }}</option>{% endfor %}
           </select>
         </div>
         <div class="col-md-3">
-          <label class="form-label fw-bold">القاعة ب</label>
+          <label class="form-label fw-bold">{{ _('القاعة ب') }}</label>
           <select name="b" class="form-select">
-            <option value="">اختر...</option>
+            <option value="">{{ _('اختر...') }}</option>
             {% for v in venues %}<option value="{{ v.name }}" {% if b==v.name %}selected{% endif %}>{{ v.name }}</option>{% endfor %}
           </select>
         </div>
 
         {% elif mode == 'location' %}
         <div class="col-md-3">
-          <label class="form-label fw-bold">الموقع أ</label>
+          <label class="form-label fw-bold">{{ _('الموقع أ') }}</label>
           <select name="a" class="form-select">
-            <option value="">اختر...</option>
+            <option value="">{{ _('اختر...') }}</option>
             {% for l in locations %}<option value="{{ l.name }}" {% if a==l.name %}selected{% endif %}>{{ l.name }}</option>{% endfor %}
           </select>
         </div>
         <div class="col-md-3">
-          <label class="form-label fw-bold">الموقع ب</label>
+          <label class="form-label fw-bold">{{ _('الموقع ب') }}</label>
           <select name="b" class="form-select">
-            <option value="">اختر...</option>
+            <option value="">{{ _('اختر...') }}</option>
             {% for l in locations %}<option value="{{ l.name }}" {% if b==l.name %}selected{% endif %}>{{ l.name }}</option>{% endfor %}
           </select>
         </div>
 
         {% elif mode == 'period' %}
         <div class="col-md-2">
-          <label class="form-label fw-bold">الفترة أ — من</label>
+          <label class="form-label fw-bold">{{ _('الفترة أ — من') }}</label>
           <input type="date" name="fa" class="form-control" value="{{ fa }}">
         </div>
         <div class="col-md-2">
-          <label class="form-label fw-bold"><span data-i18n="x_0985d2"><span data-i18n="z_0985d2">إلى</span></span></label>
+          <label class="form-label fw-bold">{{ _('إلى') }}</label>
           <input type="date" name="ta" class="form-control" value="{{ ta }}">
         </div>
         <div class="col-md-2">
-          <label class="form-label fw-bold">الفترة ب — من</label>
+          <label class="form-label fw-bold">{{ _('الفترة ب — من') }}</label>
           <input type="date" name="fb" class="form-control" value="{{ fb }}">
         </div>
         <div class="col-md-2">
-          <label class="form-label fw-bold"><span data-i18n="x_0985d2"><span data-i18n="z_0985d2">إلى</span></span></label>
+          <label class="form-label fw-bold">{{ _('إلى') }}</label>
           <input type="date" name="tb" class="form-control" value="{{ tb }}">
         </div>
 
         {% elif mode == 'user' %}
         <div class="col-md-3">
-          <label class="form-label fw-bold">المستخدم أ</label>
+          <label class="form-label fw-bold">{{ _('المستخدم أ') }}</label>
           <select name="a" class="form-select">
-            <option value="">اختر...</option>
+            <option value="">{{ _('اختر...') }}</option>
             {% for u in users_all %}<option value="{{ u.username }}" {% if a==u.username %}selected{% endif %}>{{ u.full_name }}</option>{% endfor %}
           </select>
         </div>
         <div class="col-md-3">
-          <label class="form-label fw-bold">المستخدم ب</label>
+          <label class="form-label fw-bold">{{ _('المستخدم ب') }}</label>
           <select name="b" class="form-select">
-            <option value="">اختر...</option>
+            <option value="">{{ _('اختر...') }}</option>
             {% for u in users_all %}<option value="{{ u.username }}" {% if b==u.username %}selected{% endif %}>{{ u.full_name }}</option>{% endfor %}
           </select>
         </div>
@@ -95,7 +95,7 @@
 
         <div class="col-md-2">
           <button type="submit" class="btn btn-primary w-100">
-            <i class="bi bi-search me-1"></i>مقارنة
+            <i class="bi bi-search me-1"></i>{% if current_lang=="en" %}Compare{% else %}مقارنة{% endif %}
           </button>
         </div>
       </div>
@@ -120,20 +120,20 @@
   <!-- Stats panel — مطابق لـ v54 _refresh_stats_panel -->
   <div class="col-md-4">
     <div class="card">
-      <div class="card-header"><i class="bi bi-table me-2"></i>📊 نتائج المقارنة</div>
+      <div class="card-header"><i class="bi bi-table me-2"></i>{{ _('📊 نتائج المقارنة') }}</div>
       <div class="card-body p-2">
         {% if not result.get('single') %}
         <div class="mb-2">
-          <span class="badge me-1" style="background:#1A555C">🔵 {{ result.label_a }}</span>
-          <span class="badge" style="background:#EBB27A;color:#333">🟠 {{ result.label_b }}</span>
+          🔵 {{ result.label_a }}
+          🟠 {{ result.label_b }}
         </div>
         {% endif %}
         <table class="table table-sm table-striped mb-0">
           <thead>
             <tr>
-              <th>المقياس</th>
-              <th class="text-center">أ</th>
-              {% if not result.get('single') %}<th class="text-center">ب</th><th class="text-center">Δ%</th>{% endif %}
+              <th>{{ _('المقياس') }}</th>
+              <th class="text-center">{{ _('أ') }}</th>
+              {% if not result.get('single') %}<th class="text-center">{{ _('ب') }}</th><th class="text-center">Δ%</th>{% endif %}
             </tr>
           </thead>
           <tbody>
@@ -162,7 +162,7 @@
         <div class="mt-2 p-2 bg-light rounded small">
           {% set tot_a = result.data_a.values()|sum %}
           {% set tot_b = result.data_b.values()|sum %}
-          🏆 الأعلى: <strong>{{ result.label_a if tot_a >= tot_b else result.label_b }}</strong>
+          {% if current_lang=="en" %}🏆 Top: <strong>{% else %}🏆 الأعلى: <strong>{% endif %}{{ result.label_a if tot_a >= tot_b else result.label_b }}</strong>
         </div>
         {% endif %}
       </div>
@@ -201,7 +201,7 @@ new Chart(ctx, {
 <div class="card">
   <div class="card-body text-center py-5 text-muted">
     <i class="bi bi-bar-chart-steps" style="font-size:3rem;color:#ccc"></i>
-    <p class="mt-3">اختر وضع المقارنة والعناصر ثم اضغط <strong>مقارنة</strong></p>
+    <p class="mt-3">{{ _('اختر وضع المقارنة والعناصر ثم اضغط') }}<strong>{{ _('مقارنة') }}</strong></p>
   </div>
 </div>
 {% endif %}

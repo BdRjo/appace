@@ -1,4 +1,5 @@
 """الإعدادات"""
+from utils.flash_helper import flash_msg
 from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user
 from utils.helpers import get_db, admin_required
@@ -45,9 +46,9 @@ def index():
         new_pass = request.form.get('smtp_pass','').strip()
         if new_pass: cfg['smtp_pass'] = new_pass
         if save_settings(cfg):
-            flash('✅ تم حفظ الإعدادات', 'success')
+            flash_msg('✅ تم حفظ الإعدادات', 'success')
         else:
-            flash('تعذّر حفظ الإعدادات (تحقق من صلاحيات الملف)', 'warning')
+            flash_msg('تعذّر حفظ الإعدادات (تحقق من صلاحيات الملف)', 'warning')
         return redirect(url_for('settings.index'))
     return render_template('settings/index.html', cfg=cfg)
 
@@ -58,7 +59,7 @@ def test_email():
     cfg = load_settings()
     to  = request.form.get('test_email_to', current_user.email or '')
     if not to:
-        flash('أدخل بريداً إلكترونياً للاختبار', 'danger')
+        flash_msg('أدخل بريداً إلكترونياً للاختبار', 'danger')
         return redirect(url_for('settings.index'))
     try:
         import smtplib
@@ -71,7 +72,7 @@ def test_email():
             s.starttls()
             s.login(cfg['smtp_user'], cfg['smtp_pass'])
             s.send_message(msg)
-        flash(f'✅ تم إرسال بريد اختباري إلى: {to}', 'success')
+        flash_msg(f'✅ تم إرسال بريد اختباري إلى: {to}', 'success')
     except Exception as e:
-        flash(f'فشل الإرسال: {e}', 'danger')
+        flash_msg(f'فشل الإرسال: {e}', 'danger')
     return redirect(url_for('settings.index'))

@@ -4,6 +4,7 @@ Admin — لوحة التحكم + الصيانة + الإعدادات
 """
 import os, shutil, json
 from datetime import datetime, timedelta
+from utils.flash_helper import flash_msg
 from flask import (Blueprint, render_template, request, redirect,
                    url_for, flash, abort, jsonify, send_file)
 from flask_login import login_required, current_user
@@ -203,7 +204,7 @@ def maintenance():
             mcfg['report_header_extra']    = request.form.get('report_header_extra','').strip()
             mcfg['report_header_footer']   = request.form.get('report_header_footer','').strip()
             _save_maintenance(mcfg)
-        flash('تم تحديث شريط الأخبار', 'success')
+        flash_msg('تم تحديث شريط الأخبار', 'success')
         return redirect(url_for('admin.maintenance'))
 
     return render_template('admin/maintenance.html',
@@ -265,14 +266,14 @@ def live_users():
 def backup():
     db_path = 'acs_venues.db'
     if not os.path.exists(db_path):
-        flash('لا توجد قاعدة بيانات SQLite (PostgreSQL لا تدعم هذه العملية في Render)','warning')
+        flash_msg('لا توجد قاعدة بيانات SQLite (PostgreSQL لا تدعم هذه العملية في Render)', 'warning')
         return redirect(url_for('admin.maintenance'))
     os.makedirs('backups', exist_ok=True)
     ts  = datetime.now().strftime('%Y%m%d_%H%M%S')
     dst = f'backups/acs_backup_{ts}.db'
     shutil.copy2(db_path, dst)
     syslog('BACKUP', f'نسخة احتياطية: {dst}')
-    flash(f'✅ تم إنشاء النسخة الاحتياطية: {dst}','success')
+    flash_msg(f'✅ تم إنشاء النسخة الاحتياطية: {dst}', 'success')
     return redirect(url_for('admin.maintenance'))
 
 
@@ -286,7 +287,7 @@ def clean_logs():
     deleted = db.query(SystemLog).filter(SystemLog.created_at < cutoff).delete()
     db.commit()
     syslog('CLEAN_LOGS', f'تم حذف {deleted} سجل قديم')
-    flash(f'✅ تم حذف {deleted} سجل قديم (أكثر من 30 يوم)','success')
+    flash_msg(f'✅ تم حذف {deleted} سجل قديم (أكثر من 30 يوم)', 'success')
     return redirect(url_for('admin.maintenance'))
 
 
@@ -302,7 +303,7 @@ def optimize():
     except:
         pass  # PostgreSQL لا تدعم VACUUM عبر SQLAlchemy
     syslog('OPTIMIZE', 'تحسين قاعدة البيانات')
-    flash('✅ تم تحسين قاعدة البيانات','success')
+    flash_msg('✅ تم تحسين قاعدة البيانات', 'success')
     return redirect(url_for('admin.maintenance'))
 
 
@@ -327,7 +328,7 @@ def toggle_maintenance():
         json.dump(mcfg, f)
 
     syslog('TOGGLE_MAINTENANCE', f'{toggle}: {mcfg}')
-    flash('✅ تم تحديث إعدادات الصيانة','success')
+    flash_msg('✅ تم تحديث إعدادات الصيانة', 'success')
     return redirect(url_for('admin.maintenance'))
 
 
@@ -383,7 +384,7 @@ def settings():
         with open(CONFIG_EMAIL,'w',encoding='utf-8') as f:
             json.dump(new_cfg, f, ensure_ascii=False, indent=2)
         syslog('SAVE_EMAIL_CONFIG', f"provider: {new_cfg['provider_key']}")
-        flash('✅ تم حفظ إعدادات البريد الإلكتروني','success')
+        flash_msg('✅ تم حفظ إعدادات البريد الإلكتروني', 'success')
         return redirect(url_for('admin.settings'))
 
     return render_template('admin/settings.html',

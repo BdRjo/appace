@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 from datetime import datetime
+from utils.flash_helper import flash_msg
 from flask import (Blueprint, render_template, redirect, url_for,
                    request, flash, session)
 from flask_login import login_user, logout_user, login_required, current_user
@@ -47,7 +48,7 @@ def login():
     # تحقق من تعليق النظام
     maint = _load_maintenance()
     if maint.get('system_suspended'):
-        flash(maint.get('suspend_message', 'النظام معلق مؤقتاً للصيانة'), 'danger')
+        flash_msg(maint.get('suspend_message', 'النظام معلق مؤقتاً للصيانة'), 'danger')
 
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
@@ -60,21 +61,21 @@ def login():
         if maint.get('system_suspended'):
             is_admin = user and user.role and user.role.name in ('مدير النظام', 'admin')
             if not is_admin:
-                flash('النظام معلق مؤقتاً. تواصل مع المدير.', 'danger')
+                flash_msg('النظام معلق مؤقتاً. تواصل مع المدير.', 'danger')
                 return redirect(url_for('auth.login'))
 
         if not user or user.password_hash != hash_password(password):
             _log_login(db, user, False, 'wrong_credentials', request)
-            flash('اسم المستخدم أو كلمة المرور غير صحيحة', 'danger')
+            flash_msg('اسم المستخدم أو كلمة المرور غير صحيحة', 'danger')
             return redirect(url_for('auth.login'))
 
         if not user.is_active:
-            flash('حسابك موقوف. تواصل مع المدير.', 'danger')
+            flash_msg('حسابك موقوف. تواصل مع المدير.', 'danger')
             return redirect(url_for('auth.login'))
 
         # تحقق من تفعيل البريد الإلكتروني (إذا كان مطلوباً)
         if not user.is_verified:
-            flash('بريدك الإلكتروني غير مفعّل. تحقق من بريدك أو تواصل مع المدير.', 'warning')
+            flash_msg('بريدك الإلكتروني غير مفعّل. تحقق من بريدك أو تواصل مع المدير.', 'warning')
             _log_login(db, user, False, 'not_verified', request)
             return redirect(url_for('auth.login'))
 
@@ -105,10 +106,10 @@ def login():
 def logout():
     logout_user()
     from flask import request as _req
-    if _req.args.get(\'reason\') == \'timeout\':
-        flash(\'⏱️ تم تسجيل خروجك تلقائياً بسبب عدم النشاط\', \'warning\')
+    if _req.args.get('reason') == 'timeout':
+        flash_msg('⏱️ تم تسجيل خروجك تلقائياً بسبب عدم النشاط', 'warning')
     else:
-        flash('تم تسجيل الخروج بنجاح', 'success')
+        flash_msg('تم تسجيل الخروج بنجاح', 'success')
     return redirect(url_for('auth.login'))
 
 
@@ -120,7 +121,7 @@ def register():
 
     maint = _load_maintenance()
     if maint.get('registration_suspended'):
-        flash('التسجيل معلق مؤقتاً. تواصل مع المدير.', 'warning')
+        flash_msg('التسجيل معلق مؤقتاً. تواصل مع المدير.', 'warning')
         return redirect(url_for('auth.login'))
 
     if request.method == 'POST':
@@ -190,7 +191,7 @@ def register():
         except Exception:
             pass
 
-        flash('تم التسجيل بنجاح! يمكنك تسجيل الدخول الآن.', 'success')
+        flash_msg('تم التسجيل بنجاح! يمكنك تسجيل الدخول الآن.', 'success')
         return redirect(url_for('auth.login'))
 
     return render_template('auth/register.html', form={})
@@ -215,16 +216,16 @@ def profile():
 
         if old_pw and new_pw:
             if user.password_hash != hash_password(old_pw):
-                flash('كلمة المرور الحالية غير صحيحة', 'danger')
+                flash_msg('كلمة المرور الحالية غير صحيحة', 'danger')
                 return redirect(url_for('auth.profile'))
             if len(new_pw) < 6:
-                flash('كلمة المرور الجديدة قصيرة جداً', 'danger')
+                flash_msg('كلمة المرور الجديدة قصيرة جداً', 'danger')
                 return redirect(url_for('auth.profile'))
             user.password_hash = hash_password(new_pw)
-            flash('تم تغيير كلمة المرور', 'success')
+            flash_msg('تم تغيير كلمة المرور', 'success')
 
         db.commit()
-        flash('تم حفظ التغييرات', 'success')
+        flash_msg('تم حفظ التغييرات', 'success')
         return redirect(url_for('auth.profile'))
 
     return render_template('auth/profile.html', user=current_user)
@@ -248,7 +249,7 @@ def forgot_password():
             email = request.form.get('email','').strip()
             user  = db.query(User).filter_by(email=email).first()
             if not user:
-                flash('البريد الإلكتروني غير مسجل', 'danger')
+                flash_msg('البريد الإلكتروني غير مسجل', 'danger')
                 return render_template('auth/forgot_password.html', step=1)
             code = _gen_code()
             from datetime import timedelta
@@ -264,9 +265,9 @@ def forgot_password():
             except Exception:
                 pass
             if email_sent:
-                flash(f'✅ تم إرسال كود التحقق إلى {email}', 'success')
+                flash_msg(f'✅ تم إرسال كود التحقق إلى {email}', 'success')
             else:
-                flash(f'📧 البريد غير مفعّل — كود التحقق (للاختبار): <strong>{code}</strong>', 'info')
+                flash_msg(f'📧 البريد غير مفعّل — كود التحقق (للاختبار): <strong>{code}</strong>', 'info')
             return render_template('auth/forgot_password.html', step=2, email=email)
 
         elif step == '2':
@@ -274,11 +275,11 @@ def forgot_password():
             stored  = session.get('reset_code','')
             expires = session.get('reset_expires','')
             if expires and datetime.fromisoformat(expires) < datetime.now():
-                flash('انتهت صلاحية الكود. أعد المحاولة.', 'danger')
+                flash_msg('انتهت صلاحية الكود. أعد المحاولة.', 'danger')
                 session.pop('reset_code', None)
                 return render_template('auth/forgot_password.html', step=1)
             if code != stored:
-                flash('الكود غير صحيح', 'danger')
+                flash_msg('الكود غير صحيح', 'danger')
                 return render_template('auth/forgot_password.html', step=2,
                                        email=session.get('reset_email',''))
             session['reset_verified'] = True
@@ -290,10 +291,10 @@ def forgot_password():
             new_pw  = request.form.get('new_password','').strip()
             new_pw2 = request.form.get('new_password2','').strip()
             if new_pw != new_pw2:
-                flash('كلمتا المرور غير متطابقتين', 'danger')
+                flash_msg('كلمتا المرور غير متطابقتين', 'danger')
                 return render_template('auth/forgot_password.html', step=3)
             if len(new_pw) < 6:
-                flash('كلمة المرور يجب أن تكون 6 أحرف على الأقل', 'danger')
+                flash_msg('كلمة المرور يجب أن تكون 6 أحرف على الأقل', 'danger')
                 return render_template('auth/forgot_password.html', step=3)
             db   = get_db()
             email = session.get('reset_email','')
@@ -304,7 +305,7 @@ def forgot_password():
             session.pop('reset_code', None)
             session.pop('reset_verified', None)
             session.pop('reset_email', None)
-            flash('تم تغيير كلمة المرور بنجاح. يمكنك تسجيل الدخول.', 'success')
+            flash_msg('تم تغيير كلمة المرور بنجاح. يمكنك تسجيل الدخول.', 'success')
             return redirect(url_for('auth.login'))
 
     return render_template('auth/forgot_password.html', step=1)

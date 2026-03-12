@@ -1,6 +1,6 @@
 {% extends "base.html" %}
-{% block title %}الإعدادات — ARS{% endblock %}
+{% block title %}{% if current_lang=="en" %}Settings — ARS{% else %}الإعدادات — ARS{% endif %}{% endblock %}
 {% block content %}
 <script>window.location.replace("{{ url_for('admin.settings') }}");</script>
-<p>جارٍ التحويل إلى <a href="{{ url_for('admin.settings') }}"><span data-i18n="t_sys_settings"><span data-i18n="z_16b243">إعدادات النظام</span></span></a>...</p>
+<p>{{ _('جارٍ التحويل إلى') }}<a href="{{ url_for('admin.settings') }}">{{ _('إعدادات النظام') }}</a>...</p>
 {% endblock %}

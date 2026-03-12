@@ -1,24 +1,24 @@
-{% extends "base.html" %}{% block title %}سجل النظام — ARS{% endblock %}
+{% extends "base.html" %}{% block title %}{% if current_lang=="en" %}System Log — ARS{% else %}سجل النظام — ARS{% endif %}{% endblock %}
 {% block content %}
 <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-  <h1><i class="bi bi-journal-code me-2"></i><span data-i18n="t_syslog"><span data-i18n="z_1fe63d">سجل النظام والأمان</span></span></h1>
+  <h1><i class="bi bi-journal-code me-2"></i>{{ _('سجل النظام والأمان') }}</h1>
   <div class="d-flex gap-2 flex-wrap">
     <form method="GET" class="d-flex gap-2">
       <input type="text" name="q" value="{{ request.args.get('q','') }}"
-             class="form-control form-control-sm" placeholder="بحث...">
+             class="form-control form-control-sm" placeholder="{{ _('بحث...') }}">
       <select name="level" class="form-select form-select-sm" style="width:120px">
-        <option value="">كل المستويات</option>
+        <option value="">{{ _('كل المستويات') }}</option>
         <option value="info"    {{ 'selected' if request.args.get('level')=='info' }}>info</option>
         <option value="warning" {{ 'selected' if request.args.get('level')=='warning' }}>warning</option>
         <option value="error"   {{ 'selected' if request.args.get('level')=='error' }}>error</option>
       </select>
-      <button class="btn btn-sm btn-primary-ars">فلترة</button>
+      <button class="btn btn-sm btn-primary-ars">{{ _('فلترة') }}</button>
     </form>
     <button onclick="window.print()" class="btn btn-sm btn-outline-secondary">
-      <i class="bi bi-printer me-1"></i><span data-i18n="t_print"><span data-i18n="z_88c5d1">طباعة</span></span>
+      <i class="bi bi-printer me-1"></i>{{ _('طباعة') }}
     </button>
     <a href="{{ url_for('admin.dashboard') }}" class="btn btn-sm btn-outline-secondary">
-      <i class="bi bi-arrow-right me-1"></i><span data-i18n="t_back"><span data-i18n="z_7cf7b1">العودة</span></span>
+      <i class="bi bi-arrow-right me-1"></i>{{ _('العودة') }}
     </a>
   </div>
 </div>
@@ -26,8 +26,8 @@
 <!-- Live Users Widget -->
 <div class="card mb-3" id="liveUsersCard">
   <div class="card-header d-flex justify-content-between align-items-center">
-    <span><i class="bi bi-people-fill me-2"></i><span data-i18n="t_live_users">المستخدمون النشطون</span>
-      <span class="badge ms-2" style="background:#1A555C" id="liveCount">—</span>
+    <span><i class="bi bi-people-fill me-2"></i><span>{{ _('المستخدمون النشطون') }}
+      —
     </span>
     <button onclick="loadLiveUsers()" class="btn btn-sm btn-outline-secondary">
       <i class="bi bi-arrow-clockwise"></i>
@@ -36,9 +36,9 @@
   <div class="card-body p-0">
     <div class="table-responsive">
       <table class="table table-sm mb-0" id="liveTable">
-        <thead><tr><th><span data-i18n="t_user">المستخدم</span></th><th>IP</th><th><span data-i18n="t_browser">المتصفح</span></th><th>آخر نشاط</th></tr></thead>
+        <thead><tr><th>{{ _('المستخدم') }}</th><th>IP</th><th>{{ _('المتصفح') }}</th><th><span>{{ _('آخر نشاط') }}</th></tr></thead>
         <tbody id="liveBody">
-          <tr><td colspan="4" class="text-center text-muted py-3">جارٍ التحميل...</td></tr>
+          <tr><td colspan="4" class="text-center text-muted py-3">{{ _('جارٍ التحميل...') }}</td></tr>
         </tbody>
       </table>
     </div>
@@ -49,25 +49,25 @@
 <div class="row g-3 mb-3">
   <div class="col-6 col-md-3">
     <div class="stat-card" style="background:linear-gradient(135deg,#1A555C,#2E8B8F)">
-      <div class="num">{{ logs|length }}</div><div class="lbl"><span data-i18n="t_total">إجمالي</span></div>
+      <div class="num">{{ logs|length }}</div><div class="lbl">{{ _('إجمالي') }}</div>
     </div>
   </div>
   <div class="col-6 col-md-3">
     <div class="stat-card" style="background:linear-gradient(135deg,#5a3a7a,#7c5aa0)">
       <div class="num">{{ logs|selectattr('level','eq','error')|list|length }}</div>
-      <div class="lbl">أخطاء</div>
+      <div class="lbl"><span>{{ _('أخطاء') }}</div>
     </div>
   </div>
   <div class="col-6 col-md-3">
     <div class="stat-card" style="background:linear-gradient(135deg,#D4A853,#c49030)">
       <div class="num">{{ logs|selectattr('level','eq','warning')|list|length }}</div>
-      <div class="lbl">تحذيرات</div>
+      <div class="lbl">{{ _('تحذيرات') }}</div>
     </div>
   </div>
   <div class="col-6 col-md-3">
     <div class="stat-card" style="background:linear-gradient(135deg,#2E8B8F,#1A555C)">
       <div class="num">{{ logs|selectattr('level','eq','info')|list|length }}</div>
-      <div class="lbl">معلومات</div>
+      <div class="lbl">{{ _('معلومات') }}</div>
     </div>
   </div>
 </div>
@@ -78,14 +78,14 @@
     <div class="table-responsive">
       <table class="table table-sm table-hover mb-0">
         <thead>
-          <tr><th>#</th><th><span data-i18n="t_log_action">الإجراء</span></th><th><span data-i18n="t_desc">الوصف</span></th><th><span data-i18n="t_user">المستخدم</span></th><th><span data-i18n="t_log_level">المستوى</span></th><th><span data-i18n="t_time">الوقت</span></th></tr>
+          <tr><th>#</th><th>{{ _('الإجراء') }}</th><th>{{ _('الوصف') }}</th><th>{{ _('المستخدم') }}</th><th>{{ _('المستوى') }}</th><th><span>{{ _('الوقت') }}</th></tr>
         </thead>
         <tbody>
         {% for log in logs %}
         <tr class="{{ 'table-warning bg-opacity-50' if log.level=='warning' else '' }}">
           <td class="text-muted small">{{ loop.index }}</td>
           <td>
-            <span class="badge" style="background:#1A555C;font-size:.7rem;font-family:monospace">{{ log.action }}</span>
+            {{ log.action }}
           </td>
           <td><small>{{ log.description or '—' }}</small></td>
           <td><small class="text-muted"><i class="bi bi-person me-1"></i>{{ log.user.username if log.user else 'النظام' }}</small></td>
@@ -99,7 +99,7 @@
           <td><small class="text-muted">{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') if log.created_at else '' }}</small></td>
         </tr>
         {% else %}
-        <tr><td colspan="6" class="text-center text-muted py-4"><span data-i18n="x_eee1a8"><span data-i18n="z_eee1a8">لا توجد سجلات</span></span></td></tr>
+        <tr><td colspan="6" class="text-center text-muted py-4">{{ _('لا توجد سجلات') }}</td></tr>
         {% endfor %}
         </tbody>
       </table>
@@ -115,7 +115,7 @@ function loadLiveUsers(){
       document.getElementById('liveCount').textContent = d.count;
       const body = document.getElementById('liveBody');
       if(!d.users || !d.users.length){
-        body.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-2">لا يوجد مستخدمون نشطون الآن</td></tr>';
+        body.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-2">{{ _('لا يوجد مستخدمون نشطون الآن') }}</td></tr>';
         return;
       }
       body.innerHTML = d.users.map(u=>`
@@ -127,7 +127,7 @@ function loadLiveUsers(){
         </tr>`).join('');
     }).catch(()=>{
       document.getElementById('liveBody').innerHTML =
-        '<tr><td colspan="4" class="text-center text-muted py-2">تعذّر التحميل</td></tr>';
+        '<tr><td colspan="4" class="text-center text-muted py-2">{{ _('تعذّر التحميل') }}</td></tr>';
     });
 }
 loadLiveUsers();

@@ -1,9 +1,9 @@
-{% extends "base.html" %}{% block title %}إدارة القاعات — ARS{% endblock %}
+{% extends "base.html" %}{% block title %}{% if current_lang=="en" %}Manage Venues — ARS{% else %}إدارة القاعات — ARS{% endif %}{% endblock %}
 {% block content %}
 <div class="page-header d-flex justify-content-between align-items-center">
-  <h1><i class="bi bi-building me-2"></i>إدارة القاعات ({{ venues|length }})</h1>
+  <h1><i class="bi bi-building me-2"></i>{% if current_lang=='en' %}Manage Venues{% else %}إدارة القاعات{% endif %} ({{ venues|length }})</h1>
   <a href="{{ url_for('venues_mgmt.new') }}" class="btn btn-primary-ars">
-    <i class="bi bi-plus-lg me-1"></i>قاعة جديدة
+    <i class="bi bi-plus-lg me-1"></i>{% if current_lang=="en" %}New Venue{% else %}قاعة جديدة{% endif %}
   </a>
 </div>
 
@@ -11,19 +11,19 @@
   <form method="GET" class="row g-2 align-items-end">
     <div class="col-md-4">
       <input type="text" name="q" class="form-control form-control-sm"
-             placeholder="🔍 بحث باسم القاعة" value="{{ search }}">
+             placeholder="{{ _('🔍 بحث باسم القاعة') }}" value="{{ search }}">
     </div>
     <div class="col-md-3">
       <select name="location_id" class="form-select form-select-sm">
-        <option value="">كل المواقع</option>
+        <option value="">{{ _('كل المواقع') }}</option>
         {% for loc in locations %}
         <option value="{{ loc.id }}" {% if loc_id == loc.id|string %}selected{% endif %}>{{ loc.name }}</option>
         {% endfor %}
       </select>
     </div>
     <div class="col-md-auto d-flex gap-2">
-      <button class="btn btn-primary-ars btn-sm"><span data-i18n="t_filter">تصفية</span></button>
-      <a href="{{ url_for('venues_mgmt.index') }}" class="btn btn-outline-secondary btn-sm">إعادة</a>
+      <button class="btn btn-primary-ars btn-sm">{{ _('تصفية') }}</button>
+      <a href="{{ url_for('venues_mgmt.index') }}" class="btn btn-outline-secondary btn-sm">{{ _('إعادة') }}</a>
       <a href="{{ url_for('venues_mgmt.export_csv') }}" class="btn btn-outline-success btn-sm">
         <i class="bi bi-download me-1"></i>CSV
       </a>
@@ -36,8 +36,8 @@
   <div class="table-responsive">
     <table class="table table-hover mb-0">
       <thead><tr>
-        <th><span data-i18n="t_venue_name">اسم القاعة</span></th><th><span data-i18n="t_location">الموقع</span></th><th><span data-i18n="t_code">الكود</span></th><th><span data-i18n="t_capacity">السعة</span></th>
-        <th><span data-i18n="t_needs_approval">يحتاج موافقة</span></th><th><span data-i18n="t_status">الحالة</span></th><th><span data-i18n="t_actions">إجراءات</span></th>
+        <th><span>{{ _('اسم القاعة') }}</th><th>{{ _('الموقع') }}</th><th><span>{{ _('الكود') }}</th><th>{{ _('السعة') }}</th>
+        <th>{{ _('يحتاج موافقة') }}</th><th>{{ _('الحالة') }}</th><th>{{ _('إجراءات') }}</th>
       </tr></thead>
       <tbody>
         {% for v in venues %}
@@ -51,8 +51,8 @@
           <td><small class="text-muted"><i class="bi bi-geo-alt me-1"></i>{{ v.location.name if v.location else '—' }}</small></td>
           <td>{% if v.code %}<code>{{ v.code }}</code>{% else %}—{% endif %}</td>
           <td>{% if v.capacity %}<span class="badge bg-light text-dark"><i class="bi bi-people me-1"></i>{{ v.capacity }}</span>{% else %}—{% endif %}</td>
-          <td>{% if v.requires_approval %}<span class="badge bg-warning text-dark"><span data-i18n="t_yes">نعم</span></span>{% else %}<span class="badge bg-success"><span data-i18n="t_no">لا</span></span>{% endif %}</td>
-          <td>{% if v.is_active %}<span class="badge bg-success">نشطة</span>{% else %}<span class="badge bg-danger">موقوفة</span>{% endif %}</td>
+          <td>{% if v.requires_approval %}<span class="badge bg-warning text-dark">{{ _('نعم') }}{% else %}<span class="badge bg-success">{{ _('لا') }}{% endif %}</td>
+          <td>{% if v.is_active %}<span class="badge bg-success">{{ _('نشطة') }}{% else %}<span class="badge bg-danger">{{ _('موقوفة') }}{% endif %}</td>
           <td>
             <div class="d-flex gap-1">
               <a href="{{ url_for('venues_mgmt.edit', venue_id=v.id) }}"
@@ -73,10 +73,10 @@
   {% else %}
   <div class="text-center py-5 text-muted">
     <i class="bi bi-building-x fs-1 d-block mb-2"></i>
-    لا توجد قاعات
+    {{ _('لا توجد قاعات') }}
     <div class="mt-2">
       <a href="{{ url_for('venues_mgmt.new') }}" class="btn btn-primary-ars btn-sm">
-        <i class="bi bi-plus-lg"></i> أضف قاعة
+        <i class="bi bi-plus-lg"></i> {% if current_lang=="en" %}Add a Venue{% else %}أضف قاعة{% endif %}
       </a>
     </div>
   </div>

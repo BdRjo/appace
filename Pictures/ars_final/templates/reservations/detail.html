@@ -5,7 +5,7 @@
 <div class="page-header d-flex justify-content-between align-items-center">
   <h1><i class="bi bi-calendar-check me-2"></i>{{ res.booking_number }}</h1>
   <a href="{{ url_for('reservations.index') }}" class="btn btn-outline-secondary btn-sm">
-    <i class="bi bi-arrow-right me-1"></i><span data-i18n="t_res_list">قائمة الحجوزات</span>
+    <i class="bi bi-arrow-right me-1"></i><span>{{ _('قائمة الحجوزات') }}
   </a>
 </div>
 
@@ -14,7 +14,7 @@
   <div class="col-md-8">
     <div class="card">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-info-circle me-2"></i><span data-i18n="t_res_info">معلومات الحجز</span></span>
+        <span><i class="bi bi-info-circle me-2"></i>{{ _('معلومات الحجز') }}
         <span class="badge badge-{{ res.status }} fs-6 px-3 py-2">
           {{ status_ar.get(res.status, res.status) }}
         </span>
@@ -22,20 +22,20 @@
       <div class="card-body">
         <table class="table table-sm">
           <tbody>
-            <tr><th width="150"><span data-i18n="t_booking_no">رقم الحجز</span></th><td class="fw-bold text-primary">{{ res.booking_number }}</td></tr>
-            <tr><th><span data-i18n="t_title">العنوان</span></th><td>{{ res.title }}</td></tr>
-            <tr><th><span data-i18n="t_user">المستخدم</span></th><td>{{ res.user.full_name if res.user else '—' }}</td></tr>
-            <tr><th><span data-i18n="t_venue">القاعة</span></th><td>{{ res.venue.name if res.venue else '—' }}</td></tr>
-            <tr><th><span data-i18n="t_location">الموقع</span></th><td>{{ res.venue.location.name if res.venue and res.venue.location else '—' }}</td></tr>
-            <tr><th><span data-i18n="t_start_date">تاريخ البدء</span></th><td>{{ res.start_time.strftime('%Y-%m-%d %H:%M') if res.start_time else '—' }}</td></tr>
-            <tr><th><span data-i18n="t_end_date">تاريخ الانتهاء</span></th><td>{{ res.end_time.strftime('%Y-%m-%d %H:%M') if res.end_time else '—' }}</td></tr>
+            <tr><th width="150"><span>{{ _('رقم الحجز') }}</th><td class="fw-bold text-primary">{{ res.booking_number }}</td></tr>
+            <tr><th>{{ _('العنوان') }}</th><td>{{ res.title }}</td></tr>
+            <tr><th>{{ _('المستخدم') }}</th><td>{{ res.user.full_name if res.user else '—' }}</td></tr>
+            <tr><th>{{ _('القاعة') }}</th><td>{{ res.venue.name if res.venue else '—' }}</td></tr>
+            <tr><th>{{ _('الموقع') }}</th><td>{{ res.venue.location.name if res.venue and res.venue.location else '—' }}</td></tr>
+            <tr><th>{{ _('تاريخ البدء') }}</th><td>{{ res.start_time.strftime('%Y-%m-%d %H:%M') if res.start_time else '—' }}</td></tr>
+            <tr><th>{{ _('تاريخ الانتهاء') }}</th><td>{{ res.end_time.strftime('%Y-%m-%d %H:%M') if res.end_time else '—' }}</td></tr>
             {% if res.requester_notes %}
-            <tr><th><span data-i18n="t_req_notes"><span data-i18n="z_03d133">ملاحظات الطالب</span></span></th><td>{{ res.requester_notes }}</td></tr>
+            <tr><th>{{ _('ملاحظات الطالب') }}</th><td>{{ res.requester_notes }}</td></tr>
             {% endif %}
             {% if res.approver_notes %}
-            <tr><th><span data-i18n="t_app_notes"><span data-i18n="z_f7b3ca">ملاحظات الموافقة</span></span></th><td class="{{ 'text-success' if res.status=='approved' else 'text-danger' }}">{{ res.approver_notes }}</td></tr>
+            <tr><th>{{ _('ملاحظات الموافقة') }}</th><td class="{{ 'text-success' if res.status=='approved' else 'text-danger' }}">{{ res.approver_notes }}</td></tr>
             {% endif %}
-            <tr><th><span data-i18n="t_created_at">تاريخ الإنشاء</span></th><td class="text-muted">{{ res.created_at.strftime('%Y-%m-%d %H:%M') if res.created_at else '—' }}</td></tr>
+            <tr><th>{{ _('تاريخ الإنشاء') }}</th><td class="text-muted">{{ res.created_at.strftime('%Y-%m-%d %H:%M') if res.created_at else '—' }}</td></tr>
           </tbody>
         </table>
       </div>
@@ -43,40 +43,40 @@
 
     <!-- Action buttons — مطابق لـ v54 ProcessReservationWindow + cancel + edit + invite -->
     <div class="card mt-3">
-      <div class="card-header">⚙️ الإجراءات</div>
+      <div class="card-header">{{ _('⚙️ الإجراءات') }}</div>
       <div class="card-body">
         <!-- Action buttons row -->
         <div class="d-flex flex-wrap gap-2 mb-3">
           {% if res.status in ('pending','approved') and (res.user_id == current_user.id or perms.is_admin_or_manager()) %}
           <a href="{{ url_for('reservations.edit', res_id=res.id) }}" class="btn btn-sm"
              style="background:#D4A853;color:#fff;border:none">
-            <i class="bi bi-pencil me-1"></i>تعديل
-            {% if res.status == 'approved' %}<small class="opacity-75">(يتطلب موافقة)</small>{% endif %}
+            <i class="bi bi-pencil me-1"></i>{% if current_lang=="en" %}Edit{% else %}تعديل{% endif %}
+            {% if res.status == 'approved' %}<small class="opacity-75"><span>{{ _('(يتطلب موافقة)') }}</small>{% endif %}
           </a>
           {% endif %}
 
           {% if perms.can_action('reservations_approve','approve') and res.status == 'pending' %}
           <button class="btn btn-sm" style="background:#1A555C;color:#fff;border:none"
                   data-bs-toggle="modal" data-bs-target="#approveModal">
-            <i class="bi bi-check-circle me-1"></i><span data-i18n="t_approve">موافقة</span>
+            <i class="bi bi-check-circle me-1"></i>{{ _('موافقة') }}
           </button>
           <button class="btn btn-sm" style="background:#5a3a7a;color:#fff;border:none"
                   data-bs-toggle="modal" data-bs-target="#rejectModal">
-            <i class="bi bi-x-circle me-1"></i><span data-i18n="t_reject">رفض</span>
+            <i class="bi bi-x-circle me-1"></i>{{ _('رفض') }}
           </button>
           {% endif %}
 
           {% if res.status not in ('cancelled','rejected','completed') and (res.user_id == current_user.id or perms.is_admin_or_manager()) %}
           <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#cancelModal">
-            <i class="bi bi-slash-circle me-1"></i><span data-i18n="t_cancel">إلغاء</span>
+            <i class="bi bi-slash-circle me-1"></i>{{ _('إلغاء') }}
           </button>
           {% endif %}
 
           {% if perms.is_admin_or_manager() and res.status in ('cancelled','rejected') %}
           <form method="POST" action="{{ url_for('reservations.reactivate', res_id=res.id) }}" class="d-inline">
             <button class="btn btn-sm" style="background:#D4A853;color:#fff;border:none"
-                    onclick="return confirm('إعادة تفعيل هذا الحجز؟')">
-              <i class="bi bi-arrow-counterclockwise me-1"></i><span data-i18n="t_reactivate">إعادة تفعيل</span>
+                    onclick="return confirm('{% if current_lang=="en" %}Reactivate this booking?{% else %}إعادة تفعيل هذا الحجز؟{% endif %}')">
+              <i class="bi bi-arrow-counterclockwise me-1"></i><span>{{ _('إعادة تفعيل') }}
             </button>
           </form>
           {% endif %}
@@ -84,7 +84,7 @@
           {% if res.status == 'approved' and (res.user_id == current_user.id or perms.is_admin_or_manager()) %}
           <a href="{{ url_for('reservations.invite', res_id=res.id) }}" class="btn btn-sm"
              style="background:#2E8B8F;color:#fff;border:none">
-            <i class="bi bi-envelope me-1"></i>دعوات
+            <i class="bi bi-envelope me-1"></i>{% if current_lang=="en" %}Invitations{% else %}دعوات{% endif %}
           </a>
           {% endif %}
         </div>
@@ -92,9 +92,9 @@
         <!-- Export / Print row -->
         <div class="border-top pt-3">
           <div class="d-flex flex-wrap gap-2 align-items-center">
-            <span class="text-muted small me-1"><i class="bi bi-share me-1"></i><span data-i18n="t_export_print">تصدير وطباعة:</span></span>
+            <span class="text-muted small me-1"><i class="bi bi-share me-1"></i>{{ _('تصدير وطباعة:') }}
             <button onclick="printReservation()" class="btn btn-sm btn-outline-secondary">
-              <i class="bi bi-printer me-1"></i><span data-i18n="t_print"><span data-i18n="z_88c5d1">طباعة</span></span>
+              <i class="bi bi-printer me-1"></i>{{ _('طباعة') }}
             </button>
             <a href="{{ url_for('reservations.export_single_pdf', res_id=res.id) }}" class="btn btn-sm btn-outline-secondary">
               <i class="bi bi-file-pdf me-1"></i>PDF
@@ -113,15 +113,15 @@
     <!-- Venue details -->
     {% if res.venue %}
     <div class="card mb-3">
-      <div class="card-header"><i class="bi bi-building me-2"></i><span data-i18n="t_venue_info">معلومات القاعة</span></div>
+      <div class="card-header"><i class="bi bi-building me-2"></i><span>{{ _('معلومات القاعة') }}</div>
       <div class="card-body small">
-        <div><strong>الاسم:</strong> {{ res.venue.name }}</div>
-        {% if res.venue.capacity %}<div><strong>السعة:</strong> {{ res.venue.capacity }}</div>{% endif %}
-        {% if res.venue.equipment %}<div><strong>المعدات:</strong> {{ res.venue.equipment }}</div>{% endif %}
-        {% if res.venue.notes %}<div><strong>ملاحظات:</strong> {{ res.venue.notes }}</div>{% endif %}
+        <div><strong>{{ _('الاسم:') }}</strong> {{ res.venue.name }}</div>
+        {% if res.venue.capacity %}<div><strong>{{ _('السعة:') }}</strong> {{ res.venue.capacity }}</div>{% endif %}
+        {% if res.venue.equipment %}<div><strong>{{ _('المعدات:') }}</strong> {{ res.venue.equipment }}</div>{% endif %}
+        {% if res.venue.notes %}<div><strong>{{ _('ملاحظات:') }}</strong> {{ res.venue.notes }}</div>{% endif %}
         <div class="mt-2">
           <a href="{{ url_for('venues.detail', venue_id=res.venue.id) }}" class="btn btn-xs btn-outline-primary">
-            <i class="bi bi-building me-1"></i>صفحة القاعة
+            <i class="bi bi-building me-1"></i>{% if current_lang=="en" %}Venue Page{% else %}صفحة القاعة{% endif %}
           </a>
         </div>
       </div>
@@ -131,12 +131,12 @@
     <!-- Checklist items -->
     {% if checklist_items %}
     <div class="card mb-3">
-      <div class="card-header"><i class="bi bi-check2-square me-2"></i><span data-i18n="t_checklist"><span data-i18n="z_bbc911">قائمة المهام</span></span></div>
+      <div class="card-header"><i class="bi bi-check2-square me-2"></i>{{ _('قائمة المهام') }}</div>
       <div class="card-body p-2">
         {% for item in checklist_items %}
         <div class="d-flex align-items-center gap-2 p-1 {{ 'text-decoration-line-through text-muted' if item.is_checked else '' }}">
           <i class="bi {{ 'bi-check-circle-fill text-success' if item.is_checked else 'bi-circle' }}"></i>
-          <span class="small">{{ item.content }}</span>
+          {{ item.content }}
         </div>
         {% endfor %}
       </div>
@@ -146,7 +146,7 @@
     <!-- Attachments -->
     {% if attachments %}
     <div class="card mb-3">
-      <div class="card-header"><i class="bi bi-paperclip me-2"></i>المرفقات ({{ attachments|length }})</div>
+      <div class="card-header"><i class="bi bi-paperclip me-2"></i>{% if current_lang=='en' %}Attachments{% else %}المرفقات{% endif %} ({{ attachments|length }})</div>
       <div class="card-body p-2">
         {% for att in attachments %}
         <div class="d-flex align-items-center gap-2 py-1 border-bottom">
@@ -163,13 +163,13 @@
     <!-- Invited contacts -->
     {% if booking_contacts %}
     <div class="card mb-3">
-      <div class="card-header"><i class="bi bi-people me-2"></i>المدعوون ({{ booking_contacts|length }})</div>
+      <div class="card-header"><i class="bi bi-people me-2"></i>{% if current_lang=='en' %}Invitees{% else %}المدعوون{% endif %} ({{ booking_contacts|length }})</div>
       <div class="card-body p-2">
         {% for bc in booking_contacts %}
         <div class="small py-1 border-bottom d-flex justify-content-between">
           <span>{{ bc.contact.first_name if bc.contact else '—' }} {{ bc.contact.last_name or '' if bc.contact else '' }}</span>
           {% if bc.invitation_sent %}
-          <span class="badge bg-success"><span data-i18n="t_sent">أُرسلت</span></span>
+          <span class="badge bg-success">{{ _('أُرسلت') }}
           {% endif %}
         </div>
         {% endfor %}
@@ -180,7 +180,7 @@
     <!-- Rating -->
     {% if res.status == 'completed' %}
     <div class="card">
-      <div class="card-header"><i class="bi bi-star me-2"></i><span data-i18n="t_rating"><span data-i18n="z_e0efcd">التقييم</span></span></div>
+      <div class="card-header"><i class="bi bi-star me-2"></i>{{ _('التقييم') }}</div>
       <div class="card-body text-center">
         {% if rating %}
         <div class="stars fs-3">
@@ -189,7 +189,7 @@
         <div class="small text-muted">{{ rating.comment or '' }}</div>
         {% else %}
         <a href="{{ url_for('ratings.add', res_id=res.id) }}" class="btn btn-sm btn-outline-warning">
-          <i class="bi bi-star me-1"></i><span data-i18n="t_rate_res">قيّم هذا الحجز</span>
+          <i class="bi bi-star me-1"></i><span>{{ _('قيّم هذا الحجز') }}
         </a>
         {% endif %}
       </div>
@@ -204,18 +204,18 @@
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header" style="background:#1A555C;color:#fff">
-        <h5 class="modal-title"><i class="bi bi-check-circle me-2"></i><span data-i18n="t_confirm_approve">تأكيد الموافقة</span></h5>
+        <h5 class="modal-title"><i class="bi bi-check-circle me-2"></i><span>{{ _('تأكيد الموافقة') }}</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <form method="POST" action="{{ url_for('reservations.approve', res_id=res.id) }}">
         <div class="modal-body">
-          <p>هل تريد الموافقة على الحجز <strong>{{ res.booking_number }}</strong>؟</p>
-          <label class="form-label"><span data-i18n="t_opt_note">ملاحظة (اختياري)</span></label>
+          <p>{{ _('هل تريد الموافقة على الحجز') }}<strong>{{ res.booking_number }}</strong>{{ _('؟') }}</p>
+          <label class="form-label"><span>{{ _('ملاحظة (اختياري)') }}</label>
           <textarea name="note" class="form-control" rows="3"></textarea>
         </div>
         <div class="modal-footer">
-          <button type="submit" class="btn btn-sm px-4" style="background:#1A555C;color:#fff;border:none">✅ موافقة</button>
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><span data-i18n="t_cancel">إلغاء</span></button>
+          <button type="submit" class="btn btn-sm px-4" style="background:#1A555C;color:#fff;border:none">{{ _('✅ موافقة') }}</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('إلغاء') }}</button>
         </div>
       </form>
     </div>
@@ -227,18 +227,18 @@
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header" style="background:#5a3a7a;color:#fff">
-        <h5 class="modal-title"><i class="bi bi-x-circle me-2"></i><span data-i18n="t_confirm_reject">تأكيد الرفض</span></h5>
+        <h5 class="modal-title"><i class="bi bi-x-circle me-2"></i><span>{{ _('تأكيد الرفض') }}</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <form method="POST" action="{{ url_for('reservations.reject', res_id=res.id) }}">
         <div class="modal-body">
-          <p>هل تريد رفض الحجز <strong>{{ res.booking_number }}</strong>؟</p>
-          <label class="form-label fw-bold"><span data-i18n="t_rej_reason"><span data-i18n="z_7e6024">سبب الرفض</span></span> <span class="text-danger">*</span></label>
+          <p>{{ _('هل تريد رفض الحجز') }}<strong>{{ res.booking_number }}</strong>{{ _('؟') }}</p>
+          <label class="form-label fw-bold">{{ _('سبب الرفض') }} *</label>
           <textarea name="reason" class="form-control" rows="3" required></textarea>
         </div>
         <div class="modal-footer">
-          <button type="submit" class="btn btn-sm px-4" style="background:#5a3a7a;color:#fff;border:none">❌ رفض</button>
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><span data-i18n="t_cancel">إلغاء</span></button>
+          <button type="submit" class="btn btn-sm px-4" style="background:#5a3a7a;color:#fff;border:none">{{ _('❌ رفض') }}</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('إلغاء') }}</button>
         </div>
       </form>
     </div>
@@ -252,16 +252,16 @@
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title"><i class="bi bi-slash-circle me-2"></i><span data-i18n="t_cancel_res">إلغاء الحجز</span></h5>
+        <h5 class="modal-title"><i class="bi bi-slash-circle me-2"></i><span>{{ _('إلغاء الحجز') }}</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <form method="POST" action="{{ url_for('reservations.cancel', res_id=res.id) }}">
         <div class="modal-body">
-          <p>هل تريد إلغاء الحجز <strong>{{ res.booking_number }}</strong>؟ لا يمكن التراجع عن هذا الإجراء.</p>
+          <p>{{ _('هل تريد إلغاء الحجز') }}<strong>{{ res.booking_number }}</strong>{{ _('؟ لا يمكن التراجع عن هذا الإجراء.') }}</p>
         </div>
         <div class="modal-footer">
-          <button type="submit" class="btn btn-sm px-4 btn-outline-secondary">🚫 إلغاء الحجز</button>
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><span data-i18n="t_back">رجوع</span></button>
+          <button type="submit" class="btn btn-sm px-4 btn-outline-secondary">{{ _('🚫 إلغاء الحجز') }}</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><span>{{ _('رجوع') }}</button>
         </div>
       </form>
     </div>

@@ -1,10 +1,14 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl" id="htmlRoot">
+<html lang="{{ current_lang }}" dir="{{ 'ltr' if current_lang == 'en' else 'rtl' }}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title data-ar="تسجيل الدخول — ARS" data-en="Login — ARS">تسجيل الدخول — ARS</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" id="bsCSS">
+  <title>{% if current_lang == 'en' %}Sign In — ARS{% else %}تسجيل الدخول — ARS{% endif %}</title>
+  {% if current_lang == 'en' %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  {% else %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css">
+  {% endif %}
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
   <style>
@@ -13,23 +17,18 @@
       background: linear-gradient(135deg, #1A555C 0%, #0d3b40 55%, #133F45 100%);
       min-height: 100vh;
       display: flex; align-items: center; justify-content: center;
-      padding: 2rem 0;
-      position: relative;
+      padding: 2rem 0; position: relative;
     }
     body::before {
-      content: '';
-      position: fixed; inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Crect x='8' y='14' width='36' height='32' rx='4' fill='none' stroke='rgba(255,255,255,0.07)' stroke-width='1.5'/%3E%3Cline x1='8' y1='22' x2='44' y2='22' stroke='rgba(255,255,255,0.07)' stroke-width='1.5'/%3E%3Cline x1='18' y1='10' x2='18' y2='18' stroke='rgba(255,255,255,0.07)' stroke-width='1.5' stroke-linecap='round'/%3E%3Cline x1='34' y1='10' x2='34' y2='18' stroke='rgba(255,255,255,0.07)' stroke-width='1.5' stroke-linecap='round'/%3E%3Ccircle cx='18' cy='30' r='2' fill='rgba(255,255,255,0.07)'/%3E%3Ccircle cx='26' cy='30' r='2' fill='rgba(255,255,255,0.07)'/%3E%3Ccircle cx='34' cy='30' r='2' fill='rgba(255,255,255,0.07)'/%3E%3Ccircle cx='18' cy='38' r='2' fill='rgba(255,255,255,0.07)'/%3E%3Ccircle cx='26' cy='38' r='2' fill='rgba(255,255,255,0.07)'/%3E%3Ccircle cx='120' cy='28' r='18' fill='none' stroke='rgba(212,168,83,0.1)' stroke-width='1.5'/%3E%3Cline x1='120' y1='28' x2='120' y2='16' stroke='rgba(212,168,83,0.1)' stroke-width='1.5' stroke-linecap='round'/%3E%3Cline x1='120' y1='28' x2='130' y2='34' stroke='rgba(212,168,83,0.1)' stroke-width='1.5' stroke-linecap='round'/%3E%3Cpolygon points='80,55 83,65 93,65 85,71 88,81 80,75 72,81 75,71 67,65 77,65' fill='none' stroke='rgba(255,255,255,0.06)' stroke-width='1.2'/%3E%3Ccircle cx='28' cy='96' r='8' fill='none' stroke='rgba(255,255,255,0.07)' stroke-width='1.5'/%3E%3Cline x1='28' y1='104' x2='28' y2='116' stroke='rgba(255,255,255,0.07)' stroke-width='1.5' stroke-linecap='round'/%3E%3Cpath d='M130,80 Q130,68 120,68 Q110,68 110,80 L108,90 L132,90 Z' fill='none' stroke='rgba(212,168,83,0.1)' stroke-width='1.5'/%3E%3Crect x='50' y='118' width='28' height='24' rx='3' fill='none' stroke='rgba(255,255,255,0.06)' stroke-width='1.2'/%3E%3Cline x1='50' y1='126' x2='78' y2='126' stroke='rgba(255,255,255,0.06)' stroke-width='1.2'/%3E%3Ccircle cx='140' cy='115' r='10' fill='none' stroke='rgba(255,255,255,0.06)' stroke-width='1.5'/%3E%3Cpolyline points='134,115 138,119 146,111' fill='none' stroke='rgba(255,255,255,0.06)' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-      background-size: 160px 160px;
-      background-repeat: repeat;
+      content: ''; position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Crect x='8' y='14' width='36' height='32' rx='4' fill='none' stroke='rgba(255,255,255,0.07)' stroke-width='1.5'/%3E%3Cline x1='8' y1='22' x2='44' y2='22' stroke='rgba(255,255,255,0.07)' stroke-width='1.5'/%3E%3Ccircle cx='18' cy='30' r='2' fill='rgba(255,255,255,0.07)'/%3E%3Ccircle cx='26' cy='30' r='2' fill='rgba(255,255,255,0.07)'/%3E%3Ccircle cx='34' cy='30' r='2' fill='rgba(255,255,255,0.07)'/%3E%3Ccircle cx='120' cy='28' r='18' fill='none' stroke='rgba(212,168,83,0.1)' stroke-width='1.5'/%3E%3Cline x1='120' y1='28' x2='120' y2='16' stroke='rgba(212,168,83,0.1)' stroke-width='1.5' stroke-linecap='round'/%3E%3Cline x1='120' y1='28' x2='130' y2='34' stroke='rgba(212,168,83,0.1)' stroke-width='1.5' stroke-linecap='round'/%3E%3Ccircle cx='140' cy='115' r='10' fill='none' stroke='rgba(255,255,255,0.06)' stroke-width='1.5'/%3E%3Cpolyline points='134,115 138,119 146,111' fill='none' stroke='rgba(255,255,255,0.06)' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-size: 160px 160px; background-repeat: repeat;
       pointer-events: none; z-index: 0;
     }
     body::after {
-      content: '';
-      position: fixed; inset: 0;
-      background:
-        radial-gradient(ellipse at 15% 20%, rgba(212,168,83,.12) 0%, transparent 45%),
-        radial-gradient(ellipse at 85% 75%, rgba(46,139,143,.15) 0%, transparent 45%);
+      content: ''; position: fixed; inset: 0;
+      background: radial-gradient(ellipse at 15% 20%, rgba(212,168,83,.12) 0%, transparent 45%),
+                  radial-gradient(ellipse at 85% 75%, rgba(46,139,143,.15) 0%, transparent 45%);
       pointer-events: none; z-index: 0;
     }
     .login-card {
@@ -37,89 +36,80 @@
       background: rgba(255,255,255,.97);
       border-radius: 20px;
       padding: 1.8rem 1.6rem;
-      width: 100%; max-width: 360px;
+      width: 100%; max-width: 340px;
       box-shadow: 0 24px 64px rgba(0,0,0,.45);
-      position: relative;
     }
     .lang-btn {
-      position: absolute;
-      top: 16px; left: 16px;
-      background: rgba(26,85,92,.1);
-      border: 1.5px solid #1A555C;
-      color: #1A555C;
-      border-radius: 8px;
-      padding: 3px 12px;
-      font-size: .82rem;
-      font-weight: 700;
-      cursor: pointer;
-      transition: .2s;
+      position: absolute; top: 14px;
+      {% if current_lang == 'en' %}right: 14px;{% else %}left: 14px;{% endif %}
+      background: rgba(26,85,92,.1); border: 1.5px solid #1A555C;
+      color: #1A555C; border-radius: 8px; padding: 3px 12px;
+      font-size: .82rem; font-weight: 700; cursor: pointer; transition: .2s;
+      text-decoration: none; display: inline-block;
     }
     .lang-btn:hover { background: #1A555C; color: #fff; }
     .logo-circle {
-      width: 58px; height: 58px;
+      width: 56px; height: 56px;
       background: linear-gradient(135deg,#1A555C,#2E94A0);
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      margin: 0 auto 1rem;
-      font-size: 1.6rem; color: #fff;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      margin: 0 auto .9rem; font-size: 1.5rem; color: #fff;
       box-shadow: 0 4px 16px rgba(26,85,92,.4);
     }
-    .brand-title { font-size: 1.25rem; font-weight: 800; color: #1A555C; }
-    .brand-sub   { font-size: .85rem; color: #888; }
+    .brand-title { font-size: 1.2rem; font-weight: 800; color: #1A555C; }
+    .brand-sub   { font-size: .82rem; color: #888; }
     .form-control { border-radius: 10px; padding: .6rem 1rem; border: 1.5px solid #e0e7e9; }
     .form-control:focus { border-color: #1A555C; box-shadow: 0 0 0 3px rgba(26,85,92,.12); }
     .btn-login {
       background: linear-gradient(90deg,#1A555C,#2E94A0);
-      border: none; color: #fff;
-      border-radius: 10px; padding: .7rem;
-      font-size: 1rem; font-weight: 700;
-      width: 100%; letter-spacing: .5px;
-      transition: opacity .2s;
+      border: none; color: #fff; border-radius: 10px; padding: .7rem;
+      font-size: 1rem; font-weight: 700; width: 100%; transition: opacity .2s;
     }
     .btn-login:hover { opacity: .9; color: #fff; }
     .input-group-text { background: #f4f7f8; border: 1.5px solid #e0e7e9; }
     .divider { border-top: 1px solid #eee; margin: 1.2rem 0; }
-    .register-link { color: #1A555C; font-weight: 600; }
   </style>
 </head>
 <body>
 <div class="login-card">
-  <!-- Language Toggle -->
-  <button class="lang-btn" id="langBtn" onclick="toggleLang()">EN</button>
 
-  <!-- Logo -->
+  <a href="/set-lang/{{ 'ar' if current_lang == 'en' else 'en' }}" class="lang-btn">
+    {{ 'ع' if current_lang == 'en' else 'EN' }}
+  </a>
+
   <div class="text-center mb-3">
     <div class="logo-circle"><i class="bi bi-building-check"></i></div>
     <div class="brand-title">ARS</div>
-    <div class="brand-sub" data-ar="نظام إدارة الحجوزات التطبيقي" data-en="Applied Reservation System">نظام إدارة الحجوزات التطبيقي</div>
+    <div class="brand-sub">
+      {% if current_lang == 'en' %}Applied Reservation System{% else %}نظام إدارة الحجوزات التطبيقي{% endif %}
+    </div>
   </div>
 
-  <!-- Flash messages -->
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% for cat, msg in messages %}
     <div class="alert alert-{{ 'danger' if cat == 'error' else cat }} py-2 small">{{ msg }}</div>
     {% endfor %}
   {% endwith %}
 
-  <!-- Form -->
   <form method="POST" action="{{ url_for('auth.login') }}">
     <div class="mb-3">
-      <label class="form-label fw-bold small" data-ar="اسم المستخدم" data-en="Username"><span data-i18n="t_username"><span data-i18n="z_f089c3">اسم المستخدم</span></span></label>
+      <label class="form-label fw-bold small">
+        {% if current_lang == 'en' %}Username{% else %}اسم المستخدم{% endif %}
+      </label>
       <div class="input-group">
         <span class="input-group-text"><i class="bi bi-person text-muted"></i></span>
         <input type="text" name="username" class="form-control"
-               data-ar-ph="أدخل اسم المستخدم" data-en-ph="Enter username"
-               placeholder="أدخل اسم المستخدم" required autofocus
-               value="{{ request.form.get('username','') }}">
+               placeholder="{% if current_lang == 'en' %}Enter username{% else %}أدخل اسم المستخدم{% endif %}"
+               required autofocus value="{{ request.form.get('username','') }}">
       </div>
     </div>
     <div class="mb-3">
-      <label class="form-label fw-bold small" data-ar="كلمة المرور" data-en="Password"><span data-i18n="t_password"><span data-i18n="z_bcb75e">كلمة المرور</span></span></label>
+      <label class="form-label fw-bold small">
+        {% if current_lang == 'en' %}Password{% else %}كلمة المرور{% endif %}
+      </label>
       <div class="input-group">
         <span class="input-group-text"><i class="bi bi-lock text-muted"></i></span>
         <input type="password" name="password" id="pw" class="form-control"
-               data-ar-ph="أدخل كلمة المرور" data-en-ph="Enter password"
-               placeholder="أدخل كلمة المرور" required>
+               placeholder="{% if current_lang == 'en' %}Enter password{% else %}أدخل كلمة المرور{% endif %}" required>
         <button type="button" class="btn btn-outline-secondary px-2"
                 onclick="let p=document.getElementById('pw');p.type=p.type==='password'?'text':'password'">
           <i class="bi bi-eye"></i>
@@ -129,59 +119,31 @@
     <div class="mb-3 d-flex justify-content-between align-items-center">
       <div class="form-check">
         <input class="form-check-input" type="checkbox" name="remember" id="remember">
-        <label class="form-check-label small" for="remember" data-ar="تذكرني" data-en="Remember me"><span data-i18n="t_remember"><span data-i18n="z_9c8cab">تذكرني</span></span></label>
+        <label class="form-check-label small" for="remember">
+          {% if current_lang == 'en' %}Remember me{% else %}تذكرني{% endif %}
+        </label>
       </div>
     </div>
     <div class="text-end mb-2">
-      <a href="{{ url_for('auth.forgot_password') }}" class="small" style="color:#1A555C;text-decoration:none" 
-         data-ar="نسيت كلمة المرور؟" data-en="Forgot password?"><span data-i18n="t_forgot"><span data-i18n="z_efdc17">نسيت كلمة المرور؟</span></span></a>
+      <a href="{{ url_for('auth.forgot_password') }}" class="small" style="color:#1A555C;text-decoration:none">
+        {% if current_lang == 'en' %}Forgot password?{% else %}نسيت كلمة المرور؟{% endif %}
+      </a>
     </div>
-    <button type="submit" class="btn-login" id="submitBtn">
+    <button type="submit" class="btn-login">
       <i class="bi bi-box-arrow-in-right me-2"></i>
-      <span data-ar="تسجيل الدخول" data-en="Sign In"><span data-i18n="t_login"><span data-i18n="z_b5dcde">تسجيل الدخول</span></span></span>
+      {% if current_lang == 'en' %}Sign In{% else %}تسجيل الدخول{% endif %}
     </button>
   </form>
 
   <div class="divider"></div>
   <div class="text-center small">
-    <span data-ar="ليس لديك حساب؟" data-en="Don't have an account?">ليس لديك حساب؟</span>
-    <a href="{{ url_for('auth.register') }}" class="register-link" data-ar="سجّل الآن" data-en="Register">سجّل الآن</a>
+    {% if current_lang == 'en' %}Don't have an account?{% else %}ليس لديك حساب؟{% endif %}
+    <a href="{{ url_for('auth.register') }}" style="color:#1A555C;font-weight:700">
+      {% if current_lang == 'en' %}Register now{% else %}سجّل الآن{% endif %}
+    </a>
   </div>
+
 </div>
-
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-function toggleLang() {
-  const html = document.getElementById('htmlRoot');
-  const btn  = document.getElementById('langBtn');
-  const isAr = html.getAttribute('lang') === 'ar';
-  const bsCSS = document.getElementById('bsCSS');
-
-  if (isAr) {
-    html.setAttribute('lang','en'); html.setAttribute('dir','ltr');
-    btn.innerText = 'ع';
-    bsCSS.href = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css';
-    localStorage.setItem('ars_lang','en');
-  } else {
-    html.setAttribute('lang','ar'); html.setAttribute('dir','rtl');
-    btn.innerText = 'EN';
-    bsCSS.href = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css';
-    localStorage.setItem('ars_lang','ar');
-  }
-
-  // Update all labeled elements
-  document.querySelectorAll('[data-ar]').forEach(el => {
-    el.textContent = isAr ? el.getAttribute('data-en') : el.getAttribute('data-ar');
-  });
-  document.querySelectorAll('[data-ar-ph]').forEach(el => {
-    el.placeholder = isAr ? el.getAttribute('data-en-ph') : el.getAttribute('data-ar-ph');
-  });
-  document.title = isAr ? 'Login — ARS' : 'تسجيل الدخول — ARS';
-}
-
-window.addEventListener('DOMContentLoaded', () => {
-  if (localStorage.getItem('ars_lang') === 'en') toggleLang();
-});
-</script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}التقويم — ARS{% endblock %}
+{% block title %}{% if current_lang=="en" %}Calendar — ARS{% else %}التقويم — ARS{% endif %}{% endblock %}
 {% block extra_css %}
 <!-- FullCalendar 6 global bundle includes CSS via JS -->
 <style>
@@ -35,9 +35,9 @@
 {% endblock %}
 {% block content %}
 <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-  <h1><i class="bi bi-calendar3 me-2"></i><span data-i18n="t_calendar"><span data-i18n="z_d6c166">التقويم التفاعلي</span></span></h1>
+  <h1><i class="bi bi-calendar3 me-2"></i>{{ _('التقويم التفاعلي') }}</h1>
   <a href="{{ url_for('reservations.new') }}" class="btn btn-primary-ars">
-    <i class="bi bi-plus-lg me-1"></i><span data-i18n="t_new_res"><span data-i18n="z_0b3de2">حجز جديد</span></span>
+    <i class="bi bi-plus-lg me-1"></i>{{ _('حجز جديد') }}
   </a>
 </div>
 
@@ -45,15 +45,15 @@
 <div class="card mb-3">
   <div class="card-body py-2">
     <div class="d-flex gap-2 align-items-center flex-wrap">
-      <span class="small fw-bold text-muted me-1"><span data-i18n="t_filter_cal">تصفية:</span></span>
-      <button class="filter-btn f-all active" data-filter="all">🗓 عرض الكل</button>
-      <button class="filter-btn f-mine" data-filter="mine">👤 حجوزاتي</button>
-      <button class="filter-btn f-approved" data-filter="approved">✅ المعتمدة</button>
-      <button class="filter-btn f-pending" data-filter="pending">⏳ المعلقة</button>
-      <button class="filter-btn f-rejected" data-filter="rejected">❌ المرفوضة</button>
-      <button class="filter-btn f-blocked" data-filter="blocked">🚫 المحجوبة</button>
+      <span class="small fw-bold text-muted me-1">{{ _('تصفية:') }}
+      <button class="filter-btn f-all active" data-filter="all">{{ _('🗓 عرض الكل') }}</button>
+      <button class="filter-btn f-mine" data-filter="mine">{{ _('👤 حجوزاتي') }}</button>
+      <button class="filter-btn f-approved" data-filter="approved">{{ _('✅ المعتمدة') }}</button>
+      <button class="filter-btn f-pending" data-filter="pending">{{ _('⏳ المعلقة') }}</button>
+      <button class="filter-btn f-rejected" data-filter="rejected">{{ _('❌ المرفوضة') }}</button>
+      <button class="filter-btn f-blocked" data-filter="blocked">{{ _('🚫 المحجوبة') }}</button>
       <select id="venueFilter" class="form-select form-select-sm ms-auto" style="max-width:200px">
-        <option value=""><span data-i18n="t_all_venues"><span data-i18n="z_359360">كل القاعات</span></span></option>
+        <option value="">{{ _('كل القاعات') }}</option>
         {% for v in venues %}
         <option value="{{ v.id }}">{{ v.name }}</option>
         {% endfor %}
@@ -61,11 +61,11 @@
     </div>
     <!-- Legend -->
     <div class="d-flex gap-3 mt-2 flex-wrap small text-muted">
-      <span><span class="legend-dot" style="background:#2E8B8F"></span> <span data-i18n="t_leg_avail">متاح/موافق</span></span>
-      <span><span class="legend-dot" style="background:#D4A853"></span> <span data-i18n="t_my_res"><span data-i18n="z_4b0ee9">حجوزاتي</span></span></span>
-      <span><span class="legend-dot" style="background:#9ab3b8"></span> <span data-i18n="t_leg_other">حجوزات أخرى/معلقة</span></span>
-      <span><span class="legend-dot" style="background:#1A555C"></span> <span data-i18n="t_leg_blocked">محجوب/مكتمل</span></span>
-      <span><span class="legend-dot" style="background:#7a5900"></span> <span data-i18n="t_leg_partial">مرفوض</span></span>
+      <span> {{ _('متاح/موافق') }}
+      <span> {{ _('حجوزاتي') }}
+      <span> {{ _('حجوزات أخرى/معلقة') }}
+      <span> {{ _('محجوب/مكتمل') }}
+      <span> {{ _('مرفوض') }}
     </div>
   </div>
 </div>
@@ -81,15 +81,15 @@
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="dayModalTitle"><span data-i18n="t_day_details">تفاصيل اليوم</span></h5>
+        <h5 class="modal-title" id="dayModalTitle">{{ _('تفاصيل اليوم') }}</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body" id="dayModalBody"></div>
       <div class="modal-footer">
         <a href="#" id="addReservationBtn" class="btn btn-primary-ars">
-          <i class="bi bi-plus me-1"></i><span data-i18n="t_add_for_day">إضافة حجز لهذا اليوم</span>
+          <i class="bi bi-plus me-1"></i>{{ _('إضافة حجز لهذا اليوم') }}
         </a>
-        <button class="btn btn-secondary" data-bs-dismiss="modal"><span data-i18n="t_close"><span data-i18n="z_9932cc">إغلاق</span></span></button>
+        <button class="btn btn-secondary" data-bs-dismiss="modal">{{ _('إغلاق') }}</button>
       </div>
     </div>
   </div>
@@ -144,7 +144,7 @@ document.addEventListener('DOMContentLoaded', function() {
       // Show day detail modal
       const modal = new bootstrap.Modal(document.getElementById('dayModal'));
       const date = info.dateStr;
-      document.getElementById('dayModalTitle').textContent = 'تفاصيل يوم ' + date;
+      document.getElementById('dayModalTitle').textContent = ('{% if current_lang=="en" %}Day details: {% else %}تفاصيل يوم {% endif %}') + date;
       document.getElementById('addReservationBtn').href = '/reservations/new?date=' + date;
       // Load events for this day
       const events = cal.getEvents().filter(e => {
@@ -153,13 +153,13 @@ document.addEventListener('DOMContentLoaded', function() {
       });
       let html = '';
       if (events.length === 0) {
-        html = '<p class="text-muted text-center py-3"><span data-i18n="t_no_day_bookings">لا توجد حجوزات في هذا اليوم ✅</span></p>';
+        html = '<p class="text-muted text-center py-3">{{ _('لا توجد حجوزات في هذا اليوم ✅') }}</p>';
       } else {
         html = '<div class="list-group">';
         events.forEach(e => {
           const color = e.backgroundColor || '#1A555C';
           html += `<a href="${e.url || '#'}" class="list-group-item list-group-item-action d-flex gap-3 align-items-center">
-            <span style="width:12px;height:12px;border-radius:50%;background:${color};flex-shrink:0"></span>
+            
             <div>
               <div class="fw-bold small">${e.title}</div>
               <div class="text-muted" style="font-size:.75rem">${e.startStr.split('T')[1]||''} — ${(e.extendedProps?.venue||'')}</div>

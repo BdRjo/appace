@@ -1,4 +1,5 @@
 """إدارة الفترات المحظورة — block_period for venue/location/reservation"""
+from utils.flash_helper import flash_msg
 from flask import Blueprint, render_template, redirect, url_for, request, flash, abort
 from flask_login import login_required, current_user
 from models.database import BlockedPeriod, Venue, Location
@@ -52,18 +53,18 @@ def new():
         reason      = request.form.get('reason', '').strip()
 
         if not start_str or not end_str:
-            flash('يرجى تحديد الفترة الزمنية', 'danger')
+            flash_msg('يرجى تحديد الفترة الزمنية', 'danger')
             return render_template('blocked/form.html', venues=venues, locations=locations, form=request.form)
 
         try:
             start_dt = datetime.fromisoformat(start_str)
             end_dt   = datetime.fromisoformat(end_str)
         except ValueError:
-            flash('صيغة التاريخ غير صحيحة', 'danger')
+            flash_msg('صيغة التاريخ غير صحيحة', 'danger')
             return render_template('blocked/form.html', venues=venues, locations=locations, form=request.form)
 
         if end_dt <= start_dt:
-            flash('تاريخ النهاية يجب أن يكون بعد تاريخ البداية', 'danger')
+            flash_msg('تاريخ النهاية يجب أن يكون بعد تاريخ البداية', 'danger')
             return render_template('blocked/form.html', venues=venues, locations=locations, form=request.form)
 
         bp = BlockedPeriod(
@@ -76,7 +77,7 @@ def new():
         )
         db.add(bp)
         db.commit()
-        flash('تم حظر الفترة بنجاح', 'success')
+        flash_msg('تم حظر الفترة بنجاح', 'success')
         return redirect(url_for('blocked.index'))
 
     return render_template('blocked/form.html', venues=venues, locations=locations, form={})
@@ -103,10 +104,10 @@ def edit(bp_id):
             bp.venue_id     = request.form.get('venue_id', type=int)
             bp.location_id  = request.form.get('location_id', type=int)
             db.commit()
-            flash('تم تحديث الفترة المحظورة', 'success')
+            flash_msg('تم تحديث الفترة المحظورة', 'success')
             return redirect(url_for('blocked.index'))
         except Exception as e:
-            flash(f'خطأ: {e}', 'danger')
+            flash_msg(f'خطأ: {e}', 'danger')
 
     return render_template('blocked/form.html', venues=venues, locations=locations,
                            form=bp, edit_mode=True, bp_id=bp_id)
@@ -122,7 +123,7 @@ def delete(bp_id):
     if bp:
         db.delete(bp)
         db.commit()
-        flash('تم حذف الفترة المحظورة', 'success')
+        flash_msg('تم حذف الفترة المحظورة', 'success')
     return redirect(url_for('blocked.index'))
 
 

@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}قائمة مهام الحجز — ARS{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <div>
+    <h1><i class="bi bi-check2-square me-2"></i>قائمة مهام الحجز</h1>
+    <small class="text-muted">{{ res.title }} | {{ res.venue.name if res.venue else '' }}</small>
+  </div>
+  <a href="{{ url_for('reservations.detail', res_id=res.id) }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-right me-1"></i>العودة للحجز
+  </a>
+</div>
+
+{% if total > 0 %}
+<div class="card mb-3"><div class="card-body py-2">
+  <div class="d-flex align-items-center gap-3">
+    <div class="progress flex-grow-1" style="height:10px;border-radius:5px">
+      <div class="progress-bar" style="background:var(--primary)" style="width:{{ (done/total*100)|int }}%"></div>
+    </div>
+    <span class="fw-bold" style="color:#198754">{{ done }}/{{ total }} مكتمل</span>
+  </div>
+</div></div>
+{% endif %}
+
+<div class="row g-3">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-list-check me-2"></i>عناصر القائمة</span>
+        <span class="badge bg-secondary">{{ total }} عنصر</span>
+      </div>
+      <div class="card-body p-0">
+        {% if items %}
+        <ul class="list-group list-group-flush">
+          {% for item in items %}
+          <li class="list-group-item d-flex align-items-center gap-3 {% if item.is_checked %}bg-light{% endif %}">
+            <form method="POST" class="d-inline">
+              <input type="hidden" name="action" value="toggle">
+              <input type="hidden" name="item_id" value="{{ item.id }}">
+              <button type="submit" class="btn btn-sm {% if item.is_checked %}btn-success{% else %}btn-outline-secondary{% endif %}" style="border-radius:50%;width:32px;height:32px;padding:0">
+                {% if item.is_checked %}<i class="bi bi-check-lg"></i>{% else %}&nbsp;{% endif %}
+              </button>
+            </form>
+            <span class="flex-grow-1 {% if item.is_checked %}text-decoration-line-through text-muted{% endif %}">
+              {{ item.content }}
+            </span>
+            {% if item.is_checked and item.checked_at %}
+            <small class="text-muted">{{ item.checked_at.strftime('%H:%M') }}</small>
+            {% endif %}
+            <form method="POST" action="{{ url_for('checklists.delete_item', item_id=item.id) }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger" style="padding:2px 6px" title="حذف">
+                <i class="bi bi-x"></i>
+              </button>
+            </form>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="text-center py-4 text-muted">لا توجد عناصر في القائمة</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <!-- Add item -->
+    <div class="card mb-3">
+      <div class="card-header">إضافة عنصر</div>
+      <div class="card-body">
+        <form method="POST">
+          <input type="hidden" name="action" value="add_item">
+          <div class="mb-2">
+            <input type="text" name="content" class="form-control" placeholder="نص العنصر..." required>
+          </div>
+          <button type="submit" class="btn btn-primary-ars btn-sm w-100">
+            <i class="bi bi-plus-lg me-1"></i><span data-i18n="t_add">إضافة</span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Apply template -->
+    {% if templates %}
+    <div class="card">
+      <div class="card-header">تطبيق قالب</div>
+      <div class="card-body">
+        <form method="POST">
+          <input type="hidden" name="action" value="apply_template">
+          <select name="template_id" class="form-select form-select-sm mb-2">
+            {% for t in templates %}
+            <option value="{{ t.id }}">{{ t.name }} ({{ t.items|length }} عنصر)</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn btn-outline-primary btn-sm w-100"
+                  onclick="return confirm('سيتم إضافة عناصر القالب للقائمة الحالية. هل تريد المتابعة؟')">
+            <i class="bi bi-clipboard-check me-1"></i>تطبيق القالب
+          </button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}حجز جديد — ARS{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-plus-circle me-2"></i><span data-i18n="t_new_res">حجز جديد</span></h1>
+</div>
+<div class="row justify-content-center">
+<div class="col-lg-8">
+<div class="card">
+  <div class="card-header"><i class="bi bi-calendar-plus me-2"></i><span data-i18n="t_res_detail">تفاصيل الحجز</span></div>
+  <div class="card-body p-4">
+    <form method="POST" enctype="multipart/form-data">
+      <div class="mb-3">
+        <label class="form-label fw-bold">عنوان الحجز <span class="text-danger">*</span></label>
+        <input type="text" name="title" class="form-control"
+               placeholder="مثال: اجتماع فريق التطوير"
+               value="{{ form.get('title','') }}" required>
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-bold"><span data-i18n="t_venue">القاعة</span> <span class="text-danger">*</span></label>
+        <select name="venue_id" class="form-select" id="venueSelect" required>
+          <option value="">— اختر القاعة —</option>
+          {% for v in venues %}
+          <option value="{{ v.id }}"
+                  data-capacity="{{ v.capacity or '' }}"
+                  data-location="{{ v.location.name if v.location else '' }}"
+                  {% if form.get('venue_id')|string == v.id|string %}selected{% endif %}>
+            {{ v.name }}
+            {% if v.location %} — {{ v.location.name }}{% endif %}
+            {% if v.capacity %} (سعة: {{ v.capacity }}){% endif %}
+          </option>
+          {% endfor %}
+        </select>
+        <div id="venueInfo" class="form-text text-info mt-1"></div>
+      </div>
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label fw-bold">وقت البداية <span class="text-danger">*</span></label>
+          <input type="datetime-local" name="start_time" class="form-control"
+                 id="startTime" value="{{ form.get('start_time','') }}"
+                 min="{{ now.strftime('%Y-%m-%dT%H:%M') }}" required>
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label fw-bold">وقت الانتهاء <span class="text-danger">*</span></label>
+          <input type="datetime-local" name="end_time" class="form-control"
+                 id="endTime" value="{{ form.get('end_time','') }}" required>
+        </div>
+      </div>
+      <!-- Availability checker -->
+      <div id="availBox" class="alert py-2 small d-none"></div>
+      <div class="mb-3">
+        <label class="form-label fw-bold"><span data-i18n="t_notes">ملاحظات</span></label>
+        <textarea name="notes" class="form-control" rows="3"
+                  placeholder="أي تفاصيل إضافية...">{{ form.get('notes','') }}</textarea>
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-bold"><i class="bi bi-paperclip me-1"></i>مرفقات (اختياري)</label>
+        <input type="file" name="attachments" class="form-control" multiple
+               accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif">
+        <div class="form-text">يمكن إرفاق صور أو مستندات (PDF, Word, Excel, صور)</div>
+      </div>
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary-ars">
+          <i class="bi bi-send me-1"></i>تقديم طلب الحجز
+        </button>
+        <a href="{{ url_for('reservations.index') }}" class="btn btn-outline-secondary"><span data-i18n="t_cancel">إلغاء</span></a>
+      </div>
+    </form>
+  </div>
+</div>
+</div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+// Show venue info
+document.getElementById('venueSelect').addEventListener('change', function() {
+  const opt = this.options[this.selectedIndex];
+  const info = document.getElementById('venueInfo');
+  if (opt.value) {
+    const loc = opt.dataset.location, cap = opt.dataset.capacity;
+    info.textContent = [loc && `📍 ${loc}`, cap && `👥 السعة: ${cap}`].filter(Boolean).join('  |  ');
+  } else { info.textContent = ''; }
+  checkAvailability();
+});
+
+// Check availability on time change
+['startTime','endTime'].forEach(id =>
+  document.getElementById(id).addEventListener('change', checkAvailability));
+
+function checkAvailability() {
+  const vid = document.getElementById('venueSelect').value;
+  const start = document.getElementById('startTime').value;
+  const end   = document.getElementById('endTime').value;
+  const box   = document.getElementById('availBox');
+  if (!vid || !start) { box.classList.add('d-none'); return; }
+  const date = start.split('T')[0];
+  fetch(`/reservations/api/availability?venue_id=${vid}&date=${date}`)
+    .then(r => r.json())
+    .then(events => {
+      if (!events.length) {
+        box.className = 'alert alert-success py-2 small';
+        box.textContent = '✅ القاعة متاحة في هذا اليوم';
+      } else {
+        const times = events.map(e => `${e.title} (${e.start}–${e.end})`).join('، ');
+        box.className = 'alert alert-warning py-2 small';
+        box.textContent = `⚠️ حجوزات موجودة في هذا اليوم: ${times}`;
+      }
+      box.classList.remove('d-none');
+    });
+}
+</script>
+<script>
+// Enforce min date = now (past date prevention)
+(function enforceDateMin(){
+  function setMins(){
+    const now = new Date().toISOString().slice(0,16);
+    const st = document.getElementById('startTime');
+    const et = document.getElementById('endTime');
+    if(st && !st.value) st.min = now;
+    if(et) et.min = st?.value || now;
+  }
+  setMins();
+  document.getElementById('startTime')?.addEventListener('change', function(){
+    const now = new Date().toISOString().slice(0,16);
+    if(this.value < now){
+      this.value = now;
+      alert('⚠️ لا يمكن اختيار تاريخ في الماضي');
+    }
+    const et = document.getElementById('endTime');
+    if(et) et.min = this.value;
+  });
+  // Validate on submit
+  document.querySelector('form')?.addEventListener('submit', function(e){
+    const now = new Date().toISOString().slice(0,16);
+    const st = document.getElementById('startTime');
+    if(st && st.value < now){
+      e.preventDefault();
+      alert('⚠️ لا يمكن إنشاء حجز بتاريخ في الماضي');
+    }
+  });
+})();
+</script>
+{% endblock %}

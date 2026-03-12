@@ -1,24 +1,24 @@
-{% extends "base.html" %}{% block title %}إدارة الحجوزات — ARS{% endblock %}
+{% extends "base.html" %}{% block title %}{% if current_lang=="en" %}Manage Reservations — ARS{% else %}إدارة الحجوزات — ARS{% endif %}{% endblock %}
 {% block content %}
 <div class="page-header d-flex justify-content-between">
-  <h1><i class="bi bi-list-check me-2"></i>كل الحجوزات</h1>
+  <h1><i class="bi bi-list-check me-2"></i>{{ _('كل الحجوزات') }}</h1>
 </div>
 <div class="card mb-3"><div class="card-body py-2">
   <form method="GET" class="d-flex gap-2 align-items-center flex-wrap">
     <select name="status" class="form-select form-select-sm" style="width:auto">
-      <option value=""><span data-i18n="t_all_statuses">كل الحالات</span></option>
+      <option value=""><span>{{ _('كل الحالات') }}</option>
       {% for s in ['pending','approved','rejected','cancelled','completed'] %}
       <option value="{{ s }}" {% if request.args.get('status')==s %}selected{% endif %}>{{ s }}</option>
       {% endfor %}
     </select>
-    <button class="btn btn-primary-ars btn-sm"><span data-i18n="t_filter">تصفية</span></button>
-    <a href="{{ url_for('reservations.index') }}" class="btn btn-outline-secondary btn-sm">إعادة</a>
+    <button class="btn btn-primary-ars btn-sm">{{ _('تصفية') }}</button>
+    <a href="{{ url_for('reservations.index') }}" class="btn btn-outline-secondary btn-sm">{{ _('إعادة') }}</a>
   </form>
 </div></div>
 <div class="card"><div class="card-body p-0">
   <div class="table-responsive">
     <table class="table table-hover mb-0">
-      <thead><tr><th><span data-i18n="t_booking_no">رقم الحجز</span></th><th><span data-i18n="t_title">العنوان</span></th><th><span data-i18n="t_user">المستخدم</span></th><th><span data-i18n="t_venue">القاعة</span></th><th><span data-i18n="t_start">البداية</span></th><th><span data-i18n="t_status">الحالة</span></th><th></th></tr></thead>
+      <thead><tr><th><span>{{ _('رقم الحجز') }}</th><th>{{ _('العنوان') }}</th><th>{{ _('المستخدم') }}</th><th>{{ _('القاعة') }}</th><th>{{ _('البداية') }}</th><th>{{ _('الحالة') }}</th><th></th></tr></thead>
       <tbody>
         {% for r in pagination.items %}
         <tr>
@@ -27,7 +27,7 @@
           <td><small>{{ r.user.full_name if r.user else '—' }}</small></td>
           <td><small class="text-muted">{{ r.venue.name if r.venue else '—' }}</small></td>
           <td><small>{{ r.start_time.strftime('%Y-%m-%d %H:%M') if r.start_time else '—' }}</small></td>
-          <td><span class="badge badge-{{ r.status }}">{{ status_label(r.status) }}</span></td>
+          <td>{{ status_label(r.status) }}</td>
           <td><a href="{{ url_for('reservations.detail', res_id=r.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i></a></td>
         </tr>
         {% endfor %}
@@ -40,7 +40,7 @@
       {% if pagination.has_prev %}<li class="page-item"><a class="page-link" href="?page={{ pagination.prev_num }}&status={{ request.args.get('status','') }}"><i class="bi bi-chevron-right"></i></a></li>{% endif %}
       {% for p in pagination.iter_pages() %}
         {% if p %}<li class="page-item {% if p==pagination.page %}active{% endif %}"><a class="page-link" href="?page={{ p }}&status={{ request.args.get('status','') }}">{{ p }}</a></li>
-        {% else %}<li class="page-item disabled"><span class="page-link">…</span></li>{% endif %}
+        {% else %}<li class="page-item disabled">…</li>{% endif %}
       {% endfor %}
       {% if pagination.has_next %}<li class="page-item"><a class="page-link" href="?page={{ pagination.next_num }}&status={{ request.args.get('status','') }}"><i class="bi bi-chevron-left"></i></a></li>{% endif %}
     </ul></nav>

@@ -88,12 +88,29 @@ def create_app():
                 p = os.path.join(os.path.dirname(__file__), 'maintenance_config.json')
                 return json.loads(open(p).read()) if os.path.exists(p) else {}
             except: return {}
+        from utils.i18n import t, get_lang
         return {
             'app_name': 'ARS — نظام إدارة الحجوزات',
+            '_': t,
+            'current_lang': get_lang(),
             'current_user': current_user,
             'perms': get_permissions(),
             'get_maintenance_config': get_maintenance_config,
         }
+
+    # ── Language toggle route ─────────────────────────────────────────────
+    @app.route('/set-lang/<lang>')
+    def set_language(lang):
+        from utils.i18n import set_lang
+        from flask import redirect, request as req
+        set_lang(lang)
+        return redirect(req.referrer or '/')
+
+    @app.before_request
+    def set_default_lang():
+        from flask import session
+        if 'lang' not in session:
+            session['lang'] = 'ar'
 
     return app
 

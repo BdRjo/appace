@@ -1,23 +1,23 @@
-{% extends "base.html" %}{% block title %}دور جديد — ARS{% endblock %}
+{% extends "base.html" %}{% block title %}{% if current_lang=="en" %}New Role — ARS{% else %}دور جديد — ARS{% endif %}{% endblock %}
 {% block content %}
-<div class="page-header"><h1><i class="bi bi-shield-plus me-2"></i><span data-i18n="x_301321"><span data-i18n="z_301321">دور جديد</span></span></h1></div>
+<div class="page-header"><h1><i class="bi bi-shield-plus me-2"></i>{{ _('دور جديد') }}</h1></div>
 <div class="row justify-content-center"><div class="col-md-6">
-<div class="card"><div class="card-header">إضافة دور جديد</div>
+<div class="card"><div class="card-header">{{ _('إضافة دور جديد') }}</div>
 <div class="card-body p-4">
   <form method="POST">
     <div class="mb-3">
-      <label class="form-label fw-bold">اسم الدور <span class="text-danger">*</span></label>
+      <label class="form-label fw-bold">{{ _('اسم الدور') }}*</label>
       <input type="text" name="name" class="form-control" required
-             value="{{ form.get('name','') }}" placeholder="مثال: مشرف الحجوزات">
+             value="{{ form.get('name','') }}" placeholder="{{ _('مثال: مشرف الحجوزات') }}">
     </div>
     <div class="mb-4">
-      <label class="form-label fw-bold"><span data-i18n="t_desc">الوصف</span></label>
+      <label class="form-label fw-bold">{{ _('الوصف') }}</label>
       <textarea name="description" class="form-control" rows="3"
-                placeholder="وصف مختصر لصلاحيات هذا الدور">{{ form.get('description','') }}</textarea>
+                placeholder="{{ _('وصف مختصر لصلاحيات هذا الدور') }}">{{ form.get('description','') }}</textarea>
     </div>
     <div class="d-flex gap-2">
-      <button type="submit" class="btn btn-primary-ars">إضافة الدور</button>
-      <a href="{{ url_for('users.roles') }}" class="btn btn-outline-secondary"><span data-i18n="t_cancel">إلغاء</span></a>
+      <button type="submit" class="btn btn-primary-ars">{{ _('إضافة الدور') }}</button>
+      <a href="{{ url_for('users.roles') }}" class="btn btn-outline-secondary">{{ _('إلغاء') }}</a>
     </div>
   </form>
 </div></div>

@@ -1,6 +1,7 @@
 """جهات الاتصال"""
 import io, csv
 from datetime import datetime
+from utils.flash_helper import flash_msg
 from flask import (Blueprint, render_template, redirect, url_for,
                    request, flash, abort, Response)
 from flask_login import login_required, current_user
@@ -37,12 +38,12 @@ def new():
         email      = request.form.get('email','').strip()
         phone      = request.form.get('phone','').strip()
         if not first_name or not email:
-            flash('الاسم والبريد الإلكتروني مطلوبان', 'danger')
+            flash_msg('الاسم والبريد الإلكتروني مطلوبان', 'danger')
             return render_template('contacts/form.html', contact=None, form=request.form)
         c = Contact(first_name=first_name, last_name=last_name,
                     email=email, phone=phone, created_by=current_user.id)
         db.add(c); db.commit()
-        flash(f'✅ تمت إضافة جهة الاتصال: {first_name}', 'success')
+        flash_msg(f'✅ تمت إضافة جهة الاتصال: {first_name}', 'success')
         return redirect(url_for('contacts.index'))
     return render_template('contacts/form.html', contact=None, form={})
 
@@ -60,7 +61,7 @@ def edit(cid):
         c.email      = request.form.get('email','').strip()
         c.phone      = request.form.get('phone','').strip()
         db.commit()
-        flash('✅ تم تحديث جهة الاتصال', 'success')
+        flash_msg('✅ تم تحديث جهة الاتصال', 'success')
         return redirect(url_for('contacts.index'))
     return render_template('contacts/form.html', contact=c, form={})
 
@@ -72,7 +73,7 @@ def delete(cid):
     if not c: abort(404)
     if c.created_by != current_user.id and not perms.is_admin(): abort(403)
     db.delete(c); db.commit()
-    flash('تم حذف جهة الاتصال', 'success')
+    flash_msg('تم حذف جهة الاتصال', 'success')
     return redirect(url_for('contacts.index'))
 
 @contacts_bp.route('/import-csv', methods=['GET','POST'])
@@ -83,7 +84,7 @@ def import_csv():
     if request.method == 'POST':
         f = request.files.get('csv_file')
         if not f:
-            flash('اختر ملف CSV', 'danger')
+            flash_msg('اختر ملف CSV', 'danger')
             return redirect(url_for('contacts.import_csv'))
         try:
             content = f.read()
@@ -106,9 +107,9 @@ def import_csv():
                 )
                 db.add(c); count += 1
             db.commit()
-            flash(f'✅ تم استيراد {count} جهة اتصال', 'success')
+            flash_msg(f'✅ تم استيراد {count} جهة اتصال', 'success')
         except Exception as e:
-            flash(f'خطأ في الاستيراد: {e}', 'danger')
+            flash_msg(f'خطأ في الاستيراد: {e}', 'danger')
         return redirect(url_for('contacts.index'))
     return render_template('contacts/import.html')
 

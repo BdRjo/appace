@@ -3,8 +3,9 @@
 """
 import csv, io, hashlib
 from datetime import datetime, timedelta
+from utils.flash_helper import flash_msg
 from flask import (Blueprint, render_template, redirect, url_for,
-                   request, flash, jsonify, abort, Response)
+                   request, flash, jsonify, abort, Response, session)
 from flask_login import login_required, current_user
 from sqlalchemy import or_
 from models.database import (Reservation, Venue, Location, BlockedPeriod,
@@ -122,7 +123,7 @@ def new():
     db    = get_db()
     perms = get_permissions()
     if not perms.can('reservations_add'):
-        flash('ليس لديك صلاحية إنشاء حجز', 'danger')
+        flash_msg('ليس لديك صلاحية إنشاء حجز', 'danger')
         return redirect(url_for('reservations.index'))
 
     venues = perms.get_allowed_venues() if hasattr(perms, 'get_allowed_venues') else \
@@ -193,7 +194,7 @@ def new():
             send_booking_request(current_user, res)
         except: pass
 
-        flash(f'✅ تم تقديم طلب الحجز — رقم الحجز: {res.booking_number}', 'success')
+        flash_msg(f'✅ تم تقديم طلب الحجز — رقم الحجز: {res.booking_number}', 'success')
         return redirect(url_for('reservations.detail', res_id=res.id))
 
     return render_template('reservations/new.html', venues=venues, form={})
@@ -236,7 +237,11 @@ def edit(res_id):
 
     # يمكن تعديل pending/approved فقط (مثل v54)
     if res.status not in ('pending','approved'):
-        flash('لا يمكن تعديل هذا الحجز — الحالة الحالية: ' + STATUS_AR.get(res.status,''), 'warning')
+        _STATUS_EN = {'pending':'Pending','approved':'Approved','rejected':'Rejected','cancelled':'Cancelled','completed':'Completed'}
+        if session.get('lang','ar') == 'en':
+            flash('Cannot edit this booking — current status: ' + _STATUS_EN.get(res.status, res.status), 'warning')
+        else:
+            flash('لا يمكن تعديل هذا الحجز — الحالة الحالية: ' + STATUS_AR.get(res.status,''), 'warning')
         return redirect(url_for('reservations.detail', res_id=res_id))
 
     if res.user_id != current_user.id and not perms.is_admin_or_manager():
@@ -280,7 +285,7 @@ def edit(res_id):
         res.requester_notes= notes
         db.commit()
         syslog('EDIT_RESERVATION', f'{res.booking_number} — تم التعديل')
-        flash('✅ تم حفظ التعديلات — تم إرجاع الحجز لحالة معلق إن كان موافقاً عليه', 'success')
+        flash_msg('✅ تم حفظ التعديلات — تم إرجاع الحجز لحالة معلق إن كان موافقاً عليه', 'success')
         return redirect(url_for('reservations.detail', res_id=res_id))
 
     return render_template('reservations/edit.html', res=res, venues=venues)
@@ -296,7 +301,7 @@ def approve(res_id):
     res = db.query(Reservation).get(res_id)
     if not res: abort(404)
     if res.status != 'pending':
-        flash('يمكن الموافقة فقط على الحجوزات المعلقة', 'warning')
+        flash_msg('يمكن الموافقة فقط على الحجوزات المعلقة', 'warning')
         return redirect(url_for('reservations.detail', res_id=res_id))
 
     res.status        = 'approved'
@@ -315,7 +320,7 @@ def approve(res_id):
         send_booking_approved(res)
     except: pass
 
-    flash('✅ تمت الموافقة على الحجز', 'success')
+    flash_msg('✅ تمت الموافقة على الحجز', 'success')
     return redirect(url_for('reservations.detail', res_id=res_id))
 
 
@@ -328,7 +333,7 @@ def reject(res_id):
     res = db.query(Reservation).get(res_id)
     if not res: abort(404)
     if res.status != 'pending':
-        flash('يمكن رفض الحجوزات المعلقة فقط', 'warning')
+        flash_msg('يمكن رفض الحجوزات المعلقة فقط', 'warning')
         return redirect(url_for('reservations.detail', res_id=res_id))
 
     reason = request.form.get('reason','')
@@ -347,7 +352,7 @@ def reject(res_id):
         send_booking_rejected(res, reason)
     except: pass
 
-    flash('تم رفض الحجز', 'warning')
+    flash_msg('تم رفض الحجز', 'warning')
     return redirect(url_for('reservations.detail', res_id=res_id))
 
 
@@ -361,13 +366,13 @@ def cancel(res_id):
     if res.user_id != current_user.id and not perms.is_admin_or_manager():
         abort(403)
     if res.status in ('cancelled','rejected'):
-        flash('الحجز ملغي أو مرفوض بالفعل', 'warning')
+        flash_msg('الحجز ملغي أو مرفوض بالفعل', 'warning')
         return redirect(url_for('reservations.detail', res_id=res_id))
 
     res.status = 'cancelled'
     db.commit()
     syslog('CANCEL_RESERVATION', f'{res.booking_number}')
-    flash('تم إلغاء الحجز', 'success')
+    flash_msg('تم إلغاء الحجز', 'success')
     return redirect(url_for('reservations.index'))
 
 
@@ -574,7 +579,7 @@ def export_single_pdf(res_id):
         return Response(buf.read(), mimetype='application/pdf',
             headers={'Content-Disposition': f'attachment;filename=reservation_{res.booking_number}.pdf'})
     except ImportError:
-        flash('reportlab غير مثبت', 'danger')
+        flash_msg('reportlab غير مثبت', 'danger')
         return redirect(url_for('reservations.detail', res_id=res_id))
 
 
@@ -648,7 +653,7 @@ def export_single_excel(res_id):
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             headers={'Content-Disposition': f'attachment;filename={fname}'})
     except ImportError:
-        flash('openpyxl غير مثبت', 'danger')
+        flash_msg('openpyxl غير مثبت', 'danger')
         return redirect(url_for('reservations.detail', res_id=res_id))
 
 
@@ -744,7 +749,7 @@ def export_pdf():
         return Response(buf.read(), mimetype='application/pdf',
                         headers={'Content-Disposition': f'attachment;filename={fname}'})
     except ImportError:
-        flash('reportlab غير مثبت', 'danger')
+        flash_msg('reportlab غير مثبت', 'danger')
         return redirect(url_for('reservations.index'))
 
 
@@ -765,7 +770,7 @@ def invite(res_id):
         selected_ids = request.form.getlist('contact_ids', type=int)
         message_body = request.form.get('message','').strip()
         if not selected_ids:
-            flash('اختر مدعويين على الأقل', 'warning')
+            flash_msg('اختر مدعويين على الأقل', 'warning')
             return redirect(url_for('reservations.invite', res_id=res_id))
 
         success = 0
@@ -788,11 +793,11 @@ def invite(res_id):
                     bc.sent_at = datetime.now()
                 success += 1
             except Exception as e:
-                flash(f'فشل إرسال إلى {contact.email}: {e}', 'warning')
+                flash_msg(f'فشل إرسال إلى {contact.email}: {e}', 'warning')
 
         db.commit()
         syslog('SEND_INVITATIONS', f'{res.booking_number} — {success} دعوة')
-        flash(f'✅ تم إرسال {success} دعوة', 'success')
+        flash_msg(f'✅ تم إرسال {success} دعوة', 'success')
         return redirect(url_for('reservations.detail', res_id=res_id))
 
     default_msg = f"""عزيزي/عزيزتي [NAME]،
@@ -883,11 +888,11 @@ def reactivate(res_id):
     if not res: abort(404)
     if not perms.is_admin_or_manager(): abort(403)
     if res.status not in ('cancelled', 'rejected'):
-        flash('يمكن إعادة تفعيل الحجوزات الملغية أو المرفوضة فقط', 'warning')
+        flash_msg('يمكن إعادة تفعيل الحجوزات الملغية أو المرفوضة فقط', 'warning')
         return redirect(url_for('reservations.detail', res_id=res_id))
     res.status = 'pending'
     db.commit()
     syslog('REACTIVATE', f'إعادة تفعيل حجز #{res.booking_number}')
-    flash('تم إعادة تفعيل الحجز وإرجاعه للمراجعة', 'success')
+    flash_msg('تم إعادة تفعيل الحجز وإرجاعه للمراجعة', 'success')
     return redirect(url_for('reservations.detail', res_id=res_id))
 

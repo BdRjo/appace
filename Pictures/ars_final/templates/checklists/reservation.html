@@ -57,12 +57,12 @@
 <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
   <div>
     <h1><i class="bi bi-check2-square me-2" style="color:#1A555C"></i>
-      <span data-i18n="t_reservation_checklist"><span data-i18n="z_497d77">قائمة مهام الحجز</span></span>
+      {{ _('قائمة مهام الحجز') }}
     </h1>
     <small class="text-muted">{{ res.title }} &nbsp;|&nbsp; {{ res.venue.name if res.venue else '' }}</small>
   </div>
   <a href="{{ url_for('reservations.detail', res_id=res.id) }}" class="btn btn-outline-secondary btn-sm">
-    <i class="bi bi-arrow-right me-1"></i><span data-i18n="t_back">العودة للحجز</span>
+    <i class="bi bi-arrow-right me-1"></i><span>{{ _('العودة للحجز') }}
   </a>
 </div>
 
@@ -82,12 +82,12 @@
                       stroke-dashoffset="{{ ((1 - pct/100) * 2*3.14159*26)|round(1) }}"
                       stroke-linecap="round"/>
             </svg>
-            <span class="ring-pct" style="color:#D4A853">{{ pct }}%</span>
+            {{ pct }}%
           </div>
           <div>
             <div style="font-size:1.1rem;font-weight:800">{{ done }} / {{ total }}</div>
             <div style="font-size:.78rem;color:rgba(255,255,255,.7)">
-              <span data-i18n="t_completed"><span data-i18n="z_d8bc3a">مهام مكتملة</span></span>
+              {{ _('مهام مكتملة') }}
             </div>
           </div>
         </div>
@@ -97,13 +97,13 @@
         {% if overdue_count > 0 %}
         <div class="text-center">
           <div style="font-size:1.2rem;font-weight:800;color:#ffab40">{{ overdue_count }}</div>
-          <div style="font-size:.68rem;color:rgba(255,255,255,.6)">⚠️ متأخرة</div>
+          <div style="font-size:.68rem;color:rgba(255,255,255,.6)">{{ _('⚠️ متأخرة') }}</div>
         </div>
         {% endif %}
         <div class="text-center">
           <div style="font-size:1.2rem;font-weight:800">{{ total - done }}</div>
           <div style="font-size:.68rem;color:rgba(255,255,255,.6)">
-            <span data-i18n="t_remaining"><span data-i18n="z_f5766a">متبقية</span></span>
+            {{ _('متبقية') }}
           </div>
         </div>
       </div>
@@ -117,17 +117,17 @@
     <div class="card" style="border-radius:16px;border:none;box-shadow:0 2px 12px rgba(0,0,0,.07)">
       <div class="card-header d-flex justify-content-between align-items-center">
         <span><i class="bi bi-list-check me-2"></i>
-          <span data-i18n="t_items"><span data-i18n="z_06c67a">عناصر القائمة</span></span>
+          {{ _('عناصر القائمة') }}
         </span>
         <div class="d-flex gap-2 align-items-center">
           <!-- Filter -->
           <select id="filterSel" onchange="filterItems()" class="form-select form-select-sm" style="width:auto;font-size:.75rem;border-radius:8px">
-            <option value="all">📋 الكل</option>
-            <option value="pending">⏳ المعلقة</option>
-            <option value="done">✅ المكتملة</option>
-            <option value="high">🔴 عاجل</option>
+            <option value="all">{{ _('📋 الكل') }}</option>
+            <option value="pending">{{ _('⏳ المعلقة') }}</option>
+            <option value="done">{{ _('✅ المكتملة') }}</option>
+            <option value="high">{{ _('🔴 عاجل') }}</option>
           </select>
-          <span class="badge" style="background:#1A555C;color:#fff;border-radius:20px">{{ total }}</span>
+          {{ total }}
         </div>
       </div>
       <div class="card-body p-3">
@@ -138,7 +138,7 @@
                data-id="{{ item.id }}" data-done="{{ 'true' if item.is_checked else 'false' }}"
                data-prio="{{ item.priority or 1 }}"
                draggable="true" ondragstart="onDragStart(event)" ondragover="onDragOver(event)" ondrop="onDrop(event)" ondragleave="onDragLeave(event)">
-            <span class="drag-handle d-none d-md-block">⠿</span>
+            ⠿
             <!-- Check button -->
             <button type="button" onclick="toggleItem({{ item.id }}, this)"
                     class="cl-check-btn {% if item.is_checked %}done{% endif %}"
@@ -158,12 +158,12 @@
                 </span>
                 {% endif %}
                 {% if item.is_checked and item.checked_at %}
-                <span class="due-badge"><i class="bi bi-check-circle me-1"></i>{{ item.checked_at.strftime('%H:%M') }}</span>
+                <span class="due-badge"><i class="bi bi-check-circle me-1"></i>{{ item.checked_at.strftime('%H:%M') }}
                 {% endif %}
               </div>
             </div>
             <div class="cl-actions">
-              <button type="button" onclick="deleteItem({{ item.id }})" class="btn btn-sm btn-outline-danger" style="padding:3px 7px;border-radius:8px;font-size:.75rem" title="حذف">
+              <button type="button" onclick="deleteItem({{ item.id }})" class="btn btn-sm btn-outline-danger" style="padding:3px 7px;border-radius:8px;font-size:.75rem" title="{{ _('حذف') }}">
                 <i class="bi bi-trash3"></i>
               </button>
             </div>
@@ -173,7 +173,7 @@
         {% else %}
         <div class="text-center py-5">
           <div style="font-size:3rem;margin-bottom:10px">📋</div>
-          <div class="text-muted small" data-i18n="t_no_items">لا توجد مهام — أضف أول مهمة من الجانب</div>
+          <div class="text-muted small">{{ _('لا توجد مهام — أضف أول مهمة من الجانب') }}</div>
         </div>
         {% endif %}
       </div>
@@ -185,43 +185,43 @@
     <!-- Add item -->
     <div class="add-panel mb-3">
       <div class="fw-bold mb-3" style="color:#1A555C;font-size:.9rem">
-        <i class="bi bi-plus-circle-fill me-2"></i><span data-i18n="t_add_item"><span data-i18n="z_2304c5">إضافة مهمة جديدة</span></span>
+        <i class="bi bi-plus-circle-fill me-2"></i>{{ _('إضافة مهمة جديدة') }}
       </div>
       <form method="POST" id="addForm">
         <input type="hidden" name="action" value="add_item">
         <div class="mb-2">
           <input type="text" name="content" id="newContent" class="form-control" 
-                 placeholder="نص المهمة..." required autocomplete="off">
+                 placeholder="{{ _('نص المهمة...') }}" required autocomplete="off">
         </div>
         <!-- Priority -->
         <div class="mb-2">
           <label class="form-label small fw-bold" style="font-size:.75rem;color:#555">
-            <span data-i18n="t_priority"><span data-i18n="z_c4888e">الأولوية</span></span>
+            {{ _('الأولوية') }}
           </label>
           <div class="priority-pills">
             <div>
               <input type="radio" name="priority" value="1" id="p1" class="d-none prio-radio-1" checked>
-              <label for="p1" style="border-color:#28a745;color:#155724">🟢 عادي</label>
+              <label for="p1" style="border-color:#28a745;color:#155724">{{ _('🟢 عادي') }}</label>
             </div>
             <div>
               <input type="radio" name="priority" value="2" id="p2" class="d-none prio-radio-2">
-              <label for="p2" style="border-color:#ffc107;color:#856404">🟡 متوسط</label>
+              <label for="p2" style="border-color:#ffc107;color:#856404">{{ _('🟡 متوسط') }}</label>
             </div>
             <div>
               <input type="radio" name="priority" value="3" id="p3" class="d-none prio-radio-3">
-              <label for="p3" style="border-color:#dc3545;color:#7b2020">🔴 عاجل</label>
+              <label for="p3" style="border-color:#dc3545;color:#7b2020">{{ _('🔴 عاجل') }}</label>
             </div>
           </div>
         </div>
         <!-- Due date -->
         <div class="mb-3">
           <label class="form-label small fw-bold" style="font-size:.75rem;color:#555">
-            <i class="bi bi-calendar3 me-1"></i><span data-i18n="t_due_date"><span data-i18n="z_254bf9">تاريخ الاستحقاق</span></span> <span class="text-muted">(اختياري)</span>
+            <i class="bi bi-calendar3 me-1"></i>{{ _('تاريخ الاستحقاق') }} <span class="text-muted"><span>{{ _('(اختياري)') }}
           </label>
           <input type="date" name="due_date" class="form-control form-control-sm">
         </div>
         <button type="submit" class="btn btn-primary-ars w-100">
-          <i class="bi bi-plus-lg me-1"></i><span data-i18n="t_add">إضافة</span>
+          <i class="bi bi-plus-lg me-1"></i>{{ _('إضافة') }}
         </button>
       </form>
     </div>
@@ -231,23 +231,23 @@
       <div class="card-body p-3">
         <div class="fw-bold mb-2" style="font-size:.82rem;color:#555">
           <i class="bi bi-lightning-fill me-1" style="color:#D4A853"></i>
-          <span data-i18n="t_quick_actions"><span data-i18n="z_5b0ea5">إجراءات سريعة</span></span>
+          {{ _('إجراءات سريعة') }}
         </div>
         <div class="d-flex flex-column gap-2">
           <button onclick="checkAll()" class="btn btn-sm d-flex align-items-center gap-2" 
                   style="background:#d4eaec;color:#0d3b40;border:none;border-radius:9px;font-size:.8rem">
             <i class="bi bi-check2-all"></i>
-            <span data-i18n="t_check_all"><span data-i18n="z_e1177e">تأشير الكل</span></span>
+            {{ _('تأشير الكل') }}
           </button>
           <button onclick="uncheckAll()" class="btn btn-sm d-flex align-items-center gap-2"
                   style="background:#fef3cd;color:#7a5900;border:none;border-radius:9px;font-size:.8rem">
             <i class="bi bi-square"></i>
-            <span data-i18n="t_uncheck_all"><span data-i18n="z_f45686">إلغاء تأشير الكل</span></span>
+            {{ _('إلغاء تأشير الكل') }}
           </button>
           <button onclick="window.print()" class="btn btn-sm d-flex align-items-center gap-2"
                   style="background:#f4f9fa;color:#1A555C;border:1px solid #dde8ea;border-radius:9px;font-size:.8rem">
             <i class="bi bi-printer"></i>
-            <span data-i18n="t_print"><span data-i18n="z_88c5d1">طباعة</span></span>
+            {{ _('طباعة') }}
           </button>
         </div>
       </div>
@@ -259,19 +259,19 @@
       <div class="card-body p-3">
         <div class="fw-bold mb-2" style="font-size:.82rem;color:#555">
           <i class="bi bi-clipboard-check me-1" style="color:#1A555C"></i>
-          <span data-i18n="t_apply_template"><span data-i18n="z_4dde64">تطبيق قالب</span></span>
+          {{ _('تطبيق قالب') }}
         </div>
         <form method="POST">
           <input type="hidden" name="action" value="apply_template">
           <select name="template_id" class="form-select form-select-sm mb-2">
             {% for t in templates %}
-            <option value="{{ t.id }}">{{ t.name }} ({{ t.items|length }} مهمة)</option>
+            <option value="{{ t.id }}">{{ t.name }} ({{ t.items|length }} {% if current_lang=='en' %}task{% else %}مهمة{% endif %})</option>
             {% endfor %}
           </select>
           <button type="submit" class="btn btn-outline-primary btn-sm w-100"
-                  onclick="return confirm('سيتم إضافة عناصر القالب للقائمة الحالية. متابعة؟')">
+                  onclick="return confirm('{% if current_lang=="en" %}Template items will be added to the current list. Continue?{% else %}سيتم إضافة عناصر القالب للقائمة الحالية. متابعة؟{% endif %}')">
             <i class="bi bi-clipboard-plus me-1"></i>
-            <span data-i18n="t_apply">تطبيق</span>
+            {{ _('تطبيق') }}
           </button>
         </form>
       </div>
@@ -314,7 +314,7 @@ function toggleItem(itemId, btn) {
 
 // ── Delete item via AJAX ──────────────────────────────────────────────────────
 function deleteItem(itemId) {
-  if (!confirm('حذف هذه المهمة؟')) return;
+  if (!confirm('{% if current_lang=="en" %}Delete this task?{% else %}حذف هذه المهمة؟{% endif %}')) return;
   fetch(`/checklists/item/${itemId}/delete`, {method:'POST',
     headers:{'Content-Type':'application/json'}})
   .then(r => r.json()).then(d => {

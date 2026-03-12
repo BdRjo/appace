@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'تعديل' if user else 'إضافة' }} مستخدم — ARS{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>
+    <i class="bi bi-person{{ '-gear' if user else '-plus' }} me-2"></i>
+    {{ 'تعديل: ' + user.username if user else 'إضافة مستخدم جديد' }}
+  </h1>
+</div>
+
+<form method="POST">
+  <div class="row g-4">
+    <!-- Basic info -->
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header">👤 البيانات الأساسية</div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-bold"><span data-i18n="t_username">اسم المستخدم</span> <span class="text-danger">*</span></label>
+              <input type="text" name="username" class="form-control"
+                     value="{{ user.username if user else form.get('username','') }}"
+                     {{ 'readonly' if user else '' }} required>
+              {% if user %}<div class="form-text text-muted">لا يمكن تغيير اسم المستخدم</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold"><span data-i18n="t_full_name">الاسم الكامل</span> <span class="text-danger">*</span></label>
+              <input type="text" name="full_name" class="form-control"
+                     value="{{ user.full_name if user else form.get('full_name','') }}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold"><span data-i18n="t_email">البريد الإلكتروني</span></label>
+              <input type="email" name="email" class="form-control"
+                     value="{{ user.email or '' if user else form.get('email','') }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">الهاتف</label>
+              <input type="text" name="phone" class="form-control"
+                     value="{{ user.phone or '' if user else form.get('phone','') }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold"><span data-i18n="t_role">الدور</span></label>
+              <select name="role_id" class="form-select">
+                <option value="">بدون دور</option>
+                {% for r in roles %}
+                <option value="{{ r.id }}"
+                        {% if (user and user.role_id == r.id) or (not user and form.get('role_id','') == r.id|string) %}selected{% endif %}>
+                  {{ r.name }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">{{ 'كلمة مرور جديدة' if user else 'كلمة المرور' }} {{ '' if user else '*' }}</label>
+              <input type="password" name="password" class="form-control"
+                     placeholder="{{ 'اتركه فارغاً للإبقاء على الحالية' if user else 'كلمة المرور...' }}"
+                     {{ '' if user else 'required minlength=6' }}>
+            </div>
+            <div class="col-12">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="is_active" id="isActive"
+                       {{ 'checked' if (not user) or user.is_active else '' }}>
+                <label class="form-check-label fw-bold" for="isActive">مستخدم نشط</label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Access control panel — مطابق لـ v54 LocationWindow + VenueWindow access tabs -->
+    <div class="col-md-4">
+      {% if user and all_locations is defined %}
+      <div class="card mb-3">
+        <div class="card-header">
+          <i class="bi bi-geo-alt me-2"></i>صلاحيات المواقع
+          <small class="opacity-75 d-block">المديرون والمشرفون يرون الكل تلقائياً</small>
+        </div>
+        <div class="card-body p-2" style="max-height:200px;overflow-y:auto">
+          {% for loc in all_locations %}
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="allowed_locations"
+                   value="{{ loc.id }}" id="loc{{ loc.id }}"
+                   {{ 'checked' if loc.id in assigned_locations else '' }}>
+            <label class="form-check-label small" for="loc{{ loc.id }}">
+              {{ loc.name }}{% if loc.city %} <span class="text-muted">({{ loc.city }})</span>{% endif %}
+            </label>
+          </div>
+          {% else %}
+          <div class="text-muted small p-2">لا توجد مواقع</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <i class="bi bi-building me-2"></i>صلاحيات القاعات
+        </div>
+        <div class="card-body p-2" style="max-height:200px;overflow-y:auto">
+          {% for v in all_venues %}
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="allowed_venues"
+                   value="{{ v.id }}" id="ven{{ v.id }}"
+                   {{ 'checked' if v.id in assigned_venues else '' }}>
+            <label class="form-check-label small" for="ven{{ v.id }}">
+              {{ v.name }}{% if v.location %} — <span class="text-muted">{{ v.location.name }}</span>{% endif %}
+            </label>
+          </div>
+          {% else %}
+          <div class="text-muted small p-2">لا توجد قاعات</div>
+          {% endfor %}
+        </div>
+      </div>
+      {% else %}
+      <div class="card">
+        <div class="card-header"><i class="bi bi-info-circle me-2"></i><span data-i18n="t_notes">ملاحظات</span></div>
+        <div class="card-body small">
+          <p>💡 يمكن تعيين صلاحيات المواقع والقاعات بعد حفظ المستخدم من خلال تعديله.</p>
+          <p>🔑 المديرون والمشرفون يرون جميع المواقع تلقائياً.</p>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="mt-4 d-flex gap-2">
+    <button type="submit" class="btn btn-primary px-4">
+      <i class="bi bi-check-lg me-1"></i>{{ 'حفظ التعديلات' if user else 'إضافة المستخدم' }}
+    </button>
+    <a href="{{ url_for('users.index') }}" class="btn btn-secondary px-4"><span data-i18n="t_cancel">إلغاء</span></a>
+  </div>
+</form>
+{% endblock %}

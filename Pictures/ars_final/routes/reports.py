@@ -3,6 +3,7 @@
 """
 import io, csv
 from datetime import datetime, timedelta, date
+from utils.flash_helper import flash_msg
 from flask import Blueprint, render_template, request, Response, abort
 from flask_login import login_required, current_user
 from sqlalchemy import func
@@ -212,7 +213,7 @@ def export_csv():
                 u.role.name if u.role else '', len(u.reservations),
                 'نشط' if u.is_active else 'غير نشط'])
 
-    content = b'\xff\xfe' + out.getvalue().encode('utf-16-le')
+    content = b'\xef\xbb\xbf' + out.getvalue().encode('utf-8')
     fname   = f'report_{rtype}_{datetime.now().strftime("%Y%m%d")}.csv'
     return Response(content, mimetype='text/csv',
                     headers={'Content-Disposition': f'attachment; filename={fname}'})
@@ -400,14 +401,11 @@ def export_pdf():
                                 rightMargin=1.5*cm, leftMargin=1.5*cm,
                                 topMargin=2*cm, bottomMargin=2*cm)
 
-        # Try to register Arabic font
-        arabic_font = 'Helvetica'
-        try:
-            font_path = os.path.join(os.path.dirname(__file__), '..', 'static', 'fonts', 'Amiri-Regular.ttf')
-            if os.path.exists(font_path):
-                pdfmetrics.registerFont(TTFont('Amiri', font_path))
-                arabic_font = 'Amiri'
-        except: pass
+        # Use ARS Arabic font helper
+        from utils.pdf_helper import register_arabic_font, ar, arabic_font as _af
+        register_arabic_font()
+        arabic_font = _af(bold=False)
+        arabic_font_bold = _af(bold=True)
 
         styles = getSampleStyleSheet()
         story  = []
@@ -422,13 +420,13 @@ def export_pdf():
 
         # Header
         if mcfg.get('report_header_title'):
-            h_style = ParagraphStyle('h', fontName=arabic_font, fontSize=14,
+            h_style = ParagraphStyle('h', fontName=arabic_font_bold, fontSize=14,
                                      textColor=colors.HexColor('#1A555C'), alignment=TA_CENTER, spaceAfter=2)
-            story.append(Paragraph(mcfg['report_header_title'], h_style))
+            story.append(Paragraph(ar(mcfg['report_header_title']), h_style))
         if mcfg.get('report_header_subtitle'):
             s_style = ParagraphStyle('s', fontName=arabic_font, fontSize=11,
                                      textColor=colors.HexColor('#2E8B8F'), alignment=TA_CENTER, spaceAfter=2)
-            story.append(Paragraph(mcfg['report_header_subtitle'], s_style))
+            story.append(Paragraph(ar(mcfg['report_header_subtitle']), s_style))
         if mcfg.get('report_header_title') or mcfg.get('report_header_subtitle'):
             story.append(HRFlowable(width='100%', thickness=1, color=colors.HexColor('#1A555C'), spaceAfter=8))
 
@@ -444,7 +442,11 @@ def export_pdf():
         if rows:
             headers = list(rows[0].keys())
             col_w = (page_size[0] - 3*cm) / len(headers)
-            data = [headers] + [[str(r.get(h,'')) for h in headers] for r in rows]
+            def _cell(v):
+                s = str(v) if v else ''
+                import re
+                return ar(s) if re.search(r'[\u0600-\u06ff]', s) else s
+            data = [headers] + [[_cell(r.get(h,'')) for h in headers] for r in rows]
             t = Table(data, repeatRows=1, colWidths=[col_w]*len(headers))
             t.setStyle(TableStyle([
                 ('BACKGROUND',    (0,0), (-1,0), colors.HexColor('#1A555C')),
@@ -469,7 +471,7 @@ def export_pdf():
         return Response(buf.read(), mimetype='application/pdf',
                         headers={'Content-Disposition': f'attachment;filename=ARS_Report_{date.today()}.pdf'})
     except ImportError:
-        flash('يرجى تثبيت reportlab: pip install reportlab', 'danger')
+        flash_msg('يرجى تثبيت reportlab: pip install reportlab', 'danger')
         return redirect(url_for('reports.index'))
 
 
@@ -533,5 +535,5 @@ def export_excel():
                         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                         headers={'Content-Disposition': 'attachment;filename=ARS_Report.xlsx'})
     except ImportError:
-        flash('يرجى تثبيت openpyxl: pip install openpyxl', 'danger')
+        flash_msg('يرجى تثبيت openpyxl: pip install openpyxl', 'danger')
         return redirect(url_for('reports.index'))

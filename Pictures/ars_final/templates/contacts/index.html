@@ -1,26 +1,26 @@
 {% extends "base.html" %}
-{% block title %}جهات الاتصال — ARS{% endblock %}
+{% block title %}{% if current_lang=="en" %}Contacts — ARS{% else %}جهات الاتصال — ARS{% endif %}{% endblock %}
 {% block content %}
 <div class="page-header d-flex justify-content-between align-items-center">
-  <h1><i class="bi bi-person-lines-fill me-2"></i>جهات الاتصال ({{ contacts|length }})</h1>
+  <h1><i class="bi bi-person-lines-fill me-2"></i>{% if current_lang=='en' %}Contacts{% else %}جهات الاتصال{% endif %} ({{ contacts|length }})</h1>
   <div class="d-flex gap-2">
     <a href="{{ url_for('contacts.import_csv') }}" class="btn btn-outline-secondary btn-sm">
-      <i class="bi bi-upload me-1"></i><span data-i18n="t_import_csv"><span data-i18n="z_27eee2">استيراد CSV</span></span>
+      <i class="bi bi-upload me-1"></i>{{ _('استيراد CSV') }}
     </a>
     <a href="{{ url_for('contacts.export_csv') }}" class="btn btn-outline-success btn-sm">
-      <i class="bi bi-filetype-csv me-1"></i><span data-i18n="t_export_csv"><span data-i18n="z_91cafe">تصدير CSV</span></span>
+      <i class="bi bi-filetype-csv me-1"></i>{{ _('تصدير CSV') }}
     </a>
     <a href="{{ url_for('contacts.new') }}" class="btn btn-primary-ars">
-      <i class="bi bi-person-plus me-1"></i>إضافة جهة
+      <i class="bi bi-person-plus me-1"></i>{% if current_lang=="en" %}Add Contact{% else %}إضافة جهة{% endif %}
     </a>
   </div>
 </div>
 <div class="card mb-3"><div class="card-body py-2">
   <form method="GET" class="d-flex gap-2">
     <input type="text" name="q" class="form-control form-control-sm"
-           placeholder="🔍 بحث بالاسم أو البريد" value="{{ search }}" style="max-width:300px">
-    <button class="btn btn-primary-ars btn-sm"><span data-i18n="t_search">بحث</span></button>
-    <a href="{{ url_for('contacts.index') }}" class="btn btn-outline-secondary btn-sm">إعادة</a>
+           placeholder="{{ _('🔍 بحث بالاسم أو البريد') }}" value="{{ search }}" style="max-width:300px">
+    <button class="btn btn-primary-ars btn-sm">{{ _('بحث') }}</button>
+    <a href="{{ url_for('contacts.index') }}" class="btn btn-outline-secondary btn-sm">{{ _('إعادة') }}</a>
   </form>
 </div></div>
 <div class="card"><div class="card-body p-0">
@@ -28,7 +28,7 @@
 <div class="table-responsive">
 <table class="table table-hover mb-0">
   <thead><tr>
-    <th><span data-i18n="t_first_name">الاسم الأول</span></th><th><span data-i18n="t_last_name">الاسم الأخير</span></th><th><span data-i18n="t_email"><span data-i18n="z_2436aa">البريد الإلكتروني</span></span></th><th>الهاتف</th><th><span data-i18n="t_date_added">تاريخ الإضافة</span></th><th><span data-i18n="t_actions">إجراءات</span></th>
+    <th>{{ _('الاسم الأول') }}</th><th>{{ _('الاسم الأخير') }}</th><th>{{ _('البريد الإلكتروني') }}</th><th><span>{{ _('الهاتف') }}</th><th>{{ _('تاريخ الإضافة') }}</th><th>{{ _('إجراءات') }}</th>
   </tr></thead>
   <tbody>
   {% for c in contacts %}
@@ -54,10 +54,10 @@
 </div>
 {% else %}
 <div class="text-center py-5 text-muted">
-  <i class="bi bi-person-x fs-1 d-block mb-2"></i>لا توجد جهات اتصال
+  <i class="bi bi-person-x fs-1 d-block mb-2"></i>{% if current_lang=="en" %}No contacts{% else %}لا توجد جهات اتصال{% endif %}
   <div class="mt-2">
-    <a href="{{ url_for('contacts.new') }}" class="btn btn-primary-ars btn-sm">إضافة جهة</a>
-    <a href="{{ url_for('contacts.import_csv') }}" class="btn btn-outline-secondary btn-sm ms-2"><span data-i18n="t_import_csv"><span data-i18n="z_27eee2">استيراد CSV</span></span></a>
+    <a href="{{ url_for('contacts.new') }}" class="btn btn-primary-ars btn-sm">{{ _('إضافة جهة') }}</a>
+    <a href="{{ url_for('contacts.import_csv') }}" class="btn btn-outline-secondary btn-sm ms-2">{{ _('استيراد CSV') }}</a>
   </div>
 </div>
 {% endif %}

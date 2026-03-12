@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}استيراد جهات الاتصال — ARS{% endblock %}
+{% block content %}
+<div class="page-header"><h1><i class="bi bi-upload me-2"></i>استيراد جهات الاتصال من CSV</h1></div>
+<div class="row justify-content-center"><div class="col-md-7">
+<div class="card"><div class="card-header"><span data-i18n="t_import_csv">استيراد CSV</span></div>
+<div class="card-body p-4">
+  <div class="alert alert-info">
+    <strong><span data-i18n="t_file_format">تنسيق الملف المطلوب:</span></strong><br>
+    <span data-i18n="t_columns">الأعمدة:</span> <code>first_name, last_name, email, phone</code><br>
+    أو بالعربي: <code>الاسم الأول, الاسم الأخير, البريد الإلكتروني, رقم الهاتف</code>
+    <div class="mt-2">
+      <a href="{{ url_for('contacts.template_csv') }}" class="btn btn-sm btn-outline-info">
+        <i class="bi bi-download me-1"></i>تحميل نموذج CSV
+      </a>
+    </div>
+  </div>
+  <form method="POST" enctype="multipart/form-data">
+    <div class="mb-4">
+      <label class="form-label fw-bold"><span data-i18n="t_choose_csv">اختر ملف CSV</span></label>
+      <input type="file" name="csv_file" class="form-control" accept=".csv" required>
+    </div>
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-primary-ars">
+        <i class="bi bi-upload me-1"></i>استيراد
+      </button>
+      <a href="{{ url_for('contacts.index') }}" class="btn btn-outline-secondary"><span data-i18n="t_cancel">إلغاء</span></a>
+    </div>
+  </form>
+</div></div>
+</div></div>
+{% endblock %}

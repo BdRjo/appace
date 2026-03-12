@@ -1,0 +1,64 @@
+{% extends "base.html" %}{% block title %}{{ venue.name }} — ARS
+{% if current_user.role and current_user.role.name in ('مدير النظام','admin','Admin','مشرف','Manager') %}
+<div class="mt-3 d-flex gap-2">
+  <a href="{{ url_for('blocked.index', venue_id=venue.id) }}" class="btn btn-outline-secondary">
+    <i class="bi bi-slash-circle me-1"></i><span data-i18n="t_blocked">الفترات المحظورة</span>
+  </a>
+  <a href="{{ url_for('ratings.venue_ratings', venue_id=venue.id) }}" class="btn btn-outline-warning">
+    <i class="bi bi-star me-1"></i><span data-i18n="t_ratings">التقييمات</span>
+  </a>
+</div>
+{% endif %}
+{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h1><i class="bi bi-building me-2"></i>{{ venue.name }}</h1>
+  <a href="{{ url_for('reservations.new') }}?venue_id={{ venue.id }}" class="btn btn-primary-ars">
+    <i class="bi bi-plus-lg me-1"></i>احجز الآن
+  </a>
+</div>
+<div class="row g-3">
+  <div class="col-md-5">
+    <div class="card">
+      <div class="card-header"><span data-i18n="t_venue_info">معلومات القاعة</span></div>
+      <div class="card-body">
+        <table class="table table-borderless small mb-0">
+          {% if venue.location %}<tr><th><span data-i18n="t_location">الموقع</span></th><td>{{ venue.location.name }}</td></tr>{% endif %}
+          {% if venue.capacity %}<tr><th><span data-i18n="t_capacity">السعة</span></th><td>{{ venue.capacity }} شخص</td></tr>{% endif %}
+          {% if venue.code %}<tr><th><span data-i18n="t_code">الكود</span></th><td><code>{{ venue.code }}</code></td></tr>{% endif %}
+          {% if venue.equipment %}<tr><th>التجهيزات</th><td>{{ venue.equipment }}</td></tr>{% endif %}
+          <tr><th><span data-i18n="t_needs_approval">يحتاج موافقة</span></th>
+              <td>{% if venue.requires_approval %}<span class="badge bg-warning text-dark"><span data-i18n="t_yes">نعم</span></span>
+                  {% else %}<span class="badge" style="background:#1A555C"><span data-i18n="t_no">لا</span></span>{% endif %}</td></tr>
+          {% if venue.notes %}<tr><th><span data-i18n="t_notes">ملاحظات</span></th><td class="text-muted">{{ venue.notes }}</td></tr>{% endif %}
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-7">
+    <div class="card">
+      <div class="card-header">الحجوزات القادمة</div>
+      <div class="card-body p-0">
+        {% if upcoming %}
+        <div class="table-responsive">
+          <table class="table table-sm mb-0">
+            <thead><tr><th><span data-i18n="t_title">العنوان</span></th><th><span data-i18n="t_start">البداية</span></th><th><span data-i18n="t_status">الحالة</span></th></tr></thead>
+            <tbody>
+              {% for r in upcoming %}
+              <tr>
+                <td>{{ r.title }}</td>
+                <td><small>{{ r.start_time.strftime('%Y-%m-%d %H:%M') if r.start_time else '' }}</small></td>
+                <td><span class="badge {% if r.status=='approved' %}bg-success{% else %}bg-warning text-dark{% endif %}">{{ r.status }}</span></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4 text-muted small">لا توجد حجوزات قادمة</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

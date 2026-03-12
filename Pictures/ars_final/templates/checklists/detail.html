@@ -74,11 +74,11 @@
 <div class="cl-hero">
   <a href="{{ url_for('checklists.index') }}" class="btn btn-sm mb-3"
      style="background:rgba(255,255,255,.15);color:#fff;border:none">
-    <i class="bi bi-arrow-right me-1"></i>كل القوائم
+    <i class="bi bi-arrow-right me-1"></i>{% if current_lang=="en" %}All Lists{% else %}كل القوائم{% endif %}
   </a>
   <div class="d-flex align-items-center justify-content-between flex-wrap gap-3" style="position:relative;z-index:1">
     <div class="d-flex align-items-center gap-3">
-      <span style="font-size:3rem;line-height:1">{{ cl.emoji or '📋' }}</span>
+      {{ cl.emoji or '📋' }}
       <div>
         <h2 class="mb-1" style="color:#fff;font-weight:800">{{ cl.name }}</h2>
         {% if cl.description %}<p class="mb-0" style="color:rgba(255,255,255,.8);font-size:.88rem">{{ cl.description }}</p>{% endif %}
@@ -92,9 +92,9 @@
     <!-- Progress ring + stats -->
     <div class="d-flex align-items-center gap-4">
       <div class="stats-mini">
-        <div class="stat-m"><div class="n">{{ total }}</div><div class="l"><span data-i18n="t_total">إجمالي</span></div></div>
-        <div class="stat-m"><div class="n">{{ done }}</div><div class="l"><span data-i18n="t_s_completed">مكتمل</span></div></div>
-        <div class="stat-m"><div class="n">{{ total - done }}</div><div class="l">متبقي</div></div>
+        <div class="stat-m"><div class="n">{{ total }}</div><div class="l">{{ _('إجمالي') }}</div></div>
+        <div class="stat-m"><div class="n">{{ done }}</div><div class="l">{{ _({% if current_lang=='en' %}'Done'{% else %}'مكتمل'{% endif %}) }}</div></div>
+        <div class="stat-m"><div class="n">{{ total - done }}</div><div class="l">{{ _('متبقي') }}</div></div>
       </div>
       {% set pct = ((done/total*100)|int) if total > 0 else 0 %}
       {% set circ = 3.14159 * 2 * 28 %}
@@ -118,12 +118,12 @@
 
         <!-- Filter tabs -->
         <div class="d-flex gap-2 mb-3 flex-wrap">
-          <button class="filter-tab active" data-filter="all">الكل ({{ total }})</button>
-          <button class="filter-tab" data-filter="pending">قيد التنفيذ ({{ total - done }})</button>
-          <button class="filter-tab" data-filter="done">مكتمل ({{ done }})</button>
+          <button class="filter-tab active" data-filter="all">{% if current_lang=='en' %}All{% else %}الكل{% endif %} ({{ total }})</button>
+          <button class="filter-tab" data-filter="pending">{% if current_lang=='en' %}In Progress{% else %}قيد التنفيذ{% endif %} ({{ total - done }})</button>
+          <button class="filter-tab" data-filter="done">{% if current_lang=='en' %}Done{% else %}مكتمل{% endif %} ({{ done }})</button>
           {% set high = items|selectattr('priority','ge',2)|list|length %}
           {% if high > 0 %}
-          <button class="filter-tab" data-filter="high">⚡ أولوية عالية ({{ high }})</button>
+          <button class="filter-tab" data-filter="high">{% if current_lang=="en" %}⚡ High Priority ({{ high }}){% else %}⚡ أولوية عالية ({{ high }}){% endif %}</button>
           {% endif %}
         </div>
 
@@ -155,7 +155,7 @@
                 {% endif %}
                 <div class="item-meta">
                   {% if item.priority > 0 %}
-                  <span class="badge-prio {{ prio_class }}">{{ prio_label }}</span>
+                  {{ prio_label }}
                   {% endif %}
                   {% if item.due_date %}
                   {% set now = namespace(v=0) %}
@@ -164,14 +164,14 @@
                   </span>
                   {% endif %}
                   {% if item.is_checked and item.checked_at %}
-                  <span class="small text-muted"><i class="bi bi-check2-circle me-1"></i>{{ item.checked_at.strftime('%Y-%m-%d') }}</span>
+                  <span class="small text-muted"><i class="bi bi-check2-circle me-1"></i>{{ item.checked_at.strftime('%Y-%m-%d') }}
                   {% endif %}
                 </div>
               </div>
               <!-- Delete -->
               {% if perms.can('checklists_edit') or cl.created_by_id == current_user.id %}
               <button class="btn btn-sm text-muted" style="border:none;background:none;padding:2px 6px;opacity:.4"
-                      onclick="deleteItem({{ item.id }}, this)" title="حذف">
+                      onclick="deleteItem({{ item.id }}, this)" title="{{ _('حذف') }}">
                 <i class="bi bi-x-lg"></i>
               </button>
               {% endif %}
@@ -180,7 +180,7 @@
           {% else %}
           <div class="text-center py-4 text-muted">
             <i class="bi bi-list-check fs-2 d-block mb-2 opacity-25"></i>
-            لا توجد عناصر — أضف أول مهمة أدناه
+            {% if current_lang=="en" %}No items — add the first task below{% else %}لا توجد عناصر — أضف أول مهمة أدناه{% endif %}
           </div>
           {% endif %}
         </div>
@@ -189,9 +189,9 @@
         {% if perms.can('checklists_edit') or cl.created_by_id == current_user.id %}
         <div class="quick-add mt-3" id="quickAddBox">
           <i class="bi bi-plus-circle text-muted" style="margin-top:3px;font-size:1rem"></i>
-          <input type="text" id="quickInput" placeholder="أضف مهمة جديدة بسرعة..."
+          <input type="text" id="quickInput" placeholder="{{ _('أضف مهمة جديدة بسرعة...') }}"
                  onkeydown="if(event.key==='Enter') quickAdd()">
-          <button onclick="quickAdd()" class="btn btn-sm" style="background:var(--cl-color);color:#fff;border:none;border-radius:8px;padding:4px 12px"><span data-i18n="t_add">إضافة</span></button>
+          <button onclick="quickAdd()" class="btn btn-sm" style="background:var(--cl-color);color:#fff;border:none;border-radius:8px;padding:4px 12px">{{ _('إضافة') }}</button>
         </div>
         {% endif %}
       </div>
@@ -203,24 +203,24 @@
     <!-- Actions card -->
     <div class="card mb-3" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(0,0,0,.07)">
       <div class="card-body p-3">
-        <h6 class="fw-bold mb-3" style="color:var(--cl-color)">⚙️ الإجراءات</h6>
+        <h6 class="fw-bold mb-3" style="color:var(--cl-color)">{{ _('⚙️ الإجراءات') }}</h6>
         <div class="d-flex flex-column gap-2">
           {% if perms.can('checklists_edit') or cl.created_by_id == current_user.id %}
           <a href="{{ url_for('checklists.edit', cl_id=cl.id) }}" class="btn btn-sm btn-outline-primary">
-            <i class="bi bi-pencil me-1"></i><span data-i18n="t_edit_list">تعديل القائمة</span>
+            <i class="bi bi-pencil me-1"></i><span>{{ _('تعديل القائمة') }}
           </a>
           {% endif %}
           <button onclick="window.print()" class="btn btn-sm btn-outline-secondary">
-            <i class="bi bi-printer me-1"></i><span data-i18n="t_print"><span data-i18n="z_88c5d1">طباعة</span></span>
+            <i class="bi bi-printer me-1"></i>{{ _('طباعة') }}
           </button>
           <button onclick="exportCSV()" class="btn btn-sm btn-outline-success">
-            <i class="bi bi-file-earmark-excel me-1"></i><span data-i18n="t_export_csv"><span data-i18n="z_91cafe">تصدير CSV</span></span>
+            <i class="bi bi-file-earmark-excel me-1"></i>{{ _('تصدير CSV') }}
           </button>
           {% if perms.can('checklists_delete') or cl.created_by_id == current_user.id %}
           <form method="POST" action="{{ url_for('checklists.delete', cl_id=cl.id) }}"
-                onsubmit="return confirm('حذف القائمة نهائياً؟')">
+                onsubmit="return confirm('{% if current_lang=="en" %}Delete this list permanently?{% else %}حذف القائمة نهائياً؟{% endif %}')">
             <button class="btn btn-sm btn-outline-danger w-100">
-              <i class="bi bi-trash me-1"></i><span data-i18n="t_del_list">حذف القائمة</span>
+              <i class="bi bi-trash me-1"></i><span>{{ _('حذف القائمة') }}
             </button>
           </form>
           {% endif %}
@@ -231,35 +231,35 @@
     <!-- Notes card -->
     <div class="card" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(0,0,0,.07)">
       <div class="card-body p-3">
-        <h6 class="fw-bold mb-2" style="color:var(--cl-color)">📝 ملاحظات القائمة</h6>
+        <h6 class="fw-bold mb-2" style="color:var(--cl-color)">{{ _('📝 ملاحظات القائمة') }}</h6>
         {% if cl.description %}
         <p class="text-muted small mb-2">{{ cl.description }}</p>
         {% endif %}
         <div style="background:#f8f9fa;border-radius:10px;padding:12px">
           <div class="d-flex justify-content-between text-muted small mb-1">
-            <span><span data-i18n="t_created_at">تاريخ الإنشاء</span></span>
+            {{ _('تاريخ الإنشاء') }}
             <span>{{ cl.created_at.strftime('%Y-%m-%d') if cl.created_at else '—' }}</span>
           </div>
           <div class="d-flex justify-content-between text-muted small mb-1">
-            <span>عناصر مكتملة</span>
+            {{ _('عناصر مكتملة') }}
             <span>{{ done }} / {{ total }}</span>
           </div>
           <div class="d-flex justify-content-between text-muted small">
-            <span><span data-i18n="t_status">الحالة</span></span>
-            <span>{{ '✅ مكتملة' if done == total and total > 0 else '🔄 قيد التنفيذ' }}</span>
+            {{ _({% if current_lang=='en' %}'Status'{% else %}'الحالة'{% endif %}) }}
+            <span>{{ '✅ مكتملة' if done == total and total >{{ _('0 else \'🔄 قيد التنفيذ\' }}') }}
           </div>
         </div>
 
         <!-- Priority breakdown -->
         {% if items %}
         <hr class="my-2">
-        <div class="small text-muted mb-1 fw-bold">توزيع الأولويات</div>
+        <div class="small text-muted mb-1 fw-bold">{{ _('توزيع الأولويات') }}</div>
         {% set high_c = items|selectattr('priority','eq',3)|list|length %}
         {% set med_c  = items|selectattr('priority','eq',2)|list|length %}
         {% set low_c  = items|selectattr('priority','eq',1)|list|length %}
-        {% if high_c %}<div class="d-flex justify-content-between small"><span>🔴 عاجل</span><span class="badge-prio prio-3">{{ high_c }}</span></div>{% endif %}
-        {% if med_c  %}<div class="d-flex justify-content-between small mt-1"><span>🟠 مهم</span><span class="badge-prio prio-2">{{ med_c }}</span></div>{% endif %}
-        {% if low_c  %}<div class="d-flex justify-content-between small mt-1"><span>🟢 عادي</span><span class="badge-prio prio-1">{{ low_c }}</span></div>{% endif %}
+        {% if high_c %}<div class="d-flex justify-content-between small"><span>{{ _('🔴 عاجل') }}{{ high_c }}</div>{% endif %}
+        {% if med_c  %}<div class="d-flex justify-content-between small mt-1"><span>{{ _('🟠 مهم') }}{{ med_c }}</div>{% endif %}
+        {% if low_c  %}<div class="d-flex justify-content-between small mt-1"><span>{{ _('🟢 عادي') }}{{ low_c }}</div>{% endif %}
         {% endif %}
       </div>
     </div>
@@ -328,7 +328,7 @@ function quickAdd() {
 
 // Delete item via AJAX
 function deleteItem(id, btn) {
-  if(!confirm('حذف هذه المهمة؟')) return;
+  if(!confirm('{% if current_lang=="en" %}Delete this task?{% else %}حذف هذه المهمة؟{% endif %}')) return;
   fetch(`/checklists/item/${id}/delete`, {method:'POST'})
     .then(r=>{ if(r.ok || r.redirected) {
       document.getElementById('item-'+id)?.remove();
@@ -369,11 +369,11 @@ function updateFilterCounts() { /* simplified */ }
 
 // Export CSV
 function exportCSV() {
-  const rows = [['المهمة','الحالة','الأولوية','الملاحظة']];
+  const rows = [['{% if current_lang=="en" %}Task{% else %}المهمة{% endif %}','{% if current_lang=="en" %}Status{% else %}الحالة{% endif %}','{% if current_lang=="en" %}Priority{% else %}الأولوية{% endif %}','{% if current_lang=="en" %}Note{% else %}الملاحظة{% endif %}']];
   document.querySelectorAll('.item-row[id]').forEach(row => {
     const title = row.querySelector('.item-title')?.textContent?.trim() || '';
-    const status = row.dataset.status === 'done' ? 'مكتمل' : 'قيد التنفيذ';
-    const prio = ['—','عادي','مهم','عاجل'][parseInt(row.dataset.prio||0)] || '—';
+    const status = row.dataset.status === 'done' ? '{% if current_lang=="en" %}Done{% else %}مكتمل{% endif %}' : '{% if current_lang=="en" %}In Progress{% else %}قيد التنفيذ{% endif %}';
+    const prio = ['—','{% if current_lang=="en" %}Normal{% else %}عادي{% endif %}','{% if current_lang=="en" %}Important{% else %}مهم{% endif %}','{% if current_lang=="en" %}Urgent{% else %}عاجل{% endif %}'][parseInt(row.dataset.prio||0)] || '—';
     const note = row.querySelector('.item-note')?.textContent?.trim() || '';
     rows.push([title, status, prio, note]);
   });

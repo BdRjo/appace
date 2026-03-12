@@ -1,8 +1,8 @@
 {% extends 'base.html' %}
-{% block title %}الصيانة — ARS{% endblock %}
+{% block title %}{% if current_lang=="en" %}Maintenance — ARS{% else %}الصيانة — ARS{% endif %}{% endblock %}
 {% block content %}
 <div class="page-header d-flex justify-content-between align-items-center">
-  <h1><i class="bi bi-tools me-2"></i><span data-i18n="maintenance">الصيانة</span></h1>
+  <h1><i class="bi bi-tools me-2"></i>{{ _('الصيانة') }}</h1>
 </div>
 
 <div class="row g-4">
@@ -13,47 +13,47 @@
         <div class="d-flex align-items-center gap-2">
           <div style="width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:1rem">🗄️</div>
           <div>
-            <div style="color:#fff;font-weight:700;font-size:.92rem" data-i18n="db_operations"><span data-i18n="x_f63664">عمليات قاعدة البيانات</span></div>
+            <div style="color:#fff;font-weight:700;font-size:.92rem"><span>{{ _('عمليات قاعدة البيانات') }}</div>
             <div style="color:rgba(255,255,255,.55);font-size:.68rem">Database Management</div>
           </div>
         </div>
       </div>
       <div class="card-body p-3 d-flex flex-column gap-2">
         <!-- Backup -->
-        <form method="POST" action="{{ url_for('admin.backup') }}" onsubmit="return confirm('هل تريد إنشاء نسخة احتياطية؟')">
+        <form method="POST" action="{{ url_for('admin.backup') }}" onsubmit="return confirm('{% if current_lang=="en" %}Create a backup?{% else %}هل تريد إنشاء نسخة احتياطية؟{% endif %}')">
           <button class="btn w-100 d-flex align-items-center gap-3 text-start py-3 px-3" style="background:linear-gradient(135deg,#e8f5e9,#f1f8f2);border:1.5px solid #a5d6a7;border-radius:12px;color:#1b5e20;transition:.2s" onmouseover="this.style.transform='translateX(-3px)'" onmouseout="this.style.transform=''">
             <div style="width:38px;height:38px;border-radius:10px;background:#2e7d32;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0">💾</div>
-            <div><div class="fw-700" style="font-size:.85rem;font-weight:700" data-i18n="backup"><span data-i18n="x_5fcf01"><span data-i18n="z_5fcf01">نسخ احتياطي</span></span></div><div style="font-size:.7rem;color:#388e3c">Backup Database</div></div>
+            <div><div class="fw-700" style="font-size:.85rem;font-weight:700">{{ _('نسخ احتياطي') }}</div><div style="font-size:.7rem;color:#388e3c">Backup Database</div></div>
           </button>
         </form>
         <!-- Clean Logs -->
-        <form method="POST" action="{{ url_for('admin.clean_logs') }}" onsubmit="return confirm('سيتم حذف السجلات الأقدم من 30 يوم. متابعة؟')">
+        <form method="POST" action="{{ url_for('admin.clean_logs') }}" onsubmit="return confirm('{% if current_lang=="en" %}Delete logs older than 30 days. Continue?{% else %}سيتم حذف السجلات الأقدم من 30 يوم. متابعة؟{% endif %}')">
           <button class="btn w-100 d-flex align-items-center gap-3 text-start py-3 px-3" style="background:linear-gradient(135deg,#fff3e0,#fff8f0);border:1.5px solid #ffcc80;border-radius:12px;color:#e65100;transition:.2s" onmouseover="this.style.transform='translateX(-3px)'" onmouseout="this.style.transform=''">
             <div style="width:38px;height:38px;border-radius:10px;background:#f57c00;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0">🧹</div>
-            <div class="flex-grow-1"><div class="fw-700" style="font-size:.85rem;font-weight:700" data-i18n="clean_logs">تنظيف السجلات</div><div style="font-size:.7rem;color:#ef6c00">Clean Old Logs <span class="badge ms-1" style="background:#f57c00;color:#fff;border-radius:20px;font-size:.65rem">{{ log_count }}</span></div></div>
+            <div class="flex-grow-1"><div class="fw-700" style="font-size:.85rem;font-weight:700">{{ _('تنظيف السجلات') }}</div><div style="font-size:.7rem;color:#ef6c00">Clean Old Logs {{ log_count }}</div></div>
           </button>
         </form>
         <!-- Optimize -->
-        <form method="POST" action="{{ url_for('admin.optimize') }}" onsubmit="return confirm('تحسين قاعدة البيانات؟')">
+        <form method="POST" action="{{ url_for('admin.optimize') }}" onsubmit="return confirm('{% if current_lang=="en" %}Optimize database?{% else %}تحسين قاعدة البيانات؟{% endif %}')">
           <button class="btn w-100 d-flex align-items-center gap-3 text-start py-3 px-3" style="background:linear-gradient(135deg,#e8f4fd,#f0f7ff);border:1.5px solid #90caf9;border-radius:12px;color:#0d47a1;transition:.2s" onmouseover="this.style.transform='translateX(-3px)'" onmouseout="this.style.transform=''">
             <div style="width:38px;height:38px;border-radius:10px;background:#1565c0;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0">⚡</div>
-            <div><div class="fw-700" style="font-size:.85rem;font-weight:700" data-i18n="optimize_db"><span data-i18n="x_9e15bd"><span data-i18n="z_9e15bd">تحسين قاعدة البيانات</span></span></div><div style="font-size:.7rem;color:#1976d2">Optimize Database</div></div>
+            <div><div class="fw-700" style="font-size:.85rem;font-weight:700">{{ _('تحسين قاعدة البيانات') }}</div><div style="font-size:.7rem;color:#1976d2">Optimize Database</div></div>
           </button>
         </form>
         <!-- Email Settings -->
         <a href="{{ url_for('admin.settings') }}" class="btn w-100 d-flex align-items-center gap-3 text-start py-3 px-3" style="background:linear-gradient(135deg,#fce4ec,#fff0f3);border:1.5px solid #f48fb1;border-radius:12px;color:#880e4f;text-decoration:none;transition:.2s" onmouseover="this.style.transform='translateX(-3px)'" onmouseout="this.style.transform=''">
           <div style="width:38px;height:38px;border-radius:10px;background:#c2185b;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0">📧</div>
-          <div><div class="fw-700" style="font-size:.85rem;font-weight:700" data-i18n="email_settings"><span data-i18n="x_1c7c44"><span data-i18n="z_1c7c44">إعداد البريد الإلكتروني</span></span></div><div style="font-size:.7rem;color:#ad1457">Email Settings</div></div>
+          <div><div class="fw-700" style="font-size:.85rem;font-weight:700">{{ _('إعداد البريد الإلكتروني') }}</div><div style="font-size:.7rem;color:#ad1457">Email Settings</div></div>
         </a>
         <!-- System Log -->
         <a href="{{ url_for('admin.system_log') }}" class="btn w-100 d-flex align-items-center gap-3 text-start py-3 px-3" style="background:linear-gradient(135deg,#ede7f6,#f3f0fc);border:1.5px solid #ce93d8;border-radius:12px;color:#4a148c;text-decoration:none;transition:.2s" onmouseover="this.style.transform='translateX(-3px)'" onmouseout="this.style.transform=''">
           <div style="width:38px;height:38px;border-radius:10px;background:#6a1b9a;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0">🛡️</div>
-          <div><div class="fw-700" style="font-size:.85rem;font-weight:700" data-i18n="system_log"><span data-i18n="x_1fe63d"><span data-i18n="z_1fe63d">سجل النظام والأمان</span></span></div><div style="font-size:.7rem;color:#7b1fa2">System &amp; Security Log</div></div>
+          <div><div class="fw-700" style="font-size:.85rem;font-weight:700">{{ _('سجل النظام والأمان') }}</div><div style="font-size:.7rem;color:#7b1fa2">System &amp; Security Log</div></div>
         </a>
         <!-- Login Log -->
         <a href="{{ url_for('users.login_log') }}" class="btn w-100 d-flex align-items-center gap-3 text-start py-3 px-3" style="background:linear-gradient(135deg,#e0f7fa,#f0fcfd);border:1.5px solid #80deea;border-radius:12px;color:#006064;text-decoration:none;transition:.2s" onmouseover="this.style.transform='translateX(-3px)'" onmouseout="this.style.transform=''">
           <div style="width:38px;height:38px;border-radius:10px;background:#00838f;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0"><i class="bi bi-clock-history" style="color:#fff"></i></div>
-          <div><div class="fw-700" style="font-size:.85rem;font-weight:700"><span data-i18n="z_c3fe06">سجل تسجيل الدخول</span></div><div style="font-size:.7rem;color:#0097a7">Login History</div></div>
+          <div><div class="fw-700" style="font-size:.85rem;font-weight:700">{{ _('سجل تسجيل الدخول') }}</div><div style="font-size:.7rem;color:#0097a7">Login History</div></div>
         </a>
       </div>
     </div>
@@ -62,13 +62,13 @@
   <!-- System Settings -->
   <div class="col-md-6">
     <div class="card mb-4">
-      <div class="card-header" data-i18n="sys_settings">⚙️ إعدادات النظام</div>
+      <div class="card-header">{{ _('⚙️ إعدادات النظام') }}</div>
       <div class="card-body">
         <form method="POST" action="{{ url_for('admin.toggle_maintenance') }}">
           <div class="d-flex align-items-center justify-content-between p-3 rounded mb-3 {{ 'bg-danger bg-opacity-10 border border-danger' if mcfg.system_suspended else 'bg-success bg-opacity-10 border border-success' }}">
             <div>
               <div class="fw-bold">{{ '🔴 النظام معلّق (وضع الصيانة)' if mcfg.system_suspended else '🟢 النظام نشط' }}</div>
-              <div class="text-muted small">تعليق النظام يمنع المستخدمين من الوصول</div>
+              <div class="text-muted small">{{ _('تعليق النظام يمنع المستخدمين من الوصول') }}</div>
             </div>
             <button type="submit" name="toggle" value="system" class="btn btn-sm {{ 'btn-success' if mcfg.system_suspended else 'btn-danger' }}">
               {{ 'تفعيل النظام' if mcfg.system_suspended else 'تعليق النظام' }}
@@ -79,7 +79,7 @@
           <div class="d-flex align-items-center justify-content-between p-3 rounded {{ 'bg-danger bg-opacity-10 border border-danger' if mcfg.registration_suspended else 'bg-success bg-opacity-10 border border-success' }}">
             <div>
               <div class="fw-bold">{{ '🔴 تسجيل المستخدمين معلّق' if mcfg.registration_suspended else '🟢 تسجيل المستخدمين مفعّل' }}</div>
-              <div class="text-muted small">تعليق تسجيل الحسابات الجديدة</div>
+              <div class="text-muted small">{{ _('تعليق تسجيل الحسابات الجديدة') }}</div>
             </div>
             <button type="submit" name="toggle" value="registration" class="btn btn-sm {{ 'btn-success' if mcfg.registration_suspended else 'btn-danger' }}">
               {{ 'تفعيل التسجيل' if mcfg.registration_suspended else 'تعليق التسجيل' }}
@@ -90,11 +90,11 @@
     </div>
     <!-- Quick links -->
     <div class="card">
-      <div class="card-header">🔗 روابط سريعة</div>
+      <div class="card-header">{{ _('🔗 روابط سريعة') }}</div>
       <div class="card-body d-flex flex-column gap-2">
-        <a href="{{ url_for('users.roles') }}" class="btn btn-outline-secondary text-start"><i class="bi bi-shield me-2"></i>إدارة الأدوار والصلاحيات</a>
-        <a href="{{ url_for('reports.comparison') }}" class="btn btn-outline-secondary text-start"><i class="bi bi-bar-chart-steps me-2"></i><span data-i18n="t_comparison">المقارنة المتقدمة</span></a>
-        <a href="{{ url_for('blocked.index') }}" class="btn btn-outline-secondary text-start"><i class="bi bi-slash-circle me-2"></i><span data-i18n="t_blocked"><span data-i18n="z_52294a">الفترات المحظورة</span></span></a>
+        <a href="{{ url_for('users.roles') }}" class="btn btn-outline-secondary text-start"><i class="bi bi-shield me-2"></i><span>{{ _('إدارة الأدوار والصلاحيات') }}</a>
+        <a href="{{ url_for('reports.comparison') }}" class="btn btn-outline-secondary text-start"><i class="bi bi-bar-chart-steps me-2"></i><span>{{ _('المقارنة المتقدمة') }}</a>
+        <a href="{{ url_for('blocked.index') }}" class="btn btn-outline-secondary text-start"><i class="bi bi-slash-circle me-2"></i>{{ _('الفترات المحظورة') }}</a>
       </div>
     </div>
   </div>
@@ -104,38 +104,38 @@
 <div class="row g-4 mt-2">
   <div class="col-12">
     <div class="card">
-      <div class="card-header">🎨 الشعار وترويسة التقارير</div>
+      <div class="card-header">{{ _('🎨 الشعار وترويسة التقارير') }}</div>
       <div class="card-body">
         <div class="row g-4">
           <div class="col-md-6">
-            <h6 class="fw-bold" style="color:#1A555C">🖼 شعار النظام (Sidebar)</h6>
-            <p class="small text-muted">يظهر بجانب اسم النظام في الشريط الجانبي</p>
+            <h6 class="fw-bold" style="color:#1A555C">{{ _('🖼 شعار النظام (Sidebar)') }}</h6>
+            <p class="small text-muted">{{ _('يظهر بجانب اسم النظام في الشريط الجانبي') }}</p>
             <form method="POST" action="{{ url_for('admin.maintenance') }}" enctype="multipart/form-data">
               <input type="hidden" name="ticker_action" value="save_logo">
               <div class="d-flex align-items-center gap-3 mb-3">
                 {% if mcfg.get('logo_b64') %}
                 <img src="{{ mcfg.logo_b64 }}" style="height:40px;width:auto;border-radius:6px;background:#1A555C;padding:4px">
                 {% else %}
-                <div class="text-muted small p-3 border rounded"><span data-i18n="x_ce4e85"><span data-i18n="z_ce4e85">لا يوجد شعار</span></span></div>
+                <div class="text-muted small p-3 border rounded">{{ _('لا يوجد شعار') }}</div>
                 {% endif %}
               </div>
               <input type="file" name="logo_file" class="form-control mb-2" accept=".png,.jpg,.jpeg,.svg,.gif">
               <div class="d-flex gap-2 mb-3">
-                <button type="submit" class="btn btn-primary-ars btn-sm">💾 رفع الشعار</button>
+                <button type="submit" class="btn btn-primary-ars btn-sm">{{ _('💾 رفع الشعار') }}</button>
                 {% if mcfg.get('logo_b64') %}
-                <button type="submit" name="remove_logo" value="1" class="btn btn-outline-danger btn-sm">🗑 إزالة</button>
+                <button type="submit" name="remove_logo" value="1" class="btn btn-outline-danger btn-sm">{{ _('🗑 إزالة') }}</button>
                 {% endif %}
               </div>
             </form>
 
             <!-- Header Image for PDF/Print with Position Control -->
-            <h6 class="fw-bold mt-3" style="color:#1A555C">🖼️ صورة ترويسة التقارير (PDF)</h6>
-            <p class="small text-muted mb-2">تظهر في أعلى تقارير PDF — يمكن التحكم بمكانها</p>
+            <h6 class="fw-bold mt-3" style="color:#1A555C">{{ _('🖼️ صورة ترويسة التقارير (PDF)') }}</h6>
+            <p class="small text-muted mb-2">{{ _('تظهر في أعلى تقارير PDF — يمكن التحكم بمكانها') }}</p>
             <form method="POST" action="{{ url_for('admin.maintenance') }}" enctype="multipart/form-data">
               <input type="hidden" name="ticker_action" value="save_logo">
               <!-- Position selector -->
               <div class="mb-3">
-                <label class="form-label small fw-bold">📍 موضع الصورة في الترويسة</label>
+                <label class="form-label small fw-bold">{{ _('📍 موضع الصورة في الترويسة') }}</label>
                 <div class="d-flex gap-2">
                   {% for pos, label, icon in [('left','يسار','⬅️'),('center','وسط','⬆️'),('right','يمين','➡️')] %}
                   <label class="position-selector flex-fill text-center py-2 px-1 border rounded cursor-pointer"
@@ -156,43 +156,43 @@
                 <div class="small text-muted mt-1">الصورة الحالية · الموضع: {{ mcfg.get('header_img_position','center') }}</div>
               </div>
               {% else %}
-              <div class="text-muted small p-2 border rounded mb-2">لا توجد صورة ترويسة — سيُستخدم الشعار إن وُجد</div>
+              <div class="text-muted small p-2 border rounded mb-2">{{ _('لا توجد صورة ترويسة — سيُستخدم الشعار إن وُجد') }}</div>
               {% endif %}
               <input type="file" name="header_img_file" class="form-control form-control-sm mb-2" accept=".png,.jpg,.jpeg,.gif">
               <div class="d-flex gap-2">
-                <button type="submit" class="btn btn-primary-ars btn-sm">💾 رفع وحفظ</button>
+                <button type="submit" class="btn btn-primary-ars btn-sm">{{ _('💾 رفع وحفظ') }}</button>
                 {% if mcfg.get('header_img_b64') %}
-                <button type="submit" name="remove_header_img" value="1" class="btn btn-outline-danger btn-sm">🗑 إزالة الصورة</button>
+                <button type="submit" name="remove_header_img" value="1" class="btn btn-outline-danger btn-sm">{{ _('🗑 إزالة الصورة') }}</button>
                 {% endif %}
               </div>
             </form>
           </div>
           <div class="col-md-6">
-            <h6 class="fw-bold" style="color:#1A555C">📄 ترويسة التقارير والطباعة</h6>
-            <p class="small text-muted">تظهر في أعلى كل تقرير مطبوع أو PDF</p>
+            <h6 class="fw-bold" style="color:#1A555C">{{ _('📄 ترويسة التقارير والطباعة') }}</h6>
+            <p class="small text-muted">{{ _('تظهر في أعلى كل تقرير مطبوع أو PDF') }}</p>
             <form method="POST" action="{{ url_for('admin.maintenance') }}" id="headerForm">
               <input type="hidden" name="ticker_action" value="save_report_header">
               <div class="mb-2">
-                <label class="form-label small fw-bold"><span data-i18n="x_e85fe6"><span data-i18n="z_e85fe6">اسم المؤسسة / الجهة</span></span></label>
+                <label class="form-label small fw-bold">{{ _('اسم المؤسسة / الجهة') }}</label>
                 <input type="text" id="hTitle" name="report_header_title" class="form-control form-control-sm mb-2"
-                       placeholder="مثال: وزارة التعليم"
+                       placeholder="{{ _('مثال: وزارة التعليم') }}"
                        value="{{ mcfg.get('report_header_title','') }}" oninput="previewHeader()">
-                <label class="form-label small fw-bold"><span data-i18n="x_8d742d"><span data-i18n="z_8d742d">العنوان الفرعي</span></span></label>
+                <label class="form-label small fw-bold">{{ _('العنوان الفرعي') }}</label>
                 <input type="text" id="hSubtitle" name="report_header_subtitle" class="form-control form-control-sm mb-2"
-                       placeholder="مثال: إدارة الحجوزات"
+                       placeholder="{{ _('مثال: إدارة الحجوزات') }}"
                        value="{{ mcfg.get('report_header_subtitle','') }}" oninput="previewHeader()">
-                <label class="form-label small fw-bold">footer / تذييل</label>
+                <label class="form-label small fw-bold">{{ _('footer / تذييل') }}</label>
                 <input type="text" id="hFooter" name="report_header_footer" class="form-control form-control-sm mb-2"
-                       placeholder="مثال: جميع الحقوق محفوظة © 2025"
+                       placeholder="{{ _('مثال: جميع الحقوق محفوظة © 2025') }}"
                        value="{{ mcfg.get('report_header_footer','') }}" oninput="previewHeader()">
-                <label class="form-label small fw-bold"><span data-i18n="x_d5a601"><span data-i18n="z_d5a601">معلومات إضافية</span></span></label>
+                <label class="form-label small fw-bold">{{ _('معلومات إضافية') }}</label>
                 <textarea id="hExtra" name="report_header_extra" class="form-control form-control-sm" rows="2"
-                          placeholder="اختياري..." oninput="previewHeader()">{{ mcfg.get('report_header_extra','') }}</textarea>
+                          placeholder="{{ _('اختياري...') }}" oninput="previewHeader()">{{ mcfg.get('report_header_extra','') }}</textarea>
               </div>
               <div class="d-flex gap-2 mt-3">
-                <button type="submit" class="btn btn-primary-ars btn-sm">💾 حفظ الترويسة</button>
+                <button type="submit" class="btn btn-primary-ars btn-sm">{{ _('💾 حفظ الترويسة') }}</button>
                 <button type="button" onclick="showHeaderPreview()" class="btn btn-outline-secondary btn-sm">
-                  <i class="bi bi-eye me-1"></i><span data-i18n="t_preview"><span data-i18n="z_0d4de2">معاينة</span></span>
+                  <i class="bi bi-eye me-1"></i>{{ _('معاينة') }}
                 </button>
               </div>
             </form>
@@ -205,7 +205,7 @@
                 <div id="pvHExtra" class="text-muted" style="font-size:.75rem"></div>
               </div>
               <div class="text-center text-muted small" style="font-size:.7rem;font-style:italic">
-                [ محتوى التقرير هنا ]
+                {% if current_lang=="en" %}[ Report content here ]{% else %}[ محتوى التقرير هنا ]{% endif %}
               </div>
               <div class="text-center mt-2" style="border-top:1px solid #9ab3b8;padding-top:6px">
                 <div id="pvHFooter" class="text-muted" style="font-size:.72rem"></div>
@@ -222,17 +222,17 @@
 <div class="row g-4 mt-2">
   <div class="col-12">
     <div class="card">
-      <div class="card-header" data-i18n="ticker_mgmt">📢 إدارة شريط الأخبار (Ticker)</div>
+      <div class="card-header">{{ _('📢 إدارة شريط الأخبار (Ticker)') }}</div>
       <div class="card-body">
         <div class="row g-4">
           <!-- Left: Messages -->
           <div class="col-lg-7">
             <ul class="nav nav-tabs mb-3" id="tickerTabs">
               <li class="nav-item">
-                <a class="nav-link active" data-bs-toggle="tab" href="#tickerAR" data-i18n="ticker_ar_tab">🇸🇦 عربي</a>
+                <a class="nav-link active" data-bs-toggle="tab" href="#tickerAR">{{ _('🇸🇦 عربي') }}</a>
               </li>
               <li class="nav-item">
-                <a class="nav-link" data-bs-toggle="tab" href="#tickerEN" data-i18n="ticker_en_tab">🇬🇧 English</a>
+                <a class="nav-link" data-bs-toggle="tab" href="#tickerEN">{{ _('🇬🇧 English') }}</a>
               </li>
             </ul>
             <div class="tab-content">
@@ -244,29 +244,29 @@
                       <input class="form-check-input" type="checkbox" id="htmlModeAR" onchange="toggleHtmlMode('AR')">
                       <label class="form-check-label small" for="htmlModeAR">HTML</label>
                     </div>
-                    <small class="text-muted">تفعيل HTML للروابط والتنسيق</small>
+                    <small class="text-muted">{{ _('تفعيل HTML للروابط والتنسيق') }}</small>
                   </div>
                   <input type="hidden" name="ticker_action" value="add_ar">
                   <div class="d-flex gap-2">
-                    <input type="text" id="tickerInputAR" name="ticker_text_ar" class="form-control" placeholder="أضف رسالة بالعربية (نص، إيموجي، HTML مدعوم)..." required>
-                    <button class="btn btn-primary-ars px-4" data-i18n="add"><span data-i18n="t_add">إضافة</span></button>
+                    <input type="text" id="tickerInputAR" name="ticker_text_ar" class="form-control" placeholder="{{ _('أضف رسالة بالعربية (نص، إيموجي، HTML مدعوم)...') }}" required>
+                    <button class="btn btn-primary-ars px-4">{{ _('إضافة') }}</button>
                   </div>
                   <div id="htmlPreviewAR" class="mt-1 p-2 border rounded small text-muted d-none"></div>
                 </form>
                 <div class="list-group" id="tickerListAR">
                   {% for msg in ticker_messages_ar %}
                   <div class="list-group-item d-flex align-items-center gap-2 py-2">
-                    <span class="flex-grow-1 small">{{ msg }}</span>
+                    {{ msg }}
                     <form method="POST" action="{{ url_for('admin.maintenance') }}" class="mb-0">
                       <input type="hidden" name="ticker_action" value="del_ar">
                       <input type="hidden" name="ticker_idx" value="{{ loop.index0 }}">
-                      <button class="btn btn-sm btn-outline-danger py-0 px-2" onclick="return confirm('حذف؟')">
+                      <button class="btn btn-sm btn-outline-danger py-0 px-2" onclick="return confirm('{% if current_lang=="en" %}Delete?{% else %}حذف؟{% endif %}')">
                         <i class="bi bi-trash"></i>
                       </button>
                     </form>
                   </div>
                   {% else %}
-                  <p class="text-muted small p-2">لا توجد رسائل. أضف رسالة أعلاه.</p>
+                  <p class="text-muted small p-2">{{ _('لا توجد رسائل. أضف رسالة أعلاه.') }}</p>
                   {% endfor %}
                 </div>
               </div>
@@ -280,7 +280,7 @@
                 <div class="list-group" id="tickerListEN">
                   {% for msg in ticker_messages_en %}
                   <div class="list-group-item d-flex align-items-center gap-2 py-2">
-                    <span class="flex-grow-1 small">{{ msg }}</span>
+                    {{ msg }}
                     <form method="POST" action="{{ url_for('admin.maintenance') }}" class="mb-0">
                       <input type="hidden" name="ticker_action" value="del_en">
                       <input type="hidden" name="ticker_idx" value="{{ loop.index0 }}">
@@ -301,11 +301,11 @@
           <div class="col-lg-5">
             <form method="POST" action="{{ url_for('admin.maintenance') }}" id="tickerAppForm">
               <input type="hidden" name="ticker_action" value="save_appearance">
-              <h6 class="fw-bold mb-3" style="color:#1A555C" data-i18n="appearance">🎨 المظهر</h6>
+              <h6 class="fw-bold mb-3" style="color:#1A555C">{{ _('🎨 المظهر') }}</h6>
 
               <div class="row g-3 mb-3">
                 <div class="col-6">
-                  <label class="form-label small fw-bold" data-i18n="font"><span data-i18n="x_6875b8"><span data-i18n="z_6875b8">الخط</span></span></label>
+                  <label class="form-label small fw-bold">{{ _('الخط') }}</label>
                   <select name="ticker_font" class="form-select form-select-sm" id="tFont" onchange="previewTicker()">
                     {% for f in ['Segoe UI','Arial','Tahoma','Calibri','Georgia','Courier New'] %}
                     <option value="{{ f }}" {{ 'selected' if ticker_cfg.get('font')==f }}>{{ f }}</option>
@@ -313,7 +313,7 @@
                   </select>
                 </div>
                 <div class="col-6">
-                  <label class="form-label small fw-bold" data-i18n="font_size"><span data-i18n="x_c4480b"><span data-i18n="z_c4480b">حجم الخط</span></span></label>
+                  <label class="form-label small fw-bold">{{ _('حجم الخط') }}</label>
                   <select name="ticker_size" class="form-select form-select-sm" id="tSize" onchange="previewTicker()">
                     {% for s in [9,10,11,12,13,14] %}
                     <option value="{{ s }}" {{ 'selected' if ticker_cfg.get('size',11)|int==s }}>{{ s }}px</option>
@@ -321,7 +321,7 @@
                   </select>
                 </div>
                 <div class="col-6">
-                  <label class="form-label small fw-bold" data-i18n="text_color"><span data-i18n="x_b11ae5"><span data-i18n="z_b11ae5">لون النص</span></span></label>
+                  <label class="form-label small fw-bold">{{ _('لون النص') }}</label>
                   <div class="d-flex align-items-center gap-2">
                     <input type="color" name="ticker_fg" id="tFg" value="{{ ticker_cfg.get('fg','#F2C99A') }}"
                            class="form-control form-control-color" style="width:48px;height:34px;padding:2px"
@@ -330,7 +330,7 @@
                   </div>
                 </div>
                 <div class="col-6">
-                  <label class="form-label small fw-bold" data-i18n="bg_color"><span data-i18n="x_b51bfb"><span data-i18n="z_b51bfb">لون الخلفية</span></span></label>
+                  <label class="form-label small fw-bold">{{ _('لون الخلفية') }}</label>
                   <div class="d-flex align-items-center gap-2">
                     <input type="color" name="ticker_bg" id="tBg" value="{{ ticker_cfg.get('bg','#1A555C') }}"
                            class="form-control form-control-color" style="width:48px;height:34px;padding:2px"
@@ -340,7 +340,7 @@
                 </div>
                 <div class="col-12">
                   <label class="form-label small fw-bold">
-                    <span data-i18n="bg_opacity">شفافية الخلفية %</span>:
+                    <span>{{ _('شفافية الخلفية %') }}:
                     <strong id="opacityVal">{{ ticker_cfg.get('opacity',0) }}%</strong>
                   </label>
                   <input type="range" name="ticker_opacity" id="tOpacity" class="form-range"
@@ -349,7 +349,7 @@
                 </div>
                 <div class="col-12">
                   <label class="form-label small fw-bold">
-                    <span data-i18n="speed"><span data-i18n="z_c82018">السرعة</span></span>:
+                    {{ _('السرعة') }}:
                     <strong id="speedVal">{{ ticker_cfg.get('speed',35) }}s</strong>
                   </label>
                   <input type="range" name="ticker_speed" id="tSpeed" class="form-range"
@@ -359,17 +359,17 @@
               </div>
 
               <!-- Live preview — v54 exact -->
-              <label class="form-label small fw-bold" data-i18n="live_preview"><span data-i18n="x_6aadc3"><span data-i18n="z_6aadc3">معاينة حية</span></span></label>
+              <label class="form-label small fw-bold">{{ _('معاينة حية') }}</label>
               <div id="tickerPreview" style="height:36px;overflow:hidden;border-radius:6px;display:flex;align-items:center;border:1px solid #ddd;margin-bottom:12px">
-                <div id="pvLabel" style="background:#D4A853;color:#fff;font-size:.72rem;font-weight:700;padding:0 12px;height:100%;display:flex;align-items:center;white-space:nowrap">📢 أخبار</div>
+                <div id="pvLabel" style="background:#D4A853;color:#fff;font-size:.72rem;font-weight:700;padding:0 12px;height:100%;display:flex;align-items:center;white-space:nowrap">{{ _('📢 أخبار') }}</div>
                 <div style="flex:1;overflow:hidden;height:100%;display:flex;align-items:center">
                   <div id="pvTrack" style="white-space:nowrap;animation:tickerScroll 35s linear infinite;padding:0 40px">
-                    <span id="pvText" style="font-weight:600;color:#F2C99A">معاينة شريط الأخبار — Preview Ticker</span>
+                    <span id="pvText" style="font-weight:600;color:#F2C99A">{{ _('معاينة شريط الأخبار — Preview Ticker') }}
                   </div>
                 </div>
               </div>
 
-              <button type="submit" class="btn btn-primary-ars w-100" data-i18n="save_apply">💾 حفظ وتطبيق</button>
+              <button type="submit" class="btn btn-primary-ars w-100">{{ _('💾 حفظ وتطبيق') }}</button>
             </form>
           </div>
         </div>
@@ -439,10 +439,10 @@ function toggleHtmlMode(lang) {
     preview.classList.remove('d-none');
     input.addEventListener('input', () => { preview.innerHTML = input.value; });
     preview.innerHTML = input.value;
-    input.placeholder = '<a href="#">رابط</a> أو <strong>نص عريض</strong>';
+    input.placeholder = '<a href="#">{{ _('رابط') }}</a>{{ _('أو') }}<strong>{{ _('نص عريض') }}</strong>';
   } else {
     preview.classList.add('d-none');
-    input.placeholder = 'أضف رسالة جديدة...';
+    input.placeholder = '{{ _("أضف رسالة جديدة...") }}';
   }
 }
 </script>

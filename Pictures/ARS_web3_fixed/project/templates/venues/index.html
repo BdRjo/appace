@@ -1,0 +1,34 @@
+{% extends "base.html" %}{% block title %}القاعات — ARS{% endblock %}
+{% block content %}
+<div class="page-header"><h1><i class="bi bi-building me-2"></i><span data-i18n="t_venues_avail">القاعات المتاحة</span></h1></div>
+<div class="row g-3">
+  {% for v in venues %}
+  <div class="col-md-4 col-sm-6">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="fw-bold" style="color:#1A555C">{{ v.name }}</h5>
+        {% if v.location %}
+        <div class="small text-muted mb-2"><i class="bi bi-geo-alt me-1"></i>{{ v.location.name }}</div>
+        {% endif %}
+        {% if v.capacity %}
+        <div class="small mb-2"><i class="bi bi-people me-1"></i>سعة: {{ v.capacity }} شخص</div>
+        {% endif %}
+        {% if v.equipment %}
+        <div class="small text-muted mb-3"><i class="bi bi-tools me-1"></i>{{ v.equipment }}</div>
+        {% endif %}
+        <div class="d-flex gap-2">
+          <a href="{{ url_for('venues.detail', venue_id=v.id) }}"
+             class="btn btn-sm btn-outline-secondary flex-grow-1"><span data-i18n="t_view">عرض</span></a>
+          <a href="{{ url_for('reservations.new') }}?venue_id={{ v.id }}"
+             class="btn btn-sm btn-primary-ars flex-grow-1">احجز</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="col-12 text-center py-5 text-muted">
+    <i class="bi bi-building-x fs-1 d-block mb-2"></i>لا توجد قاعات متاحة
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

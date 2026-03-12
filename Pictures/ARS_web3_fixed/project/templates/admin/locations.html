@@ -1,0 +1,87 @@
+{% extends "base.html" %}{% block title %}المواقع — ARS{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h1><i class="bi bi-geo-alt me-2"></i>إدارة المواقع ({{ locations|length }})</h1>
+  <a href="{{ url_for('locations.new') }}" class="btn btn-primary-ars">
+    <i class="bi bi-plus-lg me-1"></i>موقع جديد
+  </a>
+</div>
+
+<!-- Search -->
+<div class="card mb-3"><div class="card-body py-2">
+  <form method="GET" class="d-flex gap-2">
+    <input type="text" name="q" class="form-control form-control-sm"
+           placeholder="🔍 بحث باسم الموقع" value="{{ search }}" style="max-width:300px">
+    <button class="btn btn-primary-ars btn-sm"><span data-i18n="t_search">بحث</span></button>
+    <a href="{{ url_for('locations.index') }}" class="btn btn-outline-secondary btn-sm">إعادة</a>
+    <a href="{{ url_for('locations.export_csv') }}" class="btn btn-outline-success btn-sm ms-auto">
+      <i class="bi bi-download me-1"></i><span data-i18n="t_export_csv">تصدير CSV</span>
+    </a>
+  </form>
+</div></div>
+
+<div class="card"><div class="card-body p-0">
+  {% if locations %}
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead><tr>
+        <th>#</th><th>اسم الموقع</th><th><span data-i18n="t_city">المدينة</span></th><th><span data-i18n="t_area">المنطقة</span></th>
+        <th>عدد القاعات</th><th><span data-i18n="t_status">الحالة</span></th><th><span data-i18n="t_actions">إجراءات</span></th>
+      </tr></thead>
+      <tbody>
+        {% for loc in locations %}
+        <tr>
+          <td class="text-muted small">{{ loc.id }}</td>
+          <td class="fw-bold" style="color:#1A555C">
+            <i class="bi bi-geo-alt me-1"></i>{{ loc.name }}
+            {% if loc.name_en and loc.name_en != loc.name %}
+            <small class="text-muted d-block">{{ loc.name_en }}</small>
+            {% endif %}
+          </td>
+          <td>{{ loc.city or '—' }}</td>
+          <td>{{ loc.area or '—' }}</td>
+          <td>
+            <span class="badge bg-secondary">
+              {{ loc._venue_count }} قاعة
+            </span>
+          </td>
+          <td>
+            {% if loc.is_active %}
+            <span class="badge" style="background:#1A555C"><span data-i18n="t_active">نشط</span></span>
+            {% else %}
+            <span class="badge" style="background:#9ab3b8;color:#374649">موقوف</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="d-flex gap-1">
+              <a href="{{ url_for('locations.edit', loc_id=loc.id) }}"
+                 class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <form method="POST" action="{{ url_for('locations.delete', loc_id=loc.id) }}"
+                    onsubmit="return confirm('حذف الموقع: {{ loc.name }}؟')">
+                <button class="btn btn-sm btn-outline-danger"
+                        {% if loc._venue_count %}disabled title="لا يمكن الحذف — يحتوي على قاعات"{% endif %}>
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-center py-5 text-muted">
+    <i class="bi bi-geo-alt fs-1 d-block mb-2"></i>
+    لا توجد مواقع
+    <div class="mt-2">
+      <a href="{{ url_for('locations.new') }}" class="btn btn-primary-ars btn-sm">
+        <i class="bi bi-plus-lg"></i> أضف موقعاً
+      </a>
+    </div>
+  </div>
+  {% endif %}
+</div></div>
+{% endblock %}

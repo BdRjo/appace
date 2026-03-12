@@ -1,25 +1,25 @@
 {% extends "base.html" %}
-{% block title %}حجز جديد — ARS{% endblock %}
+{% block title %}{% if current_lang=="en" %}New Booking — ARS{% else %}حجز جديد — ARS{% endif %}{% endblock %}
 {% block content %}
 <div class="page-header">
-  <h1><i class="bi bi-plus-circle me-2"></i><span data-i18n="t_new_res"><span data-i18n="z_0b3de2">حجز جديد</span></span></h1>
+  <h1><i class="bi bi-plus-circle me-2"></i>{{ _('حجز جديد') }}</h1>
 </div>
 <div class="row justify-content-center">
 <div class="col-lg-8">
 <div class="card">
-  <div class="card-header"><i class="bi bi-calendar-plus me-2"></i><span data-i18n="t_res_detail"><span data-i18n="z_4366e3">تفاصيل الحجز</span></span></div>
+  <div class="card-header"><i class="bi bi-calendar-plus me-2"></i>{{ _('تفاصيل الحجز') }}</div>
   <div class="card-body p-4">
     <form method="POST" enctype="multipart/form-data">
       <div class="mb-3">
-        <label class="form-label fw-bold">عنوان الحجز <span class="text-danger">*</span></label>
+        <label class="form-label fw-bold">{{ _('عنوان الحجز') }}*</label>
         <input type="text" name="title" class="form-control"
-               placeholder="مثال: اجتماع فريق التطوير"
+               placeholder="{{ _('مثال: اجتماع فريق التطوير') }}"
                value="{{ form.get('title','') }}" required>
       </div>
       <div class="mb-3">
-        <label class="form-label fw-bold"><span data-i18n="t_venue">القاعة</span> <span class="text-danger">*</span></label>
+        <label class="form-label fw-bold">{{ _('القاعة') }} *</label>
         <select name="venue_id" class="form-select" id="venueSelect" required>
-          <option value="">— اختر القاعة —</option>
+          <option value="">{{ _('— اختر القاعة —') }}</option>
           {% for v in venues %}
           <option value="{{ v.id }}"
                   data-capacity="{{ v.capacity or '' }}"
@@ -27,7 +27,7 @@
                   {% if form.get('venue_id')|string == v.id|string %}selected{% endif %}>
             {{ v.name }}
             {% if v.location %} — {{ v.location.name }}{% endif %}
-            {% if v.capacity %} (سعة: {{ v.capacity }}){% endif %}
+            {% if v.capacity %} {% if current_lang=="en" %}(Cap: {{ v.capacity }}){% else %}(سعة: {{ v.capacity }}){% endif %}{% endif %}
           </option>
           {% endfor %}
         </select>
@@ -35,13 +35,13 @@
       </div>
       <div class="row">
         <div class="col-md-6 mb-3">
-          <label class="form-label fw-bold">وقت البداية <span class="text-danger">*</span></label>
+          <label class="form-label fw-bold">{{ _('وقت البداية') }}*</label>
           <input type="datetime-local" name="start_time" class="form-control"
                  id="startTime" value="{{ form.get('start_time','') }}"
                  min="{{ now.strftime('%Y-%m-%dT%H:%M') }}" required>
         </div>
         <div class="col-md-6 mb-3">
-          <label class="form-label fw-bold">وقت الانتهاء <span class="text-danger">*</span></label>
+          <label class="form-label fw-bold">{{ _('وقت الانتهاء') }}*</label>
           <input type="datetime-local" name="end_time" class="form-control"
                  id="endTime" value="{{ form.get('end_time','') }}" required>
         </div>
@@ -49,21 +49,21 @@
       <!-- Availability checker -->
       <div id="availBox" class="alert py-2 small d-none"></div>
       <div class="mb-3">
-        <label class="form-label fw-bold"><span data-i18n="t_notes">ملاحظات</span></label>
+        <label class="form-label fw-bold">{{ _('ملاحظات') }}</label>
         <textarea name="notes" class="form-control" rows="3"
-                  placeholder="أي تفاصيل إضافية...">{{ form.get('notes','') }}</textarea>
+                  placeholder="{{ _('أي تفاصيل إضافية...') }}">{{ form.get('notes','') }}</textarea>
       </div>
       <div class="mb-3">
-        <label class="form-label fw-bold"><i class="bi bi-paperclip me-1"></i>مرفقات (اختياري)</label>
+        <label class="form-label fw-bold"><i class="bi bi-paperclip me-1"></i>{{ _('مرفقات (اختياري)') }}</label>
         <input type="file" name="attachments" class="form-control" multiple
                accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif">
-        <div class="form-text">يمكن إرفاق صور أو مستندات (PDF, Word, Excel, صور)</div>
+        <div class="form-text">{{ _('يمكن إرفاق صور أو مستندات (PDF, Word, Excel, صور)') }}</div>
       </div>
       <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary-ars">
-          <i class="bi bi-send me-1"></i>تقديم طلب الحجز
+          <i class="bi bi-send me-1"></i>{% if current_lang=="en" %}Submit Booking Request{% else %}تقديم طلب الحجز{% endif %}
         </button>
-        <a href="{{ url_for('reservations.index') }}" class="btn btn-outline-secondary"><span data-i18n="t_cancel">إلغاء</span></a>
+        <a href="{{ url_for('reservations.index') }}" class="btn btn-outline-secondary">{{ _('إلغاء') }}</a>
       </div>
     </form>
   </div>
@@ -73,13 +73,14 @@
 {% endblock %}
 {% block extra_js %}
 <script>
+const IS_EN = {{ "true" if current_lang == "en" else "false" }};
 // Show venue info
 document.getElementById('venueSelect').addEventListener('change', function() {
   const opt = this.options[this.selectedIndex];
   const info = document.getElementById('venueInfo');
   if (opt.value) {
     const loc = opt.dataset.location, cap = opt.dataset.capacity;
-    info.textContent = [loc && `📍 ${loc}`, cap && `👥 السعة: ${cap}`].filter(Boolean).join('  |  ');
+    info.textContent = [loc && `📍 ${loc}`, cap && `👥 {% if current_lang=="en" %}Capacity: {% else %}السعة: {% endif %}${cap}`].filter(Boolean).join('  |  ');
   } else { info.textContent = ''; }
   checkAvailability();
 });
@@ -100,11 +101,11 @@ function checkAvailability() {
     .then(events => {
       if (!events.length) {
         box.className = 'alert alert-success py-2 small';
-        box.textContent = '✅ القاعة متاحة في هذا اليوم';
+        box.textContent = '{% if current_lang=="en" %}✅ Venue available on this day{% else %}✅ القاعة متاحة في هذا اليوم{% endif %}';
       } else {
-        const times = events.map(e => `${e.title} (${e.start}–${e.end})`).join('، ');
+        const times = events.map(e => `${e.title} (${e.start}–${e.end})`).join(IS_EN ? ', ' : '، ');
         box.className = 'alert alert-warning py-2 small';
-        box.textContent = `⚠️ حجوزات موجودة في هذا اليوم: ${times}`;
+        box.textContent = `{% if current_lang == 'en' %}⚠️ Existing bookings on this day:{% else %}⚠️ حجوزات موجودة في هذا اليوم:{% endif %} ${times}`;
       }
       box.classList.remove('d-none');
     });
