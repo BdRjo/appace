@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
-{% block title %}{% if current_lang=="en" %}{{ '{% else %}تعديل' if user else '{% if current_lang=="en" %}Add{% else %}إضافة{% endif %}' }} مستخدم — ARS{% endif %}{% endblock %}
+{% block title %}{% if current_lang=="en" %}{% if user %}Edit User — ARS{% else %}Add User — ARS{% endif %}{% else %}{% if user %}تعديل مستخدم — ARS{% else %}إضافة مستخدم — ARS{% endif %}{% endif %}{% endblock %}
 {% block content %}
 <div class="page-header">
   <h1>
     <i class="bi bi-person{{ '-gear' if user else '-plus' }} me-2"></i>
-    {{ 'تعديل: ' + user.username if user else 'إضافة مستخدم جديد' }}
+    {% if user %}{% if current_lang=='en' %}Edit: {{ user.username }}{% else %}تعديل: {{ user.username }}{% endif %}{% else %}{% if current_lang=='en' %}Add New User{% else %}إضافة مستخدم جديد{% endif %}{% endif %}
   </h1>
 </div>
 
@@ -21,7 +21,7 @@
               <input type="text" name="username" class="form-control"
                      value="{{ user.username if user else form.get('username','') }}"
                      {{ 'readonly' if user else '' }} required>
-              {% if user %}<div class="form-text text-muted">{{ _('لا يمكن تغيير اسم المستخدم') }}</div>{% endif %}
+              {% if user %}<div class="form-text text-muted">{% if current_lang=='en' %}Username cannot be changed{% else %}لا يمكن تغيير اسم المستخدم{% endif %}</div>{% endif %}
             </div>
             <div class="col-md-6">
               <label class="form-label fw-bold">{{ _('الاسم الكامل') }} *</label>
@@ -51,9 +51,9 @@
               </select>
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-bold">{{ 'كلمة مرور جديدة' if user else 'كلمة المرور' }} {{ '' if user else '*' }}</label>
+              <label class="form-label fw-bold">{% if current_lang=='en' %}{% if user %}New Password{% else %}Password *{% endif %}{% else %}{% if user %}كلمة مرور جديدة{% else %}كلمة المرور *{% endif %}{% endif %}</label>
               <input type="password" name="password" class="form-control"
-                     placeholder="{{ 'اتركه فارغاً للإبقاء على الحالية' if user else 'كلمة المرور...' }}"
+                     placeholder="{% if current_lang=='en' %}{% if user %}Leave blank to keep current{% else %}Password...{% endif %}{% else %}{% if user %}اتركه فارغاً للإبقاء على الحالية{% else %}كلمة المرور...{% endif %}{% endif %}"
                      {{ '' if user else 'required minlength=6' }}>
             </div>
             <div class="col-12">
@@ -125,7 +125,7 @@
 
   <div class="mt-4 d-flex gap-2">
     <button type="submit" class="btn btn-primary px-4">
-      <i class="bi bi-check-lg me-1"></i>{{ 'حفظ التعديلات' if user else 'إضافة المستخدم' }}
+      <i class="bi bi-check-lg me-1"></i>{% if current_lang=='en' %}{% if user %}Save Changes{% else %}Add User{% endif %}{% else %}{% if user %}حفظ التعديلات{% else %}إضافة المستخدم{% endif %}{% endif %}
     </button>
     <a href="{{ url_for('users.index') }}" class="btn btn-secondary px-4">{{ _('إلغاء') }}</a>
   </div>
