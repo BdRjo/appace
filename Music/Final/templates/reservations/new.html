@@ -72,7 +72,7 @@
               <input class="form-check-input" type="checkbox" name="contact_ids"
                      value="{{ ct.id }}" id="ct_{{ ct.id }}">
               <label class="form-check-label w-100" for="ct_{{ ct.id }}" style="cursor:pointer">
-                <div class="fw-bold small">{{ ct.name }}</div>
+                <div class="fw-bold small">{{ ct.first_name }} {{ ct.last_name or '' }}</div>
                 {% if ct.email %}<div class="text-muted" style="font-size:.75rem">{{ ct.email }}</div>{% endif %}
               </label>
             </div>

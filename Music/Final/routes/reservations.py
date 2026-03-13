@@ -165,7 +165,7 @@ def new():
         if errors:
             for e in errors: flash(e, 'danger')
             from models.database import Contact as _Ct2
-            _contacts = get_db().query(_Ct2).filter_by(user_id=current_user.id).order_by(_Ct2.name).all()
+            _contacts = get_db().query(_Ct2).order_by(_Ct2.first_name).all()
             return render_template('reservations/new.html',
                                    venues=venues, form=request.form, now=datetime.now(), contacts=_contacts)
 
@@ -203,7 +203,7 @@ def new():
             from models.database import BookingContact
             for cid in contact_ids:
                 if cid.isdigit():
-                    bc = BookingContact(reservation_id=res.id, contact_id=int(cid))
+                    bc = BookingContact(booking_id=res.id, contact_id=int(cid))
                     db.add(bc)
             db.commit()
 
@@ -217,7 +217,7 @@ def new():
         return redirect(url_for('reservations.detail', res_id=res.id))
 
     from models.database import Contact as _Ct
-    contacts = get_db().query(_Ct).filter_by(user_id=current_user.id).order_by(_Ct.name).all()
+    contacts = get_db().query(_Ct).order_by(_Ct.first_name).all()
     return render_template('reservations/new.html', venues=venues, form={}, now=datetime.now(), contacts=contacts)
 
 
