@@ -164,8 +164,8 @@ def new():
 
         if errors:
             for e in errors: flash(e, 'danger')
-            from models.database import Contact as _C
-            _contacts = get_db().query(_C).filter_by(user_id=current_user.id).order_by(_C.name).all()
+            from models.database import Contact as _Ct2
+            _contacts = get_db().query(_Ct2).filter_by(user_id=current_user.id).order_by(_Ct2.name).all()
             return render_template('reservations/new.html',
                                    venues=venues, form=request.form, now=datetime.now(), contacts=_contacts)
 
@@ -216,8 +216,8 @@ def new():
         flash_msg(f'✅ تم تقديم طلب الحجز — رقم الحجز: {res.booking_number}', 'success')
         return redirect(url_for('reservations.detail', res_id=res.id))
 
-    db2 = get_db()
-    contacts = db2.query(__import__('models.database', fromlist=['Contact']).Contact).filter_by(user_id=current_user.id).order_by(__import__('models.database', fromlist=['Contact']).Contact.name).all()
+    from models.database import Contact as _Ct
+    contacts = get_db().query(_Ct).filter_by(user_id=current_user.id).order_by(_Ct.name).all()
     return render_template('reservations/new.html', venues=venues, form={}, now=datetime.now(), contacts=contacts)
 
 
