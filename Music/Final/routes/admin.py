@@ -411,7 +411,7 @@ def ticker_api():
     if lang == 'ar':
         msgs = ticker.get('feeds_ar', ticker.get('ar', ['مرحباً بكم في نظام ARS'])) or ['مرحباً بكم في نظام ARS']
     else:
-        msgs = ticker.get('feeds_en', ticker.get('en', [])) or [m for m in ticker.get('feeds_ar', ['Welcome to ARS']) if m] or ['Welcome to ARS']
+        msgs = ticker.get('feeds_en', []) or ['Welcome to ARS Reservation Management System']
     return jsonify({
         'messages': msgs,
         'text':     ' ◆ '.join(msgs),
