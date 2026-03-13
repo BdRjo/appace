@@ -53,6 +53,35 @@
         <textarea name="notes" class="form-control" rows="3"
                   placeholder="{{ _('أي تفاصيل إضافية...') }}">{{ form.get('notes','') }}</textarea>
       </div>
+
+      <!-- Contacts to notify -->
+      {% if contacts %}
+      <div class="mb-4 p-3 border rounded" style="background:#f8fcfc">
+        <label class="form-label fw-bold">
+          <i class="bi bi-people me-2"></i>{% if current_lang=='en' %}Notify Contacts{% else %}إشعار جهات الاتصال{% endif %}
+          <span class="badge bg-secondary ms-1">{{ contacts|length }}</span>
+        </label>
+        <p class="text-muted small mb-3">
+          {% if current_lang=='en' %}Select contacts who are required or should be informed about this event.{% else %}اختر جهات الاتصال المطلوبة أو المعنية بهذا الحجز.{% endif %}
+        </p>
+        <div class="row g-2">
+          {% for ct in contacts %}
+          <div class="col-md-6 col-lg-4">
+            <div class="form-check border rounded p-2" style="transition:background .15s;cursor:pointer" 
+                 onmouseover="this.style.background='#e8f5f6'" onmouseout="this.style.background=''">
+              <input class="form-check-input" type="checkbox" name="contact_ids"
+                     value="{{ ct.id }}" id="ct_{{ ct.id }}">
+              <label class="form-check-label w-100" for="ct_{{ ct.id }}" style="cursor:pointer">
+                <div class="fw-bold small">{{ ct.name }}</div>
+                {% if ct.email %}<div class="text-muted" style="font-size:.75rem">{{ ct.email }}</div>{% endif %}
+              </label>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
       <div class="mb-3">
         <label class="form-label fw-bold"><i class="bi bi-paperclip me-1"></i>{{ _('مرفقات (اختياري)') }}</label>
         <input type="file" name="attachments" class="form-control" multiple

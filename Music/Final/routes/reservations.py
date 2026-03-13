@@ -164,8 +164,10 @@ def new():
 
         if errors:
             for e in errors: flash(e, 'danger')
+            from models.database import Contact as _C
+            _contacts = get_db().query(_C).filter_by(user_id=current_user.id).order_by(_C.name).all()
             return render_template('reservations/new.html',
-                                   venues=venues, form=request.form, now=datetime.now())
+                                   venues=venues, form=request.form, now=datetime.now(), contacts=_contacts)
 
         venue = db.query(Venue).get(int(venue_id))
         res   = Reservation(
@@ -195,6 +197,16 @@ def new():
                 except: pass
         db.commit()
 
+        # Save selected contacts
+        contact_ids = request.form.getlist('contact_ids')
+        if contact_ids:
+            from models.database import BookingContact
+            for cid in contact_ids:
+                if cid.isdigit():
+                    bc = BookingContact(reservation_id=res.id, contact_id=int(cid))
+                    db.add(bc)
+            db.commit()
+
         # إرسال بريد إشعار — مثل NewReservationWindow.save
         try:
             from utils.email_helper import send_booking_request
@@ -204,7 +216,9 @@ def new():
         flash_msg(f'✅ تم تقديم طلب الحجز — رقم الحجز: {res.booking_number}', 'success')
         return redirect(url_for('reservations.detail', res_id=res.id))
 
-    return render_template('reservations/new.html', venues=venues, form={}, now=datetime.now())
+    db2 = get_db()
+    contacts = db2.query(__import__('models.database', fromlist=['Contact']).Contact).filter_by(user_id=current_user.id).order_by(__import__('models.database', fromlist=['Contact']).Contact.name).all()
+    return render_template('reservations/new.html', venues=venues, form={}, now=datetime.now(), contacts=contacts)
 
 
 # ── detail ────────────────────────────────────────────────────────────────────

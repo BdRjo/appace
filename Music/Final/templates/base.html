@@ -257,6 +257,22 @@ body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:#FAFFFE;color:#2C
     transform: translateX(0) !important;
   }
 }
+
+/* ── Hover effects ───────────────────────────────────────────────────────── */
+tbody tr:hover{background:#f0f8f9 !important;transition:background .15s;}
+.card{transition:box-shadow .2s,transform .15s;}
+.card:hover{box-shadow:0 6px 24px rgba(26,85,92,.15) !important;transform:translateY(-2px);}
+.btn{transition:all .18s !important;}
+.btn-primary:hover,.btn-primary-ars:hover{filter:brightness(1.1);transform:translateY(-1px);}
+.btn-outline-primary:hover,.btn-outline-success:hover,.btn-outline-danger:hover,
+.btn-outline-warning:hover,.btn-outline-secondary:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,.15);}
+.btn-xs{transition:all .15s !important;}
+.btn-xs:hover{transform:scale(1.12);box-shadow:0 2px 6px rgba(0,0,0,.18);}
+a.nav-link{transition:background .15s,border-color .15s;}
+.badge{transition:transform .15s;}
+.badge:hover{transform:scale(1.08);}
+.form-control:focus,.form-select:focus{box-shadow:0 0 0 3px rgba(26,85,92,.18) !important;border-color:var(--primary) !important;}
+.table-hover tbody tr{cursor:pointer;}
 </style>
 </head>
 <body>
@@ -357,7 +373,7 @@ body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:#FAFFFE;color:#2C
     <div id="tickerWrap" style="flex:1;overflow:hidden;background:transparent;border-radius:8px;height:34px;display:flex;align-items:center;min-width:0">
       <div class="ticker-overflow" style="flex:1;overflow:hidden;height:34px;display:flex;align-items:center;position:relative;padding:0 8px">
         <div class="ticker-track {% if current_lang == 'en' %}ticker-ltr{% else %}ticker-rtl{% endif %}" id="tickerTrack">
-          <span class="ticker-text" id="tickerText">{{ _('مرحباً بكم في نظام ARS لإدارة الحجوزات — Applied Reservation System') }}
+          <span class="ticker-text" id="tickerText">{% if current_lang=='en' %}Welcome to ARS Reservation Management System{% else %}{{ _('مرحباً بكم في نظام ARS لإدارة الحجوزات — Applied Reservation System') }}{% endif %}
         </div>
       </div>
     </div>
@@ -431,43 +447,7 @@ function closeSidebar(){
   document.getElementById('sidebarOverlay').classList.remove('show');
 }
 
-// ── Ticker loader ────────────────────────────────────────────────────────────
-(function loadTicker(){
-  fetch('/admin/ticker-config')
-    .then(r=>r.json()).then(cfg=>{
-      const wrap  = document.getElementById('tickerWrap');
-      const track = document.getElementById('tickerTrack');
-      const txt   = document.getElementById('tickerText');
-      if(!wrap) return;
-
-      const bg = cfg.bg || '#000000';
-      const op = (cfg.opacity !== undefined ? cfg.opacity : 0) / 100;
-      const r  = parseInt(bg.slice(1,3)||'0',16);
-      const g  = parseInt(bg.slice(3,5)||'0',16);
-      const b  = parseInt(bg.slice(5,7)||'0',16);
-      wrap.style.background = op > 0 ? `rgba(${r},${g},${b},${op})` : 'rgba(0,0,0,.22)';
-
-      if(txt){
-        txt.style.color      = cfg.fg || '#F2C99A';
-        txt.style.fontFamily = cfg.font || 'Tajawal';
-        txt.style.fontSize   = (cfg.size||11) + 'px';
-      }
-
-      const speed = cfg.speed || 35;
-      // Direction based on current lang
-      const lang  = localStorage.getItem('ars_lang') || 'ar';
-      const anim  = lang === 'ar' ? 'tickerScrollRTL' : 'tickerScrollLTR';
-      if(track) track.style.animation = `${anim} ${speed}s linear infinite`;
-
-      const msgs = lang === 'ar' ? (cfg.feeds_ar||[]) : (cfg.feeds_en||[]);
-      if(txt && msgs.length > 0){
-        let i = 0;
-        function showNext(){ if(msgs[i]) txt.innerHTML = msgs[i]; i = (i+1) % msgs.length; }
-        showNext();
-        setInterval(showNext, speed * 1000);
-      }
-    }).catch(()=>{});
-})();
+// Ticker handled by i18n.js
 
 // ── Live Users Panel ─────────────────────────────────────────────────────────
 let _lupOpen = false;
