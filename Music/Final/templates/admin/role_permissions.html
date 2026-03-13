@@ -1,0 +1,72 @@
+{% extends "base.html" %}{% block title %}صلاحيات: {{ role.name }} — ARS{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-sliders me-2"></i>{% if current_lang=="en" %}Permissions:{% else %}صلاحيات:{% endif %} {{ role.name }}</h1>
+</div>
+<div class="card">
+  <div class="card-header d-flex justify-content-between">
+    <span>{{ _('تحديد الصلاحيات لكل وحدة') }}
+    <div class="d-flex gap-2">
+      <button type="button" class="btn btn-sm btn-outline-light" onclick="checkAll(true)">{{ _('تحديد الكل') }}</button>
+      <button type="button" class="btn btn-sm btn-outline-light" onclick="checkAll(false)">{{ _('إلغاء الكل') }}</button>
+    </div>
+  </div>
+  <div class="card-body">
+    <form method="POST">
+      {% for module, perms in modules.items() %}
+      <div class="mb-4">
+        <h6 class="fw-bold text-uppercase text-muted border-bottom pb-2 mb-3">
+          <i class="bi bi-grid me-2"></i>{{ module }}
+        </h6>
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered mb-0">
+            <thead class="table-light">
+              <tr>
+                <th style="width:40%">{{ _('الصلاحية') }}</th>
+                <th class="text-center">{{ _('عرض') }}</th>
+                <th class="text-center">{{ _('إضافة') }}</th>
+                <th class="text-center">{{ _('تعديل') }}</th>
+                <th class="text-center">{{ _('اعتماد') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for perm in perms %}
+              {% set rp = current.get(perm.id) %}
+              <tr>
+                <td>
+                  <div class="fw-bold small">{{ perm.name }}</div>
+                  {% if perm.description %}
+                  <div class="text-muted" style="font-size:.75rem">{{ perm.description }}</div>
+                  {% endif %}
+                </td>
+                {% for action in ['view','add','edit','approve'] %}
+                <td class="text-center">
+                  <input type="checkbox" class="form-check-input perm-cb"
+                         name="{{ action }}_{{ perm.id }}"
+                         {% if rp and rp|attr('can_'+action) %}checked{% endif %}>
+                </td>
+                {% endfor %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endfor %}
+      <div class="d-flex gap-2 mt-3">
+        <button type="submit" class="btn btn-primary-ars">
+          <i class="bi bi-check-lg me-1"></i>{% if current_lang=="en" %}Save Permissions{% else %}حفظ الصلاحيات{% endif %}
+        </button>
+        <a href="{{ url_for('users.roles') }}" class="btn btn-outline-secondary">{{ _('إلغاء') }}</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function checkAll(val) {
+  document.querySelectorAll('.perm-cb').forEach(cb => cb.checked = val);
+}
+</script>
+{% endblock %}

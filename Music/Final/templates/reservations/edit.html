@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block title %}تعديل الحجز — {{ res.booking_number }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h4>{{ _('✏️ تعديل الحجز —') }}{{ res.booking_number }}</h4>
+  {% if res.status == 'approved' %}
+  <div class="alert alert-warning mt-2">
+    {{ _('⚠️ هذا الحجز موافق عليه — سيتم إرجاعه لحالة') }} <strong>{{ _('معلق') }}</strong> {{ _('بعد التعديل لإعادة المراجعة') }}
+  </div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <form method="POST">
+      <div class="row g-3">
+        <div class="col-md-12">
+          <label class="form-label fw-bold">{{ _('عنوان الحجز') }}*</label>
+          <input type="text" name="title" class="form-control" value="{{ res.title }}" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold">{{ _('القاعة') }} *</label>
+          <select name="venue_id" class="form-select" required>
+            <option value="">{{ _('اختر القاعة...') }}</option>
+            {% for v in venues %}
+            <option value="{{ v.id }}" {% if v.id == res.venue_id %}selected{% endif %}>
+              {{ v.name }}{% if v.location %} — {{ v.location.name }}{% endif %}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-bold">{{ _('وقت البداية') }}*</label>
+          <input type="datetime-local" name="start_time" class="form-control"
+                 value="{{ res.start_time.strftime('%Y-%m-%dT%H:%M') if res.start_time else '' }}" required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-bold">{{ _('وقت الانتهاء') }}*</label>
+          <input type="datetime-local" name="end_time" class="form-control"
+                 value="{{ res.end_time.strftime('%Y-%m-%dT%H:%M') if res.end_time else '' }}" required>
+        </div>
+        <div class="col-12">
+          <label class="form-label fw-bold">{{ _('ملاحظات') }}</label>
+          <textarea name="notes" class="form-control" rows="3">{{ res.requester_notes or '' }}</textarea>
+        </div>
+      </div>
+      <div class="mt-4 d-flex gap-2">
+        <button type="submit" class="btn btn-primary px-4">{{ _('💾 حفظ التعديلات') }}</button>
+        <a href="{{ url_for('reservations.detail', res_id=res.id) }}" class="btn btn-secondary px-4">{{ _('إلغاء') }}</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}{% if current_lang=="en" %}{% if contact %}Edit Contact{% else %}New Contact{% endif %}{% else %}{% if contact %}تعديل جهة الاتصال{% else %}جهة جديدة{% endif %}{% endif %}{% endblock %}
+{% block content %}
+<div class="page-header"><h1><i class="bi bi-person-plus me-2"></i>{% if contact %}تعديل جهة الاتصال{% else %}إضافة جهة اتصال{% endif %}</h1></div>
+<div class="row justify-content-center"><div class="col-md-6">
+<div class="card"><div class="card-header"><span>{{ _('بيانات جهة الاتصال') }}</div>
+<div class="card-body p-4">
+  <form method="POST">
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label class="form-label fw-bold">{{ _('الاسم الأول') }} *</label>
+        <input type="text" name="first_name" class="form-control" required
+               value="{{ contact.first_name if contact else form.get('first_name','') }}">
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label fw-bold">{{ _('الاسم الأخير') }}</label>
+        <input type="text" name="last_name" class="form-control"
+               value="{{ contact.last_name if contact else form.get('last_name','') }}">
+      </div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label fw-bold">{{ _('البريد الإلكتروني') }} *</label>
+      <input type="email" name="email" class="form-control" required
+             value="{{ contact.email if contact else form.get('email','') }}">
+    </div>
+    <div class="mb-4">
+      <label class="form-label fw-bold">{{ _('رقم الهاتف') }}</label>
+      <input type="text" name="phone" class="form-control"
+             value="{{ contact.phone if contact else form.get('phone','') }}" placeholder="05xxxxxxxx">
+    </div>
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-primary-ars">
+        <i class="bi bi-check-lg me-1"></i>{% if contact %}حفظ{% else %}إضافة{% endif %}
+      </button>
+      <a href="{{ url_for('contacts.index') }}" class="btn btn-outline-secondary">{{ _('إلغاء') }}</a>
+    </div>
+  </form>
+</div></div>
+</div></div>
+{% endblock %}

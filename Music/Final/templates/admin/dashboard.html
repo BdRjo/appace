@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block title %}{% if current_lang=="en" %}Dashboard — ARS{% else %}لوحة التحكم — ARS{% endif %}{% endblock %}
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h1><i class="bi bi-speedometer2 me-2"></i>{{ _('لوحة التحكم') }}</h1>
+  <button onclick="window.print()" class="btn btn-sm btn-outline-secondary nav-print-hide">
+    <i class="bi bi-printer me-1"></i>{{ _('طباعة') }}
+  </button>
+</div>
+
+<!-- Quick Stats -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#1A555C,#2E8B8F)">
+      <div class="lbl"><i class="bi bi-calendar3 me-1"></i>{{ _('إجمالي الحجوزات') }}</div>
+      <div class="num">{{ stats.total }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#E67E22,#F39C12)">
+      <div class="lbl"><i class="bi bi-hourglass-split me-1"></i>{{ _('معلقة') }}</div>
+      <div class="num">{{ stats.pending }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#198754,#27AE60)">
+      <div class="lbl"><i class="bi bi-check-circle me-1"></i>{{ _('موافق عليها') }}</div>
+      <div class="num">{{ stats.approved }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#6C3483,#9B59B6)">
+      <div class="lbl"><i class="bi bi-calendar-month me-1"></i>{{ _('هذا الشهر') }}</div>
+      <div class="num">{{ stats.this_month }}</div>
+    </div>
+  </div>
+</div>
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#0d6efd,#4fc3f7)">
+      <div class="lbl"><i class="bi bi-people me-1"></i>{{ _('المستخدمون') }}</div>
+      <div class="num">{{ stats.users }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#6c757d,#adb5bd)">
+      <div class="lbl"><i class="bi bi-building me-1"></i>{{ _('القاعات') }}</div>
+      <div class="num">{{ stats.venues }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#DC3545,#e57373)">
+      <div class="lbl"><i class="bi bi-x-circle me-1"></i>{{ _('مرفوضة') }}</div>
+      <div class="num">{{ stats.rejected }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#D4A853,#e8c97a)">
+      <div class="lbl"><i class="bi bi-geo-alt me-1"></i>{{ _('المواقع') }}</div>
+      <div class="num">{{ stats.locations }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <!-- Monthly chart -->
+  <div class="col-md-8">
+    <div class="card h-100">
+      <div class="card-header"><i class="bi bi-graph-up me-2"></i>{{ _('الحجوزات — آخر 12 شهر') }}</div>
+      <div class="card-body"><canvas id="monthlyChart" height="100"></canvas></div>
+    </div>
+  </div>
+  <!-- Status pie -->
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header"><i class="bi bi-pie-chart me-2"></i>{{ _('توزيع الحالات') }}</div>
+      <div class="card-body d-flex align-items-center justify-content-center">
+        <canvas id="statusChart" height="200"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <!-- Pending reservations -->
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-hourglass-split me-2"></i>{{ _('الحجوزات المعلقة') }}
+        <a href="{{ url_for('reservations.index') }}?status=pending" class="btn btn-sm btn-outline-light">{{ _('عرض الكل') }}</a>
+      </div>
+      <div class="card-body p-0">
+        {% if pending_list %}
+        <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead><tr><th><span>{{ _('الحجز') }}</th><th>{{ _('القاعة') }}</th><th>{{ _('المستخدم') }}</th><th>{{ _('البداية') }}</th><th>{{ _('إجراء') }}</th></tr></thead>
+          <tbody>
+          {% for r in pending_list[:8] %}
+          <tr>
+            <td><a href="{{ url_for('reservations.detail', res_id=r.id) }}" class="fw-bold text-decoration-none small">{{ r.booking_number }}</a></td>
+            <td><small>{{ r.venue.name if r.venue else '—' }}</small></td>
+            <td><small class="text-muted">{{ r.user.full_name if r.user else '—' }}</small></td>
+            <td><small class="text-muted">{{ r.start_time.strftime('%m-%d %H:%M') if r.start_time else '' }}</small></td>
+            <td>
+              <div class="d-flex gap-1">
+                <form method="POST" action="{{ url_for('reservations.approve', res_id=r.id) }}">
+                  <button class="btn btn-success btn-sm py-0 px-1" title="{{ _('موافقة') }}"><i class="bi bi-check"></i></button>
+                </form>
+                <form method="POST" action="{{ url_for('reservations.reject', res_id=r.id) }}">
+                  <button class="btn btn-danger btn-sm py-0 px-1" title="{{ _('رفض') }}"><i class="bi bi-x"></i></button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4 text-muted small">{{ _('لا توجد حجوزات معلقة ✅') }}</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick links -->
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header"><i class="bi bi-lightning me-2"></i>{{ _('روابط سريعة') }}</div>
+      <div class="card-body">
+        <!-- الإجراءات السريعة — مطابق لـ v54 -->
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <a href="{{ url_for('reservations.new') }}" class="btn btn-primary-ars w-100 py-3 d-flex flex-column align-items-center gap-1">
+              <i class="bi bi-plus-circle fs-4"></i>
+              <span class="small fw-bold">{{ _('حجز جديد') }}
+            </a>
+          </div>
+          <div class="col-6">
+            <a href="{{ url_for('calendar_view.index') }}" class="btn w-100 py-3 d-flex flex-column align-items-center gap-1 text-white" style="background:linear-gradient(135deg,#0d6efd,#4fc3f7)">
+              <i class="bi bi-calendar3 fs-4"></i>
+              <span class="small fw-bold">{{ _('عرض التقويم') }}
+            </a>
+          </div>
+          <div class="col-6">
+            <a href="{{ url_for('venues_mgmt.index') }}" class="btn w-100 py-3 d-flex flex-column align-items-center gap-1 text-white" style="background:linear-gradient(135deg,#6C3483,#9B59B6)">
+              <i class="bi bi-building fs-4"></i>
+              <span class="small fw-bold">{{ _('إدارة القاعات') }}
+            </a>
+          </div>
+          <div class="col-6">
+            <a href="{{ url_for('reports.index') }}" class="btn w-100 py-3 d-flex flex-column align-items-center gap-1 text-white" style="background:linear-gradient(135deg,#198754,#27AE60)">
+              <i class="bi bi-bar-chart fs-4"></i>
+              <span class="small fw-bold">{{ _('عرض التقارير') }}
+            </a>
+          </div>
+        </div>
+        <div class="row g-2">
+          <div class="col-6"><a href="{{ url_for('locations.new') }}" class="btn btn-outline-primary w-100 text-start small"><i class="bi bi-geo-alt me-2"></i>{{ _('موقع جديد') }}</a></div>
+          <div class="col-6"><a href="{{ url_for('venues_mgmt.new') }}" class="btn btn-outline-primary w-100 text-start small"><i class="bi bi-building me-2"></i>{{ _('قاعة جديدة') }}</a></div>
+          <div class="col-6"><a href="{{ url_for('users.new') }}" class="btn btn-outline-secondary w-100 text-start small"><i class="bi bi-person-plus me-2"></i>{{ _('مستخدم جديد') }}</a></div>
+          <div class="col-6"><a href="{{ url_for('checklists.new') }}" class="btn btn-outline-secondary w-100 text-start small"><i class="bi bi-list-check me-2"></i><span>{{ _('قائمة مهام') }}</a></div>
+          <div class="col-6"><a href="{{ url_for('users.login_log') }}" class="btn btn-outline-secondary w-100 text-start small"><i class="bi bi-shield me-2"></i>{{ _('سجل الدخول') }}</a></div>
+          <div class="col-6"><a href="{{ url_for('settings.index') }}" class="btn btn-outline-secondary w-100 text-start small"><i class="bi bi-gear me-2"></i><span>{{ _('الإعدادات') }}</a></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const monthly = {{ monthly | tojson }};
+const stats   = {{ stats | tojson }};
+new Chart(document.getElementById('monthlyChart'), {
+  type:'bar',
+  data:{
+    labels: monthly.map(m=>m.month),
+    datasets:[{label:'{% if current_lang=="en" %}Reservations{% else %}الحجوزات{% endif %}',data:monthly.map(m=>m.count),backgroundColor:'#1A555C',borderRadius:6}]
+  },
+  options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}}
+});
+new Chart(document.getElementById('statusChart'), {
+  type:'doughnut',
+  data:{
+    labels:['{{ _("معلق") }}','{{ _("موافق") }}','{{ _("مرفوض") }}','{{ _("ملغي") }}','{{ _("مكتمل") }}'],
+    datasets:[{data:[stats.pending,stats.approved,stats.rejected,stats.cancelled,stats.completed],
+    backgroundColor:['#FFC107','#198754','#DC3545','#6C757D','#0DCAF0'],borderWidth:2}]
+  },
+  options:{responsive:true,plugins:{legend:{position:'bottom'}}}
+});
+</script>
+{% endblock %}

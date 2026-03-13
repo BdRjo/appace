@@ -1,0 +1,208 @@
+{% extends 'base.html' %}
+{% block title %}{% if current_lang=="en" %}Advanced Comparison — ARS{% else %}المقارنة المتقدمة — ARS{% endif %}{% endblock %}
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h1><i class="bi bi-bar-chart-steps me-2"></i><span>{{ _('المقارنة المتقدمة') }}</h1>
+  <a href="{{ url_for('reports.index') }}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-right me-1"></i>{{ _('التقارير') }}
+  </a>
+</div>
+
+<!-- Mode selector -->
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="GET" id="compForm">
+      <div class="row g-3 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label fw-bold">{{ _('وضع المقارنة') }}</label>
+          <select name="mode" class="form-select" onchange="this.form.submit()">
+            {% for k,lbl in [('venue','{% if current_lang=="en" %}Venue ↔ Venue{% else %}قاعة ↔ قاعة{% endif %}'),('location','موقع ↔ موقع'),
+                             ('period','فترة ↔ فترة'),('user','مستخدم ↔ مستخدم'),('status','توزيع الحالات')] %}
+            <option value="{{ k }}" {% if mode==k %}selected{% endif %}>{{ lbl }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        {% if mode == 'venue' %}
+        <div class="col-md-3">
+          <label class="form-label fw-bold">{{ _('القاعة أ') }}</label>
+          <select name="a" class="form-select">
+            <option value="">{{ _('اختر...') }}</option>
+            {% for v in venues %}<option value="{{ v.name }}" {% if a==v.name %}selected{% endif %}>{{ v.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-bold">{{ _('القاعة ب') }}</label>
+          <select name="b" class="form-select">
+            <option value="">{{ _('اختر...') }}</option>
+            {% for v in venues %}<option value="{{ v.name }}" {% if b==v.name %}selected{% endif %}>{{ v.name }}</option>{% endfor %}
+          </select>
+        </div>
+
+        {% elif mode == 'location' %}
+        <div class="col-md-3">
+          <label class="form-label fw-bold">{{ _('الموقع أ') }}</label>
+          <select name="a" class="form-select">
+            <option value="">{{ _('اختر...') }}</option>
+            {% for l in locations %}<option value="{{ l.name }}" {% if a==l.name %}selected{% endif %}>{{ l.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-bold">{{ _('الموقع ب') }}</label>
+          <select name="b" class="form-select">
+            <option value="">{{ _('اختر...') }}</option>
+            {% for l in locations %}<option value="{{ l.name }}" {% if b==l.name %}selected{% endif %}>{{ l.name }}</option>{% endfor %}
+          </select>
+        </div>
+
+        {% elif mode == 'period' %}
+        <div class="col-md-2">
+          <label class="form-label fw-bold">{{ _('الفترة أ — من') }}</label>
+          <input type="date" name="fa" class="form-control" value="{{ fa }}">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label fw-bold">{{ _('إلى') }}</label>
+          <input type="date" name="ta" class="form-control" value="{{ ta }}">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label fw-bold">{{ _('الفترة ب — من') }}</label>
+          <input type="date" name="fb" class="form-control" value="{{ fb }}">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label fw-bold">{{ _('إلى') }}</label>
+          <input type="date" name="tb" class="form-control" value="{{ tb }}">
+        </div>
+
+        {% elif mode == 'user' %}
+        <div class="col-md-3">
+          <label class="form-label fw-bold">{{ _('المستخدم أ') }}</label>
+          <select name="a" class="form-select">
+            <option value="">{{ _('اختر...') }}</option>
+            {% for u in users_all %}<option value="{{ u.username }}" {% if a==u.username %}selected{% endif %}>{{ u.full_name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-bold">{{ _('المستخدم ب') }}</label>
+          <select name="b" class="form-select">
+            <option value="">{{ _('اختر...') }}</option>
+            {% for u in users_all %}<option value="{{ u.username }}" {% if b==u.username %}selected{% endif %}>{{ u.full_name }}</option>{% endfor %}
+          </select>
+        </div>
+        {% endif %}
+
+        <div class="col-md-2">
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-search me-1"></i>{% if current_lang=="en" %}Compare{% else %}مقارنة{% endif %}
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if result %}
+<div class="row g-4">
+  <!-- Chart -->
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header">
+        <i class="bi bi-bar-chart me-2"></i>{{ result.title }}
+      </div>
+      <div class="card-body">
+        <canvas id="compChart" height="80"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats panel — مطابق لـ v54 _refresh_stats_panel -->
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-table me-2"></i>{{ _('📊 نتائج المقارنة') }}</div>
+      <div class="card-body p-2">
+        {% if not result.get('single') %}
+        <div class="mb-2">
+          🔵 {{ result.label_a }}
+          🟠 {{ result.label_b }}
+        </div>
+        {% endif %}
+        <table class="table table-sm table-striped mb-0">
+          <thead>
+            <tr>
+              <th>{{ _('المقياس') }}</th>
+              <th class="text-center">{{ _('أ') }}</th>
+              {% if not result.get('single') %}<th class="text-center">{{ _('ب') }}</th><th class="text-center">Δ%</th>{% endif %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for metric, va in result.data_a.items() %}
+            {% set vb = result.data_b.get(metric, 0) if not result.get('single') else None %}
+            <tr>
+              <td>{{ metric }}</td>
+              <td class="text-center fw-bold" style="color:#1A555C">{{ va }}</td>
+              {% if not result.get('single') and vb is not none %}
+              <td class="text-center fw-bold" style="color:#a38079">{{ vb }}</td>
+              <td class="text-center fw-bold">
+                {% if va != 0 %}
+                  {% set d = ((vb - va) / va * 100)|round|int %}
+                  <span class="{{ 'text-success' if d >= 0 else 'text-danger' }}">
+                    {{ '+' if d >= 0 else '' }}{{ d }}%
+                  </span>
+                {% else %}—{% endif %}
+              </td>
+              {% endif %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        {% if not result.get('single') and result.data_a %}
+        <div class="mt-2 p-2 bg-light rounded small">
+          {% set tot_a = result.data_a.values()|sum %}
+          {% set tot_b = result.data_b.values()|sum %}
+          {% if current_lang=="en" %}🏆 Top: <strong>{% else %}🏆 الأعلى: <strong>{% endif %}{{ result.label_a if tot_a >= tot_b else result.label_b }}</strong>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const labels = {{ result.data_a.keys()|list|tojson }};
+const dataA  = {{ result.data_a.values()|list|tojson }};
+{% if not result.get('single') %}
+const dataB  = {{ result.data_b.values()|list|tojson }};
+{% endif %}
+
+const ctx = document.getElementById('compChart');
+new Chart(ctx, {
+  type: 'bar',
+  data: {
+    labels,
+    datasets: [
+      { label: '{{ result.label_a }}', data: dataA, backgroundColor:'#1A555C', borderRadius:4 },
+      {% if not result.get('single') %}
+      { label: '{{ result.label_b }}', data: dataB, backgroundColor:'#EBB27A', borderRadius:4 },
+      {% endif %}
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { position:'top' } },
+    scales: { y: { beginAtZero:true } }
+  }
+});
+</script>
+
+{% else %}
+<div class="card">
+  <div class="card-body text-center py-5 text-muted">
+    <i class="bi bi-bar-chart-steps" style="font-size:3rem;color:#ccc"></i>
+    <p class="mt-3">{{ _('اختر وضع المقارنة والعناصر ثم اضغط') }}<strong>{{ _('مقارنة') }}</strong></p>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
