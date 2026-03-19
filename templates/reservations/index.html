@@ -127,7 +127,7 @@
     <span id="selCount" class="small ms-1" style="color:rgba(255,255,255,.9);font-weight:600"></span>
     <form method="POST" action="{{ url_for('reservations.bulk_cancel') }}" id="bulkForm" class="ms-auto d-flex" onsubmit="return confirmBulk()">
       <div id="bulkIds"></div>
-      <button type="submit" class="btn btn-sm btn-warning" style="white-space:nowrap"><i class="bi bi-slash-circle me-1"></i>{{ _('إلغاء المحدد') }}</button>
+      <button type="submit" class="btn btn-sm btn-danger" style="white-space:nowrap;font-weight:700"><i class="bi bi-trash me-1"></i>{% if current_lang=='en' %}Delete Selected{% else %}حذف المحدد{% endif %}</button>
     </form>
   </div>
   <div class="table-responsive">
@@ -208,7 +208,7 @@ function selectAll(val) { document.querySelectorAll('.row-check').forEach(cb => 
 function updateBulk() {
   const checks = document.querySelectorAll('.row-check:checked'); const bar = document.getElementById('bulkBar'); const cnt = document.getElementById('selCount'); const all = document.getElementById('checkAll');
   const total = document.querySelectorAll('.row-check').length;
-  bar.style.cssText = checks.length > 0 ? 'display:flex!important;align-items:center;gap:8px;background:#1565C0;padding:10px 16px;border-radius:0' : 'display:none!important';
+  bar.style.cssText = checks.length > 0 ? 'display:flex!important;flex-wrap:wrap;align-items:center;gap:8px;background:#1565C0;padding:10px 16px;border-radius:0;width:100%;box-sizing:border-box' : 'display:none!important';
   if (cnt) cnt.textContent = checks.length + ' / ' + total + ' ' + (LANG_IS_EN ? 'selected' : 'محدد');
   if (all) { all.indeterminate = checks.length > 0 && checks.length < total; all.checked = checks.length === total && total > 0; }
   const bulkIds = document.getElementById('bulkIds');

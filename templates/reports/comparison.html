@@ -51,6 +51,7 @@
               <option value="location" {% if mode=='location' %}selected{% endif %}>{% if current_lang=="en" %}Location(s){% else %}موقع ← أو أكثر{% endif %}</option>
               <option value="user"     {% if mode=='user'     %}selected{% endif %}>{% if current_lang=="en" %}User(s){% else %}مستخدم ← أو أكثر{% endif %}</option>
               <option value="period"   {% if mode=='period'   %}selected{% endif %}>{% if current_lang=="en" %}Period ↔ Period{% else %}فترة ↔ فترة{% endif %}</option>
+              <option value="period_user" {% if mode=='period_user' %}selected{% endif %}>{% if current_lang=="en" %}Period ↔ Users{% else %}فترة ↔ مستخدمين{% endif %}</option>
               <option value="user_venue" {% if mode=='user_venue' %}selected{% endif %}>{% if current_lang=="en" %}User ↔ Venue{% else %}مستخدم ↔ قاعة{% endif %}</option>
               <option value="user_location" {% if mode=='user_location' %}selected{% endif %}>{% if current_lang=="en" %}User ↔ Location{% else %}مستخدم ↔ موقع{% endif %}</option>
               <option value="venue_location" {% if mode=='venue_location' %}selected{% endif %}>{% if current_lang=="en" %}Venue ↔ Location{% else %}قاعة ↔ موقع{% endif %}</option>
@@ -164,6 +165,21 @@
         <div class="col-6 col-md-2"><label class="form-label fw-bold small">{{ _('إلى') }}</label><input type="date" name="ta" class="form-control" value="{{ ta }}"></div>
         <div class="col-6 col-md-2"><label class="form-label fw-bold small">{% if current_lang=="en" %}Period B From{% else %}الفترة ب — من{% endif %}</label><input type="date" name="fb" class="form-control" value="{{ fb }}"></div>
         <div class="col-6 col-md-2"><label class="form-label fw-bold small">{{ _('إلى') }}</label><input type="date" name="tb" class="form-control" value="{{ tb }}"></div>
+
+        {% elif mode == 'period_user' %}
+        <div class="col-6 col-md-2"><label class="form-label fw-bold small">{% if current_lang=="en" %}From{% else %}من{% endif %}</label><input type="date" name="fa" class="form-control" value="{{ fa }}"></div>
+        <div class="col-6 col-md-2"><label class="form-label fw-bold small">{% if current_lang=="en" %}To{% else %}إلى{% endif %}</label><input type="date" name="ta" class="form-control" value="{{ ta }}"></div>
+        <div class="col-12 col-md-4">
+          <label class="form-label fw-bold small">{% if current_lang=="en" %}Select Users (up to 5){% else %}اختر المستخدمين (حتى 5){% endif %}</label>
+          {% for outer_idx in range(5) %}
+          <select name="items" class="form-select form-select-sm mb-1">
+            <option value="">{% if current_lang=="en" %}— User {{ outer_idx+1 }} (optional) —{% else %}— مستخدم {{ outer_idx+1 }} (اختياري) —{% endif %}</option>
+            {% for u in users_all %}
+            <option value="{{ u.username }}" {% if items_vals|length > outer_idx and items_vals[outer_idx] == u.username %}selected{% endif %}>{{ u.full_name }}</option>
+            {% endfor %}
+          </select>
+          {% endfor %}
+        </div>
         {% endif %}
 
         <div class="col-12 col-md-2">

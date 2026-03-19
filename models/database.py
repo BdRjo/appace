@@ -263,6 +263,8 @@ def get_engine():
         ('checklist_items', 'note',       'TEXT'),
         ('users',           'job_title',  'VARCHAR(200)'),
         ('users',           'department', 'VARCHAR(200)'),
+        ('checklists',      'color',      "VARCHAR(20) DEFAULT '#0C67EC'"),
+        ('checklists',      'emoji',      "VARCHAR(10) DEFAULT '📋'"),
     ]
     with _engine.connect() as conn:
         for tbl, col, cdef in _safe_cols:

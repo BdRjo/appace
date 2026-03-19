@@ -39,10 +39,10 @@ body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:#F0F4FA;color:#2C
 /* Main layout */
 .main-content{margin-inline-start:var(--sidebar-w);height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden;max-width:100vw}
 /* Topbar — single clean row always */
-.topbar{background:var(--primary-dark);height:var(--topbar-h);display:flex;align-items:center;padding:0 14px;gap:10px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.25);overflow:hidden;max-width:100%}
+.topbar{background:var(--primary-dark);height:var(--topbar-h);display:flex;align-items:center;padding:0 14px;gap:10px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.25);overflow:hidden;max-width:100%;will-change:transform;isolation:isolate;z-index:10}
 .topbar-clock{font-size:.75rem;color:rgba(255,255,255,.75);font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
 /* Ticker bar — mobile only, same color as topbar */
-.ticker-bar{height:40px;flex-shrink:0;overflow:hidden;align-items:center;background:var(--primary-dark);display:none}
+.ticker-bar{height:40px;flex-shrink:0;overflow:hidden;align-items:center;background:var(--primary-dark);display:none;will-change:transform;isolation:isolate}
 @media(max-width:767px){.ticker-bar{display:flex}}
 /* Desktop ticker inside topbar — hide on mobile */
 #tickerWrap{display:flex;background:var(--primary-dark);border-radius:8px}
@@ -405,6 +405,7 @@ a.nav-link{transition:background .15s,border-color .15s;}
   color:#3a7bd5;
   display:flex;flex-wrap:wrap;align-items:center;
   justify-content:space-between;gap:6px;
+  will-change:transform;isolation:isolate;
 }
 .footer-brand{display:flex;align-items:center;gap:7px;color:#3a7bd5;}
 .footer-brand i{color:#3a7bd5;font-size:.9rem;}
@@ -813,25 +814,18 @@ function closeSidebar(){
   document.getElementById('sidebarOverlay').classList.remove('show');
 }
 
-// ── Ticker: preserve animation position across page navigations ──────────────
+// ── Ticker: wall-clock sync so animation never restarts across pages ──────────
 (function(){
-  const speed = {{ ticker_cfg.speed }} * 1000;
-  const KEY = 'ars_ticker_ts_{{ current_lang }}';
+  const speedMs = {{ ticker_cfg.speed }} * 1000;
   const tracks = ['tickerTrack','tickerTrackMobile'].map(id=>document.getElementById(id)).filter(Boolean);
   if(!tracks.length) return;
-  let savedTs = 0;
-  try { savedTs = parseInt(sessionStorage.getItem(KEY) || '0', 10); } catch(e){}
-  if(savedTs > 0){
-    const elapsed = (Date.now() - savedTs) % speed;
-    const delaySec = -(elapsed / 1000);
-    tracks.forEach(t => { t.style.animationDelay = delaySec + 's'; });
-  }
-  window.addEventListener('visibilitychange', saveTs);
-  window.addEventListener('pagehide', saveTs);
-  window.addEventListener('beforeunload', saveTs);
-  function saveTs(){
-    try { sessionStorage.setItem(KEY, Date.now()); } catch(e){}
-  }
+  // Use wall-clock modulo so ticker position is consistent across all page loads
+  const elapsed = Date.now() % speedMs;
+  const delaySec = -(elapsed / 1000);
+  tracks.forEach(t => {
+    t.style.animationDelay = delaySec + 's';
+    t.style.animationPlayState = 'running';
+  });
 })();
 
 // ── Live Users Panel ─────────────────────────────────────────────────────────

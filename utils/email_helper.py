@@ -87,7 +87,9 @@ def _html_wrapper(content, title=''):
           <table width="100%" cellpadding="0" cellspacing="0">
             <tr>
               <td align="center">
-                <div style="display:inline-block;background:rgba(255,255,255,.15);border-radius:50%;width:52px;height:52px;line-height:52px;font-size:20px;margin-bottom:10px;font-weight:bold;color:#fff">ARS</div><br>
+                <div style="display:inline-block;margin-bottom:10px">
+                  <img src="https://appace.onrender.com/static/images/logo.png" alt="ARS" width="160" height="67" style="display:block;border-radius:8px;max-width:160px" />
+                </div><br>
                 <span style="color:#ffffff;font-size:22px;font-weight:800;letter-spacing:.5px">ARS</span>
                 <span style="color:rgba(255,255,255,.7);font-size:13px;margin-right:8px">Applied Reservation System</span>
               </td>

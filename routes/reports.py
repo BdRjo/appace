@@ -429,6 +429,34 @@ def comparison():
                   'title': _t('مقارنة الفترات','Periods Comparison'),
                   'data_a': _period_stats(fa, ta), 'data_b': _period_stats(fb, tb)}
 
+    elif mode == 'period_user' and fa and ta and items_vals:
+        from datetime import date as _date
+        def _user_period_stats(uname, from_d, to_d):
+            u = db.query(User).filter_by(username=uname).first()
+            if not u: return {}
+            q = db.query(Reservation).filter_by(user_id=u.id)
+            q = _date_filter(q, 'custom', from_d, to_d)
+            res_list = q.all()
+            return {
+                _t('إجمالي','Total'): len(res_list),
+                _t('موافقة','Approved'): sum(1 for r in res_list if r.status=='approved'),
+                _t('معلقة','Pending'): sum(1 for r in res_list if r.status=='pending'),
+                _t('مرفوضة','Rejected'): sum(1 for r in res_list if r.status=='rejected'),
+                _t('ملغاة','Cancelled'): sum(1 for r in res_list if r.status=='cancelled'),
+            }
+        datasets = []
+        for uname in [v for v in items_vals if v]:
+            u = db.query(User).filter_by(username=uname).first()
+            if u:
+                datasets.append({'label': u.full_name, 'data': _user_period_stats(uname, fa, ta)})
+        period_label = f'{fa} → {ta}'
+        result = {
+            'title': _t(f'مقارنة المستخدمين في الفترة {period_label}', f'Users in Period {period_label}'),
+            'datasets': datasets,
+            'multi': True,
+            'period': period_label,
+        }
+
     elif mode == 'user_venue' and a and b:
         u = db.query(User).filter_by(username=b).first()
         result = {'label_a': a, 'label_b': u.full_name if u else b,
