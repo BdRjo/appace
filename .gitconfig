@@ -1,6 +1,6 @@
 [user]
-	name = BdRjo
-	email = baderaq@gmail.com
+	name = ARS
+	email = a@a.com
 [safe]
 	directory = /storage/emulated/0/64in1/Final_v4
 	directory = /storage/emulated/0/64in1/Final_v4/Final_v4
@@ -65,5 +65,7 @@
 	directory = /storage/emulated/0/64in1/ARS_Stable_v20/Stable_v20
 	directory = /storage/emulated/0/64in1/ARS_Stable_v20/Stable_v20
 	directory = /storage/emulated/0/64in1/ARS_Stable_v20/Stable_v20
+	directory = /storage/emulated/0/64in1/ARS_Stable_v20_20260318/Stable_v20
+	directory = /storage/emulated/0/64in1/ARS_FIXED/Stable_v20
 [core]
 	pager = cat
