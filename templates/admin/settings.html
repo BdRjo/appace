@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% block title %}{% if current_lang=="en" %}Email Settings — ARS{% else %}إعدادات البريد — ARS{% endif %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-envelope-gear me-2"></i>{{ _('إعداد مزود خدمة البريد الإلكتروني') }}</h1>
+</div>
+<div class="row g-4">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header">{{ _('📧 إعدادات SMTP') }}</div>
+      <div class="card-body">
+        <form method="POST">
+          <div class="mb-3">
+            <label class="form-label fw-bold">{{ _('مزود الخدمة') }}</label>
+            <div class="row g-2">
+              {% for key, p in providers.items() %}
+              <div class="col-6 col-md-4">
+                <div class="form-check border rounded p-2 {{ 'bg-primary bg-opacity-10 border-primary' if cfg.provider_key==key else '' }}"
+                     onclick="selectProvider('{{ key }}','{{ p.smtp }}',{{ p.port }})">
+                  <input class="form-check-input" type="radio" name="provider_key"
+                         id="prov_{{ key }}" value="{{ key }}"
+                         {% if cfg.provider_key==key %}checked{% endif %}>
+                  <label class="form-check-label fw-bold" for="prov_{{ key }}">{{ p.label }}</label>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div id="helpText" class="alert alert-info small mb-3">
+            {% for key, p in providers.items() %}{% if cfg.provider_key==key %}{{ p.help }}{% endif %}{% endfor %}
+          </div>
+
+          <!-- Always visible: sender info -->
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-bold">{{ _('البريد الإلكتروني للإرسال') }}</label>
+              <input type="email" name="sender_email" class="form-control"
+                     value="{{ cfg.get('sender_email','') }}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">{{ _('اسم المرسل') }}</label>
+              <input type="text" name="sender_name" class="form-control"
+                     value="{{ cfg.get('sender_name','ARS Applied Reservation System') }}">
+            </div>
+            <div class="col-md-6" id="passwordRow">
+              <label class="form-label fw-bold">{{ _('كلمة المرور / App Password') }}
+                <small class="text-muted fw-normal">({% if current_lang=='en' %}SMTP only{% else %}للـ SMTP فقط{% endif %})</small>
+              </label>
+              <input type="password" name="sender_password" class="form-control"
+                     value="{{ cfg.get('sender_password','') }}"
+                     placeholder="{% if current_lang=='en' %}Leave blank to keep current{% else %}اتركه فارغاً للإبقاء على الحالي{% endif %}">
+            </div>
+          </div>
+
+          <!-- Brevo API Key section — shows only for brevo_api -->
+          <div id="brevoApiSection" class="mb-3 p-3 rounded-3"
+               style="background:#fff3cd;border:1.5px solid #5C9BDE;{{ '' if cfg.get('provider_key')=='brevo_api' else 'display:none' }}">
+            <label class="form-label fw-bold">
+              🔑 Brevo API Key
+              <a href="https://app.brevo.com/settings/keys/api" target="_blank"
+                 class="ms-2 small" style="color:var(--primary)">
+                <i class="bi bi-box-arrow-up-right"></i> Get API Key
+              </a>
+            </label>
+            <input type="text" name="brevo_api_key" class="form-control font-monospace"
+                   value="{{ cfg.get('brevo_api_key','') }}"
+                   placeholder="xkeysib-...">
+            <div class="form-text">
+              {% if current_lang=='en' %}brevo.com → Settings → API Keys → Create a new API Key (v3)
+              {% else %}اذهب إلى brevo.com ← Settings ← API Keys ← Create a new API Key (v3){% endif %}
+            </div>
+          </div>
+
+          <!-- SMTP fields — hidden for brevo_api -->
+          <div id="smtpSection" style="{{ 'display:none' if cfg.get('provider_key')=='brevo_api' else '' }}">
+          <div class="row g-3">
+            <div class="col-md-8">
+              <label class="form-label fw-bold">{{ _('خادم SMTP') }}</label>
+              <input type="text" name="smtp_server" id="smtpServer" class="form-control"
+                     value="{{ cfg.get('smtp_server','') }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">{{ _('المنفذ') }}</label>
+              <input type="number" name="smtp_port" id="smtpPort" class="form-control"
+                     value="{{ cfg.get('smtp_port', 587) }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold d-block">TLS</label>
+              <div class="form-check form-switch mt-2">
+                <input class="form-check-input" type="checkbox" name="use_tls" id="useTls"
+                       {% if cfg.get('use_tls', True) %}checked{% endif %}>
+                <label class="form-check-label" for="useTls">{{ _('تفعيل TLS') }}</label>
+              </div>
+            </div>
+          </div>
+          </div><!-- /smtpSection -->
+
+          <div class="mt-4 d-flex gap-2">
+            <button type="submit" name="action" value="save" class="btn btn-primary px-4">
+              {% if current_lang=="en" %}💾 Save Settings{% else %}💾 حفظ الإعدادات{% endif %}
+            </button>
+            <button type="submit" name="action" value="test" class="btn btn-outline-success px-4"
+                    onclick="return confirm('{% if current_lang=="en" %}Test server connection. Make sure settings are correct.{% else %}سيتم اختبار الاتصال بالخادم. تأكد من صحة البيانات.{% endif %}')">
+              {% if current_lang=="en" %}🔗 Test Connection{% else %}🔗 اختبار الاتصال{% endif %}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header">{{ _('ℹ️ مزودو الخدمة') }}</div>
+      <div class="card-body small">
+        {% for key, p in providers.items() %}
+        <div class="mb-3 pb-3 border-bottom" id="help_{{ key }}">
+          <strong>{{ p.label }}</strong><br>
+          {{ p.smtp }}:{{ p.port }}<br>
+          <span>{{ p.help }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const providerData = {{ providers | tojson }};
+function selectProvider(key, smtp, port) {
+  if (smtp && document.getElementById('smtpServer')) document.getElementById('smtpServer').value = smtp;
+  if (document.getElementById('smtpPort')) document.getElementById('smtpPort').value = port || 587;
+  const helps = { {% for k,p in providers.items() %}'{{ k }}': '{{ p.help|replace("'","\\'") }}', {% endfor %} };
+  document.getElementById('helpText').textContent = helps[key] || '';
+  const isBrevoApi = key === 'brevo_api';
+  document.getElementById('brevoApiSection').style.display = isBrevoApi ? '' : 'none';
+  document.getElementById('smtpSection').style.display     = isBrevoApi ? 'none' : '';
+  document.getElementById('passwordRow').style.display     = isBrevoApi ? 'none' : '';
+}
+</script>
+{% endblock %}

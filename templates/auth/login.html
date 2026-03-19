@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="{{ current_lang }}" dir="{{ 'ltr' if current_lang == 'en' else 'rtl' }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if current_lang == 'en' %}Sign In — ARS{% else %}تسجيل الدخول — ARS{% endif %}</title>
+  {% if current_lang == 'en' %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  {% else %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css">
+  {% endif %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'Tajawal', sans-serif; }
+    body {
+      background: linear-gradient(135deg, #0C67EC 0%, #0847B0 55%, #0a3a8a 100%);
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .login-wrapper {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+      position: relative;
+      z-index: 1;
+    }
+    body::before {
+      content: ''; position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Crect x='8' y='14' width='36' height='32' rx='4' fill='none' stroke='rgba(255,255,255,0.07)' stroke-width='1.5'/%3E%3Cline x1='8' y1='22' x2='44' y2='22' stroke='rgba(255,255,255,0.07)' stroke-width='1.5'/%3E%3Ccircle cx='18' cy='30' r='2' fill='rgba(255,255,255,0.07)'/%3E%3Ccircle cx='26' cy='30' r='2' fill='rgba(255,255,255,0.07)'/%3E%3Ccircle cx='34' cy='30' r='2' fill='rgba(255,255,255,0.07)'/%3E%3Ccircle cx='120' cy='28' r='18' fill='none' stroke='rgba(92,155,222,0.1)' stroke-width='1.5'/%3E%3Cline x1='120' y1='28' x2='120' y2='16' stroke='rgba(92,155,222,0.1)' stroke-width='1.5' stroke-linecap='round'/%3E%3Cline x1='120' y1='28' x2='130' y2='34' stroke='rgba(92,155,222,0.1)' stroke-width='1.5' stroke-linecap='round'/%3E%3Ccircle cx='140' cy='115' r='10' fill='none' stroke='rgba(255,255,255,0.06)' stroke-width='1.5'/%3E%3Cpolyline points='134,115 138,119 146,111' fill='none' stroke='rgba(255,255,255,0.06)' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-size: 160px 160px; background-repeat: repeat;
+      pointer-events: none; z-index: 0;
+    }
+    body::after {
+      content: ''; position: fixed; inset: 0;
+      background: radial-gradient(ellipse at 15% 20%, rgba(92,155,222,.12) 0%, transparent 45%),
+                  radial-gradient(ellipse at 85% 75%, rgba(46,139,143,.15) 0%, transparent 45%);
+      pointer-events: none; z-index: 0;
+    }
+    .login-card {
+      position: relative; z-index: 1;
+      background: #FDFBFA;
+      border-radius: 16px;
+      padding: 1.2rem 1.3rem;
+      width: 100%; max-width: 310px;
+      box-shadow: 0 16px 48px rgba(0,0,0,.4);
+    }
+    .lang-btn {
+      position: absolute; top: 14px;
+      {% if current_lang == 'en' %}right: 14px;{% else %}left: 14px;{% endif %}
+      background: rgba(12,103,236,.1); border: 1.5px solid #0C67EC;
+      color: #0C67EC; border-radius: 8px; padding: 3px 12px;
+      font-size: .82rem; font-weight: 700; cursor: pointer; transition: .2s;
+      text-decoration: none; display: inline-block;
+    }
+    .lang-btn:hover { background: #0C67EC; color: #fff; }
+    .logo-circle {
+      width: 44px; height: 44px;
+      background: linear-gradient(135deg,#0C67EC,#3D8EF5);
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      margin: 0 auto .6rem; font-size: 1.2rem; color: #fff;
+      box-shadow: 0 4px 16px rgba(12,103,236,.4);
+    }
+    .brand-title { font-size: 1.05rem; font-weight: 800; color: #0C67EC; }
+    .brand-sub   { font-size: .75rem; color: #888; }
+    .form-control { border-radius: 8px; padding: .45rem .8rem; border: 1.5px solid #e0e7e9; font-size: .88rem; }
+    .form-control:focus { border-color: #0C67EC; box-shadow: 0 0 0 3px rgba(12,103,236,.12); }
+    .btn-login {
+      background: linear-gradient(90deg,#0C67EC,#3D8EF5);
+      border: none; color: #fff; border-radius: 8px; padding: .55rem;
+      font-size: .92rem; font-weight: 700; width: 100%; transition: opacity .2s;
+    }
+    .btn-login:hover { opacity: .9; color: #fff; }
+    .input-group-text { background: #f0f5ff; border: 1.5px solid #e0e7e9; }
+    .divider { border-top: 1px solid #eee; margin: 1rem 0; }
+    /* Ticker */
+    .login-ticker {
+      position: relative; z-index: 1; flex-shrink: 0;
+      background: transparent;
+      height: 42px; display: flex; align-items: center;
+      overflow: hidden;
+    }
+    .login-ticker-track {
+      display: inline-flex; align-items: center;
+      white-space: nowrap;
+      animation: {% if current_lang == 'en' %}loginTickerLTR{% else %}loginTickerRTL{% endif %} 35s linear infinite;
+    }
+    .login-ticker-track:hover { animation-play-state: paused; }
+    @keyframes loginTickerRTL { 0%{transform:translateX(-100%)} 100%{transform:translateX(100vw)} }
+    @keyframes loginTickerLTR { 0%{transform:translateX(100%)} 100%{transform:translateX(-100vw)} }
+    .login-ticker-text { color: #ffffff; font-weight: 600; font-size: .88rem; padding: 0 60px; }
+  </style>
+</head>
+<body>
+
+<!-- Ticker -->
+<div class="login-ticker">
+  <div style="flex:1;overflow:hidden;height:100%;display:flex;align-items:center">
+    <div class="login-ticker-track" id="loginTickerTrack" style="animation-duration:{{ auth_ticker_cfg.speed }}s">
+      <span class="login-ticker-text" id="loginTickerText" style="color:{{ auth_ticker_cfg.fg }};font-family:{{ auth_ticker_cfg.font }};font-size:{{ auth_ticker_cfg.size }}px">
+        {{ auth_ticker_cfg.text }}
+      </span>
+    </div>
+  </div>
+</div>
+
+<div class="login-wrapper">
+<div class="login-card">
+
+  <a href="/set-lang/{{ 'ar' if current_lang == 'en' else 'en' }}" class="lang-btn">
+    {{ 'ع' if current_lang == 'en' else 'EN' }}
+  </a>
+
+  <div class="text-center mb-3">
+    <div class="logo-circle"><i class="bi bi-building-check"></i></div>
+    <div class="brand-title">ARS</div>
+    <div class="brand-sub">
+      {% if current_lang == 'en' %}Applied Reservation System{% else %}نظام إدارة الحجوزات التطبيقي{% endif %}
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+    <div class="alert alert-{{ 'danger' if cat == 'error' else cat }} py-2 small">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <form method="POST" action="{{ url_for('auth.login') }}">
+    <div class="mb-3">
+      <label class="form-label fw-bold small">
+        {% if current_lang == 'en' %}Username{% else %}اسم المستخدم{% endif %}
+      </label>
+      <div class="input-group">
+        <span class="input-group-text"><i class="bi bi-person text-muted"></i></span>
+        <input type="text" name="username" class="form-control"
+               placeholder="{% if current_lang == 'en' %}Enter username{% else %}أدخل اسم المستخدم{% endif %}"
+               required autofocus value="{{ request.form.get('username','') }}">
+      </div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label fw-bold small">
+        {% if current_lang == 'en' %}Password{% else %}كلمة المرور{% endif %}
+      </label>
+      <div class="input-group">
+        <span class="input-group-text"><i class="bi bi-lock text-muted"></i></span>
+        <input type="password" name="password" id="pw" class="form-control"
+               placeholder="{% if current_lang == 'en' %}Enter password{% else %}أدخل كلمة المرور{% endif %}" required>
+        <button type="button" class="btn btn-outline-secondary px-2"
+                onclick="let p=document.getElementById('pw');p.type=p.type==='password'?'text':'password'">
+          <i class="bi bi-eye"></i>
+        </button>
+      </div>
+    </div>
+    <div class="mb-3 d-flex justify-content-between align-items-center">
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" name="remember" id="remember">
+        <label class="form-check-label small" for="remember">
+          {% if current_lang == 'en' %}Remember me{% else %}تذكرني{% endif %}
+        </label>
+      </div>
+    </div>
+    <div class="text-end mb-2">
+      <a href="{{ url_for('auth.forgot_password') }}" class="small" style="color:#0C67EC;text-decoration:none">
+        {% if current_lang == 'en' %}Forgot password?{% else %}نسيت كلمة المرور؟{% endif %}
+      </a>
+    </div>
+    <button type="submit" class="btn-login">
+      <i class="bi bi-box-arrow-in-right me-2"></i>
+      {% if current_lang == 'en' %}Sign In{% else %}تسجيل الدخول{% endif %}
+    </button>
+  </form>
+
+  <div class="divider"></div>
+  <div class="text-center small">
+    {% if current_lang == 'en' %}Don't have an account?{% else %}ليس لديك حساب؟{% endif %}
+    <a href="{{ url_for('auth.register') }}" style="color:#0C67EC;font-weight:700">
+      {% if current_lang == 'en' %}Register now{% else %}سجّل الآن{% endif %}
+    </a>
+  </div>
+
+</div>
+</div>
+
+<footer style="position:relative;z-index:1;flex-shrink:0;padding:8px 16px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:5px;font-size:.72rem;color:#ffffff;text-align:center;background:transparent;">
+  <span style="display:flex;align-items:center;gap:6px">
+    <i class="bi bi-calendar-check"></i>
+    <strong>ARS</strong>
+    <span style="color:rgba(168,125,40,.4)">|</span>
+    <span>{% if current_lang == 'en' %}Applied Reservation System{% else %}نظام إدارة الحجوزات{% endif %}</span>
+  </span>
+  <span style="color:rgba(168,125,40,.4)">·</span>
+  <span>© {{ now.year if now is defined else 2026 }} {% if current_lang=='en' %}All rights reserved{% else %}جميع الحقوق محفوظة{% endif %}</span>
+  <span style="color:rgba(168,125,40,.4)">|</span>
+  <a href="#" style="color:#ffffff;text-decoration:none" onmouseover="this.style.color='#7a5a1a'" onmouseout="this.style.color='#3a7bd5'">
+    {% if current_lang=='en' %}Terms & Conditions{% else %}الشروط والأحكام{% endif %}
+  </a>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// Ticker is rendered server-side — no AJAX needed
+</script>
+</body>
+</html>

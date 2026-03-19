@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="{{ current_lang }}" dir="{{ 'ltr' if current_lang == 'en' else 'rtl' }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if current_lang=='en' %}Email Verification — ARS{% else %}تحقق من البريد — ARS{% endif %}</title>
+  {% if current_lang == 'en' %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  {% else %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css">
+  {% endif %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'Tajawal', sans-serif; }
+    body { background:linear-gradient(135deg,#0C67EC 0%,#0847B0 55%,#0a3a8a 100%); min-height:100vh; min-height:100dvh; display:flex; flex-direction:column; position:relative; }
+    body::before { content:''; position:fixed; inset:0; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Crect x='8' y='14' width='36' height='32' rx='4' fill='none' stroke='rgba(255,255,255,0.07)' stroke-width='1.5'/%3E%3Cline x1='8' y1='22' x2='44' y2='22' stroke='rgba(255,255,255,0.07)' stroke-width='1.5'/%3E%3Ccircle cx='18' cy='30' r='2' fill='rgba(255,255,255,0.07)'/%3E%3Ccircle cx='26' cy='30' r='2' fill='rgba(255,255,255,0.07)'/%3E%3Ccircle cx='34' cy='30' r='2' fill='rgba(255,255,255,0.07)'/%3E%3Ccircle cx='120' cy='28' r='18' fill='none' stroke='rgba(92,155,222,0.1)' stroke-width='1.5'/%3E%3Cline x1='120' y1='28' x2='120' y2='16' stroke='rgba(92,155,222,0.1)' stroke-width='1.5' stroke-linecap='round'/%3E%3Ccircle cx='140' cy='115' r='10' fill='none' stroke='rgba(255,255,255,0.06)' stroke-width='1.5'/%3E%3Cpolyline points='134,115 138,119 146,111' fill='none' stroke='rgba(255,255,255,0.06)' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-size:160px 160px; background-repeat:repeat; pointer-events:none; z-index:0; }
+    body::after { content:''; position:fixed; inset:0; background:radial-gradient(ellipse at 15% 20%,rgba(92,155,222,.12) 0%,transparent 45%),radial-gradient(ellipse at 85% 75%,rgba(61,142,245,.2) 0%,transparent 45%); pointer-events:none; z-index:0; }
+    .ticker-bar { position:relative; z-index:1; flex-shrink:0; background:transparent; height:38px; display:flex; align-items:center; overflow:hidden; }
+    .ticker-track { display:inline-flex; align-items:center; white-space:nowrap; animation:tickerRTL 35s linear infinite; }
+    .ticker-track.ltr { animation-name:tickerLTR; }
+    .ticker-track:hover { animation-play-state:paused; }
+    @keyframes tickerRTL { 0%{transform:translateX(-100%)} 100%{transform:translateX(100vw)} }
+    @keyframes tickerLTR { 0%{transform:translateX(100%)} 100%{transform:translateX(-100vw)} }
+    .ticker-text { color:#ffffff; font-weight:600; font-size:.88rem; padding:0 60px; }
+    .auth-wrapper { flex:1; display:flex; align-items:center; justify-content:center; padding:1.2rem 1rem; position:relative; z-index:1; }
+    .auth-card { background:#FDFBFA; border-radius:16px; overflow:hidden; width:100%; max-width:340px; box-shadow:0 16px 48px rgba(0,0,0,.4); }
+    .auth-card-header { background:linear-gradient(135deg,#0C67EC,#3D8EF5); padding:1.4rem 1rem; text-align:center; }
+    .auth-card-body { padding:1.3rem 1.5rem; }
+    .code-input { letter-spacing:.6rem; font-size:1.8rem; font-weight:800; text-align:center; border:2px solid #dee2e6; border-radius:10px; padding:10px; width:100%; }
+    .code-input:focus { border-color:#0C67EC; outline:none; box-shadow:0 0 0 3px rgba(12,103,236,.2); }
+    .btn-main { background:linear-gradient(90deg,#0C67EC,#3D8EF5); border:none; color:#fff; border-radius:8px; padding:.52rem; font-size:.9rem; font-weight:700; width:100%; transition:opacity .2s; }
+    .btn-main:hover { opacity:.9; color:#fff; }
+    .mb-3 { margin-bottom:.8rem !important; }
+  </style>
+</head>
+<body>
+<div class="ticker-bar">
+  <div style="flex:1;overflow:hidden;height:100%;display:flex;align-items:center">
+    <div class="ticker-track {% if current_lang=='en' %}ltr{% endif %}" id="veTickerTrack" style="animation-duration:{{ auth_ticker_cfg.speed }}s">
+      <span class="ticker-text" id="veTickerText" style="color:{{ auth_ticker_cfg.fg }};font-family:{{ auth_ticker_cfg.font }};font-size:{{ auth_ticker_cfg.size }}px">{{ auth_ticker_cfg.text }}</span>
+    </div>
+  </div>
+</div>
+<div class="auth-wrapper">
+<div class="auth-card">
+  <div class="auth-card-header">
+    <div style="font-size:2.2rem">📧</div>
+    <h5 class="text-white fw-bold mb-1 mt-1">{% if current_lang=='en' %}Verify Your Email{% else %}تحقق من بريدك الإلكتروني{% endif %}</h5>
+    <p class="text-white-50 small mb-0">{{ email }}</p>
+  </div>
+  <div class="auth-card-body">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+    <div class="alert alert-{{ 'success' if cat=='success' else 'danger' if cat=='danger' else 'info' }} py-2 small">{{ msg }}</div>
+    {% endfor %}
+    {% endwith %}
+
+    <div class="text-center mb-3" style="background:#EEF4FD;border-radius:8px;padding:.6rem .8rem">
+      <small class="text-muted">{% if current_lang=='en' %}📧 Verification code sent to{% else %}📧 تم إرسال كود التحقق إلى{% endif %} <strong>{{ email }}</strong> — {% if current_lang=='en' %}valid for{% else %}صالح لمدة{% endif %} <strong>15</strong> {% if current_lang=='en' %}min{% else %}دقيقة{% endif %}</small>
+    </div>
+
+    <p class="text-muted small text-center mb-3">{% if current_lang=='en' %}Enter the 6-digit code below to activate your account.{% else %}أرسلنا كود مكوّن من 6 أرقام. أدخله أدناه لتفعيل حسابك.{% endif %}</p>
+
+    <form method="POST" id="verifyForm" onsubmit="showLoading()">
+      <div class="mb-3">
+        <input type="text" name="code" id="codeInput" class="code-input" maxlength="6" placeholder="○ ○ ○ ○ ○ ○" inputmode="numeric" pattern="\d{6}" autocomplete="one-time-code" autofocus required>
+      </div>
+      <button type="submit" class="btn-main" id="verifyBtn">
+        <i class="bi bi-check-circle me-2" id="verifyIcon"></i>
+        <span id="verifyLabel">{% if current_lang=='en' %}Verify & Activate{% else %}تحقق وفعّل الحساب{% endif %}</span>
+      </button>
+    </form>
+
+    <form method="POST" class="mt-2">
+      <input type="hidden" name="resend" value="1">
+      <button type="submit" class="btn btn-outline-secondary w-100 btn-sm" id="resendBtn">
+        <i class="bi bi-arrow-clockwise me-1"></i>{% if current_lang=='en' %}Resend Code{% else %}إعادة إرسال الكود{% endif %} (<span id="resendTimer">60</span>s)
+      </button>
+    </form>
+
+    <div class="text-center mt-3">
+      <a href="{{ url_for('auth.login') }}" class="small" style="color:#0C67EC;text-decoration:none">
+        <i class="bi bi-arrow-right me-1"></i>{% if current_lang=='en' %}Back to Login{% else %}العودة لتسجيل الدخول{% endif %}
+      </a>
+    </div>
+  </div>
+</div>
+</div>
+<footer style="position:relative;z-index:1;flex-shrink:0;padding:6px 16px;text-align:center;font-size:.7rem;color:#ffffff;background:transparent;">
+  <strong>ARS</strong> · © {{ now.year if now is defined else 2026 }} {% if current_lang=='en' %}All rights reserved{% else %}جميع الحقوق محفوظة{% endif %}
+</footer>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const IS_EN = document.documentElement.lang === 'en';
+
+function showLoading() {
+  const btn = document.getElementById('verifyBtn');
+  const icon = document.getElementById('verifyIcon');
+  const label = document.getElementById('verifyLabel');
+  if (btn) {
+    btn.disabled = true;
+    btn.style.opacity = '0.75';
+    if (icon) icon.className = 'bi bi-arrow-repeat me-2';
+    if (label) label.textContent = IS_EN ? 'Verifying…' : 'جارٍ التحقق…';
+    setTimeout(() => { if (icon) icon.style.animation = 'spin 1s linear infinite'; }, 0);
+  }
+}
+
+document.getElementById('codeInput').addEventListener('input', function() {
+  if (this.value.length === 6) {
+    showLoading();
+    document.getElementById('verifyForm').submit();
+  }
+});
+
+let t = 60;
+const btn = document.getElementById('resendBtn');
+const timer = document.getElementById('resendTimer');
+btn.disabled = true;
+const iv = setInterval(() => {
+  t--;
+  if (timer) timer.textContent = t;
+  if (t <= 0) {
+    clearInterval(iv);
+    btn.disabled = false;
+    if (timer) timer.textContent = '';
+    btn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>' + (IS_EN ? 'Resend Code' : 'إعادة إرسال الكود');
+  }
+}, 1000);
+</script>
+<style>
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+.bi-arrow-repeat { display: inline-block; }
+</style>
+</body>
+</html>

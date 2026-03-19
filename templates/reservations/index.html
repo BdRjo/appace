@@ -1,0 +1,220 @@
+{% extends 'base.html' %}
+{% block title %}{% if current_lang=="en" %}My Reservations — ARS{% else %}حجوزاتي — ARS{% endif %}{% endblock %}
+{% block content %}
+
+<!-- إشعار الحجوزات القريبة — مطابق لـ v54 check_upcoming_bookings -->
+{% if upcoming %}
+<div class="alert alert-warning alert-dismissible fade show mb-3" role="alert" style="padding-bottom:.5rem">
+  <div class="d-flex align-items-center gap-2 mb-2">
+    <i class="bi bi-bell-fill"></i>
+    <strong>{% if current_lang=='en' %}🔔 You have {{ upcoming|length }} upcoming booking(s) in the next 24 hours:{% else %}🔔 لديك {{ upcoming|length }} حجز خلال الـ 24 ساعة القادمة:{% endif %}</strong>
+  </div>
+  <div class="d-flex flex-column gap-1">
+    {% for r in upcoming[:5] %}
+    <div class="d-block p-2 rounded mb-1"
+         style="background:rgba(0,0,0,.07);border:1px solid rgba(0,0,0,.1)">
+      <div class="d-flex align-items-center gap-2 small">
+        <i class="bi bi-calendar3 text-warning flex-shrink-0"></i>
+        <a href="{{ url_for('reservations.detail', res_id=r.id) }}"
+           class="fw-bold text-decoration-none" style="color:var(--primary)">
+          #{{ r.booking_number }}
+        </a>
+        <span class="text-muted">|</span>
+        <a href="{{ url_for('reservations.detail', res_id=r.id) }}"
+           class="text-decoration-none fw-bold text-dark flex-grow-1 text-truncate"
+           title="{{ r.title }}"
+           onmouseover="this.style.color='var(--primary)'"
+           onmouseout="this.style.color=''">
+          {{ r.title }}
+        </a>
+        <span class="text-muted flex-shrink-0">{{ r.venue.name if r.venue else '—' }}</span>
+        <span class="text-muted flex-shrink-0 ms-1">{{ r.start_time.strftime('%m-%d %H:%M') }}</span>
+        <i class="bi bi-chevron-left opacity-50 flex-shrink-0"></i>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% if upcoming|length > 5 %}
+  <div class="small mt-1 opacity-75">{% if current_lang=='en' %}...and {{ upcoming|length - 5 }} more{% else %}...و {{ upcoming|length - 5 }} حجوزات أخرى{% endif %}</div>
+  {% endif %}
+  <button type="button" class="btn-close" data-bs-dismiss="alert" style="position:absolute;top:8px;left:8px"></button>
+</div>
+{% endif %}
+
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h1><i class="bi bi-calendar3 me-2"></i>{{ _('الحجوزات') }}</h1>
+  <div class="d-flex gap-2 flex-wrap">
+    <button onclick="window.print()" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-printer me-1"></i>{{ _('طباعة') }}
+    </button>
+    <a href="{{ url_for('reservations.export_csv', **filters) }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-filetype-csv me-1"></i>CSV
+    </a>
+    <a href="{{ url_for('reservations.export_pdf', **filters) }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-file-pdf me-1"></i>PDF
+    </a>
+    <a href="{{ url_for('reservations.new') }}" class="btn btn-primary-ars btn-sm">
+      <i class="bi bi-plus-lg me-1"></i>{{ _('حجز جديد') }}
+    </a>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#0C67EC,#3D8EF5)">
+      <div class="num">{{ stats.total }}</div><div class="lbl">{{ _('إجمالي') }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#5C9BDE,#b88c3a)">
+      <div class="num">{{ stats.pending }}</div><div class="lbl">{% if current_lang=='en' %}Pending{% else %}{{ _('معلقة') }}{% endif %}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#3D8EF5,#0C67EC)">
+      <div class="num">{{ stats.approved }}</div><div class="lbl">{% if current_lang=='en' %}Approved{% else %}{{ _('موافق عليها') }}{% endif %}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#5a6e72,#3d4f52)">
+      <div class="num">{{ stats.cancelled }}</div><div class="lbl">{% if current_lang=='en' %}Cancelled{% else %}{{ _('ملغية') }}{% endif %}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <form method="GET" class="row g-2 align-items-end">
+      <div class="col-md-3">
+        <input type="text" name="q" class="form-control form-control-sm"
+               placeholder="{{ _('🔍 بحث برقم أو عنوان') }}" value="{{ filters.q }}">
+      </div>
+      <div class="col-md-3">
+        <select name="status" class="form-select form-select-sm">
+          <option value=""><span>{{ _('كل الحالات') }}</option>
+          {% for val, lbl_ar, lbl_en in [('pending','⏳ معلق','⏳ Pending'),('approved','✅ موافق','✅ Approved'),('rejected','❌ مرفوض','❌ Rejected'),('cancelled','🚫 ملغي','🚫 Cancelled'),('completed','🏁 مكتمل','🏁 Completed')] %}
+          <option value="{{ val }}" {% if filters.status==val %}selected{% endif %}>{% if current_lang=='en' %}{{ lbl_en }}{% else %}{{ lbl_ar }}{% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <select name="venue_id" class="form-select form-select-sm">
+          <option value="">{{ _('كل القاعات') }}</option>
+          {% for v in venues %}
+          <option value="{{ v.id }}" {% if filters.venue_id==v.id|string %}selected{% endif %}>{{ v.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3 d-flex gap-2">
+        <button type="submit" class="btn btn-primary-ars btn-sm flex-grow-1">{{ _('تصفية') }}</button>
+        <a href="{{ url_for('reservations.index') }}" class="btn btn-outline-secondary btn-sm">{{ _('إعادة') }}</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Table -->
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-table me-2"></i>{{ _('قائمة الحجوزات') }}
+    <small class="text-white opacity-75">{{ total }} {% if current_lang=='en' %}bookings — page{% else %}حجز — صفحة{% endif %} {{ page }}/{{ total_pages }}</small>
+  </div>
+  <div id="bulkBar" style="display:none!important">
+    <button type="button" class="btn btn-sm" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.5);font-weight:700" onclick="selectAll(true)"><i class="bi bi-check-all me-1"></i>{{ _('تحديد الكل') }}</button>
+    <button type="button" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.4);font-weight:700" onclick="selectAll(false)"><i class="bi bi-x-lg me-1"></i>{{ _('إلغاء الكل') }}</button>
+    <span id="selCount" class="small ms-1" style="color:rgba(255,255,255,.9);font-weight:600"></span>
+    <form method="POST" action="{{ url_for('reservations.bulk_cancel') }}" id="bulkForm" class="ms-auto" onsubmit="return confirmBulk()">
+      <div id="bulkIds"></div>
+      <button type="submit" class="btn btn-sm btn-warning"><i class="bi bi-slash-circle me-1"></i>{{ _('إلغاء المحدد') }}</button>
+    </form>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th style="width:36px"><input type="checkbox" class="form-check-input" id="checkAll" onchange="selectAll(this.checked)"></th>
+          <th>{{ _('رقم الحجز') }}</th>
+          <th>{{ _('العنوان') }}</th>
+          {% if perms.is_admin_or_manager() %}<th>{{ _('المستخدم') }}</th>{% endif %}
+          <th>{{ _('القاعة') }}</th>
+          <th>{{ _('تاريخ البدء') }}</th>
+          <th>{{ _('الانتهاء') }}</th>
+          <th>{{ _('الحالة') }}</th>
+          <th>{{ _('إجراءات') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in reservations %}
+        <tr>
+          <td><input type="checkbox" class="form-check-input row-check" value="{{ r.id }}" onchange="updateBulk()"></td>
+          <td><a href="{{ url_for('reservations.detail', res_id=r.id) }}" class="fw-bold text-primary">{{ r.booking_number }}</a></td>
+          <td>{{ r.title }}</td>
+          {% if perms.is_admin_or_manager() %}<td>{{ r.user.full_name if r.user else '—' }}</td>{% endif %}
+          <td>{{ r.venue.name if r.venue else '—' }}</td>
+          <td>{{ r.start_time.strftime('%Y-%m-%d %H:%M') if r.start_time else '—' }}</td>
+          <td>{{ r.end_time.strftime('%H:%M') if r.end_time else '—' }}</td>
+          <td>
+            <span class="badge badge-{{ r.status }}">
+              {% if current_lang=='en' %}{{ status_en.get(r.status, r.status) }}{% else %}{{ status_ar.get(r.status, r.status) }}{% endif %}
+            </span>
+          </td>
+          <td>
+            <div class="d-flex gap-1 flex-wrap">
+              <a href="{{ url_for('reservations.detail', res_id=r.id) }}" class="btn btn-xs btn-outline-primary">
+                <i class="bi bi-eye"></i>
+              </a>
+              {% if r.status in ('pending','approved') and (r.user_id == current_user.id or perms.is_admin_or_manager()) %}
+              <a href="{{ url_for('reservations.edit', res_id=r.id) }}" class="btn btn-xs btn-outline-warning">
+                <i class="bi bi-pencil"></i>
+              </a>
+              {% endif %}
+              {% if r.status == 'approved' %}
+              <a href="{{ url_for('reservations.invite', res_id=r.id) }}" class="btn btn-xs btn-outline-info" title="{{ _('إرسال دعوات') }}">
+                <i class="bi bi-envelope"></i>
+              </a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="text-center text-muted py-4"><span>{{ _('لا توجد حجوزات') }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if total_pages > 1 %}
+  <div class="card-footer d-flex justify-content-center gap-2">
+    {% if page > 1 %}
+    <a href="{{ url_for('reservations.index', page=page-1, **filters) }}" class="btn btn-sm btn-outline-primary">{{ _('« السابق') }}</a>
+    {% endif %}
+    {{ page }} / {{ total_pages }}
+    {% if page < total_pages %}
+    <a href="{{ url_for('reservations.index', page=page+1, **filters) }}" class="btn btn-sm btn-outline-primary">{{ _('التالي »') }}</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<style>
+.btn-xs { padding: 2px 7px; font-size: .75rem; }
+</style>
+{% endblock %}
+{% block extra_js %}
+<script>
+const LANG_IS_EN = document.documentElement.lang === 'en';
+function selectAll(val) { document.querySelectorAll('.row-check').forEach(cb => cb.checked = val); document.getElementById('checkAll').checked = val; updateBulk(); }
+function updateBulk() {
+  const checks = document.querySelectorAll('.row-check:checked'); const bar = document.getElementById('bulkBar'); const cnt = document.getElementById('selCount'); const all = document.getElementById('checkAll');
+  const total = document.querySelectorAll('.row-check').length;
+  bar.style.cssText = checks.length > 0 ? 'display:flex!important;align-items:center;gap:8px;background:#1565C0;padding:10px 16px;border-radius:0' : 'display:none!important';
+  if (cnt) cnt.textContent = checks.length + ' / ' + total + ' ' + (LANG_IS_EN ? 'selected' : 'محدد');
+  if (all) { all.indeterminate = checks.length > 0 && checks.length < total; all.checked = checks.length === total && total > 0; }
+  const bulkIds = document.getElementById('bulkIds');
+  if (bulkIds) bulkIds.innerHTML = [...checks].map(c => `<input type="hidden" name="ids" value="${c.value}">`).join('');
+}
+function confirmBulk() { const n = document.querySelectorAll('.row-check:checked').length; return confirm(LANG_IS_EN ? 'Cancel ' + n + ' reservations?' : 'إلغاء ' + n + ' حجز؟ لا يمكن التراجع.'); }
+document.querySelectorAll('.row-check').forEach(cb => cb.addEventListener('change', updateBulk));
+</script>
+{% endblock %}

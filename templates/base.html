@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="{{ current_lang }}" dir="{{ 'ltr' if current_lang == 'en' else 'rtl' }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no, viewport-fit=cover">
+<title>{% block title %}ARS{% endblock %}</title>
+{% if current_lang == 'en' %}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    {% else %}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css">
+    {% endif %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css">
+{% block extra_css %}{% endblock %}
+<style>
+:root{
+  --primary:{{ system_colors.primary }};
+  --primary-dark:{{ system_colors.primary_dark }};
+  --primary-light:{{ system_colors.primary_light }};
+  --accent:{{ system_colors.accent }};
+  --sidebar-w:260px;--topbar-h:52px;--ticker-h:36px
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;height:100dvh;overflow:hidden}
+body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:#F0F4FA;color:#2C3E50}
+/* Sidebar */
+.sidebar{position:fixed;top:0;width:var(--sidebar-w);height:100vh;height:100dvh;background:linear-gradient(180deg,var(--primary-dark) 0%,var(--primary) 60%,var(--primary-light) 100%);z-index:1000;display:flex;flex-direction:column;overflow:hidden}
+.sidebar-brand{padding:0 12px;border-bottom:none;text-align:center;flex-shrink:0;height:var(--topbar-h);display:flex;align-items:center;justify-content:center;gap:8px;overflow:hidden;background:var(--primary-dark)}
+.sidebar-brand .brand-logo{height:26px;width:auto;border-radius:5px;flex-shrink:0;filter:drop-shadow(0 0 4px rgba(92,155,222,.6))}
+.sidebar-brand .brand-text{display:flex;flex-direction:column;align-items:flex-start;min-width:0}
+.sidebar-brand .brand-title{color:#fff;font-size:.92rem;font-weight:800;white-space:nowrap;line-height:1.2}
+.sidebar-brand .brand-sub{color:rgba(255,255,255,.65);font-size:.6rem;white-space:nowrap;line-height:1.3}
+.sidebar-scroll{flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}
+.sidebar-scroll::-webkit-scrollbar{width:4px}
+.sidebar-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:4px}
+.nav-link{display:flex;align-items:center;gap:10px;padding:9px 18px;color:rgba(255,255,255,.82);text-decoration:none;font-size:.85rem;border-inline-end:3px solid transparent;transition:.2s}
+.nav-link:hover,.nav-link.active{background:rgba(255,255,255,.15);color:#fff;border-inline-end-color:var(--accent)}
+.nav-link i{font-size:.95rem;width:18px;text-align:center;flex-shrink:0}
+.section-label{color:rgba(255,255,255,.45);font-size:.65rem;text-transform:uppercase;letter-spacing:1.5px;padding:8px 18px 4px;margin-top:0}
+/* Main layout */
+.main-content{margin-inline-start:var(--sidebar-w);height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden;max-width:100vw}
+/* Topbar — single clean row always */
+.topbar{background:var(--primary-dark);height:var(--topbar-h);display:flex;align-items:center;padding:0 14px;gap:10px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.25);overflow:hidden;max-width:100%}
+.topbar-clock{font-size:.75rem;color:rgba(255,255,255,.75);font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+/* Ticker bar — mobile only, same color as topbar */
+.ticker-bar{height:40px;flex-shrink:0;overflow:hidden;align-items:center;background:var(--primary-dark);display:none}
+@media(max-width:767px){.ticker-bar{display:flex}}
+/* Desktop ticker inside topbar — hide on mobile */
+#tickerWrap{display:flex;background:var(--primary-dark);border-radius:8px}
+@media(max-width:767px){[id="tickerWrap"]{display:none !important}}
+.ticker-overflow{flex:1;overflow:hidden;height:100%;display:flex;align-items:center;position:relative}
+.ticker-track{display:inline-flex;align-items:center;white-space:nowrap}
+.ticker-track:hover{animation-play-state:paused}
+.ticker-text{color:#A8C8F0;font-weight:600;padding:0 80px;font-size:.92rem}
+@keyframes tickerScrollRTL{0%{transform:translateX(-100%)}100%{transform:translateX(100vw)}}
+@keyframes tickerScrollLTR{0%{transform:translateX(100%)}100%{transform:translateX(-100vw)}}
+.ticker-rtl{animation:tickerScrollRTL 35s linear infinite}
+.ticker-ltr{animation:tickerScrollLTR 35s linear infinite}
+.ticker-track{will-change:transform}
+/* Content area */
+.content-area{flex:1;overflow-y:auto;overflow-x:hidden;padding:24px 28px;scrollbar-width:thin;scrollbar-color:rgba(12,103,236,.2) transparent;background:#ffffff}
+.content-area::-webkit-scrollbar{width:7px}
+.content-area::-webkit-scrollbar-thumb{background:rgba(12,103,236,.2);border-radius:4px}
+.table-responsive{scrollbar-width:thin;scrollbar-color:rgba(12,103,236,.15) transparent}
+.table-responsive::-webkit-scrollbar{height:5px}
+.table-responsive::-webkit-scrollbar-thumb{background:rgba(12,103,236,.15);border-radius:4px}
+/* Cards */
+.card{border:none;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.07);background:#fff}
+.card-header{background:linear-gradient(135deg,var(--primary),var(--primary-light));color:#fff;border-radius:14px 14px 0 0 !important;padding:13px 20px;font-weight:600;font-size:.9rem}
+.page-header{margin-bottom:22px}
+.page-header h1{font-size:1.4rem;font-weight:700;color:var(--primary)}
+.stat-card{border-radius:14px;padding:18px 16px;color:#fff}
+.stat-card .num{font-size:2rem;font-weight:800;line-height:1}
+.stat-card .lbl{font-size:.76rem;opacity:.88;margin-top:5px}
+.btn-primary-ars{background:linear-gradient(160deg,#2e88ff 0%,#0C67EC 45%,#0847B0 100%);color:#fff;border:none;border-radius:8px;padding:7px 18px;font-size:.84rem;font-weight:700;box-shadow:0 3px 10px rgba(12,103,236,.4),inset 0 1px 0 rgba(255,255,255,.25);text-shadow:0 1px 2px rgba(0,0,0,.15);letter-spacing:.3px;transition:all .2s}
+.btn-primary-ars:hover{background:linear-gradient(160deg,#1a76f0 0%,#0a55d4 45%,#063a9a 100%);color:#fff;box-shadow:0 5px 16px rgba(12,103,236,.5),inset 0 1px 0 rgba(255,255,255,.25);transform:translateY(-1px)}
+.table{font-size:.83rem}.table th{background:#f4f9fa;color:var(--primary);font-weight:700;border-bottom:2px solid #dde8ea}
+.table td,.table th{padding:10px 14px;vertical-align:middle}
+.badge-pending  {background:#FEF3CD;color:#7a5900;border:1px solid #f0b429;border-radius:20px;padding:3px 10px;font-size:.78rem;font-weight:600}
+.badge-approved {background:#D1FAE5;color:#065F46;border:1px solid #34D399;border-radius:20px;padding:3px 10px;font-size:.78rem;font-weight:600}
+.badge-rejected {background:#FEE2E2;color:#991B1B;border:1px solid #F87171;border-radius:20px;padding:3px 10px;font-size:.78rem;font-weight:600}
+.badge-cancelled{background:#F3F4F6;color:#374151;border:1px solid #9CA3AF;border-radius:20px;padding:3px 10px;font-size:.78rem;font-weight:600}
+.badge-completed{background:#DBEAFE;color:#1E40AF;border:1px solid #60A5FA;border-radius:20px;padding:3px 10px;font-size:.78rem;font-weight:600}
+.form-control,.form-select{border-radius:8px;border:1.5px solid #d0dde0;font-size:.88rem}
+.form-control:focus,.form-select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(12,103,236,.1)}
+.alert{border-radius:10px;font-size:.88rem;font-weight:500}
+.alert-danger{background:linear-gradient(135deg,#fff0f0,#ffe5e5);color:#c0392b;border-right:4px solid #e74c3c!important;border:1px solid #ffcccc!important}
+.alert-success{background:linear-gradient(135deg,#f0fff4,#e6ffec);color:#1a7a3a;border-right:4px solid #27ae60!important;border:1px solid #b8f0cc!important}
+.alert-warning{background:linear-gradient(135deg,#fffbf0,#fff5d6);color:#7a5c00;border-right:4px solid #f39c12!important;border:1px solid #ffe08a!important}
+.alert-info{background:linear-gradient(135deg,#f0f7ff,#e6f0ff);color:#0847B0;border-right:4px solid #0C67EC!important;border:1px solid #bdd8ff!important}
+.stars{color:#5C9BDE;font-size:1.1rem}
+#liveUsersPanel{position:fixed;bottom:20px;left:20px;z-index:9999;background:#fff;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);min-width:280px;max-width:340px;display:none}
+#liveUsersPanel .lup-header{background:linear-gradient(135deg,var(--primary),var(--primary-light));color:#fff;padding:10px 14px;border-radius:12px 12px 0 0;font-size:.82rem;font-weight:700;display:flex;justify-content:space-between;align-items:center}
+#liveUsersPanel .lup-body{padding:8px;max-height:200px;overflow-y:auto}
+#liveUsersPanel .lup-row{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:6px;font-size:.78rem}
+#liveUsersPanel .lup-row:hover{background:#f4f9fa}
+#liveUsersPanel .lup-dot{width:8px;height:8px;border-radius:50%;background:#3D8EF5;flex-shrink:0}
+.menu-btn{display:none!important}
+/* ── Chrome Mobile Fix ── */
+@media screen and (max-width:992px) {
+  html {
+    -webkit-text-size-adjust:100%;
+    text-size-adjust:100%;
+    /* Force Chrome to use correct box model */
+    -webkit-box-sizing:border-box;
+    box-sizing:border-box;
+  }
+  *, *::before, *::after { -webkit-box-sizing:border-box; box-sizing:border-box; }
+  body {
+    -webkit-overflow-scrolling:touch;
+    overflow-x:hidden;
+    /* Fix Chrome rendering */
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+  }
+  .content-area { -webkit-overflow-scrolling:touch; }
+  .table-responsive { -webkit-overflow-scrolling:touch; }
+  /* Prevent zoom on input focus in Chrome */
+  input, select, textarea { font-size:16px!important; touch-action:manipulation; }
+  /* Fix flex layout in Chrome mobile */
+  .app-wrapper { display:-webkit-box; display:-webkit-flex; display:flex; }
+  .main-content { -webkit-flex:1; flex:1; min-width:0; }
+}
+/* ── IPAD (768px–1024px) — sidebar visible ── */
+@media(min-width:768px) and (max-width:1024px){
+  :root{--sidebar-w:220px}
+  .sidebar{
+    transform:none !important;
+    position:fixed !important;
+    display:-webkit-box !important;
+    display:-webkit-flex !important;
+    display:flex !important;
+  }
+  .main-content{
+    margin-inline-start:220px !important;
+    /* Chrome fallback */
+    margin-right:0 !important;
+  }
+  [dir="rtl"] .main-content { margin-right:220px !important; margin-left:0 !important; }
+  [dir="ltr"] .main-content { margin-left:220px !important; margin-right:0 !important; }
+  .content-area{padding:16px 18px !important}
+  .stat-card .num{font-size:1.5rem !important}
+}
+/* ── TABLET (≤992px) ── */
+@media(max-width:992px){
+  .sidebar{
+    transform:translateX(110%) !important;
+    -webkit-transform:translateX(110%) !important;
+    transition:transform .3s cubic-bezier(.4,0,.2,1);
+    -webkit-transition:-webkit-transform .3s cubic-bezier(.4,0,.2,1);
+    z-index:2000 !important;
+    width:260px !important;
+    box-shadow:none;
+  }
+  .sidebar.open{
+    transform:translateX(0) !important;
+    -webkit-transform:translateX(0) !important;
+    box-shadow:-8px 0 32px rgba(0,0,0,.35) !important;
+  }
+  .main-content{
+    margin-inline-start:0 !important;
+    margin-right:0 !important;
+    margin-left:0 !important;
+    width:100vw !important;
+    max-width:100vw !important;
+    overflow-x:hidden !important;
+  }
+  .menu-btn{display:inline-flex !important;align-items:center;justify-content:center}
+  .col-md-4,.col-md-6,.col-md-8{flex:0 0 100%;max-width:100%}
+  .stat-card-col{flex:0 0 50%;max-width:50%}
+  .topbar-clock{font-size:.7rem !important}
+  /* Force Bootstrap grid rows to never exceed viewport */
+  .row{--bs-gutter-x:1rem;margin-right:0 !important;margin-left:0 !important}
+  .content-area .row{overflow-x:hidden}
+}
+/* ── MOBILE (≤576px) ── */
+@media(max-width:576px){
+  .topbar{padding:0 10px !important;gap:6px !important;height:56px !important}
+  .topbar-clock{font-size:.72rem !important;white-space:nowrap;line-height:1.25;max-width:110px}
+  .ticker-bar{height:40px}
+  .ticker-text{font-size:1rem !important;padding:0 40px !important}
+  .content-area{padding:14px 10px !important;overflow-x:hidden !important}
+
+  /* ── Topbar: prevent overflow on small screens ── */
+  .topbar{max-width:100vw !important;overflow:hidden !important}
+  .topbar > .d-flex:last-child{flex-shrink:1 !important;min-width:0;overflow:hidden}
+  .topbar-username{display:none !important}
+
+  /* ── Stat card columns: 2 per row always ── */
+  .row.g-3 > .col-6{flex:0 0 50% !important;max-width:50% !important;min-width:0}
+  .row.g-2 > .col-6{flex:0 0 50% !important;max-width:50% !important;min-width:0}
+
+  /* ── Cards ── */
+  .card{border-radius:14px !important}
+  .card-body{padding:14px !important}
+  .card-header{padding:12px 16px !important;font-size:.95rem !important}
+
+  /* ── Stat cards ── */
+  .stat-card{padding:18px 16px !important}
+  .stat-card .num{font-size:2.2rem !important}
+  .stat-card .lbl{font-size:.9rem !important}
+
+  /* ── Page header: stack title + buttons ── */
+  .page-header{margin-bottom:16px !important;flex-direction:column !important;align-items:flex-start !important;gap:10px !important}
+  .page-header h1{font-size:1.2rem !important}
+  /* Button groups in page-header: wrap + equal height */
+  .page-header > .d-flex,
+  .page-header > div > .d-flex,
+  .page-header .d-flex{
+    flex-wrap:wrap !important;gap:8px !important;width:100%
+  }
+  .page-header .btn,.page-header a.btn{
+    flex:1 1 auto !important;
+    min-width:calc(50% - 8px) !important;
+    max-width:100% !important;
+    height:44px !important;
+    display:flex !important;align-items:center !important;justify-content:center !important;
+    font-size:.88rem !important;
+    white-space:nowrap !important;
+    overflow:hidden !important;
+    text-overflow:ellipsis !important;
+    padding:8px 12px !important;
+  }
+  /* Single button full width */
+  .page-header > a.btn,.page-header > .btn{
+    width:100% !important;flex:none !important;min-width:unset !important
+  }
+
+  /* ── Search forms: stack input + buttons ── */
+  .card-body form.d-flex,
+  .card-body .d-flex.gap-2,
+  form.d-flex{
+    flex-wrap:wrap !important;gap:8px !important
+  }
+  .card-body form.d-flex .form-control,
+  .card-body form .form-control{
+    width:100% !important;flex:none !important
+  }
+  .card-body form .btn,.card-body form a.btn{
+    flex:1 1 auto !important;
+    min-width:calc(50% - 8px) !important;
+    height:44px !important;
+    display:flex !important;align-items:center !important;justify-content:center !important;
+    font-size:.88rem !important
+  }
+  /* ms-auto buttons (Export CSV) go full width */
+  .card-body form .btn.ms-auto{flex:1 1 100% !important;max-width:100% !important}
+
+  /* ── Tables ── */
+  .table-responsive{overflow-x:auto !important;-webkit-overflow-scrolling:touch;border-radius:10px}
+  .table{font-size:.88rem !important;min-width:500px}
+  .table th,.table td{padding:8px 12px !important;white-space:nowrap}
+
+  /* ── General buttons ── */
+  .btn{white-space:nowrap}
+  .btn-sm{padding:8px 14px !important;font-size:.88rem !important;height:40px;display:inline-flex;align-items:center;justify-content:center}
+  /* btn-primary-ars only override when not inside quick-links */
+  .btn-primary-ars:not([style*="min-height"]){padding:10px 18px !important;font-size:.95rem !important}
+
+  /* ── Nav links in sidebar ── */
+  .nav-link{padding:12px 18px !important;font-size:1rem !important}
+  .nav-link i{font-size:1.1rem !important}
+  .section-label{font-size:.75rem !important;padding:10px 18px 5px !important}
+
+  /* ── Forms ── */
+  .form-control,.form-select{font-size:1rem !important;padding:.6rem 1rem !important}
+  input[type="datetime-local"]{font-size:.9rem !important}
+  select.form-select{font-size:.95rem !important}
+
+  /* ── Layout ── */
+  .topbar-username{display:none !important}
+  .col-sm-6{flex:0 0 100%;max-width:100%}
+  .row{--bs-gutter-x:.75rem}
+  .modal-dialog{margin:.5rem;max-width:calc(100vw - 1rem)}
+  .modal-body{font-size:1rem !important}
+
+  /* ── Sidebar brand ── */
+  .sidebar-brand .brand-title{font-size:1rem !important}
+  .sidebar-brand .brand-sub{font-size:.72rem !important}
+  .sidebar-brand .brand-logo{height:28px !important}
+
+  /* ── Footer ── */
+  .app-footer{justify-content:center;text-align:center;padding:10px 12px;gap:6px;font-size:.85rem}
+
+  /* ── Stacked cols ── */
+  .row.g-3 .col-md-2,.row.g-3 .col-md-3{flex:0 0 100%;max-width:100%}
+  .card-body.p-4{padding:14px !important}
+
+  /* ── Badges ── */
+  .badge-pending,.badge-approved,.badge-rejected,.badge-cancelled,.badge-completed{
+    font-size:.85rem !important;padding:5px 12px !important
+  }
+
+  /* ── Alert ── */
+  .alert{font-size:.92rem !important;padding:12px 14px !important}
+
+  /* ── Calendar toolbar fix ── */
+  .fc .fc-toolbar{flex-direction:column !important;gap:8px !important;align-items:flex-start !important}
+  .fc .fc-toolbar-chunk{width:100%;display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+  .fc .fc-toolbar-title{font-size:1.1rem !important}
+  .fc .fc-button{padding:6px 12px !important;font-size:.85rem !important}
+
+  /* ── Filter buttons (calendar) ── */
+  .filter-btn{font-size:.82rem !important;padding:6px 12px !important}
+}
+@media(max-width:375px){
+  .content-area{padding:10px 8px !important}
+  .card-header{font-size:.92rem !important}
+  .btn-sm{padding:7px 12px !important;font-size:.85rem !important}
+  .stat-card .num{font-size:1.8rem !important}
+  .page-header h1{font-size:1.1rem !important}
+  .ticker-bar{height:34px !important}
+}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1999;-webkit-backdrop-filter:blur(1px);backdrop-filter:blur(1px)}
+.sidebar-overlay.show{display:block}
+@media print{
+  @page{size:A4;margin:1.5cm}
+  @page :first { margin-top:1cm }
+  .sidebar,.topbar,.ticker-bar,.btn,.alert,.modal,.page-header .d-flex > a,
+  .page-header .d-flex > button,#liveUsersPanel,.nav-print-hide,
+  .sidebar-overlay,.menu-btn{display:none!important}
+  .main-content{margin:0!important;height:auto!important}
+  .content-area{overflow:visible!important;padding:10px!important;height:auto!important}
+  body{overflow:auto!important;background:#fff!important}
+  html,body{height:auto!important;overflow:auto!important}
+  .card{box-shadow:none!important;border:1px solid #ddd!important;break-inside:avoid}
+  .table{font-size:.8rem!important;width:100%!important}
+  .table td,.table th{padding:6px 8px!important;white-space:normal!important;word-break:break-word!important;overflow:visible!important}
+  .table-responsive{overflow:visible!important}
+  .row{display:block!important}
+  .col-md-6,.col-md-4,.col-md-3,.col-md-8,.col-12{width:100%!important;flex:none!important;max-width:100%!important}
+  canvas{max-width:100%!important}
+  [dir="rtl"] .content-area{direction:rtl!important;text-align:right!important}
+  [dir="ltr"] .content-area{direction:ltr!important;text-align:left!important}
+}
+
+/* ── RTL/LTR Direction Fixes — desktop only ──────────────────────────────── */
+[dir="ltr"] .sidebar { left:0; right:auto }
+[dir="rtl"] .sidebar { right:0; left:auto }
+/* Sidebar margins — desktop only */
+@media(min-width:993px){
+  [dir="ltr"] .main-content {
+    margin-left:var(--sidebar-w) !important;
+    margin-right:0 !important;
+    -webkit-margin-start:var(--sidebar-w) !important;
+  }
+  [dir="rtl"] .main-content {
+    margin-right:var(--sidebar-w) !important;
+    margin-left:0 !important;
+    -webkit-margin-start:var(--sidebar-w) !important;
+  }
+}
+[dir="ltr"] .sidebar{background:linear-gradient(180deg,var(--primary-dark) 0%,var(--primary) 60%,var(--primary-light) 100%)}
+[dir="ltr"] .topbar{flex-direction:row}
+[dir="ltr"] .nav-link{text-align:left}
+[dir="rtl"] .nav-link{text-align:right}
+[dir="ltr"] .section-label{text-align:left;padding-left:18px;padding-right:0}
+[dir="ltr"] .bi{transform:none !important}
+[dir="ltr"] .page-header{flex-direction:row}
+/* Mobile sidebar slide direction */
+@media(max-width:992px){
+  [dir="ltr"] .sidebar{left:0 !important;right:auto !important;transform:translateX(-110%) !important;-webkit-transform:translateX(-110%) !important}
+  [dir="ltr"] .sidebar.open{transform:translateX(0) !important;-webkit-transform:translateX(0) !important}
+  [dir="rtl"] .sidebar{right:0 !important;left:auto !important;transform:translateX(110%) !important;-webkit-transform:translateX(110%) !important}
+  [dir="rtl"] .sidebar.open{transform:translateX(0) !important;-webkit-transform:translateX(0) !important}
+}
+
+/* ── Hover effects ───────────────────────────────────────────────────────── */
+tbody tr:hover{background:#f0f8f9 !important;transition:background .15s;}
+.card{transition:box-shadow .2s,transform .15s;}
+.card:hover{box-shadow:0 6px 24px rgba(12,103,236,.15) !important;transform:translateY(-2px);}
+.btn{transition:all .18s !important;}
+.btn-primary{background:linear-gradient(160deg,#2e88ff 0%,#0C67EC 45%,#0847B0 100%)!important;box-shadow:0 2px 8px rgba(12,103,236,.35),inset 0 1px 0 rgba(255,255,255,.2)!important;font-weight:700!important;border:none!important}
+.btn-primary:hover,.btn-primary-ars:hover{filter:brightness(1.08);transform:translateY(-1px)}
+.btn-success{background:linear-gradient(160deg,#2ecc71,#27ae60,#1e8a4a)!important;box-shadow:0 2px 8px rgba(39,174,96,.35),inset 0 1px 0 rgba(255,255,255,.2)!important;font-weight:700!important;border:none!important}
+.btn-danger{background:linear-gradient(160deg,#e74c3c,#c0392b,#962d22)!important;box-shadow:0 2px 8px rgba(192,57,43,.35),inset 0 1px 0 rgba(255,255,255,.2)!important;font-weight:700!important;border:none!important}
+.btn-warning{background:linear-gradient(160deg,#f7ca45,#f39c12,#c47d0e)!important;box-shadow:0 2px 8px rgba(243,156,18,.35),inset 0 1px 0 rgba(255,255,255,.2)!important;font-weight:700!important;border:none!important;color:#fff!important}
+.btn-outline-primary{border-color:#0C67EC;color:#0C67EC;font-weight:600}
+.btn-outline-primary:hover{background:#0C67EC;color:#fff;transform:translateY(-1px);box-shadow:0 4px 12px rgba(12,103,236,.3)}
+.btn-outline-success{border-color:#27ae60;color:#27ae60;font-weight:600}
+.btn-outline-success:hover{background:#27ae60;color:#fff;transform:translateY(-1px);box-shadow:0 4px 12px rgba(39,174,96,.3)}
+.btn-outline-danger{border-color:#e74c3c;color:#e74c3c;font-weight:600}
+.btn-outline-danger:hover{background:#e74c3c;color:#fff;transform:translateY(-1px);box-shadow:0 4px 12px rgba(231,76,60,.3)}
+.btn-outline-warning{border-color:#e67e22;color:#e67e22;font-weight:600}
+.btn-outline-warning:hover{background:#e67e22;color:#fff;transform:translateY(-1px);box-shadow:0 4px 12px rgba(230,126,34,.3)}
+.btn-outline-info{border-color:#0984e3;color:#0984e3;font-weight:600}
+.btn-outline-info:hover{background:#0984e3;color:#fff;transform:translateY(-1px);box-shadow:0 4px 12px rgba(9,132,227,.3)}
+.btn-outline-secondary{border-color:#636e72;color:#636e72;font-weight:600}
+.btn-outline-secondary:hover{background:#636e72;color:#fff;transform:translateY(-1px);box-shadow:0 4px 12px rgba(99,110,114,.25)}
+.btn{transition:all .18s ease!important;font-weight:600;letter-spacing:.2px}
+.btn-xs{transition:all .15s !important;}
+.btn-xs:hover{transform:scale(1.12);box-shadow:0 2px 6px rgba(0,0,0,.18);}
+a.nav-link{transition:background .15s,border-color .15s;}
+.badge{transition:transform .15s;}
+.badge:hover{transform:scale(1.08);}
+.form-control:focus,.form-select:focus{box-shadow:0 0 0 3px rgba(12,103,236,.18) !important;border-color:var(--primary) !important;}
+.table-hover tbody tr{cursor:pointer;}
+
+/* ── Footer ───────────────────────────────────────────────────────────────── */
+.app-footer{
+  flex-shrink:0;
+  background:transparent;
+  border-top:1px solid rgba(180,130,40,.35);
+  padding:9px 16px;
+  font-size:.74rem;
+  color:#3a7bd5;
+  display:flex;flex-wrap:wrap;align-items:center;
+  justify-content:space-between;gap:6px;
+}
+.footer-brand{display:flex;align-items:center;gap:7px;color:#3a7bd5;}
+.footer-brand i{color:#3a7bd5;font-size:.9rem;}
+.footer-brand strong{color:#3a7bd5;font-weight:700;}
+.footer-sep{color:rgba(168,125,40,.4);margin:0 4px;}
+.footer-terms{
+  color:#3a7bd5;text-decoration:none;
+  transition:color .2s;
+}
+.footer-terms:hover{color:#7a5a1a;}
+@media(max-width:576px){
+  .app-footer{justify-content:center;text-align:center;padding:8px 10px;}
+}
+
+/* ── Mobile button fixes ─────────────────────────────────────────────────── */
+@media(max-width:576px){
+  .d-flex.gap-2 .btn,.d-flex.gap-3 .btn{
+    flex:1;min-width:0;
+  }
+  form .d-flex.gap-2{flex-wrap:wrap !important}
+  .w-sm-auto{width:auto !important}
+  /* Fix card padding on mobile */
+  .card-body.p-4{padding:16px !important}
+  /* Fix datetime inputs */
+  input[type="datetime-local"]{font-size:.82rem !important}
+  /* Fix select */
+  select.form-select{font-size:.84rem !important}
+}
+</style>
+</head>
+<body>
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    {% set _mcfg = get_maintenance_config() %}
+    {% if _mcfg and _mcfg.get('logo_b64') %}
+    <img src="{{ _mcfg.logo_b64 }}" class="brand-logo" alt="logo">
+    {% else %}
+    <i class="bi bi-calendar-check" style="font-size:1.4rem;color:#5C9BDE;filter:drop-shadow(0 0 6px rgba(92,155,222,.7))"></i>
+    {% endif %}
+    <div class="brand-text">
+      <div class="brand-title">ARS</div>
+      <div class="brand-sub">{{ _('نظام إدارة الحجوزات') }}</div>
+    </div>
+  </div>
+  <div class="sidebar-scroll">
+  {% if current_user.is_authenticated %}
+  <div class="section-label">{{ _('الرئيسية') }}</div>
+  <a href="{{ url_for('admin.dashboard') }}" class="nav-link {% if request.endpoint=='admin.dashboard' %}active{% endif %}">
+    <i class="bi bi-speedometer2"></i>{{ _('لوحة التحكم') }}
+  </a>
+  {% if cp_enabled('calendar') %}
+  <a href="{{ url_for('calendar_view.index') }}" class="nav-link {% if request.blueprint=='calendar_view' %}active{% endif %}">
+    <i class="bi bi-calendar3"></i>{{ _('التقويم') }}
+  </a>
+  {% endif %}
+  <div class="section-label">{{ _('الحجوزات') }}</div>
+  {% if cp_enabled('reservations') %}
+  <a href="{{ url_for('reservations.index') }}" class="nav-link {% if request.blueprint=='reservations' %}active{% endif %}">
+    <i class="bi bi-journal-text"></i>{{ _('الحجوزات') }}
+  </a>
+  {% endif %}
+  {% if cp_enabled('venues') %}
+  <a href="{{ url_for('venues.index') }}" class="nav-link {% if request.blueprint=='venues' %}active{% endif %}">
+    <i class="bi bi-building"></i>{{ _('القاعات') }}
+  </a>
+  {% endif %}
+  <div class="section-label">{{ _('إضافيات') }}</div>
+  {% if cp_enabled('checklists') %}
+  <a href="{{ url_for('checklists.index') }}" class="nav-link {% if request.blueprint=='checklists' %}active{% endif %}">
+    <i class="bi bi-check2-square"></i>{{ _('قوائم المهام') }}
+  </a>
+  {% endif %}
+  {% if cp_enabled('contacts') %}
+  <a href="{{ url_for('contacts.index') }}" class="nav-link {% if request.blueprint=='contacts' %}active{% endif %}">
+    <i class="bi bi-person-lines-fill"></i>{{ _('جهات الاتصال') }}
+  </a>
+  <a href="{{ url_for('groups.index') }}" class="nav-link {% if request.blueprint=='groups' %}active{% endif %}">
+    <i class="bi bi-people-fill"></i>{% if current_lang=='en' %}Distribution Groups{% else %}مجموعات التوزيع{% endif %}
+  </a>
+  {% endif %}
+  {% if current_user.role and current_user.role.name in ('مدير النظام','admin','Admin','مشرف','Manager','manager') %}
+  <div class="section-label">{{ _('الإدارة') }}</div>
+  {% if cp_enabled('locations') %}
+  <a href="{{ url_for('locations.index') }}" class="nav-link {% if request.blueprint=='locations' %}active{% endif %}">
+    <i class="bi bi-geo-alt"></i>{{ _('المواقع') }}
+  </a>
+  {% endif %}
+  {% if cp_enabled('venues_mgmt') %}
+  <a href="{{ url_for('venues_mgmt.index') }}" class="nav-link {% if request.blueprint=='venues_mgmt' %}active{% endif %}">
+    <i class="bi bi-building-gear"></i>{{ _('إدارة القاعات') }}
+  </a>
+  {% endif %}
+  <a href="{{ url_for('users.index') }}" class="nav-link {% if request.blueprint=='users' %}active{% endif %}">
+    <i class="bi bi-people"></i>{{ _('المستخدمون') }}
+  </a>
+  {% if cp_enabled('reports') %}
+  <a href="{{ url_for('reports.index') }}" class="nav-link {% if request.blueprint=='reports' %}active{% endif %}">
+    <i class="bi bi-bar-chart"></i>{{ _('التقارير') }}
+  </a>
+  {% if cp_enabled('reports','rep_compare') %}
+  <a href="{{ url_for('reports.comparison') }}" class="nav-link {% if request.endpoint=='reports.comparison' %}active{% endif %}">
+    <i class="bi bi-bar-chart-steps"></i>{{ _('المقارنة') }}
+  </a>
+  {% endif %}
+  {% endif %}
+  {% if cp_enabled('blocked') %}
+  <a href="{{ url_for('blocked.index') }}" class="nav-link {% if request.blueprint=='blocked' %}active{% endif %}">
+    <i class="bi bi-slash-circle"></i><span>{{ _('حظر فترة') }}
+  </a>
+  {% endif %}
+  <a href="{{ url_for('users.bulk_message') }}" class="nav-link {% if request.endpoint=='users.bulk_message' %}active{% endif %}">
+    <i class="bi bi-envelope-paper"></i>{{ _('رسالة جماعية') }}
+  </a>
+  <a href="{{ url_for('admin.maintenance') }}" class="nav-link {% if request.endpoint=='admin.maintenance' %}active{% endif %}">
+    <i class="bi bi-tools"></i>{{ _('الصيانة') }}
+  </a>
+  <a href="{{ url_for('admin.auth_ticker') }}" class="nav-link {% if request.endpoint=='admin.auth_ticker' %}active{% endif %}">
+    <i class="bi bi-megaphone"></i>{% if current_lang=='en' %}Auth Ticker{% else %}تيكر صفحات الدخول{% endif %}
+  </a>
+  <a href="{{ url_for('cp.index') }}" class="nav-link {% if request.blueprint=='cp' %}active{% endif %}">
+    <i class="bi bi-sliders"></i>{% if current_lang=='en' %}Control Panel{% else %}لوحة التحكم{% endif %}
+  </a>
+  <a href="{{ url_for('backoffice.index') }}" class="nav-link {% if request.blueprint=='backoffice' %}active{% endif %}">
+    <i class="bi bi-database"></i>{% if current_lang=='en' %}Back-Office{% else %}إدارة البيانات{% endif %}
+  </a>
+  <a href="{{ url_for('admin.system_log') }}" class="nav-link {% if request.endpoint=='admin.system_log' %}active{% endif %}">
+    <i class="bi bi-shield-check"></i><span>{{ _('سجل النظام') }}
+  </a>
+  <a href="{{ url_for('admin.audit_log') }}" class="nav-link {% if request.endpoint=='admin.audit_log' %}active{% endif %}">
+    <i class="bi bi-journal-text"></i>{{ _('سجل المراجعة') }}
+  </a>
+  <a href="{{ url_for('admin.settings') }}" class="nav-link {% if request.endpoint=='admin.settings' %}active{% endif %}">
+    <i class="bi bi-gear"></i><span>{{ _('إعدادات البريد') }}
+  </a>
+  {% endif %}
+  <div class="section-label">{{ _('الحساب') }}</div>
+  <a href="{{ url_for('auth.profile') }}" class="nav-link {% if request.endpoint=='auth.profile' %}active{% endif %}">
+    <i class="bi bi-person-circle"></i>{{ _('ملفي الشخصي') }}
+  </a>
+  <a href="{{ url_for('auth.logout') }}" class="nav-link">
+    <i class="bi bi-box-arrow-left"></i>{{ _('تسجيل الخروج') }}
+  </a>
+  {% endif %}
+  </div>
+</nav>
+
+<div class="main-content" id="mainContent">
+
+  <!-- ── TOPBAR ────────────────────────────────────────────────────────────── -->
+  <div class="topbar">
+    <!-- Left: hamburger + clock (clock moves next to hamburger on mobile) -->
+    <div class="d-flex align-items-center gap-2" style="flex-shrink:0">
+      <button class="btn btn-sm menu-btn" style="border-color:rgba(255,255,255,.3);color:#fff;flex-shrink:0" onclick="toggleSidebar()">
+        <i class="bi bi-list fs-5"></i>
+      </button>
+      <span id="topbarClock" class="topbar-clock"></span>
+    </div>
+
+    <!-- Ticker: desktop only — center (server-side rendered, no AJAX) -->
+    <div id="tickerWrap" style="flex:1;overflow:hidden;height:36px;align-items:center;min-width:0;margin:0 10px;background:{{ ticker_cfg.bg }};border-radius:8px">
+      <div class="ticker-overflow" style="flex:1;overflow:hidden;height:36px;display:flex;align-items:center;position:relative">
+        <div class="ticker-track {% if current_lang == 'en' %}ticker-ltr{% else %}ticker-rtl{% endif %}" id="tickerTrack" style="animation-duration:{{ ticker_cfg.speed }}s">
+          <span class="ticker-text" id="tickerText" style="color:{{ ticker_cfg.fg }};font-family:{{ ticker_cfg.font }};font-size:{{ ticker_cfg.size }}px">{{ ticker_cfg.text }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: controls -->
+    <div class="d-flex align-items-center gap-2" style="flex-shrink:0">
+      {% if current_user.is_authenticated %}
+      <a href="/set-lang/{{ 'ar' if current_lang == 'en' else 'en' }}"
+         onclick="sessionStorage.removeItem('ars_ticker_ar');sessionStorage.removeItem('ars_ticker_en');"
+         style="background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.4);color:#fff;border-radius:8px;padding:3px 12px;font-size:.78rem;font-weight:700;text-decoration:none">
+        {{ 'ع' if current_lang == 'en' else 'EN' }}
+      </a>
+      {% if current_user.role and current_user.role.name in ('مدير النظام','admin','Admin','مشرف','Manager','manager') %}
+      <button onclick="toggleLiveUsers()" title="{{ _('المستخدمون المتصلون') }}" style="background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:3px 10px;font-size:.78rem;cursor:pointer">
+        <i class="bi bi-people-fill"></i> <span id="liveUserCount">0</span>
+      </button>
+      {% endif %}
+      <div class="d-flex align-items-center gap-1" style="background:rgba(255,255,255,.12);border-radius:20px;padding:4px 12px 4px 6px">
+        <div style="width:28px;height:28px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.75rem;color:#fff;flex-shrink:0">
+          {{ (current_user.full_name or current_user.username)[:1].upper() }}
+        </div>
+        <span class="topbar-username" style="color:#fff;font-size:.8rem;font-weight:600;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+          {{ current_user.full_name or current_user.username }}
+        </span>
+      </div>
+      <a href="{{ url_for('auth.logout') }}" class="btn btn-sm" style="background:rgba(12,103,236,.6);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:8px" title="{{ _('تسجيل الخروج') }}">
+        <i class="bi bi-box-arrow-right me-1"></i><span class="d-none d-sm-inline">{% if current_lang == 'en' %}Logout{% else %}خروج{% endif %}</span>
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Ticker: mobile only — server-side rendered, no AJAX -->
+  <div class="ticker-bar" style="background:var(--primary-dark)">
+    <div class="ticker-overflow">
+      <div class="ticker-track {% if current_lang == 'en' %}ticker-ltr{% else %}ticker-rtl{% endif %}" id="tickerTrackMobile" style="animation-duration:{{ ticker_cfg.speed }}s">
+        <span class="ticker-text" id="tickerTextMobile" style="color:{{ ticker_cfg.fg }};font-family:{{ ticker_cfg.font }};font-size:{{ ticker_cfg.size }}px">{{ ticker_cfg.text }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="content-area" id="contentArea">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="mb-3">
+      {% for cat, msg in messages %}
+      <div class="alert alert-{{ 'success' if cat=='success' else 'danger' if cat in ('danger','error') else 'warning' if cat=='warning' else 'info' }} alert-dismissible fade show">
+        {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+
+  </div><!-- /content-area -->
+
+  <!-- ── Footer — always pinned at bottom edge ─────────────────────────────── -->
+  <footer class="app-footer">
+    <div class="footer-brand">
+      <i class="bi bi-calendar-check"></i>
+      <strong>ARS</strong>
+      <span class="footer-sep">|</span>
+      <span>{% if current_lang=='en' %}Applied Reservation System{% else %}نظام إدارة الحجوزات{% endif %}</span>
+    </div>
+    <div>
+      © {{ now.year if now is defined else 2026 }}
+      <span class="footer-sep">·</span>
+      {% if current_lang=='en' %}All rights reserved{% else %}جميع الحقوق محفوظة{% endif %}
+      <span class="footer-sep">|</span>
+      <a href="#" class="footer-terms" data-bs-toggle="modal" data-bs-target="#privacyModal">
+        {% if current_lang=='en' %}Terms & Conditions{% else %}الشروط والأحكام{% endif %}
+      </a>
+      <span class="footer-sep">·</span>
+      <a href="#" class="footer-terms" data-bs-toggle="modal" data-bs-target="#contactModal">
+        {% if current_lang=='en' %}Contact Us{% else %}تواصل معنا{% endif %}
+      </a>
+    </div>
+  </footer>
+
+  <!-- Modals (kept in DOM, outside scroll) -->
+  <div>
+    <div class="modal fade" id="aboutModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header" style="background:var(--primary);color:#fff">
+            <h5 class="modal-title"><i class="bi bi-info-circle me-2"></i>{% if current_lang=='en' %}About ARS{% else %}عن نظام ARS{% endif %}</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p>{% if current_lang=='en' %}ARS (Applied Reservation System) is a comprehensive venue and reservation management platform designed to streamline booking workflows for organizations.{% else %}نظام ARS هو منصة متكاملة لإدارة الحجوزات والقاعات، مصممة لتبسيط إجراءات الحجز في المؤسسات.{% endif %}</p>
+            <p class="text-muted small mb-0">{% if current_lang=='en' %}Version 4.0 — Built with Flask & SQLAlchemy{% else %}الإصدار 4.0 — مبني بـ Flask و SQLAlchemy{% endif %}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Privacy Modal -->
+    <div class="modal fade" id="privacyModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+          <div class="modal-header" style="background:var(--primary);color:#fff">
+            <h5 class="modal-title"><i class="bi bi-shield-check me-2"></i>{% if current_lang=='en' %}Terms of Use & Privacy Policy{% else %}سياسة الاستخدام والخصوصية{% endif %}</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body small" style="max-height:70vh;overflow-y:auto">
+            {% if current_lang=='en' %}
+
+            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-1-circle me-1"></i>Data Collection</h6>
+            <p>ARS collects only the information necessary to manage reservations, including name, email address, phone number, and booking details. No unnecessary personal data is collected.</p>
+
+            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-2-circle me-1"></i>Data Use</h6>
+            <p>Your data is used solely for reservation management, system notifications, and service improvement. Your data will never be sold or shared with third parties for commercial purposes.</p>
+
+            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-3-circle me-1"></i>Data Security</h6>
+            <p>All data is stored securely using encryption standards. Access is restricted to authorized users only, and all system activities are logged for security purposes.</p>
+
+            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-4-circle me-1"></i>Intellectual Property</h6>
+            <p>ARS — Applied Reservation System and all its components, interfaces, code, and content are the exclusive intellectual property of the system owner. Reproduction, copying, or redistribution of any part of this system is strictly prohibited without prior written permission.</p>
+
+            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-5-circle me-1"></i>User Responsibilities</h6>
+            <p>Users are responsible for maintaining the confidentiality of their login credentials. Any misuse of the system, unauthorized access attempts, or violation of these terms may result in immediate account suspension and potential legal action.</p>
+
+            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-6-circle me-1"></i>Limitation of Liability</h6>
+            <p>The system owner shall not be liable for any direct or indirect damages arising from the use or inability to use this system, including but not limited to data loss or service interruptions.</p>
+
+            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-7-circle me-1"></i>Governing Law</h6>
+            <p>These terms are governed by applicable local laws. Any disputes shall be resolved through the competent judicial authorities.</p>
+
+            <div class="mt-3 p-2 rounded" style="background:#EEF4FD;border-right:3px solid var(--primary)">
+              <small class="text-muted">Last updated: 2026 · ARS Applied Reservation System · All rights reserved ©</small>
+            </div>
+
+            {% else %}
+
+            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-1-circle me-1"></i>جمع البيانات</h6>
+            <p>يجمع نظام ARS فقط المعلومات الضرورية لإدارة الحجوزات، بما يشمل الاسم والبريد الإلكتروني ورقم الهاتف وتفاصيل الحجز. لا يتم جمع أي بيانات شخصية غير ضرورية.</p>
+
+            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-2-circle me-1"></i>استخدام البيانات</h6>
+            <p>تُستخدم بياناتك حصراً لإدارة الحجوزات وإشعارات النظام وتحسين الخدمة. لن يتم بيع بياناتك أو مشاركتها مع أطراف ثالثة لأغراض تجارية بأي حال.</p>
+
+            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-3-circle me-1"></i>أمان البيانات</h6>
+            <p>تُحفظ جميع البيانات بشكل آمن باستخدام معايير التشفير المعتمدة. لا يمكن الوصول إليها إلا للمستخدمين المخولين، وتُسجَّل جميع أنشطة النظام لأغراض أمنية.</p>
+
+            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-4-circle me-1"></i>الملكية الفكرية</h6>
+            <p>نظام ARS — Applied Reservation System وجميع مكوناته وواجهاته وكوده ومحتواه هي الملكية الفكرية الحصرية لمالك النظام. يُحظر تمامًا إعادة إنتاج أي جزء من هذا النظام أو نسخه أو توزيعه دون إذن كتابي مسبق.</p>
+
+            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-5-circle me-1"></i>مسؤوليات المستخدم</h6>
+            <p>يتحمل المستخدم مسؤولية الحفاظ على سرية بيانات تسجيل الدخول الخاصة به. قد يؤدي أي إساءة في استخدام النظام أو محاولات وصول غير مصرح بها أو انتهاك هذه الشروط إلى تعليق الحساب فورًا واتخاذ الإجراءات القانونية اللازمة.</p>
+
+            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-6-circle me-1"></i>تحديد المسؤولية</h6>
+            <p>لا يتحمل مالك النظام أي مسؤولية عن الأضرار المباشرة أو غير المباشرة الناجمة عن استخدام النظام أو عدم القدرة على استخدامه، بما في ذلك على سبيل المثال لا الحصر فقدان البيانات أو انقطاع الخدمة.</p>
+
+            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-7-circle me-1"></i>القانون المطبّق</h6>
+            <p>تخضع هذه الشروط للقوانين المحلية المعمول بها. تُحسم أي نزاعات عبر الجهات القضائية المختصة.</p>
+
+            <div class="mt-3 p-2 rounded" style="background:#EEF4FD;border-right:3px solid var(--primary)">
+              <small class="text-muted">آخر تحديث: 2026 · نظام ARS لإدارة الحجوزات · جميع الحقوق محفوظة ©</small>
+            </div>
+
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Contact Modal -->
+    <div class="modal fade" id="contactModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header" style="background:var(--primary);color:#fff">
+            <h5 class="modal-title"><i class="bi bi-headset me-2"></i>{% if current_lang=='en' %}Contact Us{% else %}تواصل معنا{% endif %}</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body p-0">
+            <!-- Header banner -->
+            <div style="background:linear-gradient(135deg,var(--primary),var(--primary-light));padding:18px 20px;text-align:center">
+              <div style="font-size:2rem">👋</div>
+              <div style="color:#fff;font-weight:700;font-size:.95rem;margin-top:4px">
+                {% if current_lang=='en' %}We're here to help!{% else %}نحن هنا لمساعدتك!{% endif %}
+              </div>
+              <div style="color:rgba(255,255,255,.75);font-size:.78rem">ARS — Applied Reservation System</div>
+            </div>
+            <div class="p-4 d-flex flex-column gap-3">
+              <!-- Email -->
+              <a href="mailto:Baderaq@gmail.com" class="d-flex align-items-center gap-3 text-decoration-none p-3 rounded-3" style="background:#EEF4FD;border:1px solid #C8DCFF;transition:.2s" onmouseover="this.style.background='#ddeeff'" onmouseout="this.style.background='#EEF4FD'">
+                <div style="width:44px;height:44px;border-radius:12px;background:var(--primary);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                  <i class="bi bi-envelope-fill" style="color:#fff;font-size:1.1rem"></i>
+                </div>
+                <div>
+                  <div class="fw-bold" style="color:var(--primary);font-size:.85rem">{% if current_lang=='en' %}Email Support{% else %}البريد الإلكتروني{% endif %}</div>
+                  <div style="color:#555;font-size:.82rem">Baderaq@gmail.com</div>
+                </div>
+                <i class="bi bi-arrow-left ms-auto" style="color:var(--primary)"></i>
+              </a>
+              <!-- Phone -->
+              <a href="tel:+962793199031" class="d-flex align-items-center gap-3 text-decoration-none p-3 rounded-3" style="background:#F0FFF4;border:1px solid #B8EFC8;transition:.2s" onmouseover="this.style.background='#d4f7e0'" onmouseout="this.style.background='#F0FFF4'">
+                <div style="width:44px;height:44px;border-radius:12px;background:#27ae60;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                  <i class="bi bi-telephone-fill" style="color:#fff;font-size:1.1rem"></i>
+                </div>
+                <div>
+                  <div class="fw-bold" style="color:#1a7a3a;font-size:.85rem">{% if current_lang=='en' %}Phone / WhatsApp{% else %}الهاتف / واتساب{% endif %}</div>
+                  <div style="color:#555;font-size:.82rem;direction:ltr;text-align:right">+962 79 319 9031</div>
+                </div>
+                <i class="bi bi-arrow-left ms-auto" style="color:#27ae60"></i>
+              </a>
+              <!-- Note -->
+              <div class="text-center" style="color:#888;font-size:.76rem;padding-top:4px">
+                {% if current_lang=='en' %}Response within 24 hours on business days{% else %}يتم الرد خلال 24 ساعة في أيام العمل{% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+
+<!-- Live Users Panel (admin only) -->
+<div id="liveUsersPanel">
+  <div class="lup-header">
+    <span><i class="bi bi-circle-fill me-1" style="color:#3D8EF5;font-size:.6rem"></i> <span id="lupTitle">{% if current_lang == 'en' %}Online Users{% else %}المستخدمون المتصلون{% endif %}</span>
+    <button onclick="toggleLiveUsers()" style="background:none;border:none;color:#fff;cursor:pointer;font-size:.9rem">✕</button>
+  </div>
+  <div class="lup-body" id="lupBody">
+    <div class="text-center text-muted py-2" style="font-size:.78rem">{{ _('جاري التحميل...') }}</div>
+  </div>
+</div>
+<script>
+function toggleSidebar(){
+  const s = document.getElementById('sidebar');
+  const o = document.getElementById('sidebarOverlay');
+  s.classList.toggle('open');
+  o.classList.toggle('show');
+}
+function closeSidebar(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('show');
+}
+
+// ── Ticker: preserve animation position across page navigations ──────────────
+(function(){
+  const speed = {{ ticker_cfg.speed }} * 1000;
+  const KEY = 'ars_ticker_pos_{{ current_lang }}';
+  const tracks = ['tickerTrack','tickerTrackMobile'].map(id=>document.getElementById(id)).filter(Boolean);
+  if(!tracks.length) return;
+  // Restore saved delay offset so ticker continues from last position
+  let saved = 0;
+  try { saved = parseFloat(sessionStorage.getItem(KEY) || '0'); } catch(e){}
+  const elapsed = (Date.now() - saved) % speed;
+  const delay = -(elapsed / 1000);
+  tracks.forEach(t => t.style.animationDelay = delay + 's');
+  // Save timestamp on navigation
+  window.addEventListener('beforeunload', () => {
+    try { sessionStorage.setItem(KEY, Date.now()); } catch(e){}
+  });
+})();
+
+// ── Live Users Panel ─────────────────────────────────────────────────────────
+let _lupOpen = false;
+function toggleLiveUsers(){
+  const panel = document.getElementById('liveUsersPanel');
+  if(!panel) return;
+  _lupOpen = !_lupOpen;
+  panel.style.display = _lupOpen ? 'block' : 'none';
+  if(_lupOpen) fetchLiveUsers();
+}
+function fetchLiveUsers(){
+  fetch('/admin/live-users')
+    .then(r=>r.json())
+    .then(data=>{
+      const el = document.getElementById('liveUserCount');
+      const body = document.getElementById('lupBody');
+      if(el) el.textContent = data.count || 0;
+      if(!body) return;
+      if(!data.users || data.users.length === 0){
+        body.innerHTML = '<div class="text-center text-muted py-2" style="font-size:.78rem">{{ _('لا يوجد مستخدمون متصلون الآن') }}</div>';
+        return;
+      }
+      body.innerHTML = data.users.map(u=>`
+        <div class="lup-row">
+          <div class="lup-dot"></div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;color:#0C67EC;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${u.full_name||u.username}</div>
+            <div style="color:#999;font-size:.7rem">${u.ip} · ${u.browser} · ${u.time}</div>
+          </div>
+        </div>`).join('');
+    }).catch(()=>{});
+}
+// Poll every 30s when panel is open
+setInterval(()=>{ if(_lupOpen) fetchLiveUsers(); }, 30000);
+// Also update count every 60s in background (admin)
+setInterval(()=>{
+  fetch('/admin/live-users').then(r=>r.json()).then(d=>{
+    const el = document.getElementById('liveUserCount');
+    if(el) el.textContent = d.count || 0;
+  }).catch(()=>{});
+}, 60000);
+</script>
+{% block extra_js %}{% endblock %}
+<script src="/static/js/i18n.js"></script>
+
+<!-- ── Auto-logout warning modal ────────────────────────────────────────── -->
+<div id="autoLogoutModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:20px;padding:2rem;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.4);text-align:center;position:relative">
+    <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#ff6b35,#f7931e);display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;font-size:1.8rem">⏱️</div>
+    <h5 style="color:#0C67EC;font-weight:800;margin-bottom:.5rem" id="alTitle">{{ _('تنبيه انتهاء الجلسة') }}</h5>
+    <p style="color:#666;font-size:.88rem;margin-bottom:1rem" id="alMsg">{{ _('سيتم تسجيل خروجك تلقائياً خلال') }}</p>
+    <div style="font-size:2.5rem;font-weight:900;color:#f7931e;margin-bottom:1.2rem;font-variant-numeric:tabular-nums" id="alCountdown">60</div>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button onclick="keepSession()" style="background:linear-gradient(135deg,#0C67EC,#3D8EF5);color:#fff;border:none;border-radius:10px;padding:10px 24px;font-size:.9rem;font-weight:700;cursor:pointer">
+        🔄 <span id="alStay">{{ _('ابقَ في الجلسة') }}
+      </button>
+      <a href="/auth/logout" style="background:#f5e6e6;color:#c0392b;border:none;border-radius:10px;padding:10px 20px;font-size:.9rem;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center">
+        🚪 <span id="alLogout" style="margin-right:4px">{{ _('خروج الآن') }}
+      </a>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

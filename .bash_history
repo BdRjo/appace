@@ -233,3 +233,17 @@ cd /storage/emulated/0/64in1/ARS_Stable_v20/Stable_v20
 git add .
 git commit -m "fix: ticker SSR + verify_email loading + render.yaml"
 git push https://github.com/BdRjo/appace.git HEAD:main --force
+git init && git config --global --add safe.directory /storage/emulated/0/64in1/ARS_FIXED/Stable_v20 && git remote add origin https://github.com/BdRjo/appace.git && git add . && git commit -m "fixes" && git push origin HEAD:main --force
+git remote set-url origin https://github.com/BdRjo/appace.git && git add . && git commit -m "fixes" && git push origin HEAD:main --force
+git add .
+git commit -m "fix structure"
+git push origin main --force
+error: src refspec main does not match any
+git status
+git branch
+git status
+git push origin master --force
+cd /storage/emulated/0/64in1/ARS_FIXED/Stable_v20
+zip -r /storage/emulated/0/64in1/app_ready.zip .
+pkg install zip
+zip -r /storage/emulated/0/64in1/app_ready.zip .

@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% block title %}{% if group %}{% if current_lang=='en' %}Edit Group{% else %}تعديل المجموعة{% endif %}{% else %}{% if current_lang=='en' %}New Group{% else %}مجموعة جديدة{% endif %}{% endif %} — ARS{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h1><i class="bi bi-people-fill me-2"></i>
+    {% if group %}{% if current_lang=='en' %}Edit Group: {{ group.name }}{% else %}تعديل: {{ group.name }}{% endif %}
+    {% else %}{% if current_lang=='en' %}New Distribution Group{% else %}مجموعة توزيع جديدة{% endif %}{% endif %}
+  </h1>
+  <a href="{{ url_for('groups.index') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-right me-1"></i>{{ _('عودة') }}
+  </a>
+</div>
+
+<div class="row g-4">
+  <div class="col-12 col-lg-7">
+    <div class="card">
+      <div class="card-header">
+        <i class="bi bi-info-circle me-2"></i>{% if current_lang=='en' %}Group Details{% else %}تفاصيل المجموعة{% endif %}
+      </div>
+      <div class="card-body">
+        <form method="POST" id="groupForm">
+          <div class="mb-3">
+            <label class="form-label fw-bold">{% if current_lang=='en' %}Group Name{% else %}اسم المجموعة{% endif %} *</label>
+            <input type="text" name="name" class="form-control" required
+                   value="{{ group.name if group else '' }}"
+                   placeholder="{% if current_lang=='en' %}e.g. Management Team{% else %}مثال: فريق الإدارة{% endif %}">
+          </div>
+          <div class="mb-4">
+            <label class="form-label fw-bold">{% if current_lang=='en' %}Description{% else %}الوصف{% endif %} <span class="text-muted fw-normal small">({{ _('اختياري') }})</span></label>
+            <input type="text" name="description" class="form-control"
+                   value="{{ group.description if group else '' }}"
+                   placeholder="{% if current_lang=='en' %}Brief description...{% else %}وصف مختصر للمجموعة...{% endif %}">
+          </div>
+
+          <!-- Contacts section -->
+          <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <label class="form-label fw-bold mb-0">
+                <i class="bi bi-person-lines-fill me-1" style="color:var(--primary)"></i>
+                {% if current_lang=='en' %}Contacts{% else %}جهات الاتصال{% endif %}
+                <span class="badge bg-light text-dark ms-1" id="contactCount">{{ group.contacts|length if group else 0 }}</span>
+              </label>
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-xs btn-outline-primary" onclick="checkAllContacts(true)">{{ _('تحديد الكل') }}</button>
+                <button type="button" class="btn btn-xs btn-outline-secondary" onclick="checkAllContacts(false)">{{ _('إلغاء الكل') }}</button>
+              </div>
+            </div>
+            <div style="max-height:200px;overflow-y:auto;border:1.5px solid #e0e7e9;border-radius:10px;padding:10px">
+              {% if contacts %}
+                {% for c in contacts %}
+                <div class="form-check mb-1">
+                  <input class="form-check-input contact-check" type="checkbox" name="contact_ids"
+                         value="{{ c.id }}" id="c{{ c.id }}"
+                         {% if group and c in group.contacts %}checked{% endif %}
+                         onchange="updateCounts()">
+                  <label class="form-check-label small" for="c{{ c.id }}">
+                    <strong>{{ c.first_name }} {{ c.last_name or '' }}</strong>
+                    {% if c.email %}<span class="text-muted"> — {{ c.email }}</span>{% endif %}
+                  </label>
+                </div>
+                {% endfor %}
+              {% else %}
+                <p class="text-muted small text-center py-2">
+                  {% if current_lang=='en' %}No contacts yet. <a href="{{ url_for('contacts.new') }}">Add contacts</a>{% else %}لا توجد جهات اتصال. <a href="{{ url_for('contacts.new') }}">أضف جهات اتصال</a>{% endif %}
+                </p>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Users section -->
+          <div class="mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <label class="form-label fw-bold mb-0">
+                <i class="bi bi-people me-1" style="color:#27ae60"></i>
+                {% if current_lang=='en' %}System Users{% else %}مستخدمو النظام{% endif %}
+                <span class="badge bg-light text-dark ms-1" id="userCount">{{ group.users|length if group else 0 }}</span>
+              </label>
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-xs btn-outline-success" onclick="checkAllUsers(true)">{{ _('تحديد الكل') }}</button>
+                <button type="button" class="btn btn-xs btn-outline-secondary" onclick="checkAllUsers(false)">{{ _('إلغاء الكل') }}</button>
+              </div>
+            </div>
+            <div style="max-height:200px;overflow-y:auto;border:1.5px solid #e0e7e9;border-radius:10px;padding:10px">
+              {% for u in users %}
+              <div class="form-check mb-1">
+                <input class="form-check-input user-check" type="checkbox" name="user_ids"
+                       value="{{ u.id }}" id="u{{ u.id }}"
+                       {% if group and u in group.users %}checked{% endif %}
+                       onchange="updateCounts()">
+                <label class="form-check-label small" for="u{{ u.id }}">
+                  <strong>{{ u.full_name }}</strong>
+                  {% if u.email %}<span class="text-muted"> — {{ u.email }}</span>{% endif %}
+                </label>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary-ars px-4">
+              <i class="bi bi-check-lg me-1"></i>{% if current_lang=='en' %}Save Group{% else %}حفظ المجموعة{% endif %}
+            </button>
+            <a href="{{ url_for('groups.index') }}" class="btn btn-outline-secondary">{{ _('إلغاء') }}</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary panel -->
+  <div class="col-12 col-lg-5">
+    <div class="card" style="position:sticky;top:80px">
+      <div class="card-header"><i class="bi bi-bar-chart me-2"></i>{% if current_lang=='en' %}Group Summary{% else %}ملخص المجموعة{% endif %}</div>
+      <div class="card-body text-center">
+        <div class="row g-3 mb-3">
+          <div class="col-6">
+            <div style="background:#EEF4FD;border-radius:12px;padding:16px">
+              <div style="font-size:2rem;font-weight:800;color:var(--primary)" id="totalContacts">{{ group.contacts|length if group else 0 }}</div>
+              <div class="text-muted small">{% if current_lang=='en' %}Contacts{% else %}جهات اتصال{% endif %}</div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div style="background:#F0FFF4;border-radius:12px;padding:16px">
+              <div style="font-size:2rem;font-weight:800;color:#27ae60" id="totalUsers">{{ group.users|length if group else 0 }}</div>
+              <div class="text-muted small">{% if current_lang=='en' %}Users{% else %}مستخدمون{% endif %}</div>
+            </div>
+          </div>
+        </div>
+        <div style="background:#f8f9fa;border-radius:10px;padding:12px">
+          <div class="fw-bold mb-1" style="font-size:.85rem">{% if current_lang=='en' %}Total Recipients{% else %}إجمالي المستلمين{% endif %}</div>
+          <div style="font-size:2.5rem;font-weight:900;color:var(--primary)" id="totalAll">{{ ((group.contacts|length) + (group.users|length)) if group else 0 }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function updateCounts() {
+  const cc = document.querySelectorAll('.contact-check:checked').length;
+  const uc = document.querySelectorAll('.user-check:checked').length;
+  document.getElementById('totalContacts').textContent = cc;
+  document.getElementById('totalUsers').textContent = uc;
+  document.getElementById('totalAll').textContent = cc + uc;
+  document.getElementById('contactCount').textContent = cc;
+  document.getElementById('userCount').textContent = uc;
+}
+function checkAllContacts(val) {
+  document.querySelectorAll('.contact-check').forEach(cb => cb.checked = val);
+  updateCounts();
+}
+function checkAllUsers(val) {
+  document.querySelectorAll('.user-check').forEach(cb => cb.checked = val);
+  updateCounts();
+}
+</script>
+{% endblock %}
