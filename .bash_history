@@ -181,3 +181,55 @@ cd /storage/emulated/0/64in1/Stable_v20/Stable_v20
 git add templates/base.html routes/reservations.py routes/reports.py
 git commit -m "Fix PDF Arabic rendering, CSV export, mobile Chrome overflow"
 git push origin HEAD:main --force
+# انسخ كل الملفات للمجلد الأصلي (الي فيه git)
+cp -r /storage/emulated/0/64in1/ARS_Stable_v20_20260318/Stable_v20/.       /storage/emulated/0/64in1/ARS_Stable_v20/Stable_v20/
+# ارفع من المجلد الأصلي
+cd /storage/emulated/0/64in1/ARS_Stable_v20/Stable_v20
+git add .
+git commit -m "fix: ticker SSR + verify_email loading + render.yaml"
+git push https://github.com/BdRjo/appace.git HEAD:main --force
+cd /storage/emulated/0/64in1/ARS_Stable_v20/Stable_v20
+git config --global --add safe.directory /storage/emulated/0/64in1/ARS_Stable_v20/Stable_v20
+git init
+git remote add origin https://github.com/BdRjo/appace.git
+git add .
+git commit -m "fix: dashboard Row not JSON serializable"
+git push origin HEAD:main --force
+cd /storage/emulated/0/64in1/ARS_Stable_v20
+# فك الضغط إذا ما فككته
+unzip -o ARS_Stable_v20.zip -d .
+cd Stable_v20
+git config --global --add safe.directory $(pwd)
+git init
+git remote remove origin 2>/dev/null
+git remote add origin https://github.com/BdRjo/appace.git
+git add .
+git commit -m "fix: ticker flicker, comparison loop, import templates"
+git push origin HEAD:main --force
+# 1. فك الضغط في المجلد الصحيح
+cd /storage/emulated/0/64in1/ARS_Stable_v20
+unzip -o ~/storage/downloads/ARS_Stable_v20_20260318.zip -d .
+# 2. الدخول للمجلد والرفع
+cd Stable_v20
+git add .
+git commit -m "fix: ticker SSR + verify_email loading + chart safe nums [$(date +%Y-%m-%d)]"
+git push https://github.com/BdRjo/appace.git HEAD:main --force
+# انسخ الملفات من المجلد الجديد إلى مجلد الـ git الأصلي
+cp -r /storage/emulated/0/64in1/ARS_Stable_v20_20260318/Stable_v20/.       /storage/emulated/0/64in1/ARS_Stable_v20/Stable_v20/
+# ادخل المجلد الأصلي (الذي فيه git)
+cd /storage/emulated/0/64in1/ARS_Stable_v20/Stable_v20
+# ارفع
+git add .
+git commit -m "fix: ticker SSR + verify_email loading + chart safe nums"
+git push https://github.com/BdRjo/appace.git HEAD:main --force
+cd /storage/emulated/0/64in1/ARS_Stable_v20/Stable_v20
+git add .
+git commit -m "fix: ticker SSR + verify_email loading + chart safe nums + render.yaml"
+git push https://github.com/BdRjo/appace.git HEAD:main --force
+# انسخ كل الملفات للمجلد الأصلي (الي فيه git)
+cp -r /storage/emulated/0/64in1/ARS_Stable_v20_20260318/Stable_v20/.       /storage/emulated/0/64in1/ARS_Stable_v20/Stable_v20/
+# ارفع من المجلد الأصلي
+cd /storage/emulated/0/64in1/ARS_Stable_v20/Stable_v20
+git add .
+git commit -m "fix: ticker SSR + verify_email loading + render.yaml"
+git push https://github.com/BdRjo/appace.git HEAD:main --force
