@@ -121,13 +121,13 @@
     <span><i class="bi bi-table me-2"></i>{{ _('قائمة الحجوزات') }}
     <small class="text-white opacity-75">{{ total }} {% if current_lang=='en' %}bookings — page{% else %}حجز — صفحة{% endif %} {{ page }}/{{ total_pages }}</small>
   </div>
-  <div id="bulkBar" style="display:none!important">
-    <button type="button" class="btn btn-sm" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.5);font-weight:700" onclick="selectAll(true)"><i class="bi bi-check-all me-1"></i>{{ _('تحديد الكل') }}</button>
-    <button type="button" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.4);font-weight:700" onclick="selectAll(false)"><i class="bi bi-x-lg me-1"></i>{{ _('إلغاء الكل') }}</button>
+  <div id="bulkBar" style="display:none!important;flex-wrap:wrap;gap:6px;padding:8px 12px;align-items:center;background:rgba(0,0,0,.15);border-radius:8px;margin:4px 0">
+    <button type="button" class="btn btn-sm" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.5);font-weight:700;white-space:nowrap" onclick="selectAll(true)"><i class="bi bi-check-all me-1"></i>{{ _('تحديد الكل') }}</button>
+    <button type="button" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.4);font-weight:700;white-space:nowrap" onclick="selectAll(false)"><i class="bi bi-x-lg me-1"></i>{{ _('إلغاء الكل') }}</button>
     <span id="selCount" class="small ms-1" style="color:rgba(255,255,255,.9);font-weight:600"></span>
-    <form method="POST" action="{{ url_for('reservations.bulk_cancel') }}" id="bulkForm" class="ms-auto" onsubmit="return confirmBulk()">
+    <form method="POST" action="{{ url_for('reservations.bulk_cancel') }}" id="bulkForm" class="ms-auto d-flex" onsubmit="return confirmBulk()">
       <div id="bulkIds"></div>
-      <button type="submit" class="btn btn-sm btn-warning"><i class="bi bi-slash-circle me-1"></i>{{ _('إلغاء المحدد') }}</button>
+      <button type="submit" class="btn btn-sm btn-warning" style="white-space:nowrap"><i class="bi bi-slash-circle me-1"></i>{{ _('إلغاء المحدد') }}</button>
     </form>
   </div>
   <div class="table-responsive">

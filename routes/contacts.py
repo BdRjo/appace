@@ -14,7 +14,7 @@ contacts_bp = Blueprint('contacts', __name__, url_prefix='/contacts')
 @login_required
 def index():
     db = get_db(); perms = get_permissions()
-    if not perms.can('contacts_view'): abort(403)
+    if not perms.can('contacts_view') and not perms.is_regular_user(): abort(403)
     search = request.args.get('q','')
     q = db.query(Contact)
     if not perms.is_admin():

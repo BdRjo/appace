@@ -247,3 +247,8 @@ cd /storage/emulated/0/64in1/ARS_FIXED/Stable_v20
 zip -r /storage/emulated/0/64in1/app_ready.zip .
 pkg install zip
 zip -r /storage/emulated/0/64in1/app_ready.zip .
+cp -r /storage/emulated/0/64in1/app_fixed_v21-3/* .
+git add .
+git commit -m "v21 fixes"
+git push
+git push --set-upstream origin master

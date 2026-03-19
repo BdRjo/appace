@@ -51,7 +51,7 @@
           <a href="{{ url_for('reservations.edit', res_id=res.id) }}" class="btn btn-sm"
              style="background:#5C9BDE;color:#fff;border:none">
             <i class="bi bi-pencil me-1"></i>{% if current_lang=="en" %}Edit{% else %}تعديل{% endif %}
-            {% if res.status == 'approved' %}<small class="opacity-75"><span>{{ _('(يتطلب موافقة)') }}</small>{% endif %}
+            {% if res.status == 'approved' %}<small class="opacity-75"> ({% if current_lang=="en" %}Requires Approval{% else %}يتطلب موافقة{% endif %})</small>{% endif %}
           </a>
           {% endif %}
 

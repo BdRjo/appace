@@ -816,19 +816,22 @@ function closeSidebar(){
 // ── Ticker: preserve animation position across page navigations ──────────────
 (function(){
   const speed = {{ ticker_cfg.speed }} * 1000;
-  const KEY = 'ars_ticker_pos_{{ current_lang }}';
+  const KEY = 'ars_ticker_ts_{{ current_lang }}';
   const tracks = ['tickerTrack','tickerTrackMobile'].map(id=>document.getElementById(id)).filter(Boolean);
   if(!tracks.length) return;
-  // Restore saved delay offset so ticker continues from last position
-  let saved = 0;
-  try { saved = parseFloat(sessionStorage.getItem(KEY) || '0'); } catch(e){}
-  const elapsed = (Date.now() - saved) % speed;
-  const delay = -(elapsed / 1000);
-  tracks.forEach(t => t.style.animationDelay = delay + 's');
-  // Save timestamp on navigation
-  window.addEventListener('beforeunload', () => {
+  let savedTs = 0;
+  try { savedTs = parseInt(sessionStorage.getItem(KEY) || '0', 10); } catch(e){}
+  if(savedTs > 0){
+    const elapsed = (Date.now() - savedTs) % speed;
+    const delaySec = -(elapsed / 1000);
+    tracks.forEach(t => { t.style.animationDelay = delaySec + 's'; });
+  }
+  window.addEventListener('visibilitychange', saveTs);
+  window.addEventListener('pagehide', saveTs);
+  window.addEventListener('beforeunload', saveTs);
+  function saveTs(){
     try { sessionStorage.setItem(KEY, Date.now()); } catch(e){}
-  });
+  }
 })();
 
 // ── Live Users Panel ─────────────────────────────────────────────────────────

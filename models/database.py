@@ -141,6 +141,7 @@ class Checklist(Base):
     id=Column(Integer,primary_key=True); name=Column(String(200),nullable=False)
     name_en=Column(String(200)); description=Column(Text)
     is_template=Column(Boolean,default=False); is_public=Column(Boolean,default=True)
+    color=Column(String(20),default='#0C67EC'); emoji=Column(String(10),default='📋')
     created_by_id=Column(Integer,ForeignKey('users.id')); created_at=Column(DateTime,default=datetime.now)
     creator=relationship('User',foreign_keys=[created_by_id])
     items=relationship('ChecklistItem',back_populates='checklist',cascade='all, delete-orphan',
