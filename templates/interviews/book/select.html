@@ -1,0 +1,221 @@
+{%- set ar = (current_lang == 'ar') -%}
+{% extends 'interviews/_public_base.html' %}
+{% block title %}{% if ar %}اختر المواعيد{% else %}Select Appointments{% endif %} — {{ ev.name }}{% endblock %}
+
+{% block extra_style %}
+.teacher-card{background:white;border-radius:14px;border:2px solid #f1f5f9;
+  transition:all .2s;overflow:hidden}
+.teacher-card:hover{border-color:var(--bc-mid);box-shadow:0 4px 20px rgba(0,0,0,.08)}
+.teacher-card.open{border-color:var(--bc)}
+.teacher-head{padding:18px 20px;cursor:pointer;display:flex;align-items:center;gap:14px}
+.t-avatar{width:44px;height:44px;border-radius:12px;background:var(--bc);
+  color:white;display:flex;align-items:center;justify-content:center;
+  font-weight:700;font-size:1.1rem;flex-shrink:0}
+.slot-btn{
+  padding:8px 14px;border-radius:10px;font-size:.85rem;font-weight:600;
+  border:1.5px solid #e2e8f0;background:white;color:#475569;
+  cursor:pointer;transition:all .15s;
+}
+.slot-btn:hover{border-color:var(--bc);color:var(--bc);background:var(--bc-light)}
+.slot-btn.picked{background:var(--bc);border-color:var(--bc);color:white}
+.slot-btn:disabled{opacity:.4;cursor:default}
+.date-pill{padding:5px 14px;border-radius:100px;font-size:.78rem;font-weight:600;
+  border:1.5px solid #e2e8f0;background:white;color:#64748b;cursor:pointer;transition:all .15s}
+.date-pill.active{background:var(--bc);border-color:var(--bc);color:white}
+.summary-item{background:#f8fafc;border-radius:10px;padding:10px 14px;
+  display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.summary-time{background:var(--bc);color:white;border-radius:7px;
+  padding:3px 10px;font-size:.8rem;font-weight:700;font-family:monospace;white-space:nowrap}
+.sticky-box{position:sticky;top:80px}
+{% endblock %}
+
+{% block pi_ticker %}{% endblock %}
+{% block nav_action %}
+<a href="{{ url_for('interviews.book_welcome') }}" class="text-secondary text-decoration-none d-flex align-items-center gap-1" style="font-size:.9rem">
+  <i class="bi bi-x-lg"></i>
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+
+  {# Steps #}
+  <div class="steps mb-4" style="max-width:400px;{% if not ar %}margin-left:auto;margin-right:auto{% else %}margin-inline:auto{% endif %}">
+    <div class="step active">
+      <div class="step-num">1</div>
+      <div class="step-label">{% if ar %}المواعيد{% else %}Appointments{% endif %}</div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-label">{% if ar %}بياناتك{% else %}Details{% endif %}</div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-label">{% if ar %}تأكيد{% else %}Confirm{% endif %}</div>
+    </div>
+  </div>
+
+  {% if ev.description %}
+  <div class="pi-flash alert alert-info d-flex gap-2 mb-4">
+    <i class="bi bi-info-circle-fill mt-1 flex-shrink-0"></i><span>{{ ev.description }}</span>
+  </div>
+  {% endif %}
+
+  <div class="row g-4">
+    {# Teachers #}
+    <div class="col-12 col-lg-8">
+      <h5 class="fw-700 mb-3" style="color:#0f172a">
+        {% if ar %}اختر المعلم والوقت{% else %}Select a Teacher & Time{% endif %}
+      </h5>
+
+      {% if not teachers %}
+      <div class="pi-card p-5 text-center text-secondary">
+        <i class="bi bi-person-x display-4 opacity-25 d-block mb-3"></i>
+        {% if ar %}لا يوجد معلمون متاحون{% else %}No teachers available for this event{% endif %}
+      </div>
+      {% endif %}
+
+      {% for t in teachers %}
+      {%- set has_slots = teacher_slots.get(t.id, {})|length > 0 -%}
+      <div class="teacher-card mb-3" id="tc-{{ t.id }}">
+        <div class="teacher-head" onclick="toggleT({{ t.id }},{{ 'true' if has_slots else 'false' }})">
+          <div class="t-avatar">{{ t.name[0].upper() }}</div>
+          <div class="flex-grow-1">
+            <div class="fw-700" style="color:#0f172a">{{ t.name }}</div>
+            <div style="font-size:.82rem;color:#64748b">
+              {% if t.subjects %}<i class="bi bi-book me-1"></i>{{ t.subjects }}{% endif %}
+              {% if t.room %}&nbsp;·&nbsp;<i class="bi bi-door-open me-1"></i>
+                {% if ar %}غرفة{% else %}Room{% endif %} {{ t.room }}{% endif %}
+            </div>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge rounded-pill d-none" id="sc-{{ t.id }}"
+                  style="background:var(--bc);font-size:.75rem">0</span>
+            {% if has_slots %}
+            <i class="bi bi-chevron-down text-secondary" id="chv-{{ t.id }}" style="transition:transform .2s"></i>
+            {% else %}
+            <span class="badge rounded-pill bg-light text-secondary border"
+                  style="font-size:.72rem">{% if ar %}محجوز{% else %}Full{% endif %}</span>
+            {% endif %}
+          </div>
+        </div>
+
+        {% if has_slots %}
+        <div id="sp-{{ t.id }}" style="display:none;padding:0 20px 20px">
+          {%- set dates = teacher_slots.get(t.id, {}).keys()|list|sort -%}
+          {% if dates|length > 1 %}
+          <div class="d-flex flex-wrap gap-2 mb-3" id="dt-{{ t.id }}">
+            {% for d in dates %}
+            <button class="date-pill {{ 'active' if loop.first }}"
+                    onclick="showDate({{ t.id }},'{{ d }}',this)">{{ d }}</button>
+            {% endfor %}
+          </div>
+          {% endif %}
+          {% for d in dates %}
+          <div class="slot-date-p" data-t="{{ t.id }}" data-d="{{ d }}"
+               style="{{ 'display:none' if not loop.first }}">
+            <div class="d-flex flex-wrap gap-2">
+              {% for s in teacher_slots[t.id][d] %}
+              <button class="slot-btn" id="s-{{ s.id }}"
+                      onclick="pickSlot({{ t.id }},{{ s.id }},'{{ s.start_time }}','{{ s.end_time }}','{{ d }}','{{ t.name }}',this)">
+                {{ s.start_time }}
+              </button>
+              {% endfor %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
+    {# Summary #}
+    <div class="col-12 col-lg-4">
+      <div class="pi-card sticky-box" id="sum-card">
+        <div class="p-4 border-bottom" style="border-color:#f1f5f9!important">
+          <h6 class="fw-700 mb-0" style="color:#0f172a">
+            {% if ar %}اختياراتك{% else %}Your Selections{% endif %}
+            <span id="sel-count" class="badge rounded-pill ms-2 d-none" style="background:var(--bc)">0</span>
+          </h6>
+        </div>
+        <div class="p-4">
+          <div id="empty-hint" class="text-center py-3" style="color:#94a3b8">
+            <i class="bi bi-hand-index-thumb display-5 opacity-30 d-block mb-2"></i>
+            <small>{% if ar %}اختر وقتاً من المعلمين أعلاه{% else %}Pick a slot from the teachers above{% endif %}</small>
+          </div>
+          <div id="sel-list"></div>
+        </div>
+        <div class="p-4 pt-0" id="proceed-btn" style="display:none">
+          <button class="btn-pi btn w-100" onclick="goConfirm()">
+            {% if ar %}<i class="bi bi-arrow-left-circle me-2"></i>متابعة
+            {% else %}Continue <i class="bi bi-arrow-right-circle ms-2"></i>{% endif %}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<form id="pf" method="get" action="{{ url_for('interviews.book_confirm', event_id=ev.id) }}">
+  <div id="hs"></div>
+</form>
+{% endblock %}
+
+{% block extra_script %}
+<script>
+const BC='{{ ev.brand_color }}', AR={{ 'true' if ar else 'false' }};
+let sel={};
+function toggleT(id,has){
+  if(!has)return;
+  const sp=document.getElementById('sp-'+id),
+        chv=document.getElementById('chv-'+id),
+        tc=document.getElementById('tc-'+id);
+  const open=sp.style.display!=='none';
+  sp.style.display=open?'none':'block';
+  tc.classList.toggle('open',!open);
+  chv.style.transform=open?'':'rotate(180deg)';
+}
+function showDate(tid,d,btn){
+  document.querySelectorAll('#dt-'+tid+' .date-pill').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.slot-date-p[data-t="'+tid+'"]').forEach(p=>p.style.display=p.dataset.d===d?'block':'none');
+}
+function pickSlot(tid,sid,st,et,d,tn,btn){
+  if(sel[sid]){delete sel[sid];btn.classList.remove('picked');}
+  else{sel[sid]={tid,sid,st,et,d,tn};btn.classList.add('picked');}
+  render();
+}
+function render(){
+  const keys=Object.keys(sel);
+  // badges per teacher
+  const c={};keys.forEach(s=>{const t=sel[s].tid;c[t]=(c[t]||0)+1;});
+  document.querySelectorAll('[id^="sc-"]').forEach(el=>{
+    const n=c[el.id.slice(3)]||0;el.textContent=n;el.classList.toggle('d-none',n===0);
+  });
+  const empty=document.getElementById('empty-hint'),
+        list=document.getElementById('sel-list'),
+        btn=document.getElementById('proceed-btn'),
+        cnt=document.getElementById('sel-count');
+  if(!keys.length){empty.style.display='';list.innerHTML='';btn.style.display='none';cnt.classList.add('d-none');return;}
+  empty.style.display='none';btn.style.display='';cnt.classList.remove('d-none');cnt.textContent=keys.length;
+  const sorted=keys.map(s=>sel[s]).sort((a,b)=>(a.d+a.st).localeCompare(b.d+b.st));
+  let html='',pd='';
+  sorted.forEach(s=>{
+    if(s.d!==pd){html+=`<div style="font-size:.75rem;font-weight:600;color:#94a3b8;margin:8px 0 6px">${s.d}</div>`;pd=s.d;}
+    html+=`<div class="summary-item"><span class="summary-time">${s.st}</span>
+      <span class="flex-grow-1" style="font-size:.87rem;font-weight:600;color:#1e293b">${s.tn}</span>
+      <button type="button" onclick="document.getElementById('s-${s.sid}').click()"
+        style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:.9rem;padding:0">
+        <i class="bi bi-x-lg"></i></button></div>`;
+  });
+  list.innerHTML=html;
+}
+function goConfirm(){
+  if(!Object.keys(sel).length){alert(AR?'يرجى اختيار موعد واحد على الأقل':'Please select at least one slot.');return;}
+  const hs=document.getElementById('hs');hs.innerHTML='';
+  Object.keys(sel).forEach(sid=>{const i=document.createElement('input');i.type='hidden';i.name='slots';i.value=sid;hs.appendChild(i);});
+  document.getElementById('pf').submit();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,252 @@
+{# ── _public_base.html ── shared layout for ALL parent-facing interview pages #}
+{# Uses current_lang from context processor (always available) #}
+{%- set ar = (current_lang == 'ar') -%}
+{%- set dir = 'rtl' if ar else 'ltr' -%}
+{%- set mc  = get_maintenance_config() -%}
+{%- set logo  = (ev.school_logo_url if ev is defined and ev is not none and ev.school_logo_url else mc.get('logo_b64','')) -%}
+{%- set ftxt  = mc.get('report_header_footer','') -%}
+{%- set bc    = (ev.brand_color if ev is defined and ev is not none else system_colors.primary) | default('#2563eb') -%}
+<!DOCTYPE html>
+<html lang="{{ current_lang }}" dir="{{ dir }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}{% endblock %}</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css">
+<style>
+:root{--bc:{{ bc }};--bc-light:{{ bc }}18;--bc-mid:{{ bc }}40;}
+*{box-sizing:border-box}
+body{
+  background:linear-gradient(145deg,#eef2ff 0%,#f0f7ff 40%,#e8f4f8 100%);
+  min-height:100vh;display:flex;flex-direction:column;
+  font-family:{% if ar %}'Tajawal','Cairo'{% else %}'Inter','Segoe UI'{% endif %},sans-serif;
+  color:#1e293b;
+  overflow-x:hidden;
+}
+.pi-shell{padding-top:24px;padding-bottom:32px}
+.pi-shell.pi-shell-tight{padding-top:12px}
+main{flex:1}
+
+/* ─ Top nav ─ */
+.pi-nav{
+  background:white;
+  border-bottom:1px solid #e8edf5;
+  padding:14px 0;
+  position:sticky;top:0;z-index:100;
+}
+.pi-nav .brand{font-weight:800;font-size:1.05rem;color:#1e293b;text-decoration:none;display:flex;align-items:center;gap:10px}
+.pi-nav .brand-icon{
+  width:38px;height:38px;border-radius:10px;
+  background:var(--bc);display:flex;align-items:center;justify-content:center;
+  color:white;font-size:1.1rem;flex-shrink:0;
+}
+.pi-nav .brand img{height:32px;max-width:160px;object-fit:contain;border-radius:6px}
+
+/* ─ Cards ─ */
+.pi-card{
+  background:white;border-radius:18px;
+  box-shadow:0 1px 3px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.06);
+  border:1px solid rgba(255,255,255,.8);
+}
+
+/* ─ Step wizard ─ */
+.steps{display:flex;align-items:center;gap:0;margin-bottom:28px}
+.step{display:flex;flex-direction:column;align-items:center;flex:1;position:relative}
+.step:not(:last-child)::after{
+  content:'';position:absolute;
+  top:16px;
+  {% if ar %}right:50%{% else %}left:50%{% endif %};
+  width:100%;height:2px;background:#e2e8f0;z-index:0;
+}
+.step.done::after,.step.active::after{background:var(--bc)}
+.step-num{
+  width:32px;height:32px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.82rem;font-weight:700;position:relative;z-index:1;
+  border:2px solid #e2e8f0;background:white;color:#94a3b8;
+  transition:all .3s;
+}
+.step.done .step-num{background:var(--bc);border-color:var(--bc);color:white}
+.step.active .step-num{background:var(--bc);border-color:var(--bc);color:white;box-shadow:0 0 0 4px var(--bc-light)}
+.step-label{font-size:.72rem;margin-top:5px;color:#94a3b8;font-weight:500}
+.step.active .step-label{color:var(--bc);font-weight:700}
+.step.done .step-label{color:#64748b}
+
+/* ─ Buttons ─ */
+.btn-pi{
+  background:var(--bc);color:white;border:none;border-radius:12px;
+  padding:12px 24px;font-weight:600;font-size:.95rem;
+  transition:all .2s;cursor:pointer;
+}
+.btn-pi:hover{filter:brightness(1.1);transform:translateY(-1px);box-shadow:0 4px 12px var(--bc-mid)}
+.btn-pi:active{transform:translateY(0)}
+.btn-pi-outline{
+  background:white;color:var(--bc);border:2px solid var(--bc);border-radius:12px;
+  padding:11px 24px;font-weight:600;font-size:.95rem;transition:all .2s;
+}
+.btn-pi-outline:hover{background:var(--bc-light)}
+
+/* ─ Form controls ─ */
+.pi-input{
+  border:1.5px solid #e2e8f0;border-radius:10px;padding:12px 16px;
+  font-size:.95rem;width:100%;background:white;transition:all .2s;
+  color:#1e293b;outline:none;
+}
+.pi-input:focus{border-color:var(--bc);box-shadow:0 0 0 4px var(--bc-light)}
+.pi-label{font-size:.85rem;font-weight:600;color:#475569;margin-bottom:6px;display:block}
+
+/* ─ Footer ─ */
+.pi-footer{
+  background:white;border-top:1px solid #e8edf5;
+  padding:16px 0;text-align:center;font-size:.8rem;color:#94a3b8;
+}
+
+/* ─ Flash ─ */
+.pi-flash{border-radius:12px;border:none;font-size:.9rem}
+.pi-flash.alert-success{background:#f0fdf4;color:#166534;border-left:4px solid #22c55e}
+.pi-flash.alert-danger{background:#fef2f2;color:#991b1b;border-left:4px solid #ef4444}
+.pi-flash.alert-warning{background:#fffbeb;color:#92400e;border-left:4px solid #f59e0b}
+.pi-flash.alert-info{background:#eff6ff;color:#1e40af;border-left:4px solid #3b82f6}
+
+/* ─ Print report style ─ */
+@media print{
+  body{background:white!important;font-size:11pt}
+  .pi-nav,.pi-footer,.pi-ticker,.no-print{display:none!important}
+  .pi-card{box-shadow:none!important;border:1px solid #dee2e6!important;page-break-inside:avoid}
+  main{padding:0!important}
+  .container{max-width:100%!important}
+  a{text-decoration:none!important;color:#000!important}
+  .btn,.btn-pi,.btn-pi-outline{display:none!important}
+  /* Report header */
+  .print-header{display:block!important;text-align:center;margin-bottom:20px;padding-bottom:10px;border-bottom:2px solid #000}
+  .print-header h3{margin:0;font-weight:800}
+  .print-header p{margin:4px 0 0;font-size:10pt;color:#666}
+}
+@media screen{.print-header{display:none!important}}
+@media(max-width:576px){
+  .pi-shell{padding-top:14px;padding-bottom:24px}
+  .pi-nav{padding:10px 0}
+  .pi-nav .brand{gap:8px;font-size:.98rem}
+  .pi-nav .brand img{height:28px;max-width:132px}
+}
+
+{% block extra_style %}{% endblock %}
+</style>
+</head>
+<body>
+
+{# ── Navbar ── #}
+<nav class="pi-nav">
+  <div class="container d-flex align-items-center justify-content-between">
+    <a class="brand" href="{{ url_for('interviews.book_welcome') }}">
+      {% if logo %}
+      <img src="{{ logo }}" alt="logo">
+      {% else %}
+      <div class="brand-icon"><i class="bi bi-calendar2-heart-fill"></i></div>
+      {% endif %}
+      <span>
+        {%- if ev is defined and ev is not none and ev.school_name -%}{{ ev.school_name }}
+        {%- elif mc.get('report_header_title') -%}{{ mc.get('report_header_title') }}
+        {%- else -%}{% if ar %}بوابة المقابلات{% else %}Interview Portal{% endif %}
+        {%- endif -%}
+      </span>
+    </a>
+    <div class="d-flex align-items-center gap-2">
+      <span class="d-none d-md-flex align-items-center gap-1" style="font-size:.73rem;color:#94a3b8" id="pi-clock">
+        <i class="bi bi-clock" style="font-size:.7rem"></i>
+        <span id="pi-clock-text"></span>
+      </span>
+      <a href="/set-lang/{{ 'ar' if current_lang == 'en' else 'en' }}"
+         style="background:var(--bc-light);border:1.5px solid var(--bc-mid);color:var(--bc);border-radius:8px;padding:3px 12px;font-size:.78rem;font-weight:700;text-decoration:none">
+        {{ 'ع' if current_lang == 'en' else 'EN' }}
+      </a>
+      {% block nav_action %}{% endblock %}
+    </div>
+  </div>
+</nav>
+
+{% block pi_ticker %}
+{# ── Interview Portal Ticker — fade in/out ── #}
+{% if auth_ticker_cfg and auth_ticker_cfg.feeds %}
+<div class="pi-ticker" style="background:{{ auth_ticker_cfg.bg }};overflow:hidden;height:36px;display:flex;align-items:center;justify-content:center;position:relative;width:100vw;margin-inline:calc(50% - 50vw)">
+  {% for item in auth_ticker_cfg.feeds %}
+  <div class="pi-ticker-item" style="position:absolute;opacity:0;transition:opacity .8s ease;color:{{ auth_ticker_cfg.fg }};font-family:{{ auth_ticker_cfg.font }};font-size:{{ auth_ticker_cfg.size }}px;font-weight:600;white-space:nowrap;padding:0 8px;text-align:center;width:100%;overflow:hidden;text-overflow:ellipsis">
+    {{ item|safe }}
+  </div>
+  {% endfor %}
+</div>
+<script>
+(function(){
+  const items = document.querySelectorAll('.pi-ticker-item');
+  if(!items.length) return;
+  let idx = 0;
+  items[0].style.opacity = '1';
+  if(items.length > 1){
+    setInterval(function(){
+      items[idx].style.opacity = '0';
+      idx = (idx + 1) % items.length;
+      items[idx].style.opacity = '1';
+    }, 4000);
+  }
+})();
+</script>
+{% elif auth_ticker_cfg and auth_ticker_cfg.text %}
+<div class="pi-ticker" style="background:{{ auth_ticker_cfg.bg }};overflow:hidden;height:36px;display:flex;align-items:center;justify-content:center;width:100vw;margin-inline:calc(50% - 50vw)">
+  <span style="color:{{ auth_ticker_cfg.fg }};font-family:{{ auth_ticker_cfg.font }};font-size:{{ auth_ticker_cfg.size }}px;font-weight:600;white-space:nowrap;padding:0 8px;width:100%;text-align:center;overflow:hidden;text-overflow:ellipsis">
+    {{ auth_ticker_cfg.text|safe }}
+  </span>
+</div>
+{% endif %}
+{% endblock %}
+
+{# ── Flash messages ── #}
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div class="container mt-3">
+  {% for cat,msg in messages %}
+  <div class="alert pi-flash alert-{{ cat }} alert-dismissible fade show d-flex align-items-center gap-2">
+    <i class="bi bi-{{ 'check-circle-fill' if cat=='success' else 'exclamation-circle-fill' }}"></i>
+    <span>{{ msg }}</span>
+    <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endwith %}
+
+{# ── Main ── #}
+<main class="pi-shell {% block main_class %}{% endblock %}">
+<div class="print-header">
+  <h3>{%- if ev is defined and ev is not none and ev.school_name -%}{{ ev.school_name }}{%- elif mc.get('report_header_title') -%}{{ mc.get('report_header_title') }}{%- else -%}{% if ar %}بوابة المقابلات{% else %}Interview Portal{% endif %}{%- endif -%}</h3>
+  <p id="print-date"></p>
+</div>
+<script>
+var pd=document.getElementById('print-date');
+if(pd){var ar=document.documentElement.lang==='ar';pd.textContent=new Date().toLocaleDateString(ar?'ar-SA':'en-US',{year:'numeric',month:'long',day:'numeric'});}
+</script>
+{% block content %}{% endblock %}</main>
+
+{# ── Footer ── #}
+<footer class="pi-footer">
+  {% if ftxt %}<div>{{ ftxt }}</div>{% endif %}
+  <div><i class="bi bi-shield-check me-1"></i>{% if ar %}بياناتك محمية ومشفّرة{% else %}Your data is secure and protected{% endif %}</div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+{% block extra_script %}{% endblock %}
+<script>
+(function(){
+  var el = document.getElementById('pi-clock-text');
+  if(!el) return;
+  var ar = document.documentElement.lang === 'ar';
+  function update(){
+    var now = new Date();
+    var opts = {weekday:'short', year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'};
+    el.textContent = now.toLocaleDateString(ar ? 'ar-SA' : 'en-US', opts);
+  }
+  update();
+  setInterval(update, 30000);
+})();
+</script>
+</body></html>

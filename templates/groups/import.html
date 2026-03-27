@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block title %}{% if current_lang=='en' %}Import Groups — ARS{% else %}استيراد المجموعات — ARS{% endif %}{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h1><i class="bi bi-upload me-2"></i>{% if current_lang=='en' %}Import Groups from CSV{% else %}استيراد المجموعات من CSV{% endif %}</h1>
+  <a href="{{ url_for('groups.index') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-right me-1"></i>{{ _('عودة') }}</a>
+</div>
+<div class="row g-4">
+  <div class="col-md-7">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-file-earmark-csv me-2"></i>{% if current_lang=='en' %}Upload CSV File{% else %}رفع ملف CSV{% endif %}</div>
+      <div class="card-body">
+        <form method="POST" enctype="multipart/form-data">
+          <div class="mb-3">
+            <input type="file" name="file" class="form-control" accept=".csv" required>
+          </div>
+          <button type="submit" class="btn btn-primary-ars"><i class="bi bi-upload me-1"></i>{% if current_lang=='en' %}Import Now{% else %}استيراد الآن{% endif %}</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-5">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-info-circle me-2"></i>{% if current_lang=='en' %}CSV Format{% else %}تنسيق الملف{% endif %}</div>
+      <div class="card-body small">
+        <p>{% if current_lang=='en' %}Required columns:{% else %}الأعمدة المطلوبة:{% endif %}</p>
+        <table class="table table-sm">
+          <thead><tr><th>{% if current_lang=='en' %}Column{% else %}العمود{% endif %}</th><th>{% if current_lang=='en' %}Description{% else %}الوصف{% endif %}</th></tr></thead>
+          <tbody>
+            <tr><td><code>group_name</code></td><td>{% if current_lang=='en' %}Group name (required){% else %}اسم المجموعة (مطلوب){% endif %}</td></tr>
+            <tr><td><code>description</code></td><td>{% if current_lang=='en' %}Description (optional){% else %}الوصف (اختياري){% endif %}</td></tr>
+            <tr><td><code>contact_emails</code></td><td>{% if current_lang=='en' %}Emails separated by commas{% else %}إيميلات مفصولة بفواصل{% endif %}</td></tr>
+            <tr><td><code>user_usernames</code></td><td>{% if current_lang=='en' %}Usernames separated by commas{% else %}أسماء مستخدمين مفصولة بفواصل{% endif %}</td></tr>
+          </tbody>
+        </table>
+        <div class="mt-2 p-2 rounded" style="background:#EEF4FD;font-family:monospace;font-size:.75rem">
+          group_name,description,contact_emails,user_usernames<br>
+          Management,Head team,a@b.com,admin<br>
+          IT Team,,c@d.com,user1
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

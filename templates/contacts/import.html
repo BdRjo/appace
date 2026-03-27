@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}{% if current_lang=="en" %}Import Contacts — ARS{% else %}استيراد جهات الاتصال — ARS{% endif %}{% endblock %}
+{% block content %}
+<div class="page-header"><h1><i class="bi bi-upload me-2"></i>{% if current_lang=='en' %}Import Contacts from CSV{% else %}استيراد جهات الاتصال من CSV{% endif %}</h1></div>
+
+<div class="row g-4">
+  <div class="col-md-7">
+    <div class="card">
+      <div class="card-header">{% if current_lang=='en' %}Import CSV{% else %}استيراد CSV{% endif %}</div>
+      <div class="card-body">
+        <div class="alert alert-info">
+          {% if current_lang=="en" %}
+            💡 File must contain these columns:<br>
+            <code>first_name, last_name, email, phone</code><br>
+            <span class="text-muted small">Optional: job_title, department, company, notes</span>
+          {% else %}
+            💡 يجب أن يحتوي الملف على الأعمدة التالية:<br>
+            <code>first_name, last_name, email, phone</code><br>
+            <span class="text-muted small">اختيارية: job_title, department, company, notes</span>
+          {% endif %}
+        </div>
+
+        <div class="mb-3">
+          <a href="{{ url_for('contacts.csv_template') }}" class="btn btn-sm btn-outline-info">
+            <i class="bi bi-download me-1"></i>{% if current_lang=="en" %}Download CSV Template{% else %}تحميل نموذج CSV{% endif %}
+          </a>
+        </div>
+
+        <form method="POST" enctype="multipart/form-data">
+          <div class="mb-4">
+            <label class="form-label fw-bold">{% if current_lang=='en' %}Select CSV file{% else %}اختر ملف CSV{% endif %}</label>
+            <input type="file" name="csv_file" class="form-control" accept=".csv" required>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary-ars">
+              <i class="bi bi-upload me-1"></i>{% if current_lang=="en" %}Import{% else %}استيراد{% endif %}
+            </button>
+            <a href="{{ url_for('contacts.index') }}" class="btn btn-outline-secondary">{% if current_lang=='en' %}Cancel{% else %}إلغاء{% endif %}</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-5">
+    <div class="card">
+      <div class="card-header">{% if current_lang=='en' %}📋 File Columns{% else %}📋 أعمدة الملف{% endif %}</div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <thead><tr style="background:#f4f7ff"><th class="ps-3">{% if current_lang=='en' %}Column{% else %}العمود{% endif %}</th><th>{% if current_lang=='en' %}Description{% else %}وصف{% endif %}</th><th>{% if current_lang=='en' %}Required{% else %}إلزامي{% endif %}</th></tr></thead>
+          <tbody>
+            <tr><td class="ps-3"><code>first_name</code></td><td>{% if current_lang=='en' %}First Name{% else %}الاسم الأول{% endif %}</td><td><span class="badge bg-danger">✓</span></td></tr>
+            <tr><td class="ps-3"><code>last_name</code></td><td>{% if current_lang=='en' %}Last Name{% else %}اسم العائلة{% endif %}</td><td><span class="badge bg-secondary">—</span></td></tr>
+            <tr><td class="ps-3"><code>email</code></td><td>{% if current_lang=='en' %}Email{% else %}البريد الإلكتروني{% endif %}</td><td><span class="badge bg-secondary">—</span></td></tr>
+            <tr><td class="ps-3"><code>phone</code></td><td>{% if current_lang=='en' %}Phone{% else %}رقم الهاتف{% endif %}</td><td><span class="badge bg-secondary">—</span></td></tr>
+            <tr class="table-info"><td class="ps-3"><code>job_title</code></td><td>{% if current_lang=="en" %}Job Title{% else %}المسمى الوظيفي{% endif %}</td><td><span class="badge bg-secondary">—</span></td></tr>
+            <tr class="table-info"><td class="ps-3"><code>department</code></td><td>{% if current_lang=="en" %}Department{% else %}الدائرة{% endif %}</td><td><span class="badge bg-secondary">—</span></td></tr>
+            <tr><td class="ps-3"><code>company</code></td><td>{% if current_lang=="en" %}Company{% else %}الشركة / الجهة{% endif %}</td><td><span class="badge bg-secondary">—</span></td></tr>
+            <tr><td class="ps-3"><code>notes</code></td><td>{% if current_lang=='en' %}Notes{% else %}ملاحظات{% endif %}</td><td><span class="badge bg-secondary">—</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

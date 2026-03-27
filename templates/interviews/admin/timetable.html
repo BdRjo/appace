@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% block content %}
+{%- set ar = (current_lang == 'ar') -%}
+<style>
+.pi-card{background:white;border-radius:14px;border:1.5px solid #f1f5f9}
+.slot-cell{border-radius:8px;padding:8px 10px;font-size:.78rem;margin-bottom:4px;border-left:3px solid {{ ev.brand_color }}}
+.slot-cell.booked{background:#f0fdf4;border-color:#22c55e}
+.slot-cell.free{background:#f8fafc;border-color:#e2e8f0}
+.slot-cell.break{background:#fffbeb;border-color:#f59e0b;opacity:.7}
+@media print{.no-print{display:none!important}body{background:white!important}.pi-card{box-shadow:none!important}}
+</style>
+
+<div class="container-fluid py-4">
+  <div class="d-flex align-items-center gap-2 mb-4 flex-wrap">
+    <a href="{{ url_for('interviews.admin_teachers', event_id=ev.id) }}" class="text-muted text-decoration-none" style="font-size:.85rem">{{ ev.name }}</a>
+    <i class="bi bi-chevron-{{ 'left' if ar else 'right' }} text-muted" style="font-size:.7rem"></i>
+    <span class="fw-600" style="font-size:.85rem;color:#0f172a">{% if ar %}الجدول الزمني{% else %}Timetable{% endif %}</span>
+    <div class="ms-auto no-print">
+      <button onclick="window.print()" class="btn btn-sm rounded-3"
+              style="background:#f8fafc;color:#475569;border:1.5px solid #e2e8f0">
+        <i class="bi bi-printer me-1"></i>{% if ar %}طباعة{% else %}Print{% endif %}
+      </button>
+    </div>
+  </div>
+
+  <div class="mb-3 no-print" style="background:linear-gradient(135deg,{{ ev.brand_color }}18,{{ ev.brand_color }}08);border-radius:12px;padding:16px 20px;border:1.5px solid {{ ev.brand_color }}30">
+    <div class="fw-700" style="color:#0f172a">{{ ev.school_name or ev.name }}</div>
+    <div style="font-size:.82rem;color:#64748b">
+      <span class="badge text-white me-2" style="background:{{ ev.brand_color }};font-family:monospace">{{ ev.event_code }}</span>
+      {{ teachers|length }} {% if ar %}معلم{% else %}teachers{% endif %} ·
+      {% if dates %}{{ dates|first }}{% if dates|length > 1 %} – {{ dates|last }}{% endif %}{% endif %}
+    </div>
+  </div>
+
+  {% for date in dates %}
+  <h6 class="fw-700 mb-3 mt-4" style="color:#0f172a">📅 {{ date }}</h6>
+  <div class="row g-3 mb-2">
+    {% for t in teachers %}
+    {% if timetable.get(date, {}).get(t.id) %}
+    <div class="col-12 col-md-6 col-xl-4">
+      <div class="pi-card p-3">
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <div style="width:34px;height:34px;border-radius:9px;background:{{ ev.brand_color }};
+               color:white;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">
+            {{ t.name[0].upper() }}
+          </div>
+          <div>
+            <div class="fw-700" style="font-size:.9rem;color:#0f172a">{{ t.name }}</div>
+            {% if t.room %}<div style="font-size:.75rem;color:#64748b">{% if ar %}غرفة{% else %}Rm{% endif %} {{ t.room }}</div>{% endif %}
+          </div>
+        </div>
+        {% for slot in timetable[date][t.id] %}
+        {% set cls = 'break' if slot.is_break else ('booked' if slot.is_booked else 'free') %}
+        <div class="slot-cell {{ cls }}">
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="fw-600 font-monospace">{{ slot.start_time }}</span>
+            {% if slot.is_break %}
+            <span class="badge bg-warning text-dark" style="font-size:.65rem">{% if ar %}استراحة{% else %}Break{% endif %}</span>
+            {% elif slot.is_booked and slot.booking %}
+            <span style="font-size:.75rem;color:#166534;font-weight:600">{{ slot.booking.child_name }}</span>
+            {% else %}
+            <span style="font-size:.72rem;color:#94a3b8">{% if ar %}متاح{% else %}Free{% endif %}</span>
+            {% endif %}
+          </div>
+          {% if slot.is_booked and slot.booking %}
+          <div style="font-size:.72rem;color:#475569;margin-top:2px">
+            {{ slot.booking.parent_name }}
+            {% if slot.booking.parent_phone %}<span style="color:#94a3b8"> &middot; {{ slot.booking.parent_phone }}</span>{% endif %}
+            {% if slot.booking.parent_email %}<div style="color:#94a3b8;font-size:.68rem">{{ slot.booking.parent_email }}</div>{% endif %}
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% endfor %}
+
+  {% if not dates %}
+  <div class="pi-card p-5 text-center" style="color:#94a3b8">
+    <i class="bi bi-calendar-x display-4 opacity-25 d-block mb-3"></i>
+    {% if ar %}لا توجد فترات محددة بعد{% else %}No time slots generated yet{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

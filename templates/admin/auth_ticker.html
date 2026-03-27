@@ -1,0 +1,209 @@
+{% extends 'base.html' %}
+{% block title %}{% if current_lang=='en' %}Auth Pages Ticker — ARS{% else %}تيكر صفحات الدخول — ARS{% endif %}{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h1><i class="bi bi-megaphone me-2"></i>{% if current_lang=='en' %}Auth Pages Ticker{% else %}تيكر صفحات الدخول والتسجيل{% endif %}</h1>
+  <a href="{{ url_for('admin.maintenance') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-right me-1"></i>{{ _('الصيانة') }}
+  </a>
+</div>
+
+<div class="alert alert-info small mb-4">
+  <i class="bi bi-info-circle me-2"></i>
+  {% if current_lang=='en' %}
+  This ticker appears on Login, Register, Forgot Password and Verify Email pages. Supports <strong>HTML, CSS, emoji and JavaScript</strong>.
+  {% else %}
+  هذا التيكر يظهر في صفحات الدخول والتسجيل ونسيت كلمة المرور والتحقق. يدعم <strong>HTML وCSS والإيموجي وJavaScript</strong>.
+  {% endif %}
+</div>
+
+<!-- Live Preview -->
+<div class="card mb-4" style="background:linear-gradient(135deg,#0C67EC,#0847B0);border-radius:14px;overflow:hidden">
+  <div class="card-body p-3">
+    <div class="text-white small opacity-75 mb-2">{% if current_lang=='en' %}Live Preview:{% else %}معاينة مباشرة:{% endif %}</div>
+    <div style="overflow:hidden;height:36px;background:transparent;border-radius:8px;display:flex;align-items:center">
+      <div id="previewTrack" style="display:inline-flex;align-items:center;white-space:nowrap;animation:previewScroll 20s linear infinite">
+        <span id="previewText" style="color:#fff;font-weight:600;padding:0 40px;font-size:14px">
+          {% if current_lang=='ar' %}{{ (ticker.feeds_ar or [''])|join(' ◆ ')|safe }}
+          {% else %}{{ (ticker.feeds_en or [''])|join(' ◆ ')|safe }}{% endif %}
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Messages AR -->
+  <div class="col-12 col-lg-6">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-chat-right-text me-2"></i>{% if current_lang=='en' %}Arabic Messages{% else %}الرسائل بالعربي{% endif %}</div>
+      <div class="card-body">
+        <form method="POST" class="mb-3">
+          <input type="hidden" name="action" value="add_ar">
+          <div class="mb-2 d-flex align-items-center gap-2">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" id="htmlAR" onchange="togglePreview('ar')">
+              <label class="form-check-label small" for="htmlAR">HTML mode</label>
+            </div>
+          </div>
+          <div class="d-flex gap-2 mb-2">
+            <input type="text" name="text_ar" id="inputAR" class="form-control"
+                   placeholder="{% if current_lang=='en' %}Arabic message...{% else %}رسالة بالعربي...{% endif %}" required>
+            <button class="btn btn-primary-ars flex-shrink-0">{{ _('إضافة') }}</button>
+          </div>
+          <div id="previewAR" class="p-2 border rounded small d-none" style="background:#f8f9fa;min-height:32px"></div>
+        </form>
+        <div class="list-group" style="max-height:300px;overflow-y:auto">
+          {% for msg in ticker.feeds_ar or [] %}
+          <div class="list-group-item py-2" style="overflow:hidden">
+            <div class="d-flex align-items-start gap-2">
+              <div class="flex-grow-1" style="min-width:0;overflow:hidden">
+                <div class="text-muted small mb-1" style="font-family:monospace;font-size:.7rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ msg }}">{{ msg[:120] }}{% if msg|length > 120 %}…{% endif %}</div>
+                <div style="padding:3px 8px;background:#f8f9fa;border-radius:4px;border-right:3px solid var(--primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ msg|safe }}</div>
+              </div>
+              <form method="POST" class="ms-1 flex-shrink-0">
+                <input type="hidden" name="action" value="del_ar">
+                <input type="hidden" name="idx" value="{{ loop.index0 }}">
+                <button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="return confirm(this.dataset.msg)" data-msg="{% if current_lang=='en' %}Delete?{% else %}حذف؟{% endif %}"><i class="bi bi-trash"></i></button>
+              </form>
+            </div>
+          </div>
+          {% else %}
+          <p class="text-muted small p-2 mb-0">{{ _('لا توجد رسائل') }}</p>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Messages EN -->
+  <div class="col-12 col-lg-6">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-chat-right-text me-2"></i>{% if current_lang=='en' %}English Messages{% else %}الرسائل بالإنجليزي{% endif %}</div>
+      <div class="card-body">
+        <form method="POST" class="mb-3">
+          <input type="hidden" name="action" value="add_en">
+          <div class="mb-2 d-flex align-items-center gap-2">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" id="htmlEN" onchange="togglePreview('en')">
+              <label class="form-check-label small" for="htmlEN">HTML mode</label>
+            </div>
+          </div>
+          <div class="d-flex gap-2 mb-2">
+            <input type="text" name="text_en" id="inputEN" class="form-control" placeholder="English message..." required>
+            <button class="btn btn-primary-ars flex-shrink-0">Add</button>
+          </div>
+          <div id="previewEN" class="p-2 border rounded small d-none" style="background:#f8f9fa;min-height:32px"></div>
+        </form>
+        <div class="list-group" style="max-height:300px;overflow-y:auto">
+          {% for msg in ticker.feeds_en or [] %}
+          <div class="list-group-item py-2" style="overflow:hidden">
+            <div class="d-flex align-items-start gap-2">
+              <div class="flex-grow-1" style="min-width:0;overflow:hidden">
+                <div class="text-muted small mb-1" style="font-family:monospace;font-size:.7rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ msg }}">{{ msg[:120] }}{% if msg|length > 120 %}…{% endif %}</div>
+                <div style="padding:3px 8px;background:#f8f9fa;border-radius:4px;border-left:3px solid var(--primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ msg|safe }}</div>
+              </div>
+              <form method="POST" class="ms-1 flex-shrink-0">
+                <input type="hidden" name="action" value="del_en">
+                <input type="hidden" name="idx" value="{{ loop.index0 }}">
+                <button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="return confirm(this.dataset.msg)" data-msg="{% if current_lang=='en' %}Delete?{% else %}حذف؟{% endif %}"><i class="bi bi-trash"></i></button>
+              </form>
+            </div>
+          </div>
+          {% else %}
+          <p class="text-muted small p-2 mb-0">No messages yet.</p>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Style settings -->
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-palette me-2"></i>{% if current_lang=='en' %}Style Settings{% else %}إعدادات الشكل{% endif %}</div>
+      <div class="card-body">
+        <form method="POST">
+          <input type="hidden" name="action" value="style">
+          <div class="row g-3 align-items-end">
+            <div class="col-6 col-md-2">
+              <label class="form-label fw-bold small">{% if current_lang=='en' %}Text Color{% else %}لون النص{% endif %}</label>
+              <input type="color" name="fg" class="form-control form-control-color w-100" value="{{ ticker.fg or '#ffffff' }}">
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label fw-bold small">{% if current_lang=='en' %}Font{% else %}الخط{% endif %}</label>
+              <select name="font" class="form-select">
+                {% for f in ['Tajawal','Cairo','Noto Sans Arabic','Tahoma','Arial'] %}
+                <option value="{{ f }}" {% if ticker.font == f %}selected{% endif %}>{{ f }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label fw-bold small">{% if current_lang=='en' %}Size (px){% else %}الحجم{% endif %}</label>
+              <input type="number" name="size" class="form-control" value="{{ ticker.size or 14 }}" min="10" max="24">
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label fw-bold small">{% if current_lang=='en' %}Speed (s){% else %}السرعة (ث){% endif %}</label>
+              <input type="number" name="speed" class="form-control" value="{{ ticker.speed or 35 }}" min="10" max="120">
+            </div>
+            <div class="col-12 col-md-3">
+              <button type="submit" class="btn btn-primary-ars w-100">
+                <i class="bi bi-check-lg me-1"></i>{{ _('حفظ الإعدادات') }}
+              </button>
+            </div>
+          </div>
+          <hr class="my-3">
+          <div class="row g-3 align-items-end">
+            <div class="col-12 col-md-5">
+              <label class="form-label fw-bold small">{% if current_lang=='en' %}Separator Image URL (replaces ◆){% else %}صورة الفاصل بين الرسائل (بدل ◆){% endif %}</label>
+              <input type="url" name="sep_img_url" class="form-control"
+                     value="{{ ticker.get('sep_img_url','') }}"
+                     placeholder="https://example.com/avatar.png">
+              {% if ticker.get('sep_img_url') %}
+              <div class="mt-1"><img src="{{ ticker.get('sep_img_url') }}" style="width:24px;height:24px;border-radius:50%;object-fit:contain" alt="sep"> <span class="text-muted small">{% if current_lang=='en' %}Current{% else %}الحالي{% endif %}</span></div>
+              {% endif %}
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label fw-bold small">
+                {% if current_lang=='en' %}Edge Fade %{% else %}نسبة تلاشي الأطراف{% endif %}:
+                <strong id="fadeVal">{{ ticker.get('mask_fade',12) }}%</strong>
+              </label>
+              <input type="range" name="mask_fade" class="form-range"
+                     min="0" max="30" step="1" value="{{ ticker.get('mask_fade',12) }}"
+                     oninput="document.getElementById('fadeVal').textContent=this.value+'%'">
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes previewScroll { 0%{transform:translateX(100%)} 100%{transform:translateX(-100%)} }
+</style>
+{% endblock %}
+{% block extra_js %}
+<script>
+function togglePreview(lang) {
+  const id = lang === 'ar' ? 'AR' : 'EN';
+  const cb = document.getElementById('html' + id);
+  const inp = document.getElementById('input' + id);
+  const prev = document.getElementById('preview' + id);
+  if (cb.checked) {
+    prev.classList.remove('d-none');
+    inp.addEventListener('input', () => prev.innerHTML = inp.value);
+    prev.innerHTML = inp.value;
+  } else {
+    prev.classList.add('d-none');
+  }
+}
+// Update live preview on input
+['AR','EN'].forEach(id => {
+  const inp = document.getElementById('input' + id);
+  if (inp) inp.addEventListener('input', () => {
+    document.getElementById('previewText').innerHTML = inp.value;
+  });
+});
+</script>
+{% endblock %}

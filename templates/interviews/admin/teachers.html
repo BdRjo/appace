@@ -1,0 +1,276 @@
+{% extends 'base.html' %}
+{% block content %}
+{%- set ar = (current_lang == 'ar') -%}
+<style>
+.pi-card{background:white;border-radius:14px;border:1.5px solid #f1f5f9;overflow:hidden}
+.t-avatar{width:38px;height:38px;border-radius:10px;background:{{ ev.brand_color }};
+  color:white;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0}
+.slot-stat{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:100px;font-size:.75rem;font-weight:600}
+.fi-input{border:1.5px solid #e2e8f0;border-radius:10px;padding:9px 13px;width:100%;
+  font-size:.88rem;outline:none;transition:border-color .2s}
+.fi-input:focus{border-color:{{ ev.brand_color }}}
+.fi-label{font-size:.8rem;font-weight:600;color:#475569;margin-bottom:5px;display:block}
+.btn-bc{background:{{ ev.brand_color }};color:white;border:none;border-radius:10px;
+  padding:9px 18px;font-weight:600;font-size:.88rem;cursor:pointer;transition:all .15s}
+.btn-bc:hover{filter:brightness(1.1)}
+</style>
+
+<div class="container-fluid py-4">
+  {# Breadcrumb #}
+  <div class="d-flex align-items-center gap-2 mb-4 flex-wrap">
+    <a href="{{ url_for('interviews.admin_index') }}" class="text-muted text-decoration-none" style="font-size:.85rem">
+      {% if ar %}المقابلات{% else %}Interviews{% endif %}
+    </a>
+    <i class="bi bi-chevron-{{ 'left' if ar else 'right' }} text-muted" style="font-size:.7rem"></i>
+    <span class="fw-600" style="font-size:.85rem;color:#0f172a">{{ ev.name }}</span>
+    <div class="ms-auto d-flex gap-2 flex-wrap">
+      <a href="{{ url_for('interviews.admin_bookings', event_id=ev.id) }}"
+         class="btn btn-sm rounded-3" style="background:#f0fdf4;color:#16a34a;border:1.5px solid #bbf7d0">
+        <i class="bi bi-calendar-check me-1"></i>{% if ar %}الحجوزات{% else %}Bookings{% endif %}
+        <span class="badge rounded-pill ms-1" style="background:#16a34a">{{ slot_stats.values()|sum(attribute='booked') }}</span>
+      </a>
+      <a href="{{ url_for('interviews.admin_timetable', event_id=ev.id) }}"
+         class="btn btn-sm rounded-3" style="background:#eff6ff;color:#0284c7;border:1.5px solid #bfdbfe">
+        <i class="bi bi-table me-1"></i>{% if ar %}الجدول{% else %}Timetable{% endif %}
+      </a>
+      <a href="{{ url_for('interviews.admin_event_edit', event_id=ev.id) }}"
+         class="btn btn-sm rounded-3" style="background:#f8fafc;color:#475569;border:1.5px solid #e2e8f0">
+        <i class="bi bi-pencil me-1"></i>{% if ar %}تعديل الحدث{% else %}Edit Event{% endif %}
+      </a>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    {# Teachers list #}
+    <div class="col-12 col-xl-8">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h6 class="fw-700 mb-0" style="color:#0f172a">
+          <i class="bi bi-person-badge me-2" style="color:{{ ev.brand_color }}"></i>
+          {% if ar %}المعلمون ({{ teachers|length }}){% else %}Teachers ({{ teachers|length }}){% endif %}
+        </h6>
+        {# CSV import #}
+        <form method="post" action="{{ url_for('interviews.admin_teacher_import') }}" enctype="multipart/form-data"
+              class="d-flex align-items-center gap-2">
+          <input type="hidden" name="event_id" value="{{ ev.id }}">
+          <input type="file" name="csv_file" accept=".csv" class="d-none" id="csv-file"
+                 onchange="this.form.submit()">
+          <button type="button" onclick="document.getElementById('csv-file').click()"
+                  class="btn btn-sm rounded-3" style="background:#f8fafc;color:#475569;border:1.5px solid #e2e8f0;font-size:.8rem">
+            <i class="bi bi-filetype-csv me-1"></i>{% if ar %}استيراد CSV{% else %}Import CSV{% endif %}
+          </button>
+        </form>
+      </div>
+
+      {% if not teachers %}
+      <div class="pi-card p-5 text-center" style="color:#94a3b8">
+        <i class="bi bi-person-plus display-4 opacity-25 d-block mb-3"></i>
+        {% if ar %}أضف معلمين لهذا الحدث{% else %}Add teachers to this event{% endif %}
+      </div>
+      {% endif %}
+
+      {% for t in teachers %}
+      {%- set ss=slot_stats.get(t.id,{'total':0,'booked':0}) -%}
+      {%- set pct=(ss.booked*100//ss.total) if ss.total else 0 -%}
+      <div class="pi-card mb-3">
+        <div class="p-4">
+          <div class="d-flex align-items-start gap-3">
+            <div class="t-avatar">{{ t.name[0].upper() }}</div>
+            <div class="flex-grow-1">
+              <div class="fw-700" style="color:#0f172a">{{ t.name }}</div>
+              <div style="font-size:.8rem;color:#64748b">
+                {% if t.subjects %}<i class="bi bi-book me-1"></i>{{ t.subjects }}{% endif %}
+                {% if t.room %} · <i class="bi bi-door-open me-1"></i>{% if ar %}غرفة{% else %}Room{% endif %} {{ t.room }}{% endif %}
+                {% if t.email %} · <i class="bi bi-envelope me-1"></i>{{ t.email }}{% endif %}
+              </div>
+              <div class="d-flex gap-2 mt-2 flex-wrap align-items-center">
+                <span class="slot-stat" style="background:#f0f0ff;color:#6366f1">
+                  <i class="bi bi-clock"></i>{{ ss.total }} {% if ar %}فترة{% else %}slots{% endif %}
+                </span>
+                <span class="slot-stat" style="background:#f0fdf4;color:#16a34a">
+                  <i class="bi bi-check2"></i>{{ ss.booked }} {% if ar %}محجوز{% else %}booked{% endif %}
+                </span>
+                {% if ss.total %}
+                <div class="flex-grow-1" style="max-width:100px;height:5px;background:#e2e8f0;border-radius:100px;overflow:hidden">
+                  <div style="height:100%;width:{{ pct }}%;background:{{ ev.brand_color }};border-radius:100px"></div>
+                </div>
+                {% endif %}
+                {# Teacher link + code #}
+                {% if t.teacher_code %}
+                <a href="{{ url_for('interviews.teacher_timetable', teacher_code=t.teacher_code) }}" target="_blank"
+                   class="slot-stat" style="background:#f8fafc;color:#475569;text-decoration:none;font-size:.72rem">
+                  <i class="bi bi-link-45deg"></i>{{ t.teacher_code }}
+                </a>
+                {% endif %}
+              </div>
+            </div>
+
+            {# Actions #}
+            <div class="d-flex flex-column gap-1">
+              <button class="btn btn-sm rounded-3" style="background:#f5f3ff;color:#6366f1;border:1.5px solid #e0e7ff;font-size:.78rem"
+                      onclick="toggleSlotForm({{ t.id }})">
+                <i class="bi bi-calendar-plus"></i>
+              </button>
+              <button class="btn btn-sm rounded-3" style="background:#f8fafc;color:#475569;border:1.5px solid #e2e8f0;font-size:.78rem"
+                      onclick="toggleEditForm({{ t.id }})">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <form method="post" action="{{ url_for('interviews.admin_teacher_delete', tid=t.id) }}"
+                    onsubmit="return confirm('{% if ar %}حذف هذا المعلم؟{% else %}Delete this teacher?{% endif %}')">
+                <button type="submit" class="btn btn-sm rounded-3 w-100"
+                        style="background:#fff5f5;color:#dc2626;border:1.5px solid #fecaca;font-size:.78rem">
+                  <i class="bi bi-trash3"></i>
+                </button>
+              </form>
+            </div>
+          </div>
+
+          {# Generate slots form #}
+          <div id="slot-form-{{ t.id }}" class="mt-3 pt-3 border-top" style="display:none;border-color:#f1f5f9!important">
+            <div class="fw-600 mb-3" style="font-size:.85rem;color:#6366f1">
+              <i class="bi bi-calendar-plus me-1"></i>
+              {% if ar %}توليد الفترات — {{ t.name }}{% else %}Generate Slots — {{ t.name }}{% endif %}
+            </div>
+            <form method="post" action="{{ url_for('interviews.admin_generate_slots', tid=t.id) }}">
+              <div class="row g-2">
+                <div class="col-6 col-md-3">
+                  <label class="fi-label">{% if ar %}التاريخ{% else %}Date{% endif %}</label>
+                  <select name="slot_date" class="fi-input">
+                    {% for d in dates %}
+                    <option value="{{ d }}">{{ d }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-6 col-md-2">
+                  <label class="fi-label">{% if ar %}من{% else %}From{% endif %}</label>
+                  <input type="time" name="start_time" class="fi-input" value="08:00">
+                </div>
+                <div class="col-6 col-md-2">
+                  <label class="fi-label">{% if ar %}إلى{% else %}To{% endif %}</label>
+                  <input type="time" name="end_time" class="fi-input" value="16:00">
+                </div>
+                <div class="col-6 col-md-2">
+                  <label class="fi-label">{% if ar %}مدة (د){% else %}Duration{% endif %}</label>
+                  <input type="number" name="duration" class="fi-input" value="{{ ev.slot_duration }}" min="1" max="60">
+                </div>
+                <div class="col-6 col-md-2">
+                  <label class="fi-label">{% if ar %}استراحة{% else %}Break{% endif %}</label>
+                  <input type="number" name="break_duration" class="fi-input" value="{{ ev.break_duration }}" min="0">
+                </div>
+                <input type="hidden" name="breaks" value="[]">
+                <div class="col-12 col-md-1 d-flex align-items-end">
+                  <button type="submit" class="btn-bc w-100">
+                    <i class="bi bi-lightning-fill"></i>
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          {# Edit teacher form #}
+          <div id="edit-form-{{ t.id }}" class="mt-3 pt-3 border-top" style="display:none;border-color:#f1f5f9!important">
+            <form method="post" action="{{ url_for('interviews.admin_teacher_edit', tid=t.id) }}">
+              <div class="row g-2">
+                <div class="col-md-3"><input type="text" name="name" class="fi-input" value="{{ t.name }}" placeholder="{% if ar %}الاسم{% else %}Name{% endif %}" required></div>
+                <div class="col-md-3"><input type="text" name="subjects" class="fi-input" value="{{ t.subjects or '' }}" placeholder="{% if ar %}المادة{% else %}Subjects{% endif %}"></div>
+                <div class="col-md-2"><input type="text" name="room" class="fi-input" value="{{ t.room or '' }}" placeholder="{% if ar %}الغرفة{% else %}Room{% endif %}"></div>
+                <div class="col-md-3"><input type="email" name="email" class="fi-input" value="{{ t.email or '' }}" placeholder="Email"></div>
+                <div class="col-md-1"><button type="submit" class="btn-bc w-100"><i class="bi bi-check-lg"></i></button></div>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {# Add teacher form #}
+    <div class="col-12 col-xl-4">
+      <div class="pi-card p-4">
+        <h6 class="fw-700 mb-4" style="color:#0f172a">
+          <i class="bi bi-person-plus me-2" style="color:{{ ev.brand_color }}"></i>
+          {% if ar %}إضافة معلم{% else %}Add Teacher{% endif %}
+        </h6>
+        <form method="post" action="{{ url_for('interviews.admin_teacher_add', event_id=ev.id) }}">
+          <div class="mb-3">
+            <label class="fi-label">{% if ar %}الاسم *{% else %}Name *{% endif %}</label>
+            <input type="text" name="name" class="fi-input"
+                   placeholder="{% if ar %}اسم المعلم{% else %}Teacher name{% endif %}" required>
+          </div>
+          <div class="mb-3">
+            <label class="fi-label">{% if ar %}المادة / التخصص{% else %}Subject / Specialization{% endif %}</label>
+            <input type="text" name="subjects" class="fi-input"
+                   placeholder="{% if ar %}مثال: رياضيات، علوم{% else %}e.g. Math, Science{% endif %}">
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="fi-label">{% if ar %}رقم الغرفة{% else %}Room{% endif %}</label>
+              <input type="text" name="room" class="fi-input" placeholder="{% if ar %}مثال: A101{% else %}e.g. A101{% endif %}">
+            </div>
+            <div class="col-6">
+              <label class="fi-label">{% if ar %}البريد الإلكتروني{% else %}Email{% endif %}</label>
+              <input type="email" name="email" class="fi-input" placeholder="teacher@...">
+            </div>
+          </div>
+          <button type="submit" class="btn-bc btn w-100">
+            <i class="bi bi-plus-lg me-2"></i>{% if ar %}إضافة معلم{% else %}Add Teacher{% endif %}
+          </button>
+        </form>
+      </div>
+
+      {# CSV Slot Import #}
+      <div class="card border-0 mt-3" style="border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+        <div class="card-body">
+          <h6 class="fw-700 mb-3"><i class="bi bi-clock me-2" style="color:#d97706"></i>{% if ar %}استيراد فترات زمنية من CSV{% else %}Import Time Slots from CSV{% endif %}</h6>
+          <div class="d-flex gap-2 mb-2">
+            <a href="{{ url_for('interviews.admin_slots_template', event_id=ev.id) }}" class="btn btn-sm btn-outline-secondary rounded-3">
+              <i class="bi bi-download me-1"></i>{% if ar %}تحميل القالب{% else %}Download Template{% endif %}
+            </a>
+          </div>
+          <form method="post" action="{{ url_for('interviews.admin_slots_import', event_id=ev.id) }}" enctype="multipart/form-data">
+            <div class="d-flex gap-2 align-items-center">
+              <input type="file" name="csv_file" accept=".csv" class="form-control form-control-sm" required>
+              <button class="btn btn-sm btn-warning rounded-3 px-3"><i class="bi bi-upload me-1"></i>{% if ar %}استيراد{% else %}Import{% endif %}</button>
+            </div>
+            <small class="text-muted">{% if ar %}الأعمدة: teacher_code, date, start_time, end_time, status (available/blocked){% else %}Columns: teacher_code, date, start_time, end_time, status (available/blocked){% endif %}</small>
+            <div class="mt-1"><small class="text-muted">{% if ar %}القالب يحتوي على جدول كامل (08:00-16:00) مع فترة غداء محظورة. عدّل حسب حاجتك{% else %}Template includes full day (08:00-16:00) with lunch blocked. Edit as needed{% endif %}</small></div>
+          </form>
+        </div>
+      </div>
+
+      {# Event info card #}
+      <div class="pi-card p-4 mt-3">
+        <div style="font-size:.82rem;color:#64748b">
+          <div class="d-flex justify-content-between py-2 border-bottom" style="border-color:#f1f5f9!important">
+            <span>{% if ar %}الحالة{% else %}Status{% endif %}</span>
+            <span class="fw-600 {{ 'text-success' if ev.is_open else 'text-danger' }}">
+              {% if ev.is_open %}{% if ar %}مفتوح{% else %}Open{% endif %}
+              {% else %}{% if ar %}مغلق{% else %}Closed{% endif %}{% endif %}
+            </span>
+          </div>
+          <div class="d-flex justify-content-between py-2 border-bottom" style="border-color:#f1f5f9!important">
+            <span>{% if ar %}الرمز{% else %}Code{% endif %}</span>
+            <span class="fw-700 font-monospace" style="color:{{ ev.brand_color }}">{{ ev.event_code }}</span>
+          </div>
+          <div class="d-flex justify-content-between py-2">
+            <span>{% if ar %}مدة المقابلة{% else %}Slot Duration{% endif %}</span>
+            <span class="fw-600">{{ ev.slot_duration }} {% if ar %}دقيقة{% else %}min{% endif %}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleSlotForm(id){
+  const f=document.getElementById('slot-form-'+id);
+  f.style.display=f.style.display==='none'?'block':'none';
+  document.getElementById('edit-form-'+id).style.display='none';
+}
+function toggleEditForm(id){
+  const f=document.getElementById('edit-form-'+id);
+  f.style.display=f.style.display==='none'?'block':'none';
+  document.getElementById('slot-form-'+id).style.display='none';
+}
+</script>
+{% endblock %}

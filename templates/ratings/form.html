@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}{% if current_lang=="en" %}Rate Venue — ARS{% else %}تقييم القاعة — ARS{% endif %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-star me-2"></i>{{ _('تقييم القاعة') }}</h1>
+  <small class="text-muted">{{ res.venue.name if res.venue else '' }} — {{ res.title }}</small>
+</div>
+<div class="row justify-content-center"><div class="col-md-6">
+<div class="card"><div class="card-header"><span>{{ _('أضف تقييمك') }}</div>
+<div class="card-body p-4">
+  <form method="POST">
+    <div class="mb-4 text-center">
+      <label class="form-label fw-bold d-block mb-3">{{ _('تقييمك من 5') }}</label>
+      <div class="d-flex justify-content-center gap-2" id="starContainer">
+        {% for i in range(1,6) %}
+        <label style="cursor:pointer;font-size:2.5rem;color:#dee2e6" id="star{{ i }}"
+               onmouseover="hoverStar({{ i }})" onmouseout="resetStars()"
+               onclick="selectStar({{ i }})">★</label>
+        {% endfor %}
+      </div>
+      <input type="hidden" name="rating" id="ratingVal" required>
+      <div id="ratingText" class="text-muted small mt-1"></div>
+    </div>
+    <div class="mb-4">
+      <label class="form-label fw-bold">{{ _('تعليق (اختياري)') }}</label>
+      <textarea name="comment" class="form-control" rows="3"
+                placeholder="{{ _('شاركنا تجربتك...') }}">{{ form.get('comment','') }}</textarea>
+    </div>
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-primary-ars" id="submitBtn" disabled>
+        <i class="bi bi-star-fill me-1"></i>{% if current_lang=="en" %}Submit Rating{% else %}إرسال التقييم{% endif %}
+      </button>
+      <a href="{{ url_for('reservations.detail', res_id=res.id) }}" class="btn btn-outline-secondary">{{ _('إلغاء') }}</a>
+    </div>
+  </form>
+</div></div>
+</div></div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const labels = ['','{{ _("ضعيف جداً") }}','{{ _("ضعيف") }}','{{ _("متوسط") }}','{{ _("جيد") }}','{{ _("ممتاز") }}'];
+let selected = 0;
+function colorStars(n, color) {
+  for(let i=1;i<=5;i++)
+    document.getElementById('star'+i).style.color = i<=n ? color : '#dee2e6';
+}
+function hoverStar(n){ colorStars(n,'#FFC107'); }
+function resetStars(){ colorStars(selected,'#FFC107'); }
+function selectStar(n){
+  selected=n;
+  document.getElementById('ratingVal').value=n;
+  document.getElementById('ratingText').textContent=labels[n];
+  document.getElementById('submitBtn').disabled=false;
+  colorStars(n,'#FFC107');
+}
+</script>
+{% endblock %}

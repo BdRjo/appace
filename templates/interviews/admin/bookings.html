@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+{% block content %}
+{%- set ar = (current_lang == 'ar') -%}
+<style>
+.pi-card{background:white;border-radius:14px;border:1.5px solid #f1f5f9;overflow:hidden}
+.fi-input{border:1.5px solid #e2e8f0;border-radius:10px;padding:8px 12px;font-size:.85rem;outline:none}
+.fi-input:focus{border-color:{{ ev.brand_color }}}
+.status-confirmed{color:#166534;background:#dcfce7;border-radius:100px;padding:3px 10px;font-size:.72rem;font-weight:600}
+.status-cancelled{color:#6b7280;background:#f3f4f6;border-radius:100px;padding:3px 10px;font-size:.72rem;font-weight:600}
+@media print{
+  .no-print,form,nav,.sidebar,.topbar,.ticker-bar,.menu-btn,.sidebar-overlay{display:none!important}
+  body{background:white!important}
+  .main-content{margin:0!important;height:auto!important}
+  .content-area{overflow:visible!important;height:auto!important;padding:10px!important}
+  .pi-card{box-shadow:none!important;border:1px solid #ddd!important;break-inside:avoid}
+  .container-fluid{padding:0!important}
+  .table{font-size:.8rem!important}
+  [dir="rtl"] body{direction:rtl!important}
+  [dir="ltr"] body{direction:ltr!important}
+}
+</style>
+
+<div class="container-fluid py-4">
+  <div class="d-flex align-items-center gap-2 mb-4 flex-wrap">
+    <a href="{{ url_for('interviews.admin_index') }}" class="text-muted text-decoration-none" style="font-size:.85rem">
+      {% if ar %}المقابلات{% else %}Interviews{% endif %}
+    </a>
+    <i class="bi bi-chevron-{{ 'left' if ar else 'right' }} text-muted" style="font-size:.7rem"></i>
+    <a href="{{ url_for('interviews.admin_teachers', event_id=ev.id) }}" class="text-muted text-decoration-none" style="font-size:.85rem">{{ ev.name }}</a>
+    <i class="bi bi-chevron-{{ 'left' if ar else 'right' }} text-muted" style="font-size:.7rem"></i>
+    <span class="fw-600" style="font-size:.85rem;color:#0f172a">{% if ar %}الحجوزات{% else %}Bookings{% endif %}</span>
+
+    <div class="ms-auto d-flex gap-2">
+      <button onclick="window.print()" class="btn btn-sm rounded-3 no-print"
+              style="background:#f8fafc;color:#475569;border:1.5px solid #e2e8f0;font-size:.8rem">
+        <i class="bi bi-printer me-1"></i>{% if ar %}طباعة تقرير{% else %}Print Report{% endif %}
+      </button>
+      <form method="post" action="{{ url_for('interviews.admin_send_reminders', event_id=ev.id) }}" class="d-inline no-print">
+        <button type="submit" class="btn btn-sm rounded-3" style="background:#fffbeb;color:#d97706;border:1.5px solid #fde68a;font-size:.8rem">
+          <i class="bi bi-bell me-1"></i>{% if ar %}إرسال تذكيرات{% else %}Send Reminders{% endif %}
+        </button>
+      </form>
+      <a href="{{ url_for('interviews.admin_export', event_id=ev.id) }}"
+         class="btn btn-sm rounded-3 no-print" style="background:#f0fdf4;color:#16a34a;border:1.5px solid #bbf7d0;font-size:.8rem">
+        <i class="bi bi-download me-1"></i>{% if ar %}تصدير CSV{% else %}Export CSV{% endif %}
+      </a>
+    </div>
+  </div>
+
+  {# Stats row #}
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="pi-card p-4 text-center">
+        <div style="font-size:1.8rem;font-weight:800;color:#0f172a">{{ total }}</div>
+        <div style="font-size:.78rem;color:#64748b">{% if ar %}إجمالي الحجوزات{% else %}Total Bookings{% endif %}</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="pi-card p-4 text-center">
+        <div style="font-size:1.8rem;font-weight:800;color:#16a34a">{{ bookings|selectattr('status','eq','confirmed')|list|length }}</div>
+        <div style="font-size:.78rem;color:#64748b">{% if ar %}مؤكدة{% else %}Confirmed{% endif %}</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="pi-card p-4 text-center">
+        <div style="font-size:1.8rem;font-weight:800;color:#dc2626">{{ bookings|selectattr('status','eq','cancelled')|list|length }}</div>
+        <div style="font-size:.78rem;color:#64748b">{% if ar %}ملغاة{% else %}Cancelled{% endif %}</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="pi-card p-4 text-center">
+        <div style="font-size:1.8rem;font-weight:800;color:#d97706">{{ teachers|length }}</div>
+        <div style="font-size:.78rem;color:#64748b">{% if ar %}معلمون{% else %}Teachers{% endif %}</div>
+      </div>
+    </div>
+  </div>
+
+  {# Teacher summary cards #}
+  {% if teachers %}
+  <div class="row g-3 mb-4">
+    {% for t in teachers %}
+    {%- set t_bookings = teacher_bookings.get(t.id, []) -%}
+    {%- set t_confirmed = [] -%}
+    {%- for b in t_bookings %}{% if b.status == 'confirmed' %}{%- set _ = t_confirmed.append(b) -%}{% endif %}{% endfor -%}
+    <div class="col-12 col-md-6 col-xl-4">
+      <div class="pi-card p-4">
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <div style="width:42px;height:42px;border-radius:11px;background:{{ ev.brand_color }};color:white;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">
+            {{ t.name[0].upper() if t.name else '?' }}
+          </div>
+          <div class="flex-grow-1">
+            <div class="fw-600" style="color:#0f172a">{{ t.name }}</div>
+            <div style="font-size:.78rem;color:#64748b">
+              {% if t.subjects %}{{ t.subjects }}{% endif %}
+              {% if t.room %} &middot; {% if ar %}غرفة{% else %}Rm{% endif %} {{ t.room }}{% endif %}
+            </div>
+          </div>
+          <div class="text-center">
+            <div style="font-size:1.4rem;font-weight:800;color:#0f172a">{{ t_confirmed|length }}</div>
+            <div style="font-size:.7rem;color:#64748b">{% if ar %}حجز{% else %}bookings{% endif %}</div>
+          </div>
+        </div>
+        {% if t_confirmed %}
+        <div style="font-size:.78rem;color:#475569">
+          {% for b in t_confirmed[:5] %}
+          <div class="d-flex justify-content-between py-1 border-bottom" style="border-color:#f1f5f9!important">
+            <span>{{ b.parent_name }} <span style="color:#94a3b8">({{ b.child_name }})</span></span>
+            <span class="font-monospace" style="color:#94a3b8">{{ b.slot.start_time if b.slot else '' }}</span>
+          </div>
+          {% endfor %}
+          {% if t_confirmed|length > 5 %}
+          <div class="text-muted text-center mt-1" style="font-size:.72rem">+{{ t_confirmed|length - 5 }} {% if ar %}أخرى{% else %}more{% endif %}</div>
+          {% endif %}
+        </div>
+        {% else %}
+        <div style="font-size:.78rem;color:#94a3b8;text-align:center">{% if ar %}لا حجوزات{% else %}No bookings{% endif %}</div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {# Filters #}
+  <div class="pi-card p-4 mb-4 no-print">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-12 col-md-3">
+        <label style="font-size:.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px">{% if ar %}المعلم{% else %}Teacher{% endif %}</label>
+        <select name="teacher_id" class="fi-input w-100">
+          <option value="">{% if ar %}الكل{% else %}All teachers{% endif %}</option>
+          {% for t in teachers %}<option value="{{ t.id }}" {{ 'selected' if sel_teacher==t.id }}>{{ t.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md-2">
+        <label style="font-size:.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px">{% if ar %}التاريخ{% else %}Date{% endif %}</label>
+        <select name="date" class="fi-input w-100">
+          <option value="">{% if ar %}الكل{% else %}All dates{% endif %}</option>
+          {% for d in dates %}<option value="{{ d }}" {{ 'selected' if sel_date==d }}>{{ d }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md-2">
+        <label style="font-size:.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px">{% if ar %}الحالة{% else %}Status{% endif %}</label>
+        <select name="status" class="fi-input w-100">
+          <option value="">{% if ar %}الكل{% else %}All{% endif %}</option>
+          <option value="confirmed" {{ 'selected' if sel_status=='confirmed' }}>{% if ar %}مؤكد{% else %}Confirmed{% endif %}</option>
+          <option value="cancelled" {{ 'selected' if sel_status=='cancelled' }}>{% if ar %}ملغى{% else %}Cancelled{% endif %}</option>
+        </select>
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn rounded-3 fw-600" style="background:{{ ev.brand_color }};color:white;border:none;padding:9px 18px;font-size:.88rem">
+          <i class="bi bi-funnel me-1"></i>{% if ar %}تصفية{% else %}Filter{% endif %}
+        </button>
+        <a href="{{ url_for('interviews.admin_bookings', event_id=ev.id) }}"
+           class="btn rounded-3 ms-1" style="background:#f8fafc;color:#475569;border:1.5px solid #e2e8f0;padding:9px 14px;font-size:.88rem">
+          <i class="bi bi-x"></i>
+        </a>
+      </div>
+    </form>
+  </div>
+
+  {# Bookings table #}
+  <div class="pi-card">
+    {% if not bookings %}
+    <div class="p-5 text-center" style="color:#94a3b8">
+      <i class="bi bi-calendar-x display-4 opacity-25 d-block mb-3"></i>
+      {% if ar %}لا توجد حجوزات{% else %}No bookings found{% endif %}
+    </div>
+    {% else %}
+    <div class="table-responsive">
+      <table class="table mb-0" style="font-size:.85rem">
+        <thead style="background:#f8fafc;border-bottom:2px solid #f1f5f9">
+          <tr>
+            <th class="px-4 py-3 fw-600" style="color:#475569;white-space:nowrap">{% if ar %}ولي الأمر / الطالب{% else %}Parent / Child{% endif %}</th>
+            <th class="px-3 py-3 fw-600" style="color:#475569">{% if ar %}المعلم{% else %}Teacher{% endif %}</th>
+            <th class="px-3 py-3 fw-600" style="color:#475569">{% if ar %}الموعد{% else %}Time{% endif %}</th>
+            <th class="px-3 py-3 fw-600" style="color:#475569">{% if ar %}الحالة{% else %}Status{% endif %}</th>
+            <th class="px-3 py-3 fw-600" style="color:#475569">{% if ar %}مرجع{% else %}Ref{% endif %}</th>
+            <th class="px-3 py-3 no-print"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for b in bookings %}{%- set sl=b.slot -%}{%- set te=sl.teacher if sl else none -%}
+          <tr style="border-bottom:1px solid #f1f5f9">
+            <td class="px-4 py-3">
+              <div class="fw-600" style="color:#0f172a">{{ b.parent_name }}</div>
+              <div style="color:#64748b;font-size:.78rem"><i class="bi bi-person me-1"></i>{{ b.child_name }}</div>
+              {% if b.parent_email %}<div style="color:#94a3b8;font-size:.75rem"><i class="bi bi-envelope me-1"></i>{{ b.parent_email }}</div>{% endif %}
+              {% if b.parent_phone %}<div style="color:#94a3b8;font-size:.75rem"><i class="bi bi-telephone me-1"></i>{{ b.parent_phone }}</div>{% endif %}
+            </td>
+            <td class="px-3 py-3">
+              {% if te %}<div class="fw-600" style="color:#0f172a">{{ te.name }}</div>
+              <div style="font-size:.75rem;color:#64748b">{% if te.room %}{% if ar %}غرفة{% else %}Rm{% endif %} {{ te.room }}{% endif %}</div>{% endif %}
+            </td>
+            <td class="px-3 py-3">
+              {% if sl %}
+              <div class="fw-600 font-monospace" style="color:#0f172a">{{ sl.start_time }}</div>
+              <div style="font-size:.75rem;color:#64748b">{{ sl.slot_date }}</div>{% endif %}
+            </td>
+            <td class="px-3 py-3">
+              <span class="{{ 'status-confirmed' if b.status=='confirmed' else 'status-cancelled' }}">
+                {% if b.status=='confirmed' %}{% if ar %}مؤكد{% else %}Confirmed{% endif %}
+                {% else %}{% if ar %}ملغى{% else %}Cancelled{% endif %}{% endif %}
+              </span>
+            </td>
+            <td class="px-3 py-3 font-monospace" style="font-size:.75rem;color:#94a3b8">{{ b.booking_ref }}</td>
+            <td class="px-3 py-3 no-print">
+              {% if b.status=='confirmed' %}
+              <form method="post" action="{{ url_for('interviews.admin_booking_cancel', bid=b.id) }}"
+                    onsubmit="return confirm('{% if ar %}إلغاء هذا الحجز؟{% else %}Cancel this booking?{% endif %}')">
+                <button type="submit" class="btn btn-sm rounded-3" style="background:#fff5f5;color:#dc2626;border:1.5px solid #fecaca;font-size:.75rem">
+                  <i class="bi bi-x-lg me-1"></i>{% if ar %}إلغاء{% else %}Cancel{% endif %}
+                </button>
+              </form>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

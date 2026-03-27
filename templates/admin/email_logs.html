@@ -1,0 +1,244 @@
+{% extends 'base.html' %}
+{% block title %}{% if current_lang=='en' %}Email Logs — ARS{% else %}سجل الرسائل — ARS{% endif %}{% endblock %}
+{% block extra_css %}
+<style>
+.stat-card { border-radius:14px; border:none; box-shadow:0 2px 12px rgba(12,103,236,.09); }
+.stat-icon { font-size:1.8rem; }
+.badge-sent    { background:#d4edda; color:#155724; }
+.badge-failed  { background:#fde8e8; color:#7b1c1c; }
+.badge-bulk    { background:#dbeafe; color:#1e3a5f; }
+.badge-resend  { background:#fef9c3; color:#78520a; }
+.badge-notification { background:#f3e8ff; color:#4c1d95; }
+.log-row:hover { background:#f0f6ff; }
+.filter-bar { background:#f8fbff; border-radius:12px; padding:14px 18px; margin-bottom:18px; border:1px solid #e2ecf9; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <h1><i class="bi bi-envelope-check me-2"></i>
+    {% if current_lang=='en' %}Email Logs{% else %}سجل الرسائل الإلكترونية{% endif %}
+  </h1>
+  <a href="{{ url_for('users.bulk_message') }}" class="btn btn-primary-ars">
+    <i class="bi bi-envelope-paper me-1"></i>
+    {% if current_lang=='en' %}New Bulk Message{% else %}رسالة جماعية جديدة{% endif %}
+  </a>
+</div>
+
+<!-- Stats cards -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card stat-card p-3 text-center">
+      <div class="stat-icon">📧</div>
+      <div class="fw-bold fs-4" style="color:#0C67EC">{{ total }}</div>
+      <div class="text-muted small">{% if current_lang=='en' %}Total Emails{% else %}إجمالي الرسائل{% endif %}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card p-3 text-center">
+      <div class="stat-icon">✅</div>
+      <div class="fw-bold fs-4 text-success">{{ sent_count }}</div>
+      <div class="text-muted small">{% if current_lang=='en' %}Sent{% else %}تم الإرسال{% endif %}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card p-3 text-center">
+      <div class="stat-icon">❌</div>
+      <div class="fw-bold fs-4 text-danger">{{ failed_count }}</div>
+      <div class="text-muted small">{% if current_lang=='en' %}Failed{% else %}فشل الإرسال{% endif %}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card p-3 text-center">
+      <div class="stat-icon">📨</div>
+      <div class="fw-bold fs-4" style="color:#1d4ed8">{{ bulk_count }}</div>
+      <div class="text-muted small">{% if current_lang=='en' %}Bulk Emails{% else %}رسائل جماعية{% endif %}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Filter bar -->
+<div class="filter-bar">
+  <form method="GET" class="row g-2 align-items-end">
+    <div class="col-12 col-md-4">
+      <label class="form-label small fw-bold mb-1">
+        {% if current_lang=='en' %}Search{% else %}بحث{% endif %}
+      </label>
+      <input type="text" name="q" value="{{ q }}" class="form-control form-control-sm"
+             placeholder="{% if current_lang=='en' %}Email or subject...{% else %}بريد إلكتروني أو موضوع...{% endif %}">
+    </div>
+    <div class="col-6 col-md-3">
+      <label class="form-label small fw-bold mb-1">{% if current_lang=='en' %}Status{% else %}الحالة{% endif %}</label>
+      <select name="status" class="form-select form-select-sm">
+        <option value="">{% if current_lang=='en' %}All{% else %}الكل{% endif %}</option>
+        <option value="sent"   {% if status_f=='sent' %}selected{% endif %}>{% if current_lang=='en' %}Sent{% else %}مُرسَل{% endif %}</option>
+        <option value="failed" {% if status_f=='failed' %}selected{% endif %}>{% if current_lang=='en' %}Failed{% else %}فشل{% endif %}</option>
+      </select>
+    </div>
+    <div class="col-6 col-md-3">
+      <label class="form-label small fw-bold mb-1">{% if current_lang=='en' %}Type{% else %}النوع{% endif %}</label>
+      <select name="type" class="form-select form-select-sm">
+        <option value="">{% if current_lang=='en' %}All{% else %}الكل{% endif %}</option>
+        <option value="bulk"         {% if type_f=='bulk' %}selected{% endif %}>{% if current_lang=='en' %}Bulk{% else %}جماعي{% endif %}</option>
+        <option value="notification" {% if type_f=='notification' %}selected{% endif %}>{% if current_lang=='en' %}Notification{% else %}إشعار{% endif %}</option>
+        <option value="resend"       {% if type_f=='resend' %}selected{% endif %}>{% if current_lang=='en' %}Resend{% else %}إعادة إرسال{% endif %}</option>
+      </select>
+    </div>
+    <div class="col-12 col-md-2 d-flex gap-2">
+      <button class="btn btn-primary-ars btn-sm w-100">
+        <i class="bi bi-search me-1"></i>{% if current_lang=='en' %}Filter{% else %}تصفية{% endif %}
+      </button>
+      <a href="{{ url_for('admin.email_logs') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-x"></i>
+      </a>
+    </div>
+  </form>
+</div>
+
+<!-- Logs table -->
+<div class="card" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.08)">
+  <div class="card-body p-0">
+    {% if logs %}
+    <div class="table-responsive">
+      <table class="table table-hover mb-0" style="font-size:.875rem">
+        <thead style="background:#f0f5ff">
+          <tr>
+            <th class="px-3 py-2">#</th>
+            <th class="py-2">{% if current_lang=='en' %}Recipient{% else %}المستلم{% endif %}</th>
+            <th class="py-2">{% if current_lang=='en' %}Subject{% else %}الموضوع{% endif %}</th>
+            <th class="py-2">{% if current_lang=='en' %}Type{% else %}النوع{% endif %}</th>
+            <th class="py-2">{% if current_lang=='en' %}Status{% else %}الحالة{% endif %}</th>
+            <th class="py-2">{% if current_lang=='en' %}Date{% else %}التاريخ{% endif %}</th>
+            <th class="py-2 text-center">{% if current_lang=='en' %}Actions{% else %}إجراءات{% endif %}</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for log in logs %}
+          <tr class="log-row">
+            <td class="px-3 text-muted">{{ log.id }}</td>
+            <td>
+              <span class="fw-semibold">{{ log.recipient }}</span>
+            </td>
+            <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+                title="{{ log.subject }}">
+              {{ log.subject }}
+            </td>
+            <td>
+              {% if log.type == 'bulk' %}
+                <span class="badge badge-bulk">📨 {% if current_lang=='en' %}Bulk{% else %}جماعي{% endif %}</span>
+              {% elif log.type == 'resend' %}
+                <span class="badge badge-resend">🔄 {% if current_lang=='en' %}Resend{% else %}إعادة إرسال{% endif %}</span>
+              {% else %}
+                <span class="badge badge-notification">🔔 {% if current_lang=='en' %}Notif{% else %}إشعار{% endif %}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if log.status == 'sent' %}
+                <span class="badge badge-sent">✅ {% if current_lang=='en' %}Sent{% else %}أُرسِل{% endif %}</span>
+              {% else %}
+                <span class="badge badge-failed" title="{{ log.error_message or '' }}">
+                  ❌ {% if current_lang=='en' %}Failed{% else %}فشل{% endif %}
+                </span>
+                {% if log.error_message %}
+                <i class="bi bi-info-circle text-danger ms-1" data-bs-toggle="tooltip"
+                   title="{{ log.error_message[:120] }}"></i>
+                {% endif %}
+              {% endif %}
+            </td>
+            <td class="text-muted small">
+              {{ log.sent_at.strftime('%Y-%m-%d %H:%M') if log.sent_at else '—' }}
+            </td>
+            <td class="text-center">
+              <div class="d-flex justify-content-center gap-1">
+                <!-- Resend -->
+                <form method="POST"
+                      action="{{ url_for('admin.email_resend', log_id=log.id) }}"
+                      style="display:inline"
+                      onsubmit="return confirm(this.dataset.msg)">
+                  <button class="btn btn-sm btn-outline-primary" style="padding:3px 9px;border-radius:8px"
+                          data-msg="{% if current_lang=='en' %}Resend this email?{% else %}إعادة إرسال هذه الرسالة؟{% endif %}"
+                          title="{% if current_lang=='en' %}Resend{% else %}إعادة الإرسال{% endif %}">
+                    <i class="bi bi-arrow-clockwise"></i>
+                  </button>
+                </form>
+                <!-- Forward to different address -->
+                <button class="btn btn-sm btn-outline-success" style="padding:3px 9px;border-radius:8px"
+                        title="{% if current_lang=='en' %}Forward{% else %}إعادة توجيه{% endif %}"
+                        data-log-id="{{ log.id }}"
+                        data-recipient="{{ log.recipient }}"
+                        onclick="forwardEmail(this.dataset.logId, this.dataset.recipient)">
+                  <i class="bi bi-forward"></i>
+                </button>
+                <!-- Delete -->
+                <form method="POST"
+                      action="{{ url_for('admin.email_log_delete', log_id=log.id) }}"
+                      style="display:inline"
+                      onsubmit="return confirm(this.dataset.msg)">
+                  <button class="btn btn-sm btn-outline-danger" style="padding:3px 9px;border-radius:8px"
+                          data-msg="{% if current_lang=='en' %}Delete this log entry?{% else %}حذف هذا السجل؟{% endif %}"
+                          title="{% if current_lang=='en' %}Delete{% else %}حذف{% endif %}">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if pages > 1 %}
+    <div class="d-flex justify-content-center align-items-center gap-2 p-3">
+      {% if page > 1 %}
+      <a href="?page={{ page-1 }}&q={{ q }}&status={{ status_f }}&type={{ type_f }}"
+         class="btn btn-sm btn-outline-primary">
+        <i class="bi bi-chevron-{% if current_lang=='en' %}left{% else %}right{% endif %}"></i>
+      </a>
+      {% endif %}
+      <span class="text-muted small">
+        {% if current_lang=='en' %}Page {{ page }} of {{ pages }}{% else %}صفحة {{ page }} من {{ pages }}{% endif %}
+      </span>
+      {% if page < pages %}
+      <a href="?page={{ page+1 }}&q={{ q }}&status={{ status_f }}&type={{ type_f }}"
+         class="btn btn-sm btn-outline-primary">
+        <i class="bi bi-chevron-{% if current_lang=='en' %}right{% else %}left{% endif %}"></i>
+      </a>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-inbox" style="font-size:3rem;opacity:.3"></i>
+      <p class="mt-2">{% if current_lang=='en' %}No email logs found{% else %}لا توجد رسائل مسجّلة بعد{% endif %}</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+// Enable Bootstrap tooltips
+document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el =>
+  new bootstrap.Tooltip(el)
+);
+
+// Forward modal
+function forwardEmail(logId, originalRecipient) {
+  const newTo = prompt(
+    '{% if current_lang=="en" %}Forward to (email address):{% else %}إعادة توجيه إلى (بريد إلكتروني):{% endif %}',
+    ''
+  );
+  if (!newTo || !newTo.trim()) return;
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = '/admin/email-logs/forward/' + logId;
+  const inp = document.createElement('input');
+  inp.type = 'hidden'; inp.name = 'forward_to'; inp.value = newTo.trim();
+  form.appendChild(inp);
+  document.body.appendChild(form);
+  form.submit();
+}
+</script>
+{% endblock %}

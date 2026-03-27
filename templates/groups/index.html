@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% block title %}{% if current_lang=='en' %}Distribution Groups — ARS{% else %}مجموعات التوزيع — ARS{% endif %}{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h1><i class="bi bi-people-fill me-2"></i>{% if current_lang=='en' %}Distribution Groups{% else %}مجموعات التوزيع{% endif %}</h1>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('groups.import_csv') }}" class="btn btn-outline-success btn-sm">
+      <i class="bi bi-upload me-1"></i>{% if current_lang=='en' %}Import CSV{% else %}استيراد CSV{% endif %}
+    </a>
+    <a href="{{ url_for('groups.new') }}" class="btn btn-primary-ars">
+      <i class="bi bi-plus-lg me-1"></i>{% if current_lang=='en' %}New Group{% else %}مجموعة جديدة{% endif %}
+    </a>
+  </div>
+</div>
+
+{% if groups %}
+<div class="row g-3">
+  {% for g in groups %}
+  <div class="col-12 col-md-6 col-xl-4">
+    <div class="card h-100" style="border-radius:14px;overflow:hidden;border-top:4px solid var(--primary)">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <div>
+            <h6 class="fw-bold mb-1" style="color:var(--primary)">
+              <i class="bi bi-people me-1"></i>{{ g.name }}
+            </h6>
+            {% if g.description %}
+            <p class="text-muted small mb-2">{{ g.description }}</p>
+            {% endif %}
+          </div>
+          <div class="d-flex gap-1">
+            <a href="{{ url_for('groups.edit', group_id=g.id) }}" class="btn btn-xs btn-outline-warning">
+              <i class="bi bi-pencil"></i>
+            </a>
+            <form method="POST" action="{{ url_for('groups.delete', group_id=g.id) }}" onsubmit="return confirm(this.dataset.msg)" data-msg="{% if current_lang=='en' %}Delete group?{% else %}حذف المجموعة؟{% endif %}">
+              <button class="btn btn-xs btn-outline-danger"><i class="bi bi-trash"></i></button>
+            </form>
+          </div>
+        </div>
+        <div class="d-flex gap-3">
+          <div class="text-center">
+            <div class="fw-bold" style="font-size:1.4rem;color:var(--primary)">{{ g.contacts|length }}</div>
+            <div class="text-muted" style="font-size:.72rem">{% if current_lang=='en' %}Contacts{% else %}جهات اتصال{% endif %}</div>
+          </div>
+          <div class="text-center">
+            <div class="fw-bold" style="font-size:1.4rem;color:#27ae60">{{ g.users|length }}</div>
+            <div class="text-muted" style="font-size:.72rem">{% if current_lang=='en' %}Users{% else %}مستخدمون{% endif %}</div>
+          </div>
+          <div class="ms-auto text-end">
+            <div class="text-muted" style="font-size:.7rem">{{ g.created_at.strftime('%Y-%m-%d') if g.created_at else '' }}</div>
+            <div class="text-muted" style="font-size:.7rem">{{ g.creator.full_name if g.creator else '—' }}</div>
+          </div>
+        </div>
+        {% if g.contacts or g.users %}
+        <div class="mt-2 pt-2 border-top">
+          <div style="font-size:.75rem;color:#666">
+            {% for c in g.contacts[:3] %}
+            <span class="badge bg-light text-dark me-1">{{ c.first_name }}</span>
+            {% endfor %}
+            {% for u in g.users[:3] %}
+            <span class="badge" style="background:#EEF4FD;color:var(--primary)">{{ u.full_name.split()[0] }}</span>
+            {% endfor %}
+            {% set total = g.contacts|length + g.users|length %}
+            {% if total > 6 %}<span class="text-muted">+{{ total - 6 }} {% if current_lang=='en' %}more{% else %}آخرين{% endif %}</span>{% endif %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card">
+  <div class="card-body text-center py-5 text-muted">
+    <i class="bi bi-people" style="font-size:3rem;display:block;margin-bottom:1rem;color:#ccc"></i>
+    <p class="fw-bold">{% if current_lang=='en' %}No groups yet{% else %}لا توجد مجموعات بعد{% endif %}</p>
+    <a href="{{ url_for('groups.new') }}" class="btn btn-primary-ars btn-sm">
+      <i class="bi bi-plus-lg me-1"></i>{% if current_lang=='en' %}Create First Group{% else %}أنشئ أول مجموعة{% endif %}
+    </a>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

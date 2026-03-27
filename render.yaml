@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: ars-reservation-system
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --preload
+    healthCheckPath: /health
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: FLASK_ENV
+        value: production
+      - key: DB_PATH
+        value: /data/ars_venues.db
+      - key: EMAIL_CONFIG_PATH
+        value: /data/email_config.json
+      - key: SETTINGS_PATH
+        value: /data/ars_settings.json
+    disk:
+      name: ars-data
+      mountPath: /data
+      sizeGB: 1

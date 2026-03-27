@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="{{ current_lang }}" dir="{{ 'ltr' if current_lang == 'en' else 'rtl' }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no, viewport-fit=cover">
+<title>{% block title %}ARS{% endblock %}</title>
+{% if current_lang == 'en' %}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    {% else %}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css">
+    {% endif %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css">
+<!-- HTMX: partial page updates, no full reload -->
+<!-- HTMX: load synchronously so hx-boost works immediately -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/htmx/1.9.10/htmx.min.js"></script>
+<script>
+  htmx.config.defaultSwapDelay = 0;
+  htmx.config.defaultSettleDelay = 20;
+  htmx.config.historyCacheSize = 15;
+  htmx.config.refreshOnHistoryMiss = true;
+  htmx.config.scrollIntoViewOnBoost = false;
+  htmx.config.allowScriptTags = true;
+</script>
+{% block extra_css %}{% endblock %}
+<style>
+/* ═══════════════════════════════════════════════════
+   ARS Layout — 4 fixed layers, content scrolls alone
+   1. Sidebar (fixed left/right)
+   2. Topbar  (fixed top, after sidebar)
+   3. Ticker  (fixed below topbar, full width — NEVER touched by page loads)
+   4. Footer  (fixed bottom)
+   Content area scrolls between ticker and footer
+═══════════════════════════════════════════════════ */
+:root {
+  --primary:{{ system_colors.primary }};
+  --primary-dark:{{ system_colors.primary_dark }};
+  --primary-light:{{ system_colors.primary_light }};
+  --accent:{{ system_colors.accent }};
+  --sw: 260px;   /* sidebar width */
+  --th: 52px;    /* topbar height */
+  --tkh: 34px;   /* ticker height */
+  --fh: 36px;    /* footer height */
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background: #F0F4FA; color: #2C3E50; }
+
+/* ── 1. SIDEBAR ── */
+.sidebar {
+  position: fixed;
+  top: 0; bottom: 0;
+  width: var(--sw);
+  z-index: 1000;
+  background: linear-gradient(180deg, var(--primary-dark) 0%, var(--primary) 60%, var(--primary-light) 100%);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+/* LTR: sidebar on LEFT */
+[dir="ltr"] .sidebar { left: 0; right: auto; }
+/* RTL: sidebar on RIGHT */
+[dir="rtl"] .sidebar { right: 0; left: auto; }
+.sidebar-brand {
+  flex-shrink: 0; height: var(--th);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: var(--primary-dark); padding: 0 12px; overflow: hidden;
+}
+.sidebar-brand .brand-logo { height: 26px; border-radius: 5px; filter: drop-shadow(0 0 4px rgba(92,155,222,.6)); }
+.sidebar-brand .brand-text { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+.sidebar-brand .brand-title { color: #fff; font-size: .9rem; font-weight: 800; white-space: nowrap; line-height: 1.2; }
+.sidebar-brand .brand-sub   { color: rgba(255,255,255,.65); font-size: .58rem; white-space: nowrap; }
+.sidebar-scroll {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.2) transparent;
+}
+.sidebar-scroll::-webkit-scrollbar { width: 4px; }
+.sidebar-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,.2); border-radius: 4px; }
+.nav-link { -webkit-tap-highlight-color: transparent;
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 18px; color: rgba(255,255,255,.92); text-decoration: none;
+  font-size: .875rem; font-weight: 500; letter-spacing: .15px;
+  border-inline-end: 3px solid transparent;
+  transition: all .18s; border-radius: 0;
+  position: relative;
+  text-shadow: 0 1px 2px rgba(0,0,0,.15);
+}
+.nav-link:hover {
+  background: linear-gradient(90deg, rgba(255,255,255,.2) 0%, rgba(255,255,255,.1) 100%);
+  color: #fff;
+  border-inline-end-color: var(--accent);
+  padding-inline-start: 22px;
+  text-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+.nav-link.active {
+  background: linear-gradient(90deg, rgba(255,255,255,.25) 0%, rgba(255,255,255,.12) 100%);
+  color: #fff;
+  border-inline-end: 3px solid var(--accent);
+  font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0,0,0,.25);
+}
+.nav-link i { font-size: .95rem; width: 18px; text-align: center; flex-shrink: 0; opacity: .9; }
+.section-label {
+  color: rgba(255,255,255,.6); font-size: .65rem;
+  text-transform: uppercase; letter-spacing: 1.8px;
+  padding: 10px 18px 3px; font-weight: 600;
+  border-top: 1px solid rgba(255,255,255,.08);
+  margin-top: 4px;
+}
+.menu-btn { display: none !important; }
+
+/* ── 2. TOPBAR ── */
+.topbar {
+  position: fixed;
+  top: 0;
+  height: var(--th);
+  z-index: 1000;
+  background: var(--primary-dark, #0847B0);
+  display: flex !important; align-items: center;
+  padding: 0 14px; gap: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.25);
+  overflow: hidden;
+  -webkit-transform: translate3d(0,0,0);
+  transform: translate3d(0,0,0);
+}
+/* LTR topbar starts after sidebar on left */
+[dir="ltr"] .topbar { left: var(--sw); right: 0; }
+/* RTL topbar starts after sidebar on right */
+[dir="rtl"] .topbar { right: var(--sw); left: 0; }
+.topbar {
+  /* GPU layer — completely independent from page content */
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
+  will-change: transform;
+  contain: layout style;
+}
+.topbar-user-wrap { background:rgba(255,255,255,.12); border-radius:20px; padding:4px 12px 4px 6px; }
+
+.topbar-clock {
+  font-size: .8rem; color: #ffffff; font-weight: 700;
+  font-variant-numeric: tabular-nums; white-space: nowrap; flex-shrink: 0;
+  text-shadow: 0 1px 3px rgba(0,0,0,.4);
+}
+
+/* Desktop ticker inside topbar */
+#tickerWrap {
+  flex: 1; min-width: 0; overflow: hidden !important;
+  height: 36px; display: flex; align-items: center;
+  background: transparent; margin: 0 8px;
+  max-width: 100%; position: relative;
+}
+.ticker-overflow {
+  flex: 1; overflow: hidden !important; height: 100%; display: flex; align-items: center;
+  max-width: 100%; position: relative;
+  --fade: {{ ticker_cfg.mask_fade|default(12) }}%;
+  --fade-end: calc(100% - var(--fade));
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black var(--fade), black var(--fade-end), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0%, black var(--fade), black var(--fade-end), transparent 100%);
+}
+[dir="rtl"] .ticker-overflow {
+  -webkit-mask-image: linear-gradient(to left, transparent 0%, black var(--fade), black var(--fade-end), transparent 100%);
+  mask-image: linear-gradient(to left, transparent 0%, black var(--fade), black var(--fade-end), transparent 100%);
+}
+.ticker-track { display: inline-flex; align-items: center; white-space: nowrap; will-change: transform; }
+.ticker-text { padding: 0 50px; font-weight: 600; white-space: nowrap; }
+.ticker-item { display: inline-flex; align-items: center; white-space: nowrap; margin: 0 24px; flex-shrink: 0; }
+.ticker-item img { width: 28px; height: 28px; object-fit: contain; margin: 0 10px; opacity: .75; border-radius: 4px; }
+.ticker-sep { margin: 0 8px; flex-shrink: 0; }
+.ticker-sep img { width: 24px; height: 24px; object-fit: contain; border-radius: 50%; opacity: .85; vertical-align: middle; }
+
+/* ── 3. TICKER BAR — Mobile/Tablet fixed layer, independent ── */
+#arsTickerBar {
+  position: fixed;
+  top: var(--th);
+  inset-inline-start: 0; inset-inline-end: 0;
+  height: var(--tkh);
+  z-index: 799;
+  background: var(--primary);
+  display: none;
+  align-items: center; overflow: hidden;
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
+  will-change: transform;
+}
+#arsTickerBar .ticker-overflow {
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black var(--fade), black var(--fade-end), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0%, black var(--fade), black var(--fade-end), transparent 100%);
+  overflow: hidden !important; max-width: 100%;
+}
+[dir="rtl"] #arsTickerBar .ticker-overflow {
+  -webkit-mask-image: linear-gradient(to left, transparent 0%, black var(--fade), black var(--fade-end), transparent 100%);
+  mask-image: linear-gradient(to left, transparent 0%, black var(--fade), black var(--fade-end), transparent 100%);
+}
+
+/* ── 4. MAIN CONTENT ── */
+.main-content {
+  margin-inline-start: 0;
+  height: 100vh; height: 100dvh;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+/* LTR: content pushed right of sidebar */
+[dir="ltr"] .main-content { margin-left: var(--sw) !important; margin-right: 0 !important; }
+/* RTL: content pushed left of sidebar */
+[dir="rtl"] .main-content { margin-right: var(--sw) !important; margin-left: 0 !important; }
+.content-area {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  padding: 20px 26px;
+  padding-top: calc(var(--th) + 20px);
+  padding-bottom: calc(var(--fh) + 12px);
+  background: #fff;
+  scrollbar-width: thin; scrollbar-color: rgba(12,103,236,.2) transparent;
+}
+.content-area::-webkit-scrollbar { width: 6px; }
+.content-area::-webkit-scrollbar-thumb { background: rgba(12,103,236,.2); border-radius: 4px; }
+
+/* ── FOOTER ── */
+.app-footer {
+  flex-shrink: 0;
+  background: transparent;
+  border-top: 1px solid rgba(180,130,40,.3);
+  padding: 7px 16px;
+  font-size: .72rem; color: #3a7bd5;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px;
+  will-change: transform; contain: layout style;
+}
+.footer-brand { display: flex; align-items: center; gap: 6px; color: #3a7bd5; }
+.footer-sep   { color: rgba(100,120,160,.5); margin: 0 6px; }
+.footer-terms { color: #3a7bd5; text-decoration: none; font-size: .68rem; }
+.footer-terms:hover { text-decoration: underline; }
+
+/* HTMX loader */
+#pageLoader {
+  display: none; position: fixed;
+  top: var(--th); inset-inline-start: 0; inset-inline-end: 0;
+  height: 2px; z-index: 9999; overflow: hidden;
+}
+#pageLoader.htmx-request { display: block; }
+#pageLoader::after {
+  content: ''; display: block; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.9), transparent);
+  animation: loaderSlide .7s linear infinite;
+}
+@keyframes loaderSlide { 0% { transform: translateX(-100%); } 100% { transform: translateX(100vw); } }
+
+/* Sidebar overlay */
+.sidebar-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.55); z-index: 1999;
+  backdrop-filter: blur(1px); -webkit-backdrop-filter: blur(1px);
+}
+.sidebar-overlay.show { display: block; }
+
+/* ═══════════════════════════════
+   RESPONSIVE
+═══════════════════════════════ */
+
+/* TABLET ≤992px — sidebar slides in */
+@media (max-width: 992px) {
+  :root { --sw: 260px; }
+  /* LTR: sidebar from LEFT */
+  .sidebar {
+    transform: translateX(-110%) !important;
+    transition: transform .28s cubic-bezier(.4,0,.2,1);
+    z-index: 2000;
+    inset-inline-start: 0 !important;
+    inset-inline-end: auto !important;
+  }
+  .sidebar.open {
+    transform: translateX(0) !important;
+    box-shadow: 4px 0 40px rgba(0,0,0,.4) !important;
+  }
+  /* RTL: sidebar from RIGHT */
+  [dir="rtl"] .sidebar {
+    transform: translateX(110%) !important;
+    inset-inline-start: auto !important;
+    inset-inline-end: 0 !important;
+    left: auto !important;
+    right: 0 !important;
+  }
+  [dir="rtl"] .sidebar.open {
+    transform: translateX(0) !important;
+    box-shadow: -4px 0 40px rgba(0,0,0,.4) !important;
+  }
+  .topbar { left: 0 !important; right: 0 !important; width: 100% !important; }
+  .main-content,
+  [dir="ltr"] .main-content,
+  [dir="rtl"] .main-content {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    margin-inline-start: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+  }
+  /* Show mobile ticker bar */
+  #arsTickerBar { display: flex !important; }
+  /* Hide desktop ticker in topbar */
+  #tickerWrap { display: none !important; }
+  /* Pad content for topbar + ticker */
+  .content-area { padding-top: calc(var(--th) + var(--tkh) + 14px) !important; }
+  .menu-btn { display: inline-flex !important; align-items: center; justify-content: center; }
+  .topbar-user-wrap { background:transparent !important; border-radius:0 !important; padding:0 !important; }
+  /* Grid */
+  .col-md-4, .col-md-6, .col-md-8 { flex: 0 0 100% !important; max-width: 100% !important; }
+  .row { --bs-gutter-x: .85rem; margin-right: 0 !important; margin-left: 0 !important; }
+}
+
+/* IPAD 768–1024 — sidebar visible, narrower */
+@media (min-width: 768px) and (max-width: 1024px) {
+  :root { --sw: 200px; }
+  .sidebar {
+    transform: none !important;
+    width: 200px !important;
+  }
+  .sidebar-scroll { overflow-y: auto !important; }
+  .nav-link { -webkit-tap-highlight-color: transparent; padding: 8px 12px !important; font-size: .78rem !important; }
+  .nav-link i  { font-size: .8rem !important; }
+  .section-label { font-size: .58rem !important; padding: 6px 12px 2px !important; }
+  .sidebar-brand .brand-title { font-size: .78rem !important; }
+  [dir="ltr"] .topbar { left: 200px !important; right: 0 !important; }
+  [dir="rtl"] .topbar { right: 200px !important; left: 0 !important; }
+  /* No mobile ticker on iPad — desktop ticker in topbar is fine */
+  #arsTickerBar { display: none !important; }
+  #tickerWrap   { display: flex !important; }
+  [dir="ltr"] .main-content { margin-left: 200px !important; margin-right: 0 !important; margin-inline-start: 0 !important; }
+  [dir="rtl"] .main-content { margin-right: 200px !important; margin-left: 0 !important; margin-inline-start: 0 !important; }
+  .content-area { padding-top: calc(var(--th) + 14px) !important; padding-inline: 14px !important; }
+  .menu-btn { display: none !important; }
+}
+
+/* MOBILE ≤576px */
+@media (max-width: 576px) {
+  :root { --th: 50px; --tkh: 32px; }
+  .topbar { padding: 0 8px !important; gap: 5px !important; }
+  .topbar-clock { font-size: .7rem !important; }
+  .topbar-username { display: none !important; }
+  .content-area {
+    padding: 12px 10px !important;
+    padding-top: calc(var(--th) + var(--tkh) + 12px) !important;
+    padding-bottom: calc(var(--fh) + 8px) !important;
+    overflow-x: hidden !important;
+  }
+  input, select, textarea { font-size: 16px !important; touch-action: manipulation; }
+  /* Stat cards */
+  .col-6 { flex: 0 0 50% !important; max-width: 50% !important; min-width: 0; }
+  .stat-card { min-height: 80px !important; padding: 12px 10px !important; display: flex !important; flex-direction: column !important; justify-content: center !important; }
+  .stat-card .num { font-size: 1.7rem !important; }
+  .stat-card .lbl { font-size: .75rem !important; }
+  /* Page header */
+  .page-header { flex-direction: column !important; align-items: flex-start !important; gap: 8px !important; margin-bottom: 12px !important; }
+  .page-header h1 { font-size: 1.1rem !important; }
+  .page-header .d-flex { flex-wrap: wrap !important; gap: 6px !important; width: 100%; }
+  .page-header .btn, .page-header a.btn { flex: 1 1 auto !important; min-width: calc(50% - 6px) !important; height: 42px !important; display: flex !important; align-items: center !important; justify-content: center !important; font-size: .84rem !important; }
+  /* Tables */
+  .table-responsive { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+  .table { font-size: .8rem !important; min-width: 420px; }
+  .table th, .table td { padding: 8px 10px !important; white-space: nowrap; }
+  /* Buttons */
+  .btn-sm { padding: 7px 12px !important; font-size: .84rem !important; min-height: 38px; display: inline-flex; align-items: center; justify-content: center; }
+  /* Modal */
+  .modal-dialog { margin: .5rem; max-width: calc(100vw - 1rem); }
+  /* Footer */
+  .app-footer { justify-content: center; text-align: center; font-size: .78rem; }
+  /* Rows */
+  .row.g-3 .col-md-2, .row.g-3 .col-md-3 { flex: 0 0 100%; max-width: 100%; }
+}
+
+@media (max-width: 375px) {
+  .content-area { padding-inline: 8px !important; }
+  .stat-card .num { font-size: 1.5rem !important; }
+  .page-header h1 { font-size: 1rem !important; }
+}
+
+/* ═══════════════════════════════
+   CARDS, TABLES, FORMS, ETC.
+═══════════════════════════════ */
+.card { border: none; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.07); background: #fff; }
+.card-header { background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: #fff; border-radius: 14px 14px 0 0 !important; padding: 12px 20px; font-weight: 600; font-size: .88rem; }
+.page-header { margin-bottom: 20px; }
+.page-header h1 { font-size: 1.35rem; font-weight: 700; color: var(--primary); }
+.stat-card { border-radius: 14px; padding: 18px 16px; color: #fff; min-height: 88px; display: flex; flex-direction: column; justify-content: center; }
+.stat-card .num { font-size: 2rem; font-weight: 800; line-height: 1; }
+.stat-card .lbl { font-size: .75rem; opacity: .9; margin-top: 4px; }
+.btn-primary-ars { background: linear-gradient(160deg, #2e88ff, #0C67EC, #0847B0); color: #fff; border: none; border-radius: 8px; padding: 7px 18px; font-size: .84rem; font-weight: 700; transition: all .2s; }
+.btn-primary-ars:hover { background: linear-gradient(160deg, #1a76f0, #0a55d4, #063a9a); color: #fff; transform: translateY(-1px); }
+.table { font-size: .83rem; }
+.table th { background: #f4f9fa; color: var(--primary); font-weight: 700; border-bottom: 2px solid #dde8ea; }
+.table td, .table th { padding: 10px 14px; vertical-align: middle; }
+.badge-pending   { background: #FEF3CD; color: #7a5900; border: 1px solid #f0b429; border-radius: 20px; padding: 3px 10px; font-size: .78rem; font-weight: 600; }
+.badge-approved  { background: #D1FAE5; color: #065F46; border: 1px solid #34D399; border-radius: 20px; padding: 3px 10px; font-size: .78rem; font-weight: 600; }
+.badge-rejected  { background: #FEE2E2; color: #991B1B; border: 1px solid #F87171; border-radius: 20px; padding: 3px 10px; font-size: .78rem; font-weight: 600; }
+.badge-cancelled { background: #F3F4F6; color: #374151; border: 1px solid #9CA3AF; border-radius: 20px; padding: 3px 10px; font-size: .78rem; font-weight: 600; }
+.badge-completed { background: #DBEAFE; color: #1E40AF; border: 1px solid #60A5FA; border-radius: 20px; padding: 3px 10px; font-size: .78rem; font-weight: 600; }
+.form-control, .form-select { border-radius: 8px; border: 1.5px solid #d0dde0; font-size: .88rem; }
+.form-control:focus, .form-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(12,103,236,.1); }
+.alert { border-radius: 10px; font-size: .88rem; font-weight: 500; }
+.alert-danger  { background: #fff0f0; color: #c0392b; border-right: 4px solid #e74c3c !important; border: 1px solid #ffcccc !important; }
+.alert-success { background: #f0fff4; color: #1a7a3a; border-right: 4px solid #27ae60 !important; border: 1px solid #b8f0cc !important; }
+.alert-warning { background: #fffbf0; color: #7a5c00; border-right: 4px solid #f39c12 !important; border: 1px solid #ffe08a !important; }
+.alert-info    { background: #f0f7ff; color: #0847B0; border-right: 4px solid #0C67EC !important; border: 1px solid #bdd8ff !important; }
+.stars { color: #5C9BDE; font-size: 1.1rem; }
+.table-responsive { scrollbar-width: thin; scrollbar-color: rgba(12,103,236,.15) transparent; }
+.table-responsive::-webkit-scrollbar { height: 5px; }
+.table-responsive::-webkit-scrollbar-thumb { background: rgba(12,103,236,.15); border-radius: 4px; }
+#liveUsersPanel { position: fixed; bottom: 50px; left: 20px; z-index: 9999; background: #fff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,.15); min-width: 280px; max-width: 340px; display: none; }
+#liveUsersPanel .lup-header { background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: #fff; padding: 10px 14px; border-radius: 12px 12px 0 0; font-size: .82rem; font-weight: 700; display: flex; justify-content: space-between; align-items: center; }
+#liveUsersPanel .lup-body { padding: 8px; max-height: 200px; overflow-y: auto; }
+#liveUsersPanel .lup-row { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 6px; font-size: .78rem; }
+#liveUsersPanel .lup-dot { width: 8px; height: 8px; border-radius: 50%; background: #3D8EF5; flex-shrink: 0; }
+
+@media print {
+  @page { size: A4; margin: 1.5cm; }
+  .sidebar, .topbar, #arsTickerBar, .btn, .alert, .modal, .page-header .d-flex > a,
+  .page-header .d-flex > button, #liveUsersPanel, .nav-print-hide,
+  .sidebar-overlay, .menu-btn, .app-footer { display: none !important; }
+  .main-content { margin: 0 !important; }
+  .content-area { overflow: visible !important; padding: 0 !important; height: auto !important; }
+  body, html { overflow: auto !important; height: auto !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    {% set _mcfg = get_maintenance_config() %}
+    {% if _mcfg and _mcfg.get('logo_b64') %}
+    <img src="{{ _mcfg.logo_b64 }}" class="brand-logo" alt="logo">
+    {% else %}
+    <i class="bi bi-calendar-check" style="font-size:1.4rem;color:#5C9BDE;filter:drop-shadow(0 0 6px rgba(92,155,222,.7))"></i>
+    {% endif %}
+    <div class="brand-text">
+      <div class="brand-title">{% if current_lang=='en' %}ARS{% else %}نظام ARS{% endif %}</div>
+      <div class="brand-sub">{% if current_lang=='en' %}Applied Reservation System{% else %}نظام إدارة الحجوزات{% endif %}</div>
+    </div>
+  </div>
+  <div class="sidebar-scroll" hx-boost="true" hx-target="#contentArea" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#pageLoader" hx-select="#contentArea">
+  {% if current_user.is_authenticated %}
+  <div class="section-label">{{ _('الرئيسية') }}</div>
+  <a href="{{ url_for('admin.dashboard') }}" class="nav-link {% if request.endpoint=='admin.dashboard' %}active{% endif %}">
+    <i class="bi bi-speedometer2"></i>{{ _('لوحة التحكم') }}
+  </a>
+  {% if cp_enabled('calendar') %}
+  <a href="{{ url_for('calendar_view.index') }}" class="nav-link {% if request.blueprint=='calendar_view' %}active{% endif %}">
+    <i class="bi bi-calendar3"></i>{{ _('التقويم') }}
+  </a>
+  {% endif %}
+  <div class="section-label">{{ _('الحجوزات') }}</div>
+  {% if cp_enabled('reservations') %}
+  <a href="{{ url_for('reservations.index') }}" class="nav-link {% if request.blueprint=='reservations' %}active{% endif %}">
+    <i class="bi bi-journal-text"></i>{{ _('الحجوزات') }}
+  </a>
+  {% endif %}
+  {% if cp_enabled('venues') %}
+  <a href="{{ url_for('venues.index') }}" class="nav-link {% if request.blueprint=='venues' %}active{% endif %}">
+    <i class="bi bi-building"></i>{{ _('القاعات') }}
+  </a>
+  {% endif %}
+  <div class="section-label">{{ _('إضافيات') }}</div>
+  {% if cp_enabled('checklists') %}
+  <a href="{{ url_for('checklists.index') }}" class="nav-link" {% if request.blueprint=='checklists' %}active{% endif %}">
+    <i class="bi bi-check2-square"></i>{{ _('قوائم المهام') }}
+  </a>
+  {% endif %}
+  {% if cp_enabled('contacts') %}
+  <a href="{{ url_for('contacts.index') }}" class="nav-link {% if request.blueprint=='contacts' %}active{% endif %}">
+    <i class="bi bi-person-lines-fill"></i>{{ _('جهات الاتصال') }}
+  </a>
+  <a href="{{ url_for('groups.index') }}" class="nav-link {% if request.blueprint=='groups' %}active{% endif %}">
+    <i class="bi bi-people-fill"></i>{% if current_lang=='en' %}Distribution Groups{% else %}مجموعات التوزيع{% endif %}
+  </a>
+  {% endif %}
+  {% if current_user.role and current_user.role.name in ('مدير النظام','admin','Admin','مشرف','Manager','manager') %}
+  <div class="section-label">{{ _('الإدارة') }}</div>
+  {% if cp_enabled('locations') %}
+  <a href="{{ url_for('locations.index') }}" class="nav-link {% if request.blueprint=='locations' %}active{% endif %}">
+    <i class="bi bi-geo-alt"></i>{{ _('المواقع') }}
+  </a>
+  {% endif %}
+  {% if cp_enabled('venues_mgmt') %}
+  <a href="{{ url_for('venues_mgmt.index') }}" class="nav-link {% if request.blueprint=='venues_mgmt' %}active{% endif %}">
+    <i class="bi bi-building-gear"></i>{{ _('إدارة القاعات') }}
+  </a>
+  {% endif %}
+  <a href="{{ url_for('users.index') }}" class="nav-link {% if request.blueprint=='users' %}active{% endif %}">
+    <i class="bi bi-people"></i>{{ _('المستخدمون') }}
+  </a>
+  {% if cp_enabled('reports') %}
+  <a href="{{ url_for('reports.index') }}" class="nav-link" {% if request.blueprint=='reports' %}active{% endif %}">
+    <i class="bi bi-bar-chart"></i>{{ _('التقارير') }}
+  </a>
+  {% if cp_enabled('reports','rep_compare') %}
+  <a href="{{ url_for('reports.comparison') }}" class="nav-link" {% if request.endpoint=='reports.comparison' %}active{% endif %}">
+    <i class="bi bi-bar-chart-steps"></i>{{ _('المقارنة') }}
+  </a>
+  {% endif %}
+  {% endif %}
+  {% if cp_enabled('blocked') %}
+  <a href="{{ url_for('blocked.index') }}" class="nav-link {% if request.blueprint=='blocked' %}active{% endif %}">
+    <i class="bi bi-slash-circle"></i><span>{{ _('حظر فترة') }}
+  </a>
+  {% endif %}
+  <!-- ✉️ Email Section -->
+  <div class="section-label">{% if current_lang=='en' %}📧 Email{% else %}📧 البريد{% endif %}</div>
+  <a href="{{ url_for('users.bulk_message') }}" class="nav-link {% if request.endpoint=='users.bulk_message' %}active{% endif %}">
+    <i class="bi bi-envelope-paper"></i>{{ _('رسالة جماعية') }}
+  </a>
+  <a href="{{ url_for('admin.email_logs') }}" class="nav-link {% if request.endpoint=='admin.email_logs' or request.endpoint=='admin.email_resend' %}active{% endif %}">
+    <i class="bi bi-envelope-check"></i>{% if current_lang=='en' %}Email Logs{% else %}سجل الرسائل{% endif %}
+  </a>
+  <a href="{{ url_for('admin.settings') }}" class="nav-link {% if request.endpoint=='admin.settings' %}active{% endif %}">
+    <i class="bi bi-gear-fill"></i>{% if current_lang=='en' %}Email Settings{% else %}إعدادات البريد{% endif %}
+  </a>
+  <!-- ⚙️ System Section -->
+  <div class="section-label">{% if current_lang=='en' %}⚙️ System{% else %}⚙️ النظام{% endif %}</div>
+  <a href="{{ url_for('admin.maintenance') }}" class="nav-link {% if request.endpoint=='admin.maintenance' %}active{% endif %}">
+    <i class="bi bi-tools"></i>{{ _('الصيانة') }}
+  </a>
+  <a href="/announcements/" class="nav-link {% if request.blueprint=='announcements' %}active{% endif %}">
+    <i class="bi bi-megaphone-fill"></i>{% if current_lang=='en' %}Announcements{% else %}الإعلانات{% endif %}
+  </a>
+  <a href="/interviews/admin/" class="nav-link {% if request.blueprint=='interviews' %}active{% endif %}" hx-boost="false">
+    <i class="bi bi-people-fill"></i>{% if current_lang=='en' %}Parent Interviews{% else %}مقابلات أولياء الأمور{% endif %}
+  </a>
+  <a href="{{ url_for('admin.auth_ticker') }}" class="nav-link {% if request.endpoint=='admin.auth_ticker' %}active{% endif %}">
+    <i class="bi bi-megaphone"></i>{% if current_lang=='en' %}Auth Ticker{% else %}تيكر صفحات الدخول{% endif %}
+  </a>
+  <a href="{{ url_for('cp.index') }}" class="nav-link {% if request.blueprint=='cp' %}active{% endif %}">
+    <i class="bi bi-sliders"></i>{% if current_lang=='en' %}Control Panel{% else %}لوحة التحكم{% endif %}
+  </a>
+  <a href="{{ url_for('backoffice.index') }}" class="nav-link {% if request.blueprint=='backoffice' %}active{% endif %}">
+    <i class="bi bi-database"></i>{% if current_lang=='en' %}Back-Office{% else %}إدارة البيانات{% endif %}
+  </a>
+  <!-- 📋 Logs Section -->
+  <div class="section-label">{% if current_lang=='en' %}📋 Logs{% else %}📋 السجلات{% endif %}</div>
+  <a href="{{ url_for('admin.system_log') }}" class="nav-link {% if request.endpoint=='admin.system_log' %}active{% endif %}">
+    <i class="bi bi-shield-check"></i>{{ _('سجل النظام') }}
+  </a>
+  <a href="{{ url_for('admin.audit_log') }}" class="nav-link {% if request.endpoint=='admin.audit_log' %}active{% endif %}">
+    <i class="bi bi-journal-text"></i>{{ _('سجل المراجعة') }}
+  </a>
+  {% endif %}
+  <div class="section-label">{{ _('الحساب') }}</div>
+  <a href="{{ url_for('auth.profile') }}" class="nav-link {% if request.endpoint=='auth.profile' %}active{% endif %}">
+    <i class="bi bi-person-circle"></i>{{ _('ملفي الشخصي') }}
+  </a>
+  <a href="{{ url_for('auth.logout') }}" class="nav-link">
+    <i class="bi bi-box-arrow-left"></i>{{ _('تسجيل الخروج') }}
+  </a>
+  {% endif %}
+  </div>
+</nav>
+
+  <!-- ── TOPBAR ────────────────────────────────────────────────────────────── -->
+  <div class="topbar">
+    <!-- Left: hamburger + clock (clock moves next to hamburger on mobile) -->
+    <div class="d-flex align-items-center gap-2" style="flex-shrink:0">
+      <button class="btn btn-sm menu-btn" style="border-color:rgba(255,255,255,.3);color:#fff;flex-shrink:0" onclick="toggleSidebar()">
+        <i class="bi bi-list fs-5"></i>
+      </button>
+      <span id="topbarClock" class="topbar-clock"></span>
+    </div>
+
+    <!-- Ticker: desktop only — JS-powered smooth scroll -->
+    <div id="tickerWrap" style="flex:1;overflow:hidden;height:36px;display:flex;align-items:center;min-width:0;margin:0 10px;background:transparent;border-radius:8px;max-width:100%">
+      <div class="ticker-overflow" style="flex:1;overflow:hidden;height:36px;display:flex;align-items:center;position:relative;max-width:100%">
+        <div class="ticker-track" id="tickerTrack" style="display:inline-flex;align-items:center;white-space:nowrap;will-change:transform">
+          {%- for item in ticker_cfg.feeds -%}
+          <span class="ticker-item" style="color:{{ ticker_cfg.fg }};font-family:{{ ticker_cfg.font }};font-size:{{ ticker_cfg.size }}px;font-weight:600">
+            {{ item|safe }}
+            {%- if ticker_cfg.logo_url %}<img src="{{ ticker_cfg.logo_url }}" alt="">{% endif -%}
+          </span>
+          {%- if not loop.last %}<span class="ticker-sep" style="color:{{ ticker_cfg.fg }}">{% if ticker_cfg.sep_img_url %}<img src="{{ ticker_cfg.sep_img_url }}" alt="">{% else %}◆{% endif %}</span>{% endif -%}
+          {%- endfor -%}
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: controls -->
+    <div class="d-flex align-items-center gap-2" style="flex-shrink:0">
+      {% if current_user.is_authenticated %}
+      <a href="/set-lang/{{ 'ar' if current_lang == 'en' else 'en' }}"
+         onclick="sessionStorage.removeItem('ars_ticker_ar');sessionStorage.removeItem('ars_ticker_en');"
+         style="background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.4);color:#fff;border-radius:8px;padding:3px 12px;font-size:.78rem;font-weight:700;text-decoration:none">
+        {{ 'ع' if current_lang == 'en' else 'EN' }}
+      </a>
+      {% if current_user.role and current_user.role.name in ('مدير النظام','admin','Admin','مشرف','Manager','manager') %}
+      <button onclick="toggleLiveUsers()" title="{{ _('المستخدمون المتصلون') }}" style="background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:3px 10px;font-size:.78rem;cursor:pointer">
+        <i class="bi bi-people-fill"></i> <span id="liveUserCount">0</span>
+      </button>
+      {% endif %}
+      <!-- Notification bell -->
+      <div style="position:relative">
+        <button id="notifBtn" onclick="toggleNotifs()" title="{% if current_lang=='en' %}Notifications{% else %}الإشعارات{% endif %}"
+                style="background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:3px 10px;font-size:.78rem;cursor:pointer;position:relative">
+          <i class="bi bi-bell"></i>
+          <span id="notifBadge" style="display:none;position:absolute;top:-4px;inset-inline-end:-4px;background:#f00;color:#fff;border-radius:50%;width:16px;height:16px;font-size:.6rem;font-weight:700;display:flex;align-items:center;justify-content:center;line-height:1">0</span>
+        </button>
+        <div id="notifPanel" style="display:none;position:absolute;top:calc(100% + 8px);inset-inline-end:0;width:300px;background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);z-index:9999;overflow:hidden">
+          <div style="background:var(--primary-dark);color:#fff;padding:10px 14px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-weight:700;font-size:.85rem">{% if current_lang=='en' %}Notifications{% else %}الإشعارات{% endif %}</span>
+            <button onclick="readAllNotifs()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:6px;padding:2px 8px;font-size:.72rem;cursor:pointer">
+              {% if current_lang=='en' %}Mark all read{% else %}قراءة الكل{% endif %}
+            </button>
+          </div>
+          <div id="notifList" style="max-height:300px;overflow-y:auto;padding:6px 0"></div>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-1 topbar-user-wrap">
+        <div style="width:28px;height:28px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.75rem;color:#fff;flex-shrink:0">
+          {{ (current_user.full_name or current_user.username)[:1].upper() }}
+        </div>
+        <span class="topbar-username" style="color:#fff;font-size:.8rem;font-weight:600;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+          {{ current_user.full_name or current_user.username }}
+        </span>
+      </div>
+      <a href="{{ url_for('auth.logout') }}" class="btn btn-sm"
+         style="background:linear-gradient(135deg,#e74c3c,#c0392b);color:#fff;border:none;border-radius:10px;padding:5px 14px;font-weight:700;box-shadow:0 2px 8px rgba(231,76,60,.4);transition:all .2s"
+         onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(231,76,60,.5)'"
+         onmouseout="this.style.transform='';this.style.boxShadow='0 2px 8px rgba(231,76,60,.4)'"
+         title="{{ _('تسجيل الخروج') }}">
+        <i class="bi bi-box-arrow-right me-1"></i><span class="d-none d-sm-inline">{% if current_lang == 'en' %}Logout{% else %}خروج{% endif %}</span>
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+
+
+
+<!-- ── TICKER BAR — Fixed independent layer, never reloads ── -->
+<div id="arsTickerBar">
+  <div class="ticker-overflow" style="flex:1;overflow:hidden;height:100%;display:flex;align-items:center;max-width:100%">
+    <div class="ticker-track" id="tickerTrackMobile" style="display:inline-flex;align-items:center;white-space:nowrap;will-change:transform">
+      {%- for item in ticker_cfg.feeds -%}
+      <span class="ticker-item" style="color:{{ ticker_cfg.fg or '#ffffff' }};font-family:{{ ticker_cfg.font }};font-size:{{ ticker_cfg.size }}px;font-weight:600">
+        {{ item|safe }}
+        {%- if ticker_cfg.logo_url %}<img src="{{ ticker_cfg.logo_url }}" alt="">{% endif -%}
+      </span>
+      {%- if not loop.last %}<span class="ticker-sep" style="color:{{ ticker_cfg.fg or '#ffffff' }}">{% if ticker_cfg.sep_img_url %}<img src="{{ ticker_cfg.sep_img_url }}" alt="">{% else %}◆{% endif %}</span>{% endif -%}
+      {%- endfor -%}
+    </div>
+  </div>
+</div>
+
+<div class="main-content" id="mainContent">
+
+  <!-- Page loading indicator -->
+  <div id="pageLoader" style="display:none;position:fixed;top:var(--topbar-h);left:0;right:0;height:3px;z-index:9999">
+    <div style="height:100%;background:linear-gradient(90deg,transparent,#5C9BDE,#fff,#5C9BDE,transparent);animation:loaderSlide 1s linear infinite"></div>
+  </div>
+
+  <div class="content-area" id="contentArea" hx-history-elt>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="mb-3">
+      {% for cat, msg in messages %}
+      <div class="alert alert-{{ 'success' if cat=='success' else 'danger' if cat in ('danger','error') else 'warning' if cat=='warning' else 'info' }} alert-dismissible fade show">
+        {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+
+  </div><!-- /content-area -->
+
+  <!-- ── Footer — always pinned at bottom edge ─────────────────────────────── -->
+  <footer class="app-footer">
+    <div class="footer-brand">
+      <i class="bi bi-calendar-check"></i>
+      <strong>ARS</strong>
+      <span class="footer-sep">|</span>
+      <span>{% if current_lang=='en' %}Applied Reservation System{% else %}نظام إدارة الحجوزات{% endif %}</span>
+      <span class="footer-sep">|</span>
+      <a href="#" class="footer-terms" data-bs-toggle="modal" data-bs-target="#aboutModal">
+        {% if current_lang=='en' %}About{% else %}عن النظام{% endif %}
+      </a>
+    </div>
+    <div style="display:flex;align-items:center;gap:0;flex-wrap:wrap;justify-content:flex-end">
+      <span>© {{ now.year if now is defined else 2026 }}</span>
+      <span class="footer-sep">·</span>
+      <span>{% if current_lang=='en' %}All rights reserved{% else %}جميع الحقوق محفوظة{% endif %}</span>
+      <span class="footer-sep">|</span>
+      <a href="#" class="footer-terms" data-bs-toggle="modal" data-bs-target="#privacyModal">{% if current_lang=='en' %}Terms{% else %}الشروط{% endif %}</a>
+      <span class="footer-sep">·</span>
+      <a href="#" class="footer-terms" data-bs-toggle="modal" data-bs-target="#contactModal">{% if current_lang=='en' %}Contact{% else %}تواصل{% endif %}</a>
+    </div>
+  </footer>
+
+  <!-- Modals (kept in DOM, outside scroll) -->
+  <div>
+    <div class="modal fade" id="aboutModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+          <div class="modal-header" style="background:linear-gradient(135deg,var(--primary-dark),var(--primary));color:#fff">
+            <h5 class="modal-title"><i class="bi bi-info-circle me-2"></i>{% if current_lang=='en' %}About ARS{% else %}عن نظام ARS{% endif %}</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body p-4">
+            <!-- Logo + Title -->
+            <div class="text-center mb-4">
+              <div style="width:64px;height:64px;background:linear-gradient(135deg,var(--primary),var(--primary-light));border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;box-shadow:0 4px 16px rgba(12,103,236,.3)">
+                <i class="bi bi-calendar-check" style="font-size:1.8rem;color:#fff"></i>
+              </div>
+              <h4 style="color:var(--primary);font-weight:800;margin-bottom:4px">ARS</h4>
+              <p style="color:#666;font-size:.88rem;margin:0">{% if current_lang=='en' %}Applied Reservation System{% else %}نظام إدارة الحجوزات التطبيقي{% endif %}</p>
+            </div>
+            {% if current_lang=='en' %}
+            <div class="row g-3">
+              <div class="col-12">
+                <div style="background:#f0f7ff;border-radius:12px;padding:16px;border-right:4px solid var(--primary)">
+                  <h6 style="color:var(--primary);font-weight:700;margin-bottom:8px"><i class="bi bi-bullseye me-2"></i>What is ARS?</h6>
+                  <p style="font-size:.88rem;color:#444;margin:0">ARS is a comprehensive, bilingual (Arabic/English) venue and reservation management platform. It enables organizations to manage booking requests, track approvals, assign venues and locations, and generate detailed reports — all from one centralized system.</p>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div style="background:#f0fff4;border-radius:12px;padding:14px;border-right:4px solid #27ae60">
+                  <h6 style="color:#27ae60;font-weight:700;margin-bottom:8px"><i class="bi bi-stars me-2"></i>Key Features</h6>
+                  <ul style="font-size:.84rem;color:#444;margin:0;padding-inline-start:16px">
+                    <li>Reservation request & approval workflow</li>
+                    <li>Multi-location & multi-venue management</li>
+                    <li>Task checklists & work tracking</li>
+                    <li>Contacts & distribution groups</li>
+                    <li>Advanced reports & comparisons</li>
+                    <li>Email & local notifications</li>
+                    <li>Role-based access control</li>
+                  </ul>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div style="background:#fff8f0;border-radius:12px;padding:14px;border-right:4px solid #e67e22">
+                  <h6 style="color:#e67e22;font-weight:700;margin-bottom:8px"><i class="bi bi-people me-2"></i>Who is it for?</h6>
+                  <ul style="font-size:.84rem;color:#444;margin:0;padding-inline-start:16px">
+                    <li>Universities & schools</li>
+                    <li>Government entities</li>
+                    <li>Conference & event centers</li>
+                    <li>Hotels & hospitality</li>
+                    <li>Corporate offices</li>
+                    <li>Any organization managing shared spaces</li>
+                  </ul>
+                </div>
+              </div>
+              <div class="col-12 text-center">
+                <p class="text-muted small mb-0"><strong>Version 4.0</strong> &nbsp;·&nbsp; © 2026 ARS</p>
+              </div>
+            </div>
+            {% else %}
+            <div class="row g-3">
+              <div class="col-12">
+                <div style="background:#f0f7ff;border-radius:12px;padding:16px;border-right:4px solid var(--primary)">
+                  <h6 style="color:var(--primary);font-weight:700;margin-bottom:8px"><i class="bi bi-bullseye me-2"></i>ما هو نظام ARS؟</h6>
+                  <p style="font-size:.88rem;color:#444;margin:0">نظام ARS هو منصة متكاملة ثنائية اللغة (عربي/إنجليزي) لإدارة الحجوزات والقاعات. يمكّن المؤسسات من إدارة طلبات الحجز، تتبع الموافقات، تعيين القاعات والمواقع، وإنشاء تقارير تفصيلية — كل ذلك من نظام مركزي واحد.</p>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div style="background:#f0fff4;border-radius:12px;padding:14px;border-right:4px solid #27ae60">
+                  <h6 style="color:#27ae60;font-weight:700;margin-bottom:8px"><i class="bi bi-stars me-2"></i>المميزات الرئيسية</h6>
+                  <ul style="font-size:.84rem;color:#444;margin:0;padding-inline-start:16px">
+                    <li>دورة عمل طلبات الحجز والموافقة</li>
+                    <li>إدارة مواقع وقاعات متعددة</li>
+                    <li>قوائم مهام وتتبع الأعمال</li>
+                    <li>جهات الاتصال ومجموعات التوزيع</li>
+                    <li>تقارير ومقارنات متقدمة</li>
+                    <li>إشعارات بريد إلكتروني ومحلية</li>
+                    <li>صلاحيات وأدوار متعددة</li>
+                  </ul>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div style="background:#fff8f0;border-radius:12px;padding:14px;border-right:4px solid #e67e22">
+                  <h6 style="color:#e67e22;font-weight:700;margin-bottom:8px"><i class="bi bi-people me-2"></i>لمن هو؟</h6>
+                  <ul style="font-size:.84rem;color:#444;margin:0;padding-inline-start:16px">
+                    <li>الجامعات والمدارس</li>
+                    <li>الجهات الحكومية</li>
+                    <li>مراكز المؤتمرات والفعاليات</li>
+                    <li>الفنادق وقطاع الضيافة</li>
+                    <li>المكاتب والشركات</li>
+                    <li>أي جهة تدير مساحات مشتركة</li>
+                  </ul>
+                </div>
+              </div>
+              <div class="col-12 text-center">
+                <p class="text-muted small mb-0"><strong>الإصدار 4.0</strong> &nbsp;·&nbsp; © 2026 ARS</p>
+              </div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Privacy Modal -->
+    <div class="modal fade" id="privacyModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+          <div class="modal-header" style="background:var(--primary);color:#fff">
+            <h5 class="modal-title"><i class="bi bi-shield-check me-2"></i>{% if current_lang=='en' %}Terms of Use & Privacy Policy{% else %}سياسة الاستخدام والخصوصية{% endif %}</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body small" style="max-height:70vh;overflow-y:auto">
+            {% if current_lang=='en' %}
+
+            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-1-circle me-1"></i>Data Collection</h6>
+            <p>ARS collects only the information necessary to manage reservations, including name, email address, phone number, and booking details. No unnecessary personal data is collected.</p>
+
+            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-2-circle me-1"></i>Data Use</h6>
+            <p>Your data is used solely for reservation management, system notifications, and service improvement. Your data will never be sold or shared with third parties for commercial purposes.</p>
+
+            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-3-circle me-1"></i>Data Security</h6>
+            <p>All data is stored securely using encryption standards. Access is restricted to authorized users only, and all system activities are logged for security purposes.</p>
+
+            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-4-circle me-1"></i>Intellectual Property</h6>
+            <p>ARS — Applied Reservation System and all its components, interfaces, code, and content are the exclusive intellectual property of the system owner. Reproduction, copying, or redistribution of any part of this system is strictly prohibited without prior written permission.</p>
+
+            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-5-circle me-1"></i>User Responsibilities</h6>
+            <p>Users are responsible for maintaining the confidentiality of their login credentials. Any misuse of the system, unauthorized access attempts, or violation of these terms may result in immediate account suspension and potential legal action.</p>
+
+            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-6-circle me-1"></i>Limitation of Liability</h6>
+            <p>The system owner shall not be liable for any direct or indirect damages arising from the use or inability to use this system, including but not limited to data loss or service interruptions.</p>
+
+            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-7-circle me-1"></i>Governing Law</h6>
+            <p>These terms are governed by applicable local laws. Any disputes shall be resolved through the competent judicial authorities.</p>
+
+            <div class="mt-3 p-2 rounded" style="background:#EEF4FD;border-right:3px solid var(--primary)">
+              <small class="text-muted">Last updated: 2026 · ARS Applied Reservation System · All rights reserved ©</small>
+            </div>
+
+            {% else %}
+
+            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-1-circle me-1"></i>جمع البيانات</h6>
+            <p>يجمع نظام ARS فقط المعلومات الضرورية لإدارة الحجوزات، بما يشمل الاسم والبريد الإلكتروني ورقم الهاتف وتفاصيل الحجز. لا يتم جمع أي بيانات شخصية غير ضرورية.</p>
+
+            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-2-circle me-1"></i>استخدام البيانات</h6>
+            <p>تُستخدم بياناتك حصراً لإدارة الحجوزات وإشعارات النظام وتحسين الخدمة. لن يتم بيع بياناتك أو مشاركتها مع أطراف ثالثة لأغراض تجارية بأي حال.</p>
+
+            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-3-circle me-1"></i>أمان البيانات</h6>
+            <p>تُحفظ جميع البيانات بشكل آمن باستخدام معايير التشفير المعتمدة. لا يمكن الوصول إليها إلا للمستخدمين المخولين، وتُسجَّل جميع أنشطة النظام لأغراض أمنية.</p>
+
+            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-4-circle me-1"></i>الملكية الفكرية</h6>
+            <p>نظام ARS — Applied Reservation System وجميع مكوناته وواجهاته وكوده ومحتواه هي الملكية الفكرية الحصرية لمالك النظام. يُحظر تمامًا إعادة إنتاج أي جزء من هذا النظام أو نسخه أو توزيعه دون إذن كتابي مسبق.</p>
+
+            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-5-circle me-1"></i>مسؤوليات المستخدم</h6>
+            <p>يتحمل المستخدم مسؤولية الحفاظ على سرية بيانات تسجيل الدخول الخاصة به. قد يؤدي أي إساءة في استخدام النظام أو محاولات وصول غير مصرح بها أو انتهاك هذه الشروط إلى تعليق الحساب فورًا واتخاذ الإجراءات القانونية اللازمة.</p>
+
+            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-6-circle me-1"></i>تحديد المسؤولية</h6>
+            <p>لا يتحمل مالك النظام أي مسؤولية عن الأضرار المباشرة أو غير المباشرة الناجمة عن استخدام النظام أو عدم القدرة على استخدامه، بما في ذلك على سبيل المثال لا الحصر فقدان البيانات أو انقطاع الخدمة.</p>
+
+            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-7-circle me-1"></i>القانون المطبّق</h6>
+            <p>تخضع هذه الشروط للقوانين المحلية المعمول بها. تُحسم أي نزاعات عبر الجهات القضائية المختصة.</p>
+
+            <div class="mt-3 p-2 rounded" style="background:#EEF4FD;border-right:3px solid var(--primary)">
+              <small class="text-muted">آخر تحديث: 2026 · نظام ARS لإدارة الحجوزات · جميع الحقوق محفوظة ©</small>
+            </div>
+
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Contact Modal -->
+    <div class="modal fade" id="contactModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header" style="background:var(--primary);color:#fff">
+            <h5 class="modal-title"><i class="bi bi-headset me-2"></i>{% if current_lang=='en' %}Contact Us{% else %}تواصل معنا{% endif %}</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body p-0">
+            <!-- Header banner -->
+            <div style="background:linear-gradient(135deg,var(--primary),var(--primary-light));padding:18px 20px;text-align:center">
+              <div style="font-size:2rem">👋</div>
+              <div style="color:#fff;font-weight:700;font-size:.95rem;margin-top:4px">
+                {% if current_lang=='en' %}We're here to help!{% else %}نحن هنا لمساعدتك!{% endif %}
+              </div>
+              <div style="color:rgba(255,255,255,.75);font-size:.78rem">ARS — Applied Reservation System</div>
+            </div>
+            <div class="p-4 d-flex flex-column gap-3">
+              <!-- Email -->
+              <a href="mailto:Baderaq@gmail.com" class="d-flex align-items-center gap-3 text-decoration-none p-3 rounded-3" style="background:#EEF4FD;border:1px solid #C8DCFF;transition:.2s" onmouseover="this.style.background='#ddeeff'" onmouseout="this.style.background='#EEF4FD'">
+                <div style="width:44px;height:44px;border-radius:12px;background:var(--primary);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                  <i class="bi bi-envelope-fill" style="color:#fff;font-size:1.1rem"></i>
+                </div>
+                <div>
+                  <div class="fw-bold" style="color:var(--primary);font-size:.85rem">{% if current_lang=='en' %}Email Support{% else %}البريد الإلكتروني{% endif %}</div>
+                  <div style="color:#555;font-size:.82rem">Baderaq@gmail.com</div>
+                </div>
+                <i class="bi bi-arrow-left ms-auto" style="color:var(--primary)"></i>
+              </a>
+              <!-- Phone -->
+              <a href="tel:+962793199031" class="d-flex align-items-center gap-3 text-decoration-none p-3 rounded-3" style="background:#F0FFF4;border:1px solid #B8EFC8;transition:.2s" onmouseover="this.style.background='#d4f7e0'" onmouseout="this.style.background='#F0FFF4'">
+                <div style="width:44px;height:44px;border-radius:12px;background:#27ae60;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                  <i class="bi bi-telephone-fill" style="color:#fff;font-size:1.1rem"></i>
+                </div>
+                <div>
+                  <div class="fw-bold" style="color:#1a7a3a;font-size:.85rem">{% if current_lang=='en' %}Phone / WhatsApp{% else %}الهاتف / واتساب{% endif %}</div>
+                  <div style="color:#555;font-size:.82rem;direction:ltr;text-align:right">+962 79 319 9031</div>
+                </div>
+                <i class="bi bi-arrow-left ms-auto" style="color:#27ae60"></i>
+              </a>
+              <!-- Note -->
+              <div class="text-center" style="color:#888;font-size:.76rem;padding-top:4px">
+                {% if current_lang=='en' %}Response within 24 hours on business days{% else %}يتم الرد خلال 24 ساعة في أيام العمل{% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+<script>
+// HTMX config — extract only the content block on navigation
+// HTMX configured in <head>
+
+// Navigation handled by HTMX
+// Update page title when HTMX navigates
+document.body.addEventListener('updateTitle', function(e) {
+  if(e.detail && e.detail.value) document.title = e.detail.value;
+});
+// After HTMX swaps content, re-init Bootstrap tooltips/modals and i18n clock
+document.body.addEventListener('htmx:afterSwap', function(e) {
+  // Re-init Bootstrap
+  document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => bootstrap.Tooltip.getOrCreateInstance(el));
+  // Close mobile sidebar
+  if(window.innerWidth <= 992) closeSidebar();
+  // Scroll: respect URL hash anchors (#comments etc), else scroll to top
+  const ca = document.getElementById('contentArea');
+  if(ca) {
+    const hash = window.location.hash;
+    if (hash) {
+      setTimeout(() => {
+        const el = document.querySelector(hash);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 80);
+    } else {
+      ca.scrollTop = 0;
+    }
+  }
+  // Re-execute scripts (Chart.js, FullCalendar, etc.)
+  const target = e.detail.target;
+  if(target) {
+    target.querySelectorAll('script').forEach(old => {
+      const s = document.createElement('script');
+      Array.from(old.attributes).forEach(a => s.setAttribute(a.name, a.value));
+      s.textContent = old.textContent;
+      if(old.src) s.src = old.src;
+      old.parentNode.replaceChild(s, old);
+    });
+  }
+});
+// Update active nav
+document.body.addEventListener('htmx:pushedIntoHistory', function(e) {
+  const path = e.detail.path;
+  document.querySelectorAll('.sidebar-scroll .nav-link').forEach(a => {
+    const href = a.getAttribute('href') || '';
+    a.classList.toggle('active', href !== '/' && path.startsWith(href));
+  });
+});
+// Fallback to full load on error
+document.body.addEventListener('htmx:responseError', e => window.location.href = e.detail.pathInfo?.requestPath || '/');
+// Hide URL in browser status bar for sidebar links
+document.querySelectorAll('.sidebar-scroll a.nav-link').forEach(a => {
+  a.addEventListener('mouseenter', () => window.history.replaceState(null,'',location.pathname));
+});
+</script>
+
+<!-- Live Users Panel (admin only) -->
+<div id="liveUsersPanel">
+  <div class="lup-header">
+    <span><i class="bi bi-circle-fill me-1" style="color:#3D8EF5;font-size:.6rem"></i> <span id="lupTitle">{% if current_lang == 'en' %}Online Users{% else %}المستخدمون المتصلون{% endif %}</span>
+    <button onclick="toggleLiveUsers()" style="background:none;border:none;color:#fff;cursor:pointer;font-size:.9rem">✕</button>
+  </div>
+  <div class="lup-body" id="lupBody">
+    <div class="text-center text-muted py-2" style="font-size:.78rem">{{ _('جاري التحميل...') }}</div>
+  </div>
+</div>
+<script>
+function toggleSidebar(){
+  const s = document.getElementById('sidebar');
+  const o = document.getElementById('sidebarOverlay');
+  s.classList.toggle('open');
+  o.classList.toggle('show');
+}
+function closeSidebar(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('show');
+}
+
+// ── Robust JS Ticker ──────────────────────────────────────────────────────────
+(function(){
+  function initTicker(trackId, speed){
+    const track = document.getElementById(trackId);
+    if(!track || !track.children.length) return;
+    // Duplicate content for seamless loop
+    const clone = track.innerHTML;
+    track.innerHTML = clone + clone;
+    const isRTL = document.documentElement.dir === 'rtl';
+    let pos = 0;
+    let halfW = 0;
+    function measureHalf(){ halfW = track.scrollWidth / 2; }
+    measureHalf();
+    // Re-measure on resize
+    window.addEventListener('resize', measureHalf);
+    let paused = false;
+    track.parentElement.addEventListener('mouseenter', ()=> paused=true);
+    track.parentElement.addEventListener('mouseleave', ()=> paused=false);
+    const pxPerMs = Math.max(0.01, (speed || 35) / 1000);
+    let lastTime = 0;
+    function step(timestamp){
+      if(!lastTime) lastTime = timestamp;
+      const dt = timestamp - lastTime;
+      lastTime = timestamp;
+      if(!paused && halfW > 0){
+        const delta = pxPerMs * dt;
+        if(isRTL){ pos += delta; if(pos >= halfW) pos -= halfW; }
+        else { pos -= delta; if(Math.abs(pos) >= halfW) pos += halfW; }
+        track.style.transform = 'translate3d(' + pos + 'px,0,0)';
+      }
+      requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+  initTicker('tickerTrack', {{ ticker_cfg.speed }});
+  initTicker('tickerTrackMobile', {{ ticker_cfg.speed }});
+})();
+
+// ── Live Users Panel ─────────────────────────────────────────────────────────
+let _lupOpen = false;
+function toggleLiveUsers(){
+  const panel = document.getElementById('liveUsersPanel');
+  if(!panel) return;
+  _lupOpen = !_lupOpen;
+  panel.style.display = _lupOpen ? 'block' : 'none';
+  if(_lupOpen) fetchLiveUsers();
+}
+function fetchLiveUsers(){
+  fetch('/admin/live-users')
+    .then(r=>r.json())
+    .then(data=>{
+      const el = document.getElementById('liveUserCount');
+      const body = document.getElementById('lupBody');
+      if(el) el.textContent = data.count || 0;
+      if(!body) return;
+      if(!data.users || data.users.length === 0){
+        body.innerHTML = '<div class="text-center text-muted py-2" style="font-size:.78rem">{{ _('لا يوجد مستخدمون متصلون الآن') }}</div>';
+        return;
+      }
+      body.innerHTML = data.users.map(u=>`
+        <div class="lup-row">
+          <div class="lup-dot"></div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;color:#0C67EC;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${u.full_name||u.username}</div>
+            <div style="color:#999;font-size:.7rem">${u.ip} · ${u.browser} · ${u.time}</div>
+          </div>
+        </div>`).join('');
+    }).catch(()=>{});
+}
+// ── Notifications ─────────────────────────────────────────────────────────────
+let _notifOpen = false;
+function toggleNotifs() {
+  _notifOpen = !_notifOpen;
+  const panel = document.getElementById('notifPanel');
+  if(panel) panel.style.display = _notifOpen ? 'block' : 'none';
+  if(_notifOpen) fetchNotifs();
+}
+function fetchNotifs() {
+  fetch('/admin/notifications').then(r=>r.json()).then(d=>{
+    const badge = document.getElementById('notifBadge');
+    const list  = document.getElementById('notifList');
+    if(badge) {
+      badge.textContent = d.count;
+      badge.style.display = d.count > 0 ? 'flex' : 'none';
+    }
+    if(!list) return;
+    if(!d.items.length) {
+      list.innerHTML = '<div style="padding:16px;text-align:center;color:#aaa;font-size:.82rem">{% if current_lang=="en" %}No notifications{% else %}لا توجد إشعارات{% endif %}</div>';
+      return;
+    }
+    list.innerHTML = d.items.map(n=>`
+      <div onclick="goNotif(${n.id},'${n.link||''}')" style="padding:10px 14px;border-bottom:1px solid #f0f0f0;cursor:pointer;transition:background .15s" onmouseover="this.style.background='#f7f9fc'" onmouseout="this.style.background=''">
+        <div style="font-size:.82rem;font-weight:700;color:#222">${n.title}</div>
+        ${n.body?`<div style="font-size:.75rem;color:#666;margin-top:2px">${n.body}</div>`:''}
+        <div style="font-size:.7rem;color:#aaa;margin-top:3px">${n.time}</div>
+      </div>`).join('');
+  }).catch(()=>{});
+}
+function goNotif(id, link) {
+  fetch(`/admin/notifications/read/${id}`,{method:'POST'});
+  if(link) window.location.href = link;
+  toggleNotifs();
+}
+function readAllNotifs() {
+  fetch('/admin/notifications/read-all',{method:'POST'}).then(()=>fetchNotifs());
+}
+// Poll for new notifications every 30s
+setInterval(()=>{
+  fetch('/admin/notifications').then(r=>r.json()).then(d=>{
+    const badge = document.getElementById('notifBadge');
+    if(badge) {
+      badge.textContent = d.count;
+      badge.style.display = d.count > 0 ? 'flex' : 'none';
+    }
+    // Browser push if new notifications arrived
+    if(d.count > 0 && 'Notification' in window && Notification.permission === 'granted') {
+      const last = d.items[0];
+      if(last && last.id !== parseInt(localStorage.getItem('last_notif_id')||'0')) {
+        new Notification(last.title, {body: last.body || '', icon: '/static/images/logo.png'});
+        localStorage.setItem('last_notif_id', last.id);
+      }
+    }
+  }).catch(()=>{});
+}, 30000);
+// Request browser notification permission
+if('Notification' in window && Notification.permission === 'default') {
+  Notification.requestPermission();
+}
+// Close notif panel on outside click
+document.addEventListener('click', e=>{
+  if(!e.target.closest('#notifBtn') && !e.target.closest('#notifPanel')) {
+    const p = document.getElementById('notifPanel');
+    if(p) { p.style.display='none'; _notifOpen=false; }
+  }
+});
+// Initial badge load
+fetchNotifs();
+// Also update count every 60s in background (admin)
+setInterval(()=>{
+  fetch('/admin/live-users').then(r=>r.json()).then(d=>{
+    const el = document.getElementById('liveUserCount');
+    if(el) el.textContent = d.count || 0;
+  }).catch(()=>{});
+}, 60000);
+</script>
+{% block extra_js %}{% endblock %}
+<script src="/static/js/i18n.js"></script>
+
+<!-- ── Auto-logout warning modal ────────────────────────────────────────── -->
+<div id="autoLogoutModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:20px;padding:2rem;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.4);text-align:center;position:relative">
+    <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#ff6b35,#f7931e);display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;font-size:1.8rem">⏱️</div>
+    <h5 style="color:#0C67EC;font-weight:800;margin-bottom:.5rem" id="alTitle">{{ _('تنبيه انتهاء الجلسة') }}</h5>
+    <p style="color:#666;font-size:.88rem;margin-bottom:1rem" id="alMsg">{{ _('سيتم تسجيل خروجك تلقائياً خلال') }}</p>
+    <div style="font-size:2.5rem;font-weight:900;color:#f7931e;margin-bottom:1.2rem;font-variant-numeric:tabular-nums" id="alCountdown">60</div>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button onclick="keepSession()" style="background:linear-gradient(135deg,#0C67EC,#3D8EF5);color:#fff;border:none;border-radius:10px;padding:10px 24px;font-size:.9rem;font-weight:700;cursor:pointer">
+        🔄 <span id="alStay">{{ _('ابقَ في الجلسة') }}
+      </button>
+      <a href="/auth/logout" style="background:#f5e6e6;color:#c0392b;border:none;border-radius:10px;padding:10px 20px;font-size:.9rem;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center">
+        🚪 <span id="alLogout" style="margin-right:4px">{{ _('خروج الآن') }}
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ANNOUNCEMENT POPUP MODAL — loads async, zero impact on page render ══ -->
+{% if current_user.is_authenticated %}
+<div id="annOverlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;
+     background:rgba(0,0,0,.72);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);
+     align-items:center;justify-content:center;padding:12px;box-sizing:border-box">
+  <div id="annModal" style="background:#fff;border-radius:20px;max-width:560px;width:100%;
+       max-height:90vh;overflow:hidden;display:flex;flex-direction:column;
+       box-shadow:0 20px 60px rgba(0,0,0,.4);animation:annIn .3s ease">
+    <!-- Header -->
+    <div id="annHeader" style="background:linear-gradient(135deg,#0847B0,#0C67EC);
+         padding:18px 24px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+      <h5 id="annTitle" style="color:#fff;margin:0;font-weight:800;font-size:1.05rem"></h5>
+      <button onclick="closeAnn()" style="background:rgba(255,255,255,.2);border:none;
+              color:#fff;border-radius:50%;width:32px;height:32px;font-size:1.2rem;
+              cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center">
+        ×
+      </button>
+    </div>
+    <!-- Media -->
+    <div id="annMedia" style="display:none;flex-shrink:0;max-height:260px;overflow:hidden;background:#000">
+      <img id="annImg" style="width:100%;max-height:260px;object-fit:contain;display:none">
+      <video id="annVid" style="width:100%;max-height:260px;display:none" controls></video>
+      <iframe id="annIframe" style="width:100%;height:260px;border:none;display:none" allowfullscreen></iframe>
+    </div>
+    <!-- Body -->
+    <div id="annBody" style="padding:20px 24px;overflow-y:auto;flex:1;
+         font-size:.92rem;color:#2d3748;line-height:1.7"></div>
+    <!-- Footer -->
+    <div style="padding:14px 24px;border-top:1px solid #eee;display:flex;
+         justify-content:space-between;align-items:center;flex-shrink:0;background:#f8fbff">
+      <label style="font-size:.8rem;color:#888;cursor:pointer;display:flex;align-items:center;gap:6px">
+        <input type="checkbox" id="annDontShow" style="cursor:pointer">
+        {% if current_lang=='en' %}Don't show again{% else %}لا تُظهر مجدداً{% endif %}
+      </label>
+      <button onclick="closeAnn()" style="background:#0C67EC;color:#fff;border:none;
+              border-radius:10px;padding:8px 24px;font-weight:700;cursor:pointer;font-size:.9rem">
+        {% if current_lang=='en' %}Close{% else %}إغلاق{% endif %}
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes annIn {
+  from { opacity:0; transform:scale(.92) translateY(20px); }
+  to   { opacity:1; transform:scale(1)   translateY(0); }
+}
+</style>
+
+<script>
+(function() {
+  let currentAnnId = null;
+  let annQueue     = [];
+  window.annQueue  = annQueue; // expose for preview
+
+  // Size map
+  const sizeMap = {
+    small:      { maxWidth:'400px',  maxHeight:'80vh' },
+    medium:     { maxWidth:'560px',  maxHeight:'88vh' },
+    large:      { maxWidth:'820px',  maxHeight:'92vh' },
+    fullscreen: { maxWidth:'98vw',   maxHeight:'98vh' }
+  };
+  // Position map
+  const posMap = {
+    top:    { alignItems:'flex-start', paddingTop:'20px' },
+    center: { alignItems:'center',     paddingTop:'16px' },
+    bottom: { alignItems:'flex-end',   paddingBottom:'20px' }
+  };
+
+  window._annShowNext = function() { showNext(); };
+  function showNext() {
+    if (!annQueue.length) return;
+    const ann = annQueue.shift();
+    currentAnnId = ann.id;
+
+    document.getElementById('annTitle').textContent = ann.title || '';
+    document.getElementById('annBody').innerHTML    = ann.body  || '';
+
+    // Apply size
+    const sz = sizeMap[ann.modal_size] || sizeMap.medium;
+    const modal = document.getElementById('annModal');
+    modal.style.maxWidth  = sz.maxWidth;
+    modal.style.maxHeight = sz.maxHeight;
+
+    // Apply position
+    const overlay = document.getElementById('annOverlay');
+    const pos = posMap[ann.modal_pos] || posMap.center;
+    overlay.style.alignItems     = pos.alignItems;
+    overlay.style.paddingTop     = pos.paddingTop    || '16px';
+    overlay.style.paddingBottom  = pos.paddingBottom || '16px';
+
+    // Apply header color
+    const colors = (ann.header_color || '#0847B0,#0C67EC').split(',');
+    const c1 = colors[0] || '#0847B0';
+    const c2 = colors[1] || '#0C67EC';
+    document.getElementById('annHeader').style.background =
+      'linear-gradient(135deg,' + c1 + ',' + c2 + ')';
+
+    // Media
+    const media  = document.getElementById('annMedia');
+    const img    = document.getElementById('annImg');
+    const vid    = document.getElementById('annVid');
+    const iframe = document.getElementById('annIframe');
+    img.style.display = vid.style.display = iframe.style.display = 'none';
+    media.style.display = 'none';
+
+    if (ann.media_type === 'image' && ann.media_b64) {
+      img.src = ann.media_b64; img.style.display = 'block'; media.style.display = 'block';
+    } else if (ann.media_type === 'image' && ann.media_url) {
+      img.src = ann.media_url; img.style.display = 'block'; media.style.display = 'block';
+    } else if (ann.media_type === 'video_url' && ann.media_url) {
+      const url = ann.media_url;
+      const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/);
+      if (ytMatch) {
+        iframe.src = 'https://www.youtube.com/embed/' + ytMatch[1];
+        iframe.style.display = 'block';
+      } else {
+        vid.src = url; vid.style.display = 'block';
+      }
+      media.style.display = 'block';
+    }
+
+    // Show — mobile safe (no body overflow lock on small screens)
+    overlay.style.display = 'flex';
+    if (window.innerWidth > 768) document.body.style.overflow = 'hidden';
+  }
+
+  window.closeAnn = function() {
+    const dontShow = document.getElementById('annDontShow').checked;
+    if (currentAnnId) {
+      // Always dismiss in session
+      fetch('/announcements/api/dismiss/' + currentAnnId, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({permanent: dontShow})
+      });
+      if (dontShow) {
+        // Force permanent dismissal
+        fetch('/announcements/api/dismiss/' + currentAnnId + '?permanent=1', {method:'POST'});
+      }
+    }
+    document.getElementById('annOverlay').style.display = 'none';
+    document.getElementById('annDontShow').checked = false;
+    document.body.style.overflow = '';
+    // Reset media to stop video playing
+    const vid = document.getElementById('annVid');
+    const iframe = document.getElementById('annIframe');
+    vid.src = ''; iframe.src = '';
+    // Show next if any
+    setTimeout(showNext, 200);
+  };
+
+  // Close on overlay click
+  document.getElementById('annOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeAnn();
+  });
+
+  // Check announcements — runs on initial load AND after HTMX navigation
+  let _annChecked = false;
+
+  function checkAnnouncements() {
+    if (_annChecked) return;
+    _annChecked = true;
+    setTimeout(function() {
+      fetch('/announcements/api/pending')
+        .then(r => {
+          if (!r.ok) throw new Error('API error: ' + r.status);
+          return r.json();
+        })
+        .then(d => {
+          annQueue = (d.items || []);
+          if (annQueue.length) showNext();
+          // Allow re-check after 30s (for "always" mode)
+          setTimeout(() => { _annChecked = false; }, 30000);
+        })
+        .catch(err => {
+          console.log('Announcement check failed:', err);
+          _annChecked = false;
+        });
+    }, 900);
+  }
+
+  // Fire on initial page load
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', checkAnnouncements);
+  } else {
+    checkAnnouncements();
+  }
+
+  // Also fire after HTMX navigation (hx-boost)
+  document.body.addEventListener('htmx:pushedIntoHistory', function() {
+    _annChecked = false;
+    checkAnnouncements();
+  });
+})();
+</script>
+{% endif %}
+
+</body>
+</html>

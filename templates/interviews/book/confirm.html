@@ -1,0 +1,124 @@
+{%- set ar = (current_lang == 'ar') -%}
+{% extends 'interviews/_public_base.html' %}
+{% block title %}{% if ar %}تأكيد الحجز{% else %}Confirm Booking{% endif %} — {{ ev.name }}{% endblock %}
+
+{% block extra_style %}
+.slot-pill{background:#f8fafc;border-radius:12px;padding:14px 16px;
+  border-{{ 'right' if ar else 'left' }}:4px solid var(--bc);margin-bottom:10px}
+{% endblock %}
+
+{% block pi_ticker %}{% endblock %}
+{% block nav_action %}
+<a href="{{ url_for('interviews.book_select', event_id=ev.id) }}"
+   class="btn-pi-outline btn btn-sm px-3" style="font-size:.82rem">
+  <i class="bi bi-arrow-{{ 'right' if ar else 'left' }} me-1"></i>{% if ar %}رجوع{% else %}Back{% endif %}
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  {# Steps #}
+  <div class="steps mb-4" style="max-width:400px;margin-inline:auto">
+    <div class="step done"><div class="step-num"><i class="bi bi-check-lg" style="font-size:.75rem"></i></div>
+      <div class="step-label">{% if ar %}المواعيد{% else %}Appointments{% endif %}</div></div>
+    <div class="step active"><div class="step-num">2</div>
+      <div class="step-label">{% if ar %}بياناتك{% else %}Details{% endif %}</div></div>
+    <div class="step"><div class="step-num">3</div>
+      <div class="step-label">{% if ar %}تأكيد{% else %}Confirm{% endif %}</div></div>
+  </div>
+
+  <div class="row g-4 justify-content-center">
+    {# Appointment summary #}
+    <div class="col-12 col-lg-4 order-lg-2">
+      <div class="pi-card p-4 mb-3" style="position:sticky;top:80px">
+        <h6 class="fw-700 mb-3" style="color:#0f172a">
+          <i class="bi bi-calendar-check me-2" style="color:var(--bc)"></i>
+          {% if ar %}مواعيدك ({{ slots|length }}){% else %}Your Appointments ({{ slots|length }}){% endif %}
+        </h6>
+        {% for slot in slots|sort(attribute='slot_date') %}
+        <div class="slot-pill">
+          <div class="fw-600" style="font-size:.92rem;color:#0f172a">{{ slot.teacher.name }}</div>
+          <div style="font-size:.8rem;color:#64748b;margin-top:2px">
+            {% if slot.teacher.subjects %}{{ slot.teacher.subjects }}{% endif %}
+            {% if slot.teacher.room %} · {% if ar %}غرفة{% else %}Room{% endif %} {{ slot.teacher.room }}{% endif %}
+          </div>
+          <div class="d-flex gap-2 mt-2">
+            <span class="badge rounded-pill text-white" style="background:var(--bc);font-family:monospace">{{ slot.slot_date }}</span>
+            <span class="badge rounded-pill bg-light text-dark border" style="font-family:monospace">{{ slot.start_time }} – {{ slot.end_time }}</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    {# Form #}
+    <div class="col-12 col-lg-7 order-lg-1">
+      <div class="pi-card p-4 p-lg-5">
+        <h5 class="fw-700 mb-4" style="color:#0f172a">
+          {% if ar %}معلوماتك{% else %}Your Details{% endif %}
+        </h5>
+        <form method="post" id="cf">
+          {% for sid in slot_ids %}<input type="hidden" name="slot_ids" value="{{ sid }}">{% endfor %}
+
+          <div class="mb-4">
+            <label class="pi-label">{% if ar %}اسم ولي الأمر <span style="color:#ef4444">*</span>{% else %}Parent / Guardian Name <span style="color:#ef4444">*</span>{% endif %}</label>
+            <input type="text" name="parent_name" class="pi-input"
+                   placeholder="{% if ar %}مثال: أحمد العلي{% else %}e.g. Jane Smith{% endif %}" required autofocus>
+          </div>
+          <div class="row g-3 mb-4">
+            <div class="col-12 col-md-6">
+              <label class="pi-label">{% if ar %}البريد الإلكتروني{% else %}Email Address{% endif %}</label>
+              <input type="email" name="parent_email" class="pi-input"
+                     placeholder="{% if ar %}email@example.com{% else %}your@email.com{% endif %}">
+              <div style="font-size:.75rem;color:#94a3b8;margin-top:6px">
+                {% if ar %}لاستقبال تأكيد الحجز{% else %}To receive your booking confirmation{% endif %}
+              </div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="pi-label">{% if ar %}رقم الهاتف{% else %}Phone Number{% endif %}</label>
+              <input type="tel" name="parent_phone" class="pi-input"
+                     placeholder="{% if ar %}05x xxx xxxx{% else %}021 123 4567{% endif %}">
+            </div>
+          </div>
+          <div class="mb-4">
+            <label class="pi-label">{% if ar %}اسم الطالب <span style="color:#ef4444">*</span>{% else %}Child's Name <span style="color:#ef4444">*</span>{% endif %}</label>
+            <input type="text" name="child_name" class="pi-input"
+                   placeholder="{% if ar %}مثال: محمد أحمد{% else %}e.g. Alex Smith{% endif %}" required>
+          </div>
+          {% if ev.allow_comments %}
+          <div class="mb-4">
+            <label class="pi-label">{% if ar %}ماذا تريد أن تناقش؟ (اختياري){% else %}What would you like to discuss? (optional){% endif %}</label>
+            <textarea name="comment" class="pi-input" rows="3" style="resize:vertical"
+              placeholder="{% if ar %}أضف أي ملاحظات أو أسئلة...{% else %}Share any topics or questions you'd like to raise...{% endif %}"></textarea>
+          </div>
+          {% endif %}
+
+          <div style="background:#f8fafc;border-radius:12px;padding:14px 16px;display:flex;gap:10px;margin-bottom:24px;font-size:.82rem;color:#64748b">
+            <i class="bi bi-shield-check text-success flex-shrink-0 mt-1"></i>
+            {% if ar %}ستُستخدم بياناتك فقط لإدارة حجزك، ولن تُشارك مع أي طرف ثالث
+            {% else %}Your details will only be used to manage your booking and will never be shared with third parties{% endif %}
+          </div>
+
+          <div class="d-flex gap-3">
+            <a href="{{ url_for('interviews.book_select', event_id=ev.id) }}" class="btn-pi-outline btn flex-shrink-0">
+              <i class="bi bi-arrow-{{ 'right' if ar else 'left' }} me-1"></i>{% if ar %}رجوع{% else %}Back{% endif %}
+            </a>
+            <button type="submit" id="sbtn" class="btn-pi btn flex-fill">
+              <i class="bi bi-check-circle me-2"></i>{% if ar %}تأكيد الحجز{% else %}Confirm Bookings{% endif %}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_script %}
+<script>
+document.getElementById('cf').addEventListener('submit',function(){
+  const b=document.getElementById('sbtn');b.disabled=true;
+  b.innerHTML='<span class="spinner-border spinner-border-sm me-2"></span>{{ "جاري الحجز..." if ar else "Booking..." }}';
+});
+</script>
+{% endblock %}
