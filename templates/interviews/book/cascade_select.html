@@ -1,0 +1,266 @@
+{% extends 'interviews/_public_base.html' %}
+{% block title %}{% if ar %}اختيار الموعد{% else %}Select Appointment{% endif %}{% endblock %}
+{% block main_class %}pi-shell-tight{% endblock %}
+{% block content %}
+{%- set ar = (current_lang == 'ar') -%}
+<style>
+.cascade-card{background:white;border-radius:18px;box-shadow:0 1px 3px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.06);
+  border:1px solid rgba(255,255,255,.8);padding:28px;max-width:720px;margin:0 auto}
+.cascade-select{border:1.5px solid #e2e8f0;border-radius:12px;padding:12px 16px;width:100%;
+  font-size:.95rem;outline:none;transition:all .2s;background:white;color:#1e293b;appearance:auto}
+.cascade-select:focus{border-color:var(--bc);box-shadow:0 0 0 4px var(--bc-light)}
+.cascade-select:disabled{background:#f8fafc;color:#94a3b8}
+.cascade-label{font-size:.85rem;font-weight:600;color:#475569;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.cascade-label i{color:var(--bc);font-size:.9rem}
+.cascade-step{margin-bottom:18px;transition:opacity .3s}
+.cascade-step.disabled{opacity:.4;pointer-events:none}
+.slot-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-top:12px}
+.slot-btn{border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 8px;text-align:center;
+  cursor:pointer;transition:all .15s;background:white;font-size:.88rem;font-weight:600;color:#1e293b}
+.slot-btn:hover{border-color:var(--bc);background:var(--bc-light)}
+.slot-btn.selected{border-color:var(--bc);background:var(--bc);color:white}
+.date-tab{display:inline-block;padding:6px 16px;border-radius:100px;font-size:.82rem;font-weight:600;
+  cursor:pointer;margin:0 4px 8px;border:1.5px solid #e2e8f0;color:#475569;background:white;transition:all .15s}
+.date-tab.active{background:var(--bc);color:white;border-color:var(--bc)}
+.info-strip{background:#eff6ff;border-radius:10px;padding:10px 16px;margin-bottom:16px;
+  display:flex;align-items:center;gap:10px;font-size:.85rem;color:#1e40af}
+.info-strip i{font-size:1.1rem}
+#slotsArea{min-height:60px}
+</style>
+
+<div class="container py-3" style="max-width:760px">
+  <div class="text-center mb-4">
+    <h4 class="fw-800" style="color:#0f172a">{% if ar %}اختيار موعد المقابلة{% else %}Select Interview Appointment{% endif %}</h4>
+    <p class="text-muted" style="font-size:.9rem">{{ ev.name }}</p>
+  </div>
+
+  <div class="cascade-card">
+    <div class="info-strip">
+      <i class="bi bi-funnel"></i>
+      {% if ar %}اختر من القائمة للوصول إلى المواعيد المتاحة{% else %}Filter step by step to find available time slots{% endif %}
+    </div>
+
+    {# Step 1: Stage #}
+    <div class="cascade-step" id="step-stage">
+      <label class="cascade-label"><i class="bi bi-building"></i>{% if ar %}المرحلة الدراسية{% else %}School Stage{% endif %}</label>
+      <select class="cascade-select" id="sel-stage" onchange="onStage()">
+        <option value="">{% if ar %}— اختر المرحلة —{% else %}— Select Stage —{% endif %}</option>
+      </select>
+    </div>
+
+    {# Step 2: Class #}
+    <div class="cascade-step disabled" id="step-class">
+      <label class="cascade-label"><i class="bi bi-mortarboard"></i>{% if ar %}الصف{% else %}Class{% endif %}</label>
+      <select class="cascade-select" id="sel-class" onchange="onClass()" disabled>
+        <option value="">{% if ar %}— اختر الصف —{% else %}— Select Class —{% endif %}</option>
+      </select>
+    </div>
+
+    {# Step 3: Section #}
+    <div class="cascade-step disabled" id="step-section">
+      <label class="cascade-label"><i class="bi bi-collection"></i>{% if ar %}الشعبة{% else %}Section{% endif %}</label>
+      <select class="cascade-select" id="sel-section" onchange="onSection()" disabled>
+        <option value="">{% if ar %}— اختر الشعبة —{% else %}— Select Section —{% endif %}</option>
+      </select>
+    </div>
+
+    {# Step 4: Teacher #}
+    <div class="cascade-step disabled" id="step-teacher">
+      <label class="cascade-label"><i class="bi bi-person"></i>{% if ar %}المعلم{% else %}Teacher{% endif %}</label>
+      <select class="cascade-select" id="sel-teacher" onchange="onTeacher()" disabled>
+        <option value="">{% if ar %}— اختر المعلم —{% else %}— Select Teacher —{% endif %}</option>
+      </select>
+    </div>
+
+    {# Step 5: Course #}
+    <div class="cascade-step disabled" id="step-course">
+      <label class="cascade-label"><i class="bi bi-book"></i>{% if ar %}المادة{% else %}Course{% endif %}</label>
+      <select class="cascade-select" id="sel-course" onchange="onCourse()" disabled>
+        <option value="">{% if ar %}— اختر المادة —{% else %}— Select Course —{% endif %}</option>
+      </select>
+    </div>
+
+    {# Assignment info + Room #}
+    <div id="assignmentInfo" style="display:none" class="mb-3">
+      <div class="d-flex align-items-center gap-3 flex-wrap" style="background:#fef3c7;border-radius:10px;padding:10px 16px">
+        <span style="font-size:.85rem;font-weight:600;color:#92400e"><i class="bi bi-door-open me-1"></i>{% if ar %}الغرفة:{% else %}Room:{% endif %} <span id="roomVal">—</span></span>
+        <span style="font-size:.85rem;font-weight:600;color:#92400e"><i class="bi bi-qr-code me-1"></i>{% if ar %}الرمز:{% else %}Code:{% endif %} <span id="codeVal" style="font-family:monospace">—</span></span>
+      </div>
+    </div>
+
+    {# Step 6: Time Slots #}
+    <div class="cascade-step disabled" id="step-slots">
+      <label class="cascade-label"><i class="bi bi-clock"></i>{% if ar %}الموعد المتاح{% else %}Available Time Slot{% endif %}</label>
+      <div id="dateTabs"></div>
+      <div id="slotsArea">
+        <p class="text-muted text-center py-3" style="font-size:.85rem">{% if ar %}اختر جميع الخطوات أعلاه{% else %}Complete all steps above{% endif %}</p>
+      </div>
+    </div>
+
+    {# Continue button #}
+    <form method="GET" action="{{ url_for('interviews.book_confirm', event_id=ev.id) }}" id="confirmForm" style="display:none">
+      <input type="hidden" name="slot_ids" id="selectedSlotIds" value="">
+      <button type="submit" class="btn-pi w-100 mt-3" style="font-size:1rem;padding:14px">
+        <i class="bi bi-arrow-{{ 'left' if ar else 'right' }}-circle me-2"></i>{% if ar %}متابعة{% else %}Continue{% endif %}
+      </button>
+    </form>
+  </div>
+</div>
+
+<script>
+var AR = {{ 'true' if ar else 'false' }};
+var BASE = '/interviews/api/events/{{ ev.id }}';
+var selectedSlotId = null;
+var currentAssignment = null;
+
+function resetBelow(level) {
+  var levels = ['stage','class','section','teacher','course','slots'];
+  var idx = levels.indexOf(level);
+  for (var i = idx; i < levels.length; i++) {
+    var step = document.getElementById('step-' + levels[i]);
+    if (step) { step.classList.add('disabled'); }
+    var sel = document.getElementById('sel-' + levels[i]);
+    if (sel) {
+      sel.innerHTML = '<option value="">' + (AR ? '— اختر —' : '— Select —') + '</option>';
+      sel.disabled = true;
+    }
+  }
+  document.getElementById('assignmentInfo').style.display = 'none';
+  document.getElementById('confirmForm').style.display = 'none';
+  document.getElementById('dateTabs').innerHTML = '';
+  document.getElementById('slotsArea').innerHTML = '';
+  selectedSlotId = null;
+  currentAssignment = null;
+}
+
+function loadOptions(url, selId, nameKey, cb) {
+  var sel = document.getElementById(selId);
+  sel.innerHTML = '<option value="">' + (AR ? '— جاري التحميل... —' : '— Loading... —') + '</option>';
+  fetch(url).then(function(r){ return r.json(); }).then(function(data) {
+    sel.innerHTML = '<option value="">' + (AR ? '— اختر —' : '— Select —') + '</option>';
+    (Array.isArray(data) ? data : []).forEach(function(item) {
+      var opt = document.createElement('option');
+      opt.value = item.id;
+      opt.textContent = AR ? (item[nameKey + '_ar'] || item[nameKey] || item.name_ar || item.name) : (item[nameKey] || item.name);
+      sel.appendChild(opt);
+    });
+    sel.disabled = false;
+    sel.closest('.cascade-step').classList.remove('disabled');
+    if (cb) cb(data);
+  });
+}
+
+function onStage() {
+  var v = document.getElementById('sel-stage').value;
+  resetBelow('class');
+  if (v) loadOptions(BASE + '/classes?stage_id=' + v, 'sel-class', 'name');
+}
+
+function onClass() {
+  var v = document.getElementById('sel-class').value;
+  resetBelow('section');
+  if (v) loadOptions(BASE + '/sections?class_id=' + v, 'sel-section', 'name');
+}
+
+function onSection() {
+  var v = document.getElementById('sel-section').value;
+  resetBelow('teacher');
+  if (v) loadOptions(BASE + '/teachers?section_id=' + v, 'sel-teacher', 'name');
+}
+
+function onTeacher() {
+  var v = document.getElementById('sel-teacher').value;
+  resetBelow('course');
+  var secId = document.getElementById('sel-section').value;
+  if (v && secId) {
+    fetch(BASE + '/courses?section_id=' + secId + '&teacher_id=' + v)
+      .then(function(r){ return r.json(); })
+      .then(function(data) {
+        var sel = document.getElementById('sel-course');
+        sel.innerHTML = '<option value="">' + (AR ? '— اختر المادة —' : '— Select Course —') + '</option>';
+        data.forEach(function(a) {
+          var opt = document.createElement('option');
+          opt.value = a.id;
+          opt.textContent = AR ? (a.course_name_ar || a.course_name) : a.course_name;
+          opt.dataset.room = a.room || '';
+          opt.dataset.code = a.assignment_code || '';
+          sel.appendChild(opt);
+        });
+        sel.disabled = false;
+        document.getElementById('step-course').classList.remove('disabled');
+      });
+  }
+}
+
+function onCourse() {
+  var sel = document.getElementById('sel-course');
+  var v = sel.value;
+  selectedSlotId = null;
+  document.getElementById('confirmForm').style.display = 'none';
+  if (!v) {
+    document.getElementById('step-slots').classList.add('disabled');
+    document.getElementById('assignmentInfo').style.display = 'none';
+    return;
+  }
+  var opt = sel.options[sel.selectedIndex];
+  currentAssignment = v;
+  document.getElementById('roomVal').textContent = opt.dataset.room || '—';
+  document.getElementById('codeVal').textContent = opt.dataset.code || '—';
+  document.getElementById('assignmentInfo').style.display = 'block';
+
+  // Load slots
+  document.getElementById('step-slots').classList.remove('disabled');
+  document.getElementById('slotsArea').innerHTML = '<p class="text-center text-muted py-3"><i class="bi bi-hourglass-split"></i> ' + (AR ? 'جاري التحميل...' : 'Loading...') + '</p>';
+  fetch(BASE + '/slots?assignment_id=' + v)
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      var dates = data.dates || {};
+      var dateKeys = Object.keys(dates).sort();
+      if (!dateKeys.length) {
+        document.getElementById('dateTabs').innerHTML = '';
+        document.getElementById('slotsArea').innerHTML = '<p class="text-center text-muted py-4"><i class="bi bi-calendar-x"></i> ' + (AR ? 'لا توجد مواعيد متاحة' : 'No available slots') + '</p>';
+        return;
+      }
+      // Date tabs
+      var tabsHtml = '';
+      dateKeys.forEach(function(d, i) {
+        tabsHtml += '<span class="date-tab' + (i===0?' active':'') + '" onclick="showDate(this,\'' + d + '\')">' + d + '</span>';
+      });
+      document.getElementById('dateTabs').innerHTML = tabsHtml;
+      window._slotDates = dates;
+      showDateSlots(dateKeys[0]);
+    });
+}
+
+function showDate(el, d) {
+  document.querySelectorAll('.date-tab').forEach(function(t){ t.classList.remove('active'); });
+  el.classList.add('active');
+  showDateSlots(d);
+}
+
+function showDateSlots(d) {
+  var slots = (window._slotDates || {})[d] || [];
+  if (!slots.length) {
+    document.getElementById('slotsArea').innerHTML = '<p class="text-center text-muted py-3">' + (AR ? 'لا توجد مواعيد في هذا اليوم' : 'No slots on this date') + '</p>';
+    return;
+  }
+  var html = '<div class="slot-grid">';
+  slots.forEach(function(s) {
+    html += '<div class="slot-btn' + (selectedSlotId==s.id?' selected':'') + '" data-id="' + s.id + '" onclick="pickSlot(this,' + s.id + ')">' + s.start + ' - ' + s.end + '</div>';
+  });
+  html += '</div>';
+  document.getElementById('slotsArea').innerHTML = html;
+}
+
+function pickSlot(el, id) {
+  document.querySelectorAll('.slot-btn').forEach(function(b){ b.classList.remove('selected'); });
+  el.classList.add('selected');
+  selectedSlotId = id;
+  document.getElementById('selectedSlotIds').value = id;
+  document.getElementById('confirmForm').style.display = 'block';
+}
+
+// Load stages on page load
+loadOptions(BASE + '/stages', 'sel-stage', 'name');
+</script>
+{% endblock %}

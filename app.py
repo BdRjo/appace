@@ -82,12 +82,13 @@ def create_app():
     from routes.groups        import groups_bp
     from routes.announcements import announcements_bp
     from routes.interviews    import interviews_bp
+    from routes.sas           import sas_bp
 
     for bp in [auth_bp, reservations_bp, venues_bp, admin_bp, api_bp,
                locations_bp, venues_mgmt_bp, users_bp, reports_bp,
                contacts_bp, checklists_bp, blocked_bp, ratings_bp,
                calendar_bp, settings_bp, cp_bp, bo_bp, groups_bp,
-               announcements_bp, interviews_bp]:
+               announcements_bp, interviews_bp, sas_bp]:
         app.register_blueprint(bp)
 
     # Jinja filters
@@ -151,14 +152,18 @@ def create_app():
                     sep_html = f' <img src="{sep_img}" style="width:24px;height:24px;object-fit:contain;vertical-align:middle;border-radius:50%;margin:0 8px;opacity:.85"> '
                 else:
                     sep_html = ' ◆ '
-                text = sep_html.join(feeds) if feeds else (default_en if lang == 'en' else default_ar)
+                if not feeds:
+                    feeds = [default_en if lang == 'en' else default_ar]
+                text = sep_html.join(feeds)
                 fg = cfg.get('fg', default_fg)
                 font = cfg.get('font', 'Tahoma')
                 size = cfg.get('size', 15)
                 speed = cfg.get('speed', 35)
                 opacity = cfg.get('opacity', 0)
                 bg_raw = cfg.get('bg', '')
-                if bg_raw and opacity > 0:
+                if opacity <= 0:
+                    bg_css = 'transparent'
+                elif bg_raw:
                     hex_ = bg_raw.replace('#','')
                     try:
                         r2 = int(hex_[0:2],16); g2 = int(hex_[2:4],16); b2 = int(hex_[4:6],16)
@@ -166,15 +171,23 @@ def create_app():
                     except: bg_css = default_bg
                 else: bg_css = default_bg
                 logo_url = cfg.get('logo_url', '')
+                logo_size = cfg.get('logo_size', 28)
+                logo_pulse = cfg.get('logo_pulse', True)
+                logo_pulse_speed = cfg.get('logo_pulse_speed', 14)
                 sep_img_url = cfg.get('sep_img_url', '')
                 mask_fade = cfg.get('mask_fade', 12)
+                interview_mode = cfg.get('interview_mode', 'scroll')
                 return {'text': text, 'feeds': feeds, 'fg': fg, 'font': font,
                         'size': size, 'speed': speed, 'bg': bg_css, 'logo_url': logo_url,
-                        'sep_img_url': sep_img_url, 'mask_fade': mask_fade}
+                        'logo_size': logo_size, 'logo_pulse': logo_pulse,
+                        'logo_pulse_speed': logo_pulse_speed,
+                        'sep_img_url': sep_img_url, 'mask_fade': mask_fade,
+                        'interview_mode': interview_mode}
             except:
                 return {'text': default_ar, 'feeds': [default_ar], 'fg': default_fg,
                         'font': 'Tahoma', 'size': 15, 'speed': 35, 'bg': default_bg, 'logo_url': '',
-                        'sep_img_url': '', 'mask_fade': 12}
+                        'logo_size': 28, 'logo_pulse': True, 'logo_pulse_speed': 14,
+                        'sep_img_url': '', 'mask_fade': 12, 'interview_mode': 'scroll'}
         def get_ticker_cfg():
             return _build_ticker_cfg(
                 os.path.join(os.path.dirname(__file__), 'ticker_config.json'),
@@ -185,6 +198,67 @@ def create_app():
                 os.path.join(os.path.dirname(__file__), 'auth_ticker_config.json'),
                 'مرحباً بكم — سجّل دخولك للمتابعة', 'Welcome — Please sign in',
                 '#ffffff', '#1a3a6c')
+        def get_interview_ticker_cfg():
+            cfg = _build_ticker_cfg(
+                os.path.join(os.path.dirname(__file__), 'interview_ticker_config.json'),
+                'مرحباً بكم في بوابة مقابلات أولياء الأمور', 'Welcome to the Parent Interview Portal',
+                '#ffffff', '#2563eb')
+            # Interview pages have light background — if bg is transparent, darken text
+            if cfg['bg'] == 'transparent' and cfg['fg'].lower() in ('#ffffff', '#fff', 'white'):
+                cfg['fg'] = '#1e293b'
+            return cfg
+        def get_sas_ticker_cfg():
+            """Build SAS ticker config from DB (SASConfig.ticker_json) instead of file"""
+            try:
+                from models.database import SASConfig
+                lang = get_lang()
+                db = g.get('db')
+                sas_cfg = db.query(SASConfig).first() if db else None
+                raw = sas_cfg.ticker_json if sas_cfg and sas_cfg.ticker_json else '{}'
+                cfg = json.loads(raw)
+                feeds = cfg.get('feeds_en' if lang == 'en' else 'feeds_ar', [])
+                sep_img = cfg.get('sep_img_url', '')
+                sep_html = f' <img src="{sep_img}" style="width:24px;height:24px;object-fit:contain;vertical-align:middle;border-radius:50%;margin:0 8px;opacity:.85"> ' if sep_img else ' ◆ '
+                if not feeds:
+                    feeds = ['Welcome to the School Absent System' if lang == 'en' else 'مرحباً بكم في نظام الغياب المدرسي']
+                text = sep_html.join(feeds)
+                fg = cfg.get('fg', '#ffffff')
+                font = cfg.get('font', 'Tahoma')
+                size = cfg.get('size', 15)
+                speed = cfg.get('speed', 35)
+                opacity = cfg.get('opacity', 0)
+                bg_raw = cfg.get('bg', '')
+                if opacity <= 0:
+                    bg_css = 'transparent'
+                elif bg_raw:
+                    hex_ = bg_raw.replace('#','')
+                    try:
+                        r2 = int(hex_[0:2],16); g2 = int(hex_[2:4],16); b2 = int(hex_[4:6],16)
+                        bg_css = f'rgba({r2},{g2},{b2},{opacity/100:.2f})'
+                    except: bg_css = '#059669'
+                else: bg_css = '#059669'
+                return {'text': text, 'feeds': feeds, 'fg': fg, 'font': font,
+                        'size': size, 'speed': speed, 'bg': bg_css,
+                        'logo_url': cfg.get('logo_url', ''),
+                        'logo_size': cfg.get('logo_size', 28),
+                        'logo_pulse': cfg.get('logo_pulse', True),
+                        'logo_pulse_speed': cfg.get('logo_pulse_speed', 4),
+                        'sep_img_url': sep_img, 'mask_fade': cfg.get('mask_fade', 12),
+                        'interview_mode': 'scroll'}
+            except:
+                return {'text': 'مرحباً بكم في نظام الغياب المدرسي', 'feeds': ['مرحباً بكم في نظام الغياب المدرسي'],
+                        'fg': '#ffffff', 'font': 'Tahoma', 'size': 15, 'speed': 35,
+                        'bg': '#059669', 'logo_url': '', 'logo_size': 28, 'logo_pulse': True,
+                        'logo_pulse_speed': 4, 'sep_img_url': '', 'mask_fade': 12,
+                        'interview_mode': 'scroll'}
+        def get_sas_config():
+            """Get SAS config object for templates"""
+            try:
+                from models.database import SASConfig
+                db = g.get('db')
+                return db.query(SASConfig).first() if db else None
+            except:
+                return None
         return {
             'app_name': 'ARS — نظام إدارة الحجوزات',
             '_': t,
@@ -195,6 +269,9 @@ def create_app():
             'ticker_bg_style': get_ticker_bg(),
             'ticker_cfg': get_ticker_cfg(),
             'auth_ticker_cfg': get_auth_ticker_cfg(),
+            'interview_ticker_cfg': get_interview_ticker_cfg(),
+            'sas_ticker_cfg': get_sas_ticker_cfg(),
+            'sas_cfg': get_sas_config(),
             'system_colors': get_system_colors(),
             'cp_enabled': cp_enabled,
         }

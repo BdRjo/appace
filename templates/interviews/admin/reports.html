@@ -32,7 +32,7 @@
 <div class="row g-3 mb-4">
   <div class="col-6 col-md-3"><div class="stat-card">
     <div class="stat-num text-primary">{{ total_events }}</div>
-    <div class="stat-label">{% if ar %}إجمالي الأحداث{% else %}Total Events{% endif %}</div>
+    <div class="stat-label">{% if ar %}إجمالي الفعاليات{% else %}Total Events{% endif %}</div>
   </div></div>
   <div class="col-6 col-md-3"><div class="stat-card">
     <div class="stat-num text-success">{{ confirmed_bookings }}</div>
@@ -141,7 +141,7 @@
 <div class="card border-0 shadow-sm rounded-4">
   <div class="card-body text-center py-5">
     <i class="bi bi-bar-chart-line fs-1 text-muted"></i>
-    <p class="mt-2 text-muted">{% if ar %}لا توجد أحداث للتقرير{% else %}No events to report{% endif %}</p>
+    <p class="mt-2 text-muted">{% if ar %}لا توجد فعاليات للتقرير{% else %}No events to report{% endif %}</p>
   </div>
 </div>
 {% endif %}

@@ -12,11 +12,20 @@
     .slot-row:hover { background: #f0f4ff; }
     .slot-booked { border-left: 4px solid #198754; }
     .slot-free   { border-left: 4px solid #dee2e6; }
+    .action-btn { font-size:.75rem;padding:3px 10px;border-radius:8px;border:1.5px solid;cursor:pointer;font-weight:600;white-space:nowrap }
+    .action-btn:hover { filter:brightness(.95) }
+    .action-change  { background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe }
+    .action-sub     { background:#fefce8;color:#a16207;border-color:#fde68a }
+    .action-merge   { background:#f0fdf4;color:#15803d;border-color:#bbf7d0 }
     @media print {
       .d-print-none { display:none !important }
       body { background: white }
       .card { box-shadow: none !important; border: 1px solid #ddd !important; }
+      .print-header { display:block!important;text-align:center;margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid #000 }
+      .print-header h3 { margin:0;font-weight:800 }
+      .print-header p { margin:4px 0 0;font-size:10pt;color:#666 }
     }
+    @media screen { .print-header { display:none!important } }
   </style>
 </head>
 <body>
@@ -24,7 +33,8 @@
   <div class="container d-flex align-items-center justify-content-between">
     <div>
       {% if ev.school_logo_url %}
-      <img src="{{ ev.school_logo_url }}" height="28" class="me-2" style="filter:brightness(10)">
+      <img src="{{ ev.school_logo_url }}" height="28" class="me-2" style="filter:brightness(10)"
+           onerror="if(!this.dataset.retry){this.dataset.retry='1';if(!this.src.startsWith('data:')){this.src=this.src+'?r='+Date.now()}}">
       {% endif %}
       <strong>{{ ev.school_name or 'School' }}</strong>
       <span class="opacity-75 mx-2">|</span>
@@ -34,6 +44,12 @@
       <i class="bi bi-printer me-1"></i>Print
     </button>
   </div>
+</div>
+
+{# Print header for report-style output #}
+<div class="print-header">
+  <h3>{{ ev.school_name or 'School' }} — {{ ev.name }}</h3>
+  <p>{{ teacher.name }} — Interview Schedule</p>
 </div>
 
 <div class="container py-4">
@@ -58,6 +74,41 @@
       </div>
     </div>
   </div>
+
+  <!-- Assignment Details -->
+  {% if assignments is defined and assignments %}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-0">
+      <div class="px-4 py-2 bg-light border-bottom fw-bold" style="font-size:.85rem">
+        <i class="bi bi-diagram-3 me-2"></i>My Assignments
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0" style="font-size:.84rem">
+          <thead>
+            <tr style="background:#f8fafc">
+              <th class="px-3 py-2">Stage</th>
+              <th class="px-3 py-2">Class</th>
+              <th class="px-3 py-2">Section</th>
+              <th class="px-3 py-2">Course</th>
+              <th class="px-3 py-2">Room</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in assignments %}
+            <tr>
+              <td class="px-3 py-2">{{ a.stage }}</td>
+              <td class="px-3 py-2">{{ a.cls }}</td>
+              <td class="px-3 py-2">{{ a.section }}</td>
+              <td class="px-3 py-2 fw-semibold">{{ a.course }}</td>
+              <td class="px-3 py-2">{% if a.room %}<i class="bi bi-door-open me-1 text-muted"></i>{{ a.room }}{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 
   <!-- Stats row -->
   {% set total_slots = teacher.slots | selectattr('is_break', 'equalto', False) | list | length %}
@@ -117,15 +168,28 @@
             </div>
             {% endif %}
           </div>
-          <div class="d-flex align-items-center gap-2 d-print-none">
+          <div class="d-flex align-items-center gap-2 flex-wrap d-print-none">
             <span class="badge bg-success">Booked</span>
-            <form method="post"
-                  action="{{ url_for('interviews.teacher_cancel_booking', teacher_code=teacher.teacher_code, bid=slot.booking.id) }}"
-                  onsubmit="return confirm('Cancel this booking?')">
-              <button type="submit" class="btn btn-sm btn-outline-danger" style="font-size:.75rem;border-radius:8px">
-                <i class="bi bi-x-lg me-1"></i>Cancel
+            <div class="dropdown">
+              <button class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-0" data-bs-toggle="dropdown" title="Actions" style="font-size:.7rem;line-height:1.8">
+                <i class="bi bi-three-dots-vertical"></i>
               </button>
-            </form>
+              <ul class="dropdown-menu dropdown-menu-end" style="font-size:.82rem">
+                {% if free_slots %}
+                <li><a class="dropdown-item" href="#" onclick="openChangeTime({{ slot.booking.id }}, '{{ slot.start_time }}', '{{ slot.slot_date }}');return false">
+                  <i class="bi bi-clock-history me-2 text-primary"></i>Change Time
+                </a></li>
+                {% endif %}
+                {% if other_teachers %}
+                <li><a class="dropdown-item" href="#" onclick="openSubstitute({{ slot.booking.id }}, '{{ slot.booking.parent_name }}');return false">
+                  <i class="bi bi-person-fill-up me-2 text-warning"></i>Substitute Teacher
+                </a></li>
+                {% endif %}
+                <li><a class="dropdown-item" href="#" onclick="openMerge({{ slot.booking.id }}, '{{ slot.booking.parent_name }}', '{{ slot.start_time }}');return false">
+                  <i class="bi bi-union me-2 text-success"></i>Merge Bookings
+                </a></li>
+              </ul>
+            </div>
           </div>
         </div>
         {% else %}
@@ -154,6 +218,180 @@
     Private link — please do not share publicly.
   </div>
 </div>
+
+{# ── Change Time Modal ── #}
+<div class="modal fade" id="changeTimeModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:16px;border:none">
+      <div class="modal-header border-0 pb-0">
+        <h6 class="modal-title fw-bold"><i class="bi bi-clock-history me-2 text-primary"></i>Change Time</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="changeTimeForm" method="post">
+        <div class="modal-body">
+          <p class="text-muted small mb-3">Move this booking to a different available slot:</p>
+          <div class="mb-2 small text-muted" id="ctCurrentInfo"></div>
+          <select name="new_slot_id" id="ctSlotSelect" class="form-select" required>
+            <option value="">Select new time slot...</option>
+            {% for fs in free_slots %}
+            <option value="{{ fs.id }}">{{ fs.slot_date }} · {{ fs.start_time }} – {{ fs.end_time }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-sm btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3">
+            <i class="bi bi-check-lg me-1"></i>Change Time
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# ── Substitute Teacher Modal ── #}
+<div class="modal fade" id="substituteModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:16px;border:none">
+      <div class="modal-header border-0 pb-0">
+        <h6 class="modal-title fw-bold"><i class="bi bi-person-fill-up me-2 text-warning"></i>Substitute Teacher</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="substituteForm" method="post">
+        <div class="modal-body">
+          <p class="text-muted small mb-3">Transfer <strong id="subParentName"></strong>'s booking to another teacher:</p>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Select Teacher</label>
+            <select id="subTeacherSelect" class="form-select" onchange="loadSubSlots()" required>
+              <option value="">Choose a teacher...</option>
+              {% for ot in other_teachers %}
+              <option value="{{ ot.id }}">{{ ot.name }}{% if ot.subjects %} — {{ ot.subjects }}{% endif %}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-2" id="subSlotWrap" style="display:none">
+            <label class="form-label small fw-semibold">Select Available Slot</label>
+            <select name="new_slot_id" id="subSlotSelect" class="form-select" required>
+              <option value="">Loading...</option>
+            </select>
+          </div>
+          <div id="subNoSlots" class="text-muted small" style="display:none">
+            <i class="bi bi-exclamation-circle me-1"></i>No available slots for this teacher.
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-sm btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-warning rounded-pill px-3" id="subSubmitBtn" disabled>
+            <i class="bi bi-check-lg me-1"></i>Transfer
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# ── Merge Bookings Modal ── #}
+<div class="modal fade" id="mergeModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:16px;border:none">
+      <div class="modal-header border-0 pb-0">
+        <h6 class="modal-title fw-bold"><i class="bi bi-union me-2 text-success"></i>Merge Bookings</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="mergeForm" method="post" action="{{ url_for('interviews.teacher_merge_bookings', teacher_code=teacher.teacher_code) }}">
+        <div class="modal-body">
+          <p class="text-muted small mb-3">Merge <strong id="mergeParentName"></strong>'s booking (<span id="mergeTime"></span>) with another booking. The second slot will be freed.</p>
+          <input type="hidden" name="bid1" id="mergeBid1">
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">Merge with booking:</label>
+            <select name="bid2" id="mergeBid2Select" class="form-select" required>
+              <option value="">Select a booking to merge...</option>
+              {# Populated by JS from booked slots #}
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-sm btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-success rounded-pill px-3">
+            <i class="bi bi-check-lg me-1"></i>Merge
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// Booked slots data for merge feature
+var bookedSlots = [
+  {% for date in dates %}{% for slot in by_date[date] %}{% if slot.booking and slot.booking.status == 'confirmed' %}
+  {id:{{ slot.booking.id }},parent:'{{ slot.booking.parent_name|e }}',date:'{{ slot.slot_date }}',time:'{{ slot.start_time }}',child:'{{ slot.booking.child_name|e }}'},
+  {% endif %}{% endfor %}{% endfor %}
+];
+
+var teacherCode = '{{ teacher.teacher_code }}';
+
+function openChangeTime(bid, currentTime, currentDate){
+  document.getElementById('changeTimeForm').action = '/interviews/teacher/' + teacherCode + '/change-time/' + bid;
+  document.getElementById('ctCurrentInfo').innerHTML = 'Current: <strong>' + currentDate + ' ' + currentTime + '</strong>';
+  document.getElementById('ctSlotSelect').value = '';
+  new bootstrap.Modal(document.getElementById('changeTimeModal')).show();
+}
+
+function openSubstitute(bid, parentName){
+  document.getElementById('substituteForm').action = '/interviews/teacher/' + teacherCode + '/substitute/' + bid;
+  document.getElementById('subParentName').textContent = parentName;
+  document.getElementById('subTeacherSelect').value = '';
+  document.getElementById('subSlotWrap').style.display = 'none';
+  document.getElementById('subNoSlots').style.display = 'none';
+  document.getElementById('subSubmitBtn').disabled = true;
+  new bootstrap.Modal(document.getElementById('substituteModal')).show();
+}
+
+function loadSubSlots(){
+  var tid = document.getElementById('subTeacherSelect').value;
+  if(!tid){ document.getElementById('subSlotWrap').style.display='none'; return; }
+  document.getElementById('subSlotWrap').style.display = 'block';
+  document.getElementById('subNoSlots').style.display = 'none';
+  document.getElementById('subSubmitBtn').disabled = true;
+  var sel = document.getElementById('subSlotSelect');
+  sel.innerHTML = '<option value="">Loading...</option>';
+  fetch('/interviews/teacher/' + teacherCode + '/free-slots/' + tid)
+    .then(function(r){ return r.json(); })
+    .then(function(slots){
+      if(!slots.length){
+        sel.innerHTML = '';
+        document.getElementById('subSlotWrap').style.display = 'none';
+        document.getElementById('subNoSlots').style.display = 'block';
+        return;
+      }
+      sel.innerHTML = '<option value="">Select slot...</option>';
+      slots.forEach(function(s){
+        var opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = s.date + ' · ' + s.start + ' – ' + s.end;
+        sel.appendChild(opt);
+      });
+      document.getElementById('subSubmitBtn').disabled = false;
+    });
+}
+
+function openMerge(bid, parentName, time){
+  document.getElementById('mergeBid1').value = bid;
+  document.getElementById('mergeParentName').textContent = parentName;
+  document.getElementById('mergeTime').textContent = time;
+  var sel = document.getElementById('mergeBid2Select');
+  sel.innerHTML = '<option value="">Select a booking to merge...</option>';
+  bookedSlots.forEach(function(s){
+    if(s.id === bid) return;
+    var opt = document.createElement('option');
+    opt.value = s.id;
+    opt.textContent = s.parent + ' (' + s.child + ') — ' + s.date + ' ' + s.time;
+    sel.appendChild(opt);
+  });
+  new bootstrap.Modal(document.getElementById('mergeModal')).show();
+}
+</script>
 </body>
 </html>

@@ -1,0 +1,486 @@
+{% extends "base.html" %}
+{%- set ar = (current_lang == 'ar') -%}
+
+{% block title %}{{ 'المقارنة' if ar else 'Comparison' }}{% endblock %}
+
+{% block extra_css %}
+<style>
+:root {
+  --sas: #10b981;
+  --sas-dark: #059669;
+  --sas-light: #34d399;
+  --sas-bg: #ecfdf5;
+}
+.sas-page-header h1 { color: var(--sas) !important; }
+.sas-card { border-radius: 14px; border: none; box-shadow: 0 2px 12px rgba(16,185,129,.1); }
+.sas-card .card-header {
+  background: linear-gradient(135deg, var(--sas-dark), var(--sas-light));
+  color: #fff; border-radius: 14px 14px 0 0 !important;
+  padding: 12px 20px; font-weight: 700; font-size: .9rem;
+}
+.btn-sas {
+  background: linear-gradient(160deg, var(--sas-light), var(--sas), var(--sas-dark));
+  color: #fff; border: none; border-radius: 8px; padding: 8px 22px;
+  font-size: .88rem; font-weight: 700; transition: all .2s;
+}
+.btn-sas:hover { background: linear-gradient(160deg, #059669, #047857); color: #fff; transform: translateY(-1px); }
+.compare-form {
+  background: var(--sas-bg); border-radius: 14px; padding: 20px;
+  border: 1px solid rgba(16,185,129,.15);
+}
+.compare-form .form-label { font-weight: 600; color: #374151; font-size: .85rem; }
+.compare-form .form-select, .compare-form .form-control {
+  border-radius: 8px; border: 1.5px solid #d1d5db; font-size: .86rem;
+}
+.compare-form .form-select:focus, .compare-form .form-control:focus {
+  border-color: var(--sas); box-shadow: 0 0 0 3px rgba(16,185,129,.12);
+}
+.vs-divider {
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem; font-weight: 900; color: var(--sas);
+  padding: 10px 0;
+}
+.result-card {
+  border-radius: 14px; padding: 20px; background: #fff;
+  box-shadow: 0 2px 12px rgba(0,0,0,.06); border: 1.5px solid #e5e7eb;
+  transition: transform .15s;
+}
+.result-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.1); }
+.result-card .title {
+  font-weight: 700; font-size: 1rem; color: #1f2937; margin-bottom: 14px;
+  padding-bottom: 10px; border-bottom: 2px solid var(--sas-bg);
+}
+.stat-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 0; font-size: .88rem;
+}
+.stat-row .label { color: #6b7280; font-weight: 500; }
+.stat-row .value { font-weight: 700; color: #1f2937; }
+.bar-compare {
+  display: flex; align-items: center; gap: 8px; margin: 6px 0;
+}
+.bar-track {
+  flex: 1; height: 10px; background: #e5e7eb; border-radius: 5px; overflow: hidden;
+  position: relative;
+}
+.bar-fill { height: 100%; border-radius: 5px; transition: width .6s ease; }
+.bar-label { font-size: .78rem; font-weight: 700; min-width: 40px; text-align: center; }
+.pct-diff {
+  display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px;
+  border-radius: 20px; font-size: .78rem; font-weight: 700;
+}
+.pct-diff.positive { background: #fef2f2; color: #dc2626; }
+.pct-diff.negative { background: #ecfdf5; color: #059669; }
+.pct-diff.neutral { background: #f3f4f6; color: #6b7280; }
+.quick-compare-row {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;
+}
+.quick-btn {
+  background: #fff; border: 1.5px solid #d1d5db; border-radius: 8px;
+  padding: 6px 14px; font-size: .8rem; font-weight: 600; color: #374151;
+  cursor: pointer; transition: all .15s;
+}
+.quick-btn:hover { border-color: var(--sas); color: var(--sas); background: var(--sas-bg); }
+.side-panel { background: #fff; border-radius: 12px; padding: 14px; border: 1.5px solid #e5e7eb; }
+.side-panel .side-title { font-weight: 700; color: var(--sas-dark); margin-bottom: 10px; font-size: .9rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3 sas-page-header">
+  <h1 style="font-size:1.35rem;font-weight:700;margin:0">
+    <i class="bi bi-bar-chart-steps me-2"></i>{{ 'مقارنة البيانات' if ar else 'Data Comparison' }}
+  </h1>
+  <a href="{{ url_for('sas.admin_dashboard') }}" class="btn btn-sm" style="border:1.5px solid var(--sas);color:var(--sas);border-radius:8px;font-weight:600">
+    <i class="bi bi-arrow-{{ 'right' if ar else 'left' }} me-1"></i>{{ 'العودة' if ar else 'Back' }}
+  </a>
+</div>
+
+<!-- Quick Compare Presets -->
+<div class="quick-compare-row">
+  <span style="font-size:.82rem;font-weight:600;color:#6b7280;align-self:center;margin-inline-end:4px">
+    <i class="bi bi-lightning me-1"></i>{{ 'مقارنات سريعة:' if ar else 'Quick Compare:' }}
+  </span>
+  <button class="quick-btn" onclick="quickCompare('month','{{ now_month }}','month','{{ prev_month }}')">
+    {{ 'هذا الشهر vs السابق' if ar else 'This Month vs Last' }}
+  </button>
+  <button class="quick-btn" onclick="quickCompare('semester','1','semester','2')">
+    {{ 'الفصل الأول vs الثاني' if ar else 'Semester 1 vs 2' }}
+  </button>
+  <button class="quick-btn" onclick="quickCompare('record_type','absent','record_type','late')">
+    {{ 'غياب vs تأخر' if ar else 'Absent vs Late' }}
+  </button>
+  {% if stages|length >= 2 %}
+  <button class="quick-btn" onclick="quickCompare('stage','{{ stages[0].id }}','stage','{{ stages[1].id }}')">
+    {{ stages[0].name }} vs {{ stages[1].name }}
+  </button>
+  {% endif %}
+</div>
+
+<!-- Comparison Form -->
+<form method="GET" class="compare-form mb-4" id="compareForm">
+  <div class="row g-3">
+    <!-- Side 1 -->
+    <div class="col-lg-4">
+      <div class="side-panel">
+        <div class="side-title"><i class="bi bi-1-circle me-1"></i>{{ 'الطرف الأول' if ar else 'Side 1' }}</div>
+        <div class="mb-2">
+          <label class="form-label">{{ 'الحقل' if ar else 'Field' }}</label>
+          <select name="field1" class="form-select form-select-sm" id="field1" onchange="updateValues('field1','value1')" required>
+            <option value="">{{ '-- اختر --' if ar else '-- Select --' }}</option>
+            <option value="stage" {{ 'selected' if field1=='stage' }}>{{ 'المرحلة' if ar else 'Stage' }}</option>
+            <option value="class" {{ 'selected' if field1=='class' }}>{{ 'الصف' if ar else 'Class' }}</option>
+            <option value="section" {{ 'selected' if field1=='section' }}>{{ 'الشعبة' if ar else 'Section' }}</option>
+            <option value="record_type" {{ 'selected' if field1=='record_type' }}>{{ 'نوع السجل' if ar else 'Record Type' }}</option>
+            <option value="month" {{ 'selected' if field1=='month' }}>{{ 'الشهر' if ar else 'Month' }}</option>
+            <option value="semester" {{ 'selected' if field1=='semester' }}>{{ 'الفصل الدراسي' if ar else 'Semester' }}</option>
+            <option value="year" {{ 'selected' if field1=='year' }}>{{ 'السنة الدراسية' if ar else 'Educational Year' }}</option>
+            <option value="staff" {{ 'selected' if field1=='staff' }}>{{ 'الموظف' if ar else 'Staff Member' }}</option>
+            <option value="student" {{ 'selected' if field1=='student' }}>{{ 'الطالب' if ar else 'Student' }}</option>
+            <option value="day_of_week" {{ 'selected' if field1=='day_of_week' }}>{{ 'يوم الأسبوع' if ar else 'Day of Week' }}</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">{{ 'القيمة' if ar else 'Value' }}</label>
+          <select name="value1" class="form-select form-select-sm" id="value1" required>
+            <option value="">{{ '-- اختر الحقل أولاً --' if ar else '-- Select field first --' }}</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Side 2 -->
+    <div class="col-lg-4">
+      <div class="side-panel">
+        <div class="side-title"><i class="bi bi-2-circle me-1"></i>{{ 'الطرف الثاني' if ar else 'Side 2' }}</div>
+        <div class="mb-2">
+          <label class="form-label">{{ 'الحقل' if ar else 'Field' }}</label>
+          <select name="field2" class="form-select form-select-sm" id="field2" onchange="updateValues('field2','value2')" required>
+            <option value="">{{ '-- اختر --' if ar else '-- Select --' }}</option>
+            <option value="stage" {{ 'selected' if field2=='stage' }}>{{ 'المرحلة' if ar else 'Stage' }}</option>
+            <option value="class" {{ 'selected' if field2=='class' }}>{{ 'الصف' if ar else 'Class' }}</option>
+            <option value="section" {{ 'selected' if field2=='section' }}>{{ 'الشعبة' if ar else 'Section' }}</option>
+            <option value="record_type" {{ 'selected' if field2=='record_type' }}>{{ 'نوع السجل' if ar else 'Record Type' }}</option>
+            <option value="month" {{ 'selected' if field2=='month' }}>{{ 'الشهر' if ar else 'Month' }}</option>
+            <option value="semester" {{ 'selected' if field2=='semester' }}>{{ 'الفصل الدراسي' if ar else 'Semester' }}</option>
+            <option value="year" {{ 'selected' if field2=='year' }}>{{ 'السنة الدراسية' if ar else 'Educational Year' }}</option>
+            <option value="staff" {{ 'selected' if field2=='staff' }}>{{ 'الموظف' if ar else 'Staff Member' }}</option>
+            <option value="student" {{ 'selected' if field2=='student' }}>{{ 'الطالب' if ar else 'Student' }}</option>
+            <option value="day_of_week" {{ 'selected' if field2=='day_of_week' }}>{{ 'يوم الأسبوع' if ar else 'Day of Week' }}</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">{{ 'القيمة' if ar else 'Value' }}</label>
+          <select name="value2" class="form-select form-select-sm" id="value2" required>
+            <option value="">{{ '-- اختر الحقل أولاً --' if ar else '-- Select field first --' }}</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Side 3 (optional) -->
+    <div class="col-lg-4">
+      <div class="side-panel" style="border-style:dashed;opacity:.85" id="side3Panel">
+        <div class="side-title"><i class="bi bi-3-circle me-1"></i>{{ 'الطرف الثالث (اختياري)' if ar else 'Side 3 (Optional)' }}</div>
+        <div class="mb-2">
+          <label class="form-label">{{ 'الحقل' if ar else 'Field' }}</label>
+          <select name="field3" class="form-select form-select-sm" id="field3" onchange="updateValues('field3','value3')">
+            <option value="">{{ '-- بدون --' if ar else '-- None --' }}</option>
+            <option value="stage" {{ 'selected' if field3=='stage' }}>{{ 'المرحلة' if ar else 'Stage' }}</option>
+            <option value="class" {{ 'selected' if field3=='class' }}>{{ 'الصف' if ar else 'Class' }}</option>
+            <option value="section" {{ 'selected' if field3=='section' }}>{{ 'الشعبة' if ar else 'Section' }}</option>
+            <option value="record_type" {{ 'selected' if field3=='record_type' }}>{{ 'نوع السجل' if ar else 'Record Type' }}</option>
+            <option value="month" {{ 'selected' if field3=='month' }}>{{ 'الشهر' if ar else 'Month' }}</option>
+            <option value="semester" {{ 'selected' if field3=='semester' }}>{{ 'الفصل الدراسي' if ar else 'Semester' }}</option>
+            <option value="year" {{ 'selected' if field3=='year' }}>{{ 'السنة الدراسية' if ar else 'Educational Year' }}</option>
+            <option value="staff" {{ 'selected' if field3=='staff' }}>{{ 'الموظف' if ar else 'Staff Member' }}</option>
+            <option value="student" {{ 'selected' if field3=='student' }}>{{ 'الطالب' if ar else 'Student' }}</option>
+            <option value="day_of_week" {{ 'selected' if field3=='day_of_week' }}>{{ 'يوم الأسبوع' if ar else 'Day of Week' }}</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">{{ 'القيمة' if ar else 'Value' }}</label>
+          <select name="value3" class="form-select form-select-sm" id="value3">
+            <option value="">{{ '-- اختر الحقل أولاً --' if ar else '-- Select field first --' }}</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Date Range + Submit -->
+    <div class="col-12">
+      <div style="border-top:1px solid rgba(16,185,129,.15);padding-top:14px;margin-top:6px">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label">{{ 'من تاريخ' if ar else 'Date From' }}</label>
+            <input type="date" name="date_from" class="form-control" value="{{ date_from or '' }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">{{ 'إلى تاريخ' if ar else 'Date To' }}</label>
+            <input type="date" name="date_to" class="form-control" value="{{ date_to or '' }}">
+          </div>
+          <div class="col-md-4 d-flex align-items-end">
+            <button type="submit" class="btn-sas w-100">
+              <i class="bi bi-arrow-left-right me-2"></i>{{ 'مقارنة' if ar else 'Compare' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+
+<!-- Results -->
+{% if results %}
+{% set has_side3 = results.count3 is defined and results.count3 is not none %}
+{% set col_class = 'col-md-4' if has_side3 else 'col-md-6' %}
+<div class="row g-4 mb-4">
+  <!-- Side 1 -->
+  <div class="{{ col_class }}">
+    <div class="result-card">
+      <div class="title">
+        <i class="bi bi-1-circle-fill me-2" style="color:var(--sas)"></i>
+        {{ results.field1 }}: {{ results.value1 }}
+      </div>
+      <div class="stat-row">
+        <span class="label">{{ 'إجمالي السجلات' if ar else 'Total Records' }}</span>
+        <span class="value" style="font-size:1.3rem">{{ results.count1 }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Side 2 -->
+  <div class="{{ col_class }}">
+    <div class="result-card">
+      <div class="title">
+        <i class="bi bi-2-circle-fill me-2" style="color:#6366f1"></i>
+        {{ results.field2 }}: {{ results.value2 }}
+      </div>
+      <div class="stat-row">
+        <span class="label">{{ 'إجمالي السجلات' if ar else 'Total Records' }}</span>
+        <span class="value" style="font-size:1.3rem">{{ results.count2 }}</span>
+      </div>
+      {% set diff12 = results.count1 - results.count2 %}
+      {% set pct12 = ((diff12 / results.count2 * 100)|round(1)) if results.count2 else 0 %}
+      <div class="mt-2">
+        <span class="pct-diff {{ 'positive' if diff12 > 0 else 'negative' if diff12 < 0 else 'neutral' }}">
+          {% if diff12 > 0 %}<i class="bi bi-arrow-up-short"></i>{{ 'الطرف الأول أكثر بـ' if ar else 'Side 1 higher by' }} +{{ pct12 }}%
+          {% elif diff12 < 0 %}<i class="bi bi-arrow-down-short"></i>{{ 'الطرف الأول أقل بـ' if ar else 'Side 1 lower by' }} {{ pct12 }}%
+          {% else %}<i class="bi bi-dash"></i>{{ 'متساوي' if ar else 'Equal' }}
+          {% endif %}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Side 3 -->
+  {% if has_side3 %}
+  <div class="{{ col_class }}">
+    <div class="result-card">
+      <div class="title">
+        <i class="bi bi-3-circle-fill me-2" style="color:#f59e0b"></i>
+        {{ results.field3 }}: {{ results.value3 }}
+      </div>
+      <div class="stat-row">
+        <span class="label">{{ 'إجمالي السجلات' if ar else 'Total Records' }}</span>
+        <span class="value" style="font-size:1.3rem">{{ results.count3 }}</span>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Visual Bar Comparison -->
+<div class="sas-card card mb-4">
+  <div class="card-header">
+    <i class="bi bi-bar-chart me-2"></i>{{ 'مقارنة بصرية' if ar else 'Visual Comparison' }}
+  </div>
+  <div class="card-body">
+    {% set all_vals = [results.count1, results.count2] %}
+    {% if has_side3 %}{% set all_vals = all_vals + [results.count3] %}{% endif %}
+    {% set bar_max = all_vals|max or 1 %}
+
+    <div class="mb-3" style="font-size:.88rem;font-weight:600;color:#374151">{{ 'إجمالي السجلات' if ar else 'Total Records' }}</div>
+
+    <!-- Bar 1 -->
+    <div class="bar-compare">
+      <span class="bar-label" style="color:var(--sas)">{{ results.count1 }}</span>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:{{ (results.count1 / bar_max * 100) if bar_max else 0 }}%;background:var(--sas);opacity:.85"></div>
+      </div>
+    </div>
+    <!-- Bar 2 -->
+    <div class="bar-compare">
+      <span class="bar-label" style="color:#6366f1">{{ results.count2 }}</span>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:{{ (results.count2 / bar_max * 100) if bar_max else 0 }}%;background:#6366f1;opacity:.65"></div>
+      </div>
+    </div>
+    {% if has_side3 %}
+    <!-- Bar 3 -->
+    <div class="bar-compare">
+      <span class="bar-label" style="color:#f59e0b">{{ results.count3 }}</span>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:{{ (results.count3 / bar_max * 100) if bar_max else 0 }}%;background:#f59e0b;opacity:.65"></div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="d-flex gap-3 mt-3 justify-content-center flex-wrap" style="font-size:.82rem">
+      <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:var(--sas);opacity:.85;margin-inline-end:4px;vertical-align:middle"></span>{{ results.field1 }}: {{ results.value1 }}</span>
+      <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#6366f1;opacity:.65;margin-inline-end:4px;vertical-align:middle"></span>{{ results.field2 }}: {{ results.value2 }}</span>
+      {% if has_side3 %}
+      <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#f59e0b;opacity:.65;margin-inline-end:4px;vertical-align:middle"></span>{{ results.field3 }}: {{ results.value3 }}</span>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% elif request.args.get('field1') %}
+<div class="text-center py-5" style="color:#9ca3af">
+  <i class="bi bi-search" style="font-size:2.5rem;display:block;margin-bottom:12px;opacity:.5"></i>
+  <div style="font-size:.92rem;font-weight:600">{{ 'لا توجد نتائج للمقارنة' if ar else 'No comparison results found' }}</div>
+</div>
+{% else %}
+<div class="text-center py-5" style="color:#9ca3af">
+  <i class="bi bi-arrow-left-right" style="font-size:2.5rem;display:block;margin-bottom:12px;opacity:.5"></i>
+  <div style="font-size:.92rem;font-weight:600">{{ 'اختر الحقول والقيم لبدء المقارنة' if ar else 'Select fields and values to start comparing' }}</div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const stagesData = {{ stages|tojson }};
+const staffData = {{ staff_list|tojson }};
+const ar = {{ 'true' if ar else 'false' }};
+
+const now = new Date();
+const nowMonth = String(now.getMonth() + 1);
+const prevMonth = String(now.getMonth() === 0 ? 12 : now.getMonth());
+
+const recordTypes = [
+  {value: 'absent', label: ar ? 'غياب' : 'Absent'},
+  {value: 'late', label: ar ? 'تأخر' : 'Late'},
+  {value: 'leave', label: ar ? 'استئذان' : 'Leave'},
+  {value: 'other', label: ar ? 'أخرى' : 'Other'}
+];
+
+const months = [];
+for(let i = 1; i <= 12; i++){
+  const d = new Date(2026, i-1, 1);
+  months.push({value: String(i), label: d.toLocaleDateString(ar ? 'ar' : 'en', {month: 'long'})});
+}
+
+const semesters = [
+  {value: '1', label: ar ? 'الفصل الأول' : 'Semester 1'},
+  {value: '2', label: ar ? 'الفصل الثاني' : 'Semester 2'}
+];
+
+const years = [];
+for(let y = 2024; y <= 2027; y++){
+  years.push({value: String(y), label: String(y)});
+}
+
+const daysOfWeek = [
+  {value: '0', label: ar ? 'الأحد' : 'Sunday'},
+  {value: '1', label: ar ? 'الاثنين' : 'Monday'},
+  {value: '2', label: ar ? 'الثلاثاء' : 'Tuesday'},
+  {value: '3', label: ar ? 'الأربعاء' : 'Wednesday'},
+  {value: '4', label: ar ? 'الخميس' : 'Thursday'},
+  {value: '5', label: ar ? 'الجمعة' : 'Friday'},
+  {value: '6', label: ar ? 'السبت' : 'Saturday'}
+];
+
+function updateValues(fieldId, valueId){
+  const field = document.getElementById(fieldId).value;
+  const valueSelect = document.getElementById(valueId);
+  valueSelect.innerHTML = '';
+
+  let options = [];
+  if(field === 'stage'){
+    options = stagesData.map(s => ({value: String(s.id), label: s.name}));
+  } else if(field === 'class'){
+    stagesData.forEach(s => {
+      (s.classes || []).forEach(c => {
+        options.push({value: String(c.id), label: s.name + ' > ' + c.name});
+      });
+    });
+  } else if(field === 'section'){
+    stagesData.forEach(s => {
+      (s.classes || []).forEach(c => {
+        (c.sections || []).forEach(sec => {
+          options.push({value: String(sec.id), label: s.name + ' > ' + c.name + ' > ' + sec.name});
+        });
+      });
+    });
+  } else if(field === 'record_type'){
+    options = recordTypes;
+  } else if(field === 'month'){
+    options = months;
+  } else if(field === 'semester'){
+    options = semesters;
+  } else if(field === 'year'){
+    options = years;
+  } else if(field === 'staff'){
+    options = staffData.map(s => ({value: String(s.id), label: s.name + (s.name_en ? ' / ' + s.name_en : '')}));
+  } else if(field === 'student'){
+    // Student field uses a text input approach - show a placeholder
+    options = [{value: '', label: ar ? 'أدخل اسم الطالب' : 'Enter student name'}];
+  } else if(field === 'day_of_week'){
+    options = daysOfWeek;
+  }
+
+  const placeholder = ar ? '-- اختر القيمة --' : '-- Select Value --';
+  valueSelect.innerHTML = `<option value="">${placeholder}</option>`;
+  options.forEach(o => {
+    valueSelect.innerHTML += `<option value="${o.value}">${o.label}</option>`;
+  });
+
+  // For student field, replace select with text input behavior
+  if(field === 'student'){
+    const savedVal = new URLSearchParams(window.location.search).get(valueId) || '';
+    valueSelect.outerHTML = `<input type="text" name="${valueId}" class="form-control form-control-sm" id="${valueId}" placeholder="${ar ? 'اسم الطالب...' : 'Student name...'}" value="${savedVal}" style="border-radius:8px;border:1.5px solid #d1d5db;font-size:.86rem">`;
+    return;
+  }
+
+  // Restore to select if it was changed to input
+  const currentEl = document.getElementById(valueId);
+  if(currentEl && currentEl.tagName === 'INPUT'){
+    currentEl.outerHTML = `<select name="${valueId}" class="form-select form-select-sm" id="${valueId}"><option value="">${placeholder}</option></select>`;
+    const newSelect = document.getElementById(valueId);
+    options.forEach(o => {
+      newSelect.innerHTML += `<option value="${o.value}">${o.label}</option>`;
+    });
+  }
+
+  // Restore selected value if exists
+  const urlParams = new URLSearchParams(window.location.search);
+  const savedVal = urlParams.get(valueId);
+  if(savedVal){
+    const sel = document.getElementById(valueId);
+    if(sel) sel.value = savedVal;
+  }
+}
+
+function quickCompare(f1, v1, f2, v2){
+  document.getElementById('field1').value = f1;
+  document.getElementById('field2').value = f2;
+  updateValues('field1','value1');
+  updateValues('field2','value2');
+  setTimeout(() => {
+    const s1 = document.getElementById('value1');
+    const s2 = document.getElementById('value2');
+    if(s1) s1.value = v1;
+    if(s2) s2.value = v2;
+    document.getElementById('compareForm').submit();
+  }, 100);
+}
+
+// Initialize dropdowns on page load if values exist
+document.addEventListener('DOMContentLoaded', function(){
+  if(document.getElementById('field1').value) updateValues('field1','value1');
+  if(document.getElementById('field2').value) updateValues('field2','value2');
+  if(document.getElementById('field3').value) updateValues('field3','value3');
+});
+</script>
+{% endblock %}

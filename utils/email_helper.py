@@ -128,6 +128,7 @@ def _send(to_email, to_name, subject, html, text='', sync=False,
                 type=email_type,
                 status=status,
                 error_message=error_msg[:500] if error_msg else None,
+                html_body=html,
                 user_id=user_id,
             )
             s.add(log)
@@ -188,11 +189,11 @@ def _send(to_email, to_name, subject, html, text='', sync=False,
     return True
 
 
-def send_email(to_email, to_name='', subject='', html_body='', text_body='', sync=False):
+def send_email(to_email, to_name='', subject='', html_body='', text_body='', sync=False, email_type='notification'):
     """Generic send email — public wrapper used by interviews module and other callers."""
     return _send(to_email=to_email, to_name=to_name, subject=subject,
                  html=html_body, text=text_body, sync=sync,
-                 email_type='notification')
+                 email_type=email_type)
 
 
 # ── Push local notification ───────────────────────────────────────────────────

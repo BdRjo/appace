@@ -61,7 +61,7 @@
         {% if ar %}مقابلات أولياء الأمور{% else %}Parent Interviews{% endif %}
       </h4>
       <p class="text-muted mb-0" style="font-size:.85rem">
-        {% if ar %}إدارة الأحداث والمعلمين والحجوزات{% else %}Manage events, teachers and bookings{% endif %}
+        {% if ar %}إدارة الفعاليات والمعلمين والحجوزات{% else %}Manage events, teachers and bookings{% endif %}
       </p>
     </div>
     <div class="d-flex flex-wrap gap-2">
@@ -75,10 +75,17 @@
          style="background:#fefce8;color:#a16207;border:1.5px solid #fde68a;font-size:.85rem">
         <i class="bi bi-bar-chart-line"></i>{% if ar %}التقارير{% else %}Reports{% endif %}
       </a>
-      <a href="{{ url_for('interviews.admin_event_new') }}"
+      {% if events|length == 1 %}
+      <a href="{{ url_for('interviews.admin_data_entry', event_id=events[0].id) }}"
          class="btn text-white fw-600 rounded-3 px-3 d-flex align-items-center gap-2"
          style="background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;box-shadow:0 4px 12px rgba(99,102,241,.3)">
-        <i class="bi bi-plus-lg"></i>{% if ar %}حدث جديد{% else %}New Event{% endif %}
+        <i class="bi bi-table"></i>{% if ar %}إدخال البيانات{% else %}Data Entry{% endif %}
+      </a>
+      {% endif %}
+      <a href="{{ url_for('interviews.admin_event_new') }}"
+         class="btn fw-600 rounded-3 px-3 d-flex align-items-center gap-2"
+         style="background:{% if events|length == 1 %}#f1f5f9;color:#475569;border:1.5px solid #e2e8f0{% else %}linear-gradient(135deg,#6366f1,#8b5cf6);color:white;border:none;box-shadow:0 4px 12px rgba(99,102,241,.3){% endif %}">
+        <i class="bi bi-plus-lg"></i>{% if ar %}فعالية جديدة{% else %}New Event{% endif %}
       </a>
     </div>
   </div>
@@ -90,8 +97,8 @@
   {%- set total_teachers=stats.values()|sum(attribute='teachers') -%}
   <div class="row g-3 mb-4">
     {% for icon,color,bg,num,lbl_ar,lbl_en in [
-      ('calendar2-event','#6366f1','#eef2ff',total_events,'إجمالي الأحداث','Total Events'),
-      ('lightning-charge-fill','#16a34a','#f0fdf4',open_events,'أحداث نشطة','Active Events'),
+      ('calendar2-event','#6366f1','#eef2ff',total_events,'إجمالي الفعاليات','Total Events'),
+      ('lightning-charge-fill','#16a34a','#f0fdf4',open_events,'فعاليات نشطة','Active Events'),
       ('calendar-check','#d97706','#fffbeb',total_bookings,'إجمالي الحجوزات','Total Bookings'),
       ('person-workspace','#0284c7','#eff6ff',total_teachers,'إجمالي المعلمين','Total Teachers'),
     ] %}
@@ -111,11 +118,11 @@
   {% if not events %}
   <div class="empty-state">
     <i class="bi bi-calendar-plus display-3 d-block mb-3" style="color:#c7d2fe"></i>
-    <h6 class="fw-700 mb-2" style="color:#475569">{% if ar %}لا توجد أحداث بعد{% else %}No events yet{% endif %}</h6>
-    <p class="text-muted small mb-3">{% if ar %}ابدأ بإنشاء حدث جديد لتنظيم مقابلات أولياء الأمور{% else %}Create your first event to start organizing parent interviews{% endif %}</p>
+    <h6 class="fw-700 mb-2" style="color:#475569">{% if ar %}لا توجد فعاليات بعد{% else %}No events yet{% endif %}</h6>
+    <p class="text-muted small mb-3">{% if ar %}ابدأ بإنشاء فعالية جديدة لتنظيم مقابلات أولياء الأمور{% else %}Create your first event to start organizing parent interviews{% endif %}</p>
     <a href="{{ url_for('interviews.admin_event_new') }}"
        class="btn text-white px-4 rounded-3" style="background:#6366f1;border:none">
-      <i class="bi bi-plus-lg me-2"></i>{% if ar %}إنشاء حدث{% else %}Create Event{% endif %}
+      <i class="bi bi-plus-lg me-2"></i>{% if ar %}إنشاء فعالية{% else %}Create Event{% endif %}
     </a>
   </div>
   {% else %}
@@ -125,7 +132,7 @@
       <table class="table table-hover align-middle">
         <thead>
           <tr>
-            <th>{% if ar %}اسم الحدث{% else %}Event Name{% endif %}</th>
+            <th>{% if ar %}اسم الفعالية{% else %}Event Name{% endif %}</th>
             <th>{% if ar %}الرمز{% else %}Code{% endif %}</th>
             <th>{% if ar %}الحالة{% else %}Status{% endif %}</th>
             <th>{% if ar %}التواريخ{% else %}Dates{% endif %}</th>
@@ -138,13 +145,13 @@
           {% for ev in events %}
           {%- set s=stats.get(ev.id,{'total':0,'booked':0,'teachers':0}) -%}
           {%- set pct = ((s.booked / s.total * 100) if s.total > 0 else 0)|round|int -%}
-          <tr>
+          <tr style="cursor:pointer" onclick="window.location='{{ url_for('interviews.admin_data_entry', event_id=ev.id) }}'">
             {# Event name #}
             <td>
               <div class="d-flex align-items-center gap-2">
                 <div style="width:34px;height:34px;border-radius:10px;background:{{ ev.brand_color }};display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:.82rem;flex-shrink:0">{{ ev.name[0].upper() }}</div>
                 <div>
-                  <div class="fw-600" style="color:#0f172a">{{ ev.name }}</div>
+                  <div class="fw-600" style="color:#0f172a">{{ ev.name }}{% if ev.use_hierarchy %} <span style="background:#f5f3ff;color:#7c3aed;font-size:.65rem;padding:2px 8px;border-radius:100px;font-weight:600;vertical-align:middle"><i class="bi bi-diagram-3"></i> {% if ar %}هرمي{% else %}Hierarchy{% endif %}</span>{% endif %}</div>
                   {% if ev.school_name %}<div class="text-muted" style="font-size:.75rem">{{ ev.school_name }}</div>{% endif %}
                 </div>
               </div>
@@ -198,6 +205,8 @@
                   <i class="bi bi-three-dots-vertical"></i>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
+                  <li><a class="dropdown-item" href="{{ url_for('interviews.admin_data_entry', event_id=ev.id) }}">
+                    <i class="bi bi-table" style="color:#6366f1"></i> {% if ar %}إدخال البيانات{% else %}Data Entry{% endif %}</a></li>
                   <li><a class="dropdown-item" href="{{ url_for('interviews.admin_teachers', event_id=ev.id) }}">
                     <i class="bi bi-person-plus text-primary"></i> {% if ar %}المعلمون{% else %}Teachers{% endif %}</a></li>
                   <li><a class="dropdown-item" href="{{ url_for('interviews.admin_bookings', event_id=ev.id) }}">
@@ -208,12 +217,16 @@
                     <i class="bi bi-inbox text-warning"></i> {% if ar %}الطلبات{% else %}Requests{% endif %}</a></li>
                   <li><a class="dropdown-item" href="{{ url_for('interviews.admin_codes', event_id=ev.id) }}">
                     <i class="bi bi-qr-code text-secondary"></i> {% if ar %}الرموز{% else %}Codes{% endif %}</a></li>
+                  {% if ev.use_hierarchy %}
+                  <li><a class="dropdown-item" href="{{ url_for('interviews.admin_hierarchy', event_id=ev.id) }}">
+                    <i class="bi bi-diagram-3" style="color:#7c3aed"></i> {% if ar %}الهيكل الهرمي{% else %}Hierarchy{% endif %}</a></li>
+                  {% endif %}
                   <li><hr class="dropdown-divider"></li>
                   <li><a class="dropdown-item" href="{{ url_for('interviews.admin_event_edit', event_id=ev.id) }}">
                     <i class="bi bi-pencil-square text-secondary"></i> {% if ar %}تعديل{% else %}Edit{% endif %}</a></li>
                   <li>
                     <form method="post" action="{{ url_for('interviews.admin_event_delete', event_id=ev.id) }}"
-                          onsubmit="return confirm('{% if ar %}حذف هذا الحدث نهائياً؟{% else %}Delete this event permanently?{% endif %}')">
+                          onsubmit="return confirm('{% if ar %}حذف هذا الفعالية نهائياً؟{% else %}Delete this event permanently?{% endif %}')">
                       <button type="submit" class="dropdown-item text-danger">
                         <i class="bi bi-trash3"></i> {% if ar %}حذف{% else %}Delete{% endif %}
                       </button>

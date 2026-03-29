@@ -9,6 +9,9 @@
 .badge-bulk    { background:#dbeafe; color:#1e3a5f; }
 .badge-resend  { background:#fef9c3; color:#78520a; }
 .badge-notification { background:#f3e8ff; color:#4c1d95; }
+.badge-confirmation { background:#d1fae5; color:#065f46; }
+.badge-reminder { background:#fef3c7; color:#92400e; }
+.badge-teacher-code { background:#e0e7ff; color:#3730a3; }
 .log-row:hover { background:#f0f6ff; }
 .filter-bar { background:#f8fbff; border-radius:12px; padding:14px 18px; margin-bottom:18px; border:1px solid #e2ecf9; }
 </style>
@@ -123,7 +126,13 @@
               {{ log.subject }}
             </td>
             <td>
-              {% if log.type == 'bulk' %}
+              {% if log.type == 'interview_confirmation' %}
+                <span class="badge badge-confirmation">✅ {% if current_lang=='en' %}Booking Confirm{% else %}تأكيد حجز{% endif %}</span>
+              {% elif log.type == 'interview_reminder' %}
+                <span class="badge badge-reminder">⏰ {% if current_lang=='en' %}Reminder{% else %}تذكير{% endif %}</span>
+              {% elif log.type == 'teacher_access_code' %}
+                <span class="badge badge-teacher-code">🔑 {% if current_lang=='en' %}Teacher Code{% else %}رمز المعلم{% endif %}</span>
+              {% elif log.type == 'bulk' %}
                 <span class="badge badge-bulk">📨 {% if current_lang=='en' %}Bulk{% else %}جماعي{% endif %}</span>
               {% elif log.type == 'resend' %}
                 <span class="badge badge-resend">🔄 {% if current_lang=='en' %}Resend{% else %}إعادة إرسال{% endif %}</span>

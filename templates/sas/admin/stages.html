@@ -1,0 +1,544 @@
+{% extends "base.html" %}
+{%- set ar = (current_lang == 'ar') -%}
+
+{% block title %}{{ 'إدارة الهيكل التعليمي' if ar else 'Educational Hierarchy Management' }}{% endblock %}
+
+{% block extra_css %}
+<style>
+:root {
+  --sas: #10b981;
+  --sas-dark: #059669;
+  --sas-light: #34d399;
+  --sas-bg: #ecfdf5;
+}
+.sas-page-header h1 { color: var(--sas) !important; }
+.btn-sas {
+  background: linear-gradient(160deg, var(--sas-light), var(--sas), var(--sas-dark));
+  color: #fff; border: none; border-radius: 8px; padding: 7px 18px;
+  font-size: .84rem; font-weight: 700; transition: all .2s;
+}
+.btn-sas:hover { background: linear-gradient(160deg, #059669, #047857); color: #fff; transform: translateY(-1px); }
+.btn-sas-sm { padding: 4px 12px; font-size: .78rem; }
+.btn-sas-outline {
+  background: transparent; color: var(--sas); border: 1.5px solid var(--sas);
+  border-radius: 8px; padding: 6px 14px; font-size: .82rem; font-weight: 600; transition: all .2s;
+}
+.btn-sas-outline:hover { background: var(--sas); color: #fff; }
+
+/* Accordion Tree — all levels */
+.tree-item {
+  border: 1.5px solid #e5e7eb; border-radius: 14px; margin-bottom: 12px;
+  background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.04); overflow: hidden;
+}
+.tree-header {
+  display: flex; align-items: center; gap: 10px; padding: 14px 18px;
+  cursor: pointer; transition: background .2s;
+  border-bottom: 1px solid transparent;
+}
+.tree-header.expanded { border-bottom-color: #e5e7eb; }
+.tree-header .chevron {
+  transition: transform .3s; font-size: .9rem;
+}
+.tree-header.expanded .chevron { transform: rotate(180deg); }
+.tree-body { padding: 0; display: none; }
+.tree-body.show { display: block; }
+
+/* Year level */
+.year-item .tree-header { background: linear-gradient(135deg, #ede9fe, #fff); }
+.year-item .tree-header:hover { background: #ddd6fe; }
+.year-item .tree-header .chevron { color: #7c3aed; }
+.year-name { flex: 1; font-weight: 700; font-size: .95rem; color: #1f2937;
+  border: none; background: transparent; outline: none; padding: 0; cursor: text; }
+.year-name:focus { background: #fff; border-bottom: 2px solid #7c3aed; padding: 2px 4px; }
+
+/* Semester level */
+.semester-item { border: 1px solid #f3f4f6; border-radius: 10px; margin: 8px 18px; background: #fefce8; }
+.semester-item .tree-header { background: linear-gradient(135deg, #fefce8, #fff); padding: 10px 16px; border-radius: 10px; }
+.semester-item .tree-header:hover { background: #fef08a; }
+.semester-item .tree-header .chevron { color: #ca8a04; }
+.semester-name { flex: 1; font-weight: 700; font-size: .91rem; color: #1f2937;
+  border: none; background: transparent; outline: none; padding: 0; cursor: text; }
+.semester-name:focus { background: #fff; border-bottom: 2px solid #ca8a04; padding: 2px 4px; }
+
+/* Stage level */
+.stage-item { border: 1px solid #f3f4f6; border-radius: 10px; margin: 6px 16px; background: #fff; box-shadow: none; }
+.stage-item .tree-header { background: linear-gradient(135deg, var(--sas-bg), #fff); padding: 10px 14px; border-radius: 10px; }
+.stage-item .tree-header:hover { background: #d1fae5; }
+.stage-item .tree-header .chevron { color: var(--sas); }
+.stage-name { flex: 1; font-weight: 700; font-size: .88rem; color: #1f2937;
+  border: none; background: transparent; outline: none; padding: 0; cursor: text; }
+.stage-name:focus { background: #fff; border-bottom: 2px solid var(--sas); padding: 2px 4px; }
+
+/* Class level */
+.class-item {
+  border-bottom: 1px solid #f3f4f6; padding: 10px 14px 10px 28px;
+}
+[dir="rtl"] .class-item { padding: 10px 28px 10px 14px; }
+.class-header {
+  display: flex; align-items: center; gap: 10px; cursor: pointer;
+}
+.class-header:hover .class-name { color: var(--sas-dark); }
+.class-name {
+  flex: 1; font-weight: 600; font-size: .85rem; color: #374151;
+  border: none; background: transparent; outline: none; padding: 0;
+}
+.class-name:focus { background: #fff; border-bottom: 2px solid var(--sas); padding: 2px 4px; }
+.class-chevron { transition: transform .3s; color: #9ca3af; font-size: .8rem; cursor: pointer; }
+.class-chevron.expanded { transform: rotate(180deg); }
+
+/* Section level (leaf) */
+.sections-list { padding: 8px 0 8px 24px; display: none; }
+[dir="rtl"] .sections-list { padding: 8px 24px 8px 0; }
+.sections-list.show { display: block; }
+.section-item {
+  display: flex; align-items: center; gap: 8px; padding: 6px 0;
+}
+.section-name {
+  flex: 1; font-size: .84rem; color: #4b5563;
+  border: none; background: transparent; outline: none; padding: 0;
+}
+.section-name:focus { background: #fff; border-bottom: 2px solid var(--sas); padding: 2px 4px; }
+
+.delete-btn {
+  background: none; border: none; color: #d1d5db; cursor: pointer;
+  font-size: .82rem; transition: color .2s; padding: 2px 6px; border-radius: 4px;
+}
+.delete-btn:hover { color: #ef4444; background: #fef2f2; }
+.add-btn {
+  background: none; border: 1.5px dashed #d1d5db; color: #9ca3af;
+  cursor: pointer; font-size: .82rem; padding: 6px 14px; border-radius: 8px;
+  transition: all .2s; display: inline-flex; align-items: center; gap: 4px;
+}
+.add-btn:hover { border-color: var(--sas); color: var(--sas); background: var(--sas-bg); }
+.move-btn {
+  background: none; border: none; color: #d1d5db; cursor: pointer; font-size: .78rem;
+  padding: 1px 4px; transition: color .15s;
+}
+.move-btn:hover { color: var(--sas); }
+
+.save-bar {
+  position: sticky; bottom: 0; background: #fff; border-top: 2px solid var(--sas);
+  padding: 14px 20px; display: flex; justify-content: flex-end; gap: 10px;
+  box-shadow: 0 -4px 16px rgba(0,0,0,.08); border-radius: 0 0 14px 14px;
+  z-index: 10;
+}
+.unsaved-badge {
+  display: none; background: #fef3c7; color: #92400e; padding: 4px 12px;
+  border-radius: 20px; font-size: .78rem; font-weight: 600;
+  align-items: center; gap: 4px;
+}
+.unsaved-badge.show { display: inline-flex; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3 sas-page-header">
+  <h1 style="font-size:1.35rem;font-weight:700;margin:0">
+    <i class="bi bi-diagram-3 me-2"></i>{{ 'إدارة الهيكل التعليمي' if ar else 'Educational Hierarchy' }}
+  </h1>
+  <div class="d-flex gap-2 align-items-center">
+    <span class="unsaved-badge" id="unsavedBadge">
+      <i class="bi bi-exclamation-circle"></i>{{ 'تغييرات غير محفوظة' if ar else 'Unsaved changes' }}
+    </span>
+    <a href="{{ url_for('sas.admin_dashboard') }}" class="btn btn-sm" style="border:1.5px solid var(--sas);color:var(--sas);border-radius:8px;font-weight:600">
+      <i class="bi bi-arrow-{{ 'right' if ar else 'left' }} me-1"></i>{{ 'العودة' if ar else 'Back' }}
+    </a>
+  </div>
+</div>
+
+<!-- Add Year Button -->
+<div class="mb-3">
+  <button class="btn-sas" onclick="addYear()">
+    <i class="bi bi-plus-lg me-1"></i>{{ 'إضافة سنة دراسية' if ar else 'Add Educational Year' }}
+  </button>
+</div>
+
+<!-- Years Tree -->
+<div id="yearsContainer">
+  {% for year in years %}
+  <div class="tree-item year-item" data-id="{{ year.id }}" data-order="{{ loop.index }}">
+    <div class="tree-header" onclick="toggleAccordion(this)">
+      <i class="bi bi-chevron-down chevron"></i>
+      <i class="bi bi-calendar-range" style="color:#7c3aed;font-size:1rem"></i>
+      <input type="text" class="year-name" value="{{ year.name }}" onclick="event.stopPropagation()" onchange="markUnsaved()" placeholder="{{ 'اسم السنة الدراسية' if ar else 'Year name' }}">
+      <div class="d-flex gap-1" onclick="event.stopPropagation()">
+        <button class="move-btn" onclick="moveItem(this.closest('.year-item'),-1)" title="{{ 'أعلى' if ar else 'Up' }}"><i class="bi bi-arrow-up"></i></button>
+        <button class="move-btn" onclick="moveItem(this.closest('.year-item'),1)" title="{{ 'أسفل' if ar else 'Down' }}"><i class="bi bi-arrow-down"></i></button>
+        <button class="delete-btn" onclick="deleteItem(this.closest('.year-item'),'{{ 'حذف هذه السنة الدراسية؟' if ar else 'Delete this year?' }}')" title="{{ 'حذف' if ar else 'Delete' }}">
+          <i class="bi bi-trash"></i>
+        </button>
+      </div>
+    </div>
+    <div class="tree-body">
+      {% for sem in year.semesters %}
+      <div class="tree-item semester-item" data-id="{{ sem.id }}" data-order="{{ loop.index }}">
+        <div class="tree-header" onclick="toggleAccordion(this)">
+          <i class="bi bi-chevron-down chevron"></i>
+          <i class="bi bi-clock-history" style="color:#ca8a04;font-size:.9rem"></i>
+          <input type="text" class="semester-name" value="{{ sem.name }}" onclick="event.stopPropagation()" onchange="markUnsaved()" placeholder="{{ 'اسم الفصل الدراسي' if ar else 'Semester name' }}">
+          <div class="d-flex gap-1" onclick="event.stopPropagation()">
+            <button class="move-btn" onclick="moveItem(this.closest('.semester-item'),-1)"><i class="bi bi-arrow-up"></i></button>
+            <button class="move-btn" onclick="moveItem(this.closest('.semester-item'),1)"><i class="bi bi-arrow-down"></i></button>
+            <button class="delete-btn" onclick="deleteItem(this.closest('.semester-item'),'{{ 'حذف هذا الفصل؟' if ar else 'Delete this semester?' }}')">
+              <i class="bi bi-trash"></i>
+            </button>
+          </div>
+        </div>
+        <div class="tree-body">
+          {% for stage in sem.stages %}
+          <div class="tree-item stage-item" data-id="{{ stage.id }}" data-order="{{ loop.index }}">
+            <div class="tree-header" onclick="toggleAccordion(this)">
+              <i class="bi bi-chevron-down chevron"></i>
+              <i class="bi bi-layers" style="color:var(--sas);font-size:.9rem"></i>
+              <input type="text" class="stage-name" value="{{ stage.name }}" onclick="event.stopPropagation()" onchange="markUnsaved()" placeholder="{{ 'اسم المرحلة' if ar else 'Stage name' }}">
+              <div class="d-flex gap-1" onclick="event.stopPropagation()">
+                <button class="move-btn" onclick="moveItem(this.closest('.stage-item'),-1)"><i class="bi bi-arrow-up"></i></button>
+                <button class="move-btn" onclick="moveItem(this.closest('.stage-item'),1)"><i class="bi bi-arrow-down"></i></button>
+                <button class="delete-btn" onclick="deleteItem(this.closest('.stage-item'),'{{ 'حذف هذه المرحلة؟' if ar else 'Delete this stage?' }}')">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+            </div>
+            <div class="tree-body">
+              {% for cls in stage.classes %}
+              <div class="class-item" data-id="{{ cls.id }}" data-order="{{ loop.index }}">
+                <div class="class-header">
+                  <i class="bi bi-chevron-down class-chevron" onclick="toggleClass(this)"></i>
+                  <i class="bi bi-book" style="color:#6366f1;font-size:.85rem"></i>
+                  <input type="text" class="class-name" value="{{ cls.name }}" onchange="markUnsaved()" placeholder="{{ 'اسم الصف' if ar else 'Class name' }}">
+                  <div class="d-flex gap-1">
+                    <button class="move-btn" onclick="moveItem(this.closest('.class-item'),-1)"><i class="bi bi-arrow-up"></i></button>
+                    <button class="move-btn" onclick="moveItem(this.closest('.class-item'),1)"><i class="bi bi-arrow-down"></i></button>
+                    <button class="delete-btn" onclick="deleteItem(this.closest('.class-item'),'{{ 'حذف هذا الصف؟' if ar else 'Delete this class?' }}')">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </div>
+                </div>
+                <div class="sections-list">
+                  {% for sec in cls.sections %}
+                  <div class="section-item" data-id="{{ sec.id }}" data-order="{{ loop.index }}">
+                    <i class="bi bi-dash" style="color:#d1d5db"></i>
+                    <input type="text" class="section-name" value="{{ sec.name }}" onchange="markUnsaved()" placeholder="{{ 'اسم الشعبة' if ar else 'Section name' }}">
+                    <div class="d-flex gap-1">
+                      <button class="move-btn" onclick="moveItem(this.closest('.section-item'),-1)"><i class="bi bi-arrow-up"></i></button>
+                      <button class="move-btn" onclick="moveItem(this.closest('.section-item'),1)"><i class="bi bi-arrow-down"></i></button>
+                      <button class="delete-btn" onclick="deleteItem(this.closest('.section-item'),'{{ 'حذف هذه الشعبة؟' if ar else 'Delete this section?' }}')">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </div>
+                  </div>
+                  {% endfor %}
+                  <div style="padding:4px 0">
+                    <button class="add-btn" onclick="addSection(this)">
+                      <i class="bi bi-plus"></i>{{ 'شعبة' if ar else 'Section' }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              {% endfor %}
+              <div style="padding:10px 14px 12px 28px">
+                <button class="add-btn" onclick="addClass(this)">
+                  <i class="bi bi-plus"></i>{{ 'صف' if ar else 'Class' }}
+                </button>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+          <div style="padding:10px 16px 12px">
+            <button class="add-btn" onclick="addStage(this)">
+              <i class="bi bi-plus"></i>{{ 'مرحلة' if ar else 'Stage' }}
+            </button>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+      <div style="padding:10px 18px 14px">
+        <button class="add-btn" onclick="addSemester(this)">
+          <i class="bi bi-plus"></i>{{ 'فصل دراسي' if ar else 'Semester' }}
+        </button>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Empty State -->
+{% if not years %}
+<div class="text-center py-5" style="color:#9ca3af">
+  <i class="bi bi-diagram-3" style="font-size:3rem;display:block;margin-bottom:12px;opacity:.5"></i>
+  <div style="font-size:.92rem;font-weight:600">{{ 'لا توجد سنوات دراسية بعد' if ar else 'No educational years yet' }}</div>
+  <div style="font-size:.82rem;margin-top:4px">{{ 'أضف سنة دراسية للبدء' if ar else 'Add an educational year to get started' }}</div>
+</div>
+{% endif %}
+
+<!-- Save Bar -->
+<div class="save-bar mt-3">
+  <button class="btn-sas" style="padding:10px 36px;font-size:.9rem" onclick="saveAll()">
+    <i class="bi bi-check-lg me-2"></i>{{ 'حفظ الكل' if ar else 'Save All' }}
+  </button>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const ar = {{ 'true' if ar else 'false' }};
+let unsaved = false;
+
+function markUnsaved(){
+  unsaved = true;
+  document.getElementById('unsavedBadge').classList.add('show');
+}
+
+function toggleAccordion(header){
+  header.classList.toggle('expanded');
+  const body = header.nextElementSibling;
+  body.classList.toggle('show');
+}
+
+function toggleClass(chevron){
+  chevron.classList.toggle('expanded');
+  const classItem = chevron.closest('.class-item');
+  const sections = classItem.querySelector('.sections-list');
+  if(sections) sections.classList.toggle('show');
+}
+
+/* ── Add Year ── */
+function addYear(){
+  markUnsaved();
+  const container = document.getElementById('yearsContainer');
+  const html = `
+    <div class="tree-item year-item" data-id="new" data-order="${container.children.length+1}">
+      <div class="tree-header expanded" onclick="toggleAccordion(this)">
+        <i class="bi bi-chevron-down chevron" style="transform:rotate(180deg)"></i>
+        <i class="bi bi-calendar-range" style="color:#7c3aed;font-size:1rem"></i>
+        <input type="text" class="year-name" value="" onclick="event.stopPropagation()" onchange="markUnsaved()" placeholder="${ar?'اسم السنة الدراسية':'Year name'}" autofocus>
+        <div class="d-flex gap-1" onclick="event.stopPropagation()">
+          <button class="move-btn" onclick="moveItem(this.closest('.year-item'),-1)"><i class="bi bi-arrow-up"></i></button>
+          <button class="move-btn" onclick="moveItem(this.closest('.year-item'),1)"><i class="bi bi-arrow-down"></i></button>
+          <button class="delete-btn" onclick="deleteItem(this.closest('.year-item'),'${ar?'حذف هذه السنة الدراسية؟':'Delete this year?'}')"><i class="bi bi-trash"></i></button>
+        </div>
+      </div>
+      <div class="tree-body show">
+        <div style="padding:10px 18px 14px">
+          <button class="add-btn" onclick="addSemester(this)">
+            <i class="bi bi-plus"></i>${ar?'فصل دراسي':'Semester'}
+          </button>
+        </div>
+      </div>
+    </div>`;
+  container.insertAdjacentHTML('beforeend', html);
+  container.lastElementChild.querySelector('.year-name').focus();
+}
+
+/* ── Add Semester ── */
+function addSemester(btn){
+  markUnsaved();
+  const addBtnWrap = btn.closest('div');
+  const html = `
+    <div class="tree-item semester-item" data-id="new" data-order="0">
+      <div class="tree-header expanded" onclick="toggleAccordion(this)">
+        <i class="bi bi-chevron-down chevron" style="transform:rotate(180deg)"></i>
+        <i class="bi bi-clock-history" style="color:#ca8a04;font-size:.9rem"></i>
+        <input type="text" class="semester-name" value="" onclick="event.stopPropagation()" onchange="markUnsaved()" placeholder="${ar?'اسم الفصل الدراسي':'Semester name'}" autofocus>
+        <div class="d-flex gap-1" onclick="event.stopPropagation()">
+          <button class="move-btn" onclick="moveItem(this.closest('.semester-item'),-1)"><i class="bi bi-arrow-up"></i></button>
+          <button class="move-btn" onclick="moveItem(this.closest('.semester-item'),1)"><i class="bi bi-arrow-down"></i></button>
+          <button class="delete-btn" onclick="deleteItem(this.closest('.semester-item'),'${ar?'حذف هذا الفصل؟':'Delete this semester?'}')"><i class="bi bi-trash"></i></button>
+        </div>
+      </div>
+      <div class="tree-body show">
+        <div style="padding:10px 16px 12px">
+          <button class="add-btn" onclick="addStage(this)">
+            <i class="bi bi-plus"></i>${ar?'مرحلة':'Stage'}
+          </button>
+        </div>
+      </div>
+    </div>`;
+  addBtnWrap.insertAdjacentHTML('beforebegin', html);
+  addBtnWrap.previousElementSibling.querySelector('.semester-name').focus();
+}
+
+/* ── Add Stage ── */
+function addStage(btn){
+  markUnsaved();
+  const addBtnWrap = btn.closest('div');
+  const html = `
+    <div class="tree-item stage-item" data-id="new" data-order="0">
+      <div class="tree-header expanded" onclick="toggleAccordion(this)">
+        <i class="bi bi-chevron-down chevron" style="transform:rotate(180deg)"></i>
+        <i class="bi bi-layers" style="color:var(--sas);font-size:.9rem"></i>
+        <input type="text" class="stage-name" value="" onclick="event.stopPropagation()" onchange="markUnsaved()" placeholder="${ar?'اسم المرحلة':'Stage name'}" autofocus>
+        <div class="d-flex gap-1" onclick="event.stopPropagation()">
+          <button class="move-btn" onclick="moveItem(this.closest('.stage-item'),-1)"><i class="bi bi-arrow-up"></i></button>
+          <button class="move-btn" onclick="moveItem(this.closest('.stage-item'),1)"><i class="bi bi-arrow-down"></i></button>
+          <button class="delete-btn" onclick="deleteItem(this.closest('.stage-item'),'${ar?'حذف هذه المرحلة؟':'Delete this stage?'}')"><i class="bi bi-trash"></i></button>
+        </div>
+      </div>
+      <div class="tree-body show">
+        <div style="padding:10px 14px 12px 28px">
+          <button class="add-btn" onclick="addClass(this)">
+            <i class="bi bi-plus"></i>${ar?'صف':'Class'}
+          </button>
+        </div>
+      </div>
+    </div>`;
+  addBtnWrap.insertAdjacentHTML('beforebegin', html);
+  addBtnWrap.previousElementSibling.querySelector('.stage-name').focus();
+}
+
+/* ── Add Class ── */
+function addClass(btn){
+  markUnsaved();
+  const addBtnWrap = btn.closest('div');
+  const html = `
+    <div class="class-item" data-id="new" data-order="0">
+      <div class="class-header">
+        <i class="bi bi-chevron-down class-chevron expanded" onclick="toggleClass(this)"></i>
+        <i class="bi bi-book" style="color:#6366f1;font-size:.85rem"></i>
+        <input type="text" class="class-name" value="" onchange="markUnsaved()" placeholder="${ar?'اسم الصف':'Class name'}" autofocus>
+        <div class="d-flex gap-1">
+          <button class="move-btn" onclick="moveItem(this.closest('.class-item'),-1)"><i class="bi bi-arrow-up"></i></button>
+          <button class="move-btn" onclick="moveItem(this.closest('.class-item'),1)"><i class="bi bi-arrow-down"></i></button>
+          <button class="delete-btn" onclick="deleteItem(this.closest('.class-item'),'${ar?'حذف هذا الصف؟':'Delete this class?'}')"><i class="bi bi-trash"></i></button>
+        </div>
+      </div>
+      <div class="sections-list show">
+        <div style="padding:4px 0">
+          <button class="add-btn" onclick="addSection(this)">
+            <i class="bi bi-plus"></i>${ar?'شعبة':'Section'}
+          </button>
+        </div>
+      </div>
+    </div>`;
+  addBtnWrap.insertAdjacentHTML('beforebegin', html);
+  addBtnWrap.previousElementSibling.querySelector('.class-name').focus();
+}
+
+/* ── Add Section ── */
+function addSection(btn){
+  markUnsaved();
+  const addWrap = btn.closest('div');
+  const html = `
+    <div class="section-item" data-id="new" data-order="0">
+      <i class="bi bi-dash" style="color:#d1d5db"></i>
+      <input type="text" class="section-name" value="" onchange="markUnsaved()" placeholder="${ar?'اسم الشعبة':'Section name'}" autofocus>
+      <div class="d-flex gap-1">
+        <button class="move-btn" onclick="moveItem(this.closest('.section-item'),-1)"><i class="bi bi-arrow-up"></i></button>
+        <button class="move-btn" onclick="moveItem(this.closest('.section-item'),1)"><i class="bi bi-arrow-down"></i></button>
+        <button class="delete-btn" onclick="deleteItem(this.closest('.section-item'),'${ar?'حذف هذه الشعبة؟':'Delete this section?'}')"><i class="bi bi-trash"></i></button>
+      </div>
+    </div>`;
+  addWrap.insertAdjacentHTML('beforebegin', html);
+  addWrap.previousElementSibling.querySelector('.section-name').focus();
+}
+
+function deleteItem(el, msg){
+  if(!confirm(msg)) return;
+  markUnsaved();
+  el.remove();
+}
+
+function moveItem(el, direction){
+  markUnsaved();
+  const sibling = direction === -1 ? el.previousElementSibling : el.nextElementSibling;
+  if(!sibling || sibling.classList.contains('add-btn') || sibling.querySelector('.add-btn')) return;
+  if(direction === -1){
+    el.parentNode.insertBefore(el, sibling);
+  } else {
+    el.parentNode.insertBefore(sibling, el);
+  }
+}
+
+/* ── Collect full 5-level tree ── */
+function collectTree(){
+  const years = [];
+  document.querySelectorAll('.year-item').forEach((yearEl, yi) => {
+    const yearName = yearEl.querySelector('.year-name').value.trim();
+    if(!yearName) return;
+    const year = {
+      id: yearEl.dataset.id === 'new' ? null : parseInt(yearEl.dataset.id),
+      name: yearName,
+      order: yi + 1,
+      semesters: []
+    };
+    yearEl.querySelectorAll(':scope > .tree-body > .semester-item').forEach((semEl, sei) => {
+      const semName = semEl.querySelector('.semester-name').value.trim();
+      if(!semName) return;
+      const sem = {
+        id: semEl.dataset.id === 'new' ? null : parseInt(semEl.dataset.id),
+        name: semName,
+        order: sei + 1,
+        stages: []
+      };
+      semEl.querySelectorAll(':scope > .tree-body > .stage-item').forEach((stageEl, si) => {
+        const stageName = stageEl.querySelector('.stage-name').value.trim();
+        if(!stageName) return;
+        const stage = {
+          id: stageEl.dataset.id === 'new' ? null : parseInt(stageEl.dataset.id),
+          name: stageName,
+          order: si + 1,
+          classes: []
+        };
+        stageEl.querySelectorAll(':scope > .tree-body > .class-item').forEach((clsEl, ci) => {
+          const clsName = clsEl.querySelector('.class-name').value.trim();
+          if(!clsName) return;
+          const cls = {
+            id: clsEl.dataset.id === 'new' ? null : parseInt(clsEl.dataset.id),
+            name: clsName,
+            order: ci + 1,
+            sections: []
+          };
+          clsEl.querySelectorAll('.section-item').forEach((secEl, seci) => {
+            const secName = secEl.querySelector('.section-name').value.trim();
+            if(!secName) return;
+            cls.sections.push({
+              id: secEl.dataset.id === 'new' ? null : parseInt(secEl.dataset.id),
+              name: secName,
+              order: seci + 1
+            });
+          });
+          stage.classes.push(cls);
+        });
+        sem.stages.push(stage);
+      });
+      year.semesters.push(sem);
+    });
+    years.push(year);
+  });
+  return years;
+}
+
+function saveAll(){
+  const tree = collectTree();
+  fetch('{{ url_for("sas.admin_stages_save") }}', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ years: tree })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if(data.success){
+      unsaved = false;
+      document.getElementById('unsavedBadge').classList.remove('show');
+      const btn = document.querySelector('.save-bar .btn-sas');
+      const origText = btn.innerHTML;
+      btn.innerHTML = '<i class="bi bi-check-circle me-2"></i>' + (ar ? 'تم الحفظ' : 'Saved!');
+      btn.style.background = '#059669';
+      setTimeout(() => { btn.innerHTML = origText; btn.style.background = ''; }, 2000);
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      alert(data.error || (ar ? 'حدث خطأ' : 'Error occurred'));
+    }
+  })
+  .catch(() => alert(ar ? 'فشل الاتصال' : 'Connection failed'));
+}
+
+// Warn before leaving with unsaved changes
+window.addEventListener('beforeunload', function(e){
+  if(unsaved){
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+</script>
+{% endblock %}
