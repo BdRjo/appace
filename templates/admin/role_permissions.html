@@ -27,6 +27,7 @@
                 <th class="text-center">{{ _('إضافة') }}</th>
                 <th class="text-center">{{ _('تعديل') }}</th>
                 <th class="text-center">{{ _('اعتماد') }}</th>
+                <th class="text-center" style="color:#9b59b6">{% if current_lang=='en' %}Comment{% else %}تعليق{% endif %}</th>
               </tr>
             </thead>
             <tbody>
@@ -39,7 +40,7 @@
                   <div class="text-muted" style="font-size:.75rem">{{ perm.description }}</div>
                   {% endif %}
                 </td>
-                {% for action in ['view','add','edit','approve'] %}
+                {% for action in ['view','add','edit','approve','comment'] %}
                 <td class="text-center">
                   <input type="checkbox" class="form-check-input perm-cb"
                          name="{{ action }}_{{ perm.id }}"

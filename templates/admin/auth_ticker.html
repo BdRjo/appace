@@ -53,15 +53,15 @@
           </div>
           <div id="previewAR" class="p-2 border rounded small d-none" style="background:#f8f9fa;min-height:32px"></div>
         </form>
-        <div class="list-group">
+        <div class="list-group" style="max-height:300px;overflow-y:auto">
           {% for msg in ticker.feeds_ar or [] %}
-          <div class="list-group-item py-2">
+          <div class="list-group-item py-2" style="overflow:hidden">
             <div class="d-flex align-items-start gap-2">
-              <div class="flex-grow-1">
-                <div class="text-muted small mb-1" style="font-family:monospace;font-size:.7rem;word-break:break-all">{{ msg }}</div>
-                <div style="padding:3px 8px;background:#f8f9fa;border-radius:4px;border-right:3px solid var(--primary)">{{ msg|safe }}</div>
+              <div class="flex-grow-1" style="min-width:0;overflow:hidden">
+                <div class="text-muted small mb-1" style="font-family:monospace;font-size:.7rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ msg }}">{{ msg[:120] }}{% if msg|length > 120 %}…{% endif %}</div>
+                <div style="padding:3px 8px;background:#f8f9fa;border-radius:4px;border-right:3px solid var(--primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ msg|safe }}</div>
               </div>
-              <form method="POST" class="ms-1">
+              <form method="POST" class="ms-1 flex-shrink-0">
                 <input type="hidden" name="action" value="del_ar">
                 <input type="hidden" name="idx" value="{{ loop.index0 }}">
                 <button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="return confirm(this.dataset.msg)" data-msg="{% if current_lang=='en' %}Delete?{% else %}حذف؟{% endif %}"><i class="bi bi-trash"></i></button>
@@ -95,15 +95,15 @@
           </div>
           <div id="previewEN" class="p-2 border rounded small d-none" style="background:#f8f9fa;min-height:32px"></div>
         </form>
-        <div class="list-group">
+        <div class="list-group" style="max-height:300px;overflow-y:auto">
           {% for msg in ticker.feeds_en or [] %}
-          <div class="list-group-item py-2">
+          <div class="list-group-item py-2" style="overflow:hidden">
             <div class="d-flex align-items-start gap-2">
-              <div class="flex-grow-1">
-                <div class="text-muted small mb-1" style="font-family:monospace;font-size:.7rem;word-break:break-all">{{ msg }}</div>
-                <div style="padding:3px 8px;background:#f8f9fa;border-radius:4px;border-left:3px solid var(--primary)">{{ msg|safe }}</div>
+              <div class="flex-grow-1" style="min-width:0;overflow:hidden">
+                <div class="text-muted small mb-1" style="font-family:monospace;font-size:.7rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ msg }}">{{ msg[:120] }}{% if msg|length > 120 %}…{% endif %}</div>
+                <div style="padding:3px 8px;background:#f8f9fa;border-radius:4px;border-left:3px solid var(--primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ msg|safe }}</div>
               </div>
-              <form method="POST" class="ms-1">
+              <form method="POST" class="ms-1 flex-shrink-0">
                 <input type="hidden" name="action" value="del_en">
                 <input type="hidden" name="idx" value="{{ loop.index0 }}">
                 <button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="return confirm(this.dataset.msg)" data-msg="{% if current_lang=='en' %}Delete?{% else %}حذف؟{% endif %}"><i class="bi bi-trash"></i></button>
@@ -150,6 +150,27 @@
               <button type="submit" class="btn btn-primary-ars w-100">
                 <i class="bi bi-check-lg me-1"></i>{{ _('حفظ الإعدادات') }}
               </button>
+            </div>
+          </div>
+          <hr class="my-3">
+          <div class="row g-3 align-items-end">
+            <div class="col-12 col-md-5">
+              <label class="form-label fw-bold small">{% if current_lang=='en' %}Separator Image URL (replaces ◆){% else %}صورة الفاصل بين الرسائل (بدل ◆){% endif %}</label>
+              <input type="url" name="sep_img_url" class="form-control"
+                     value="{{ ticker.get('sep_img_url','') }}"
+                     placeholder="https://example.com/avatar.png">
+              {% if ticker.get('sep_img_url') %}
+              <div class="mt-1"><img src="{{ ticker.get('sep_img_url') }}" style="width:24px;height:24px;border-radius:50%;object-fit:contain" alt="sep"> <span class="text-muted small">{% if current_lang=='en' %}Current{% else %}الحالي{% endif %}</span></div>
+              {% endif %}
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label fw-bold small">
+                {% if current_lang=='en' %}Edge Fade %{% else %}نسبة تلاشي الأطراف{% endif %}:
+                <strong id="fadeVal">{{ ticker.get('mask_fade',12) }}%</strong>
+              </label>
+              <input type="range" name="mask_fade" class="form-range"
+                     min="0" max="30" step="1" value="{{ ticker.get('mask_fade',12) }}"
+                     oninput="document.getElementById('fadeVal').textContent=this.value+'%'">
             </div>
           </div>
         </form>

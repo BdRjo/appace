@@ -124,7 +124,16 @@ def _get_columns(db, table_name, hidden=None):
     except Exception:
         return []
 
+def _sanitize_order_by(order_by):
+    """Whitelist-based order_by sanitization to prevent SQL injection"""
+    import re
+    allowed = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*( (ASC|DESC))?$')
+    parts = [p.strip() for p in order_by.split(',')]
+    safe = [p for p in parts if allowed.match(p)]
+    return ', '.join(safe) if safe else 'id DESC'
+
 def _get_rows(db, table_name, search='', page=1, per_page=25, searchable=None, order_by='id DESC'):
+    order_by = _sanitize_order_by(order_by)
     offset = (page - 1) * per_page
     try:
         where = ''

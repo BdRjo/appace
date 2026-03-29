@@ -207,8 +207,8 @@ def bulk_delete():
                 db.delete(res)
             db.query(Rating).filter(Rating.user_id == uid).delete()
             db.flush()
-            db.execute(text(f'DELETE FROM user_locations WHERE user_id={uid}'))
-            db.execute(text(f'DELETE FROM user_venues WHERE user_id={uid}'))
+            db.execute(text('DELETE FROM user_locations WHERE user_id=:uid'), {'uid': uid})
+            db.execute(text('DELETE FROM user_venues WHERE user_id=:uid'), {'uid': uid})
             db.query(LoginLog).filter(LoginLog.user_id == uid).update({'user_id': None})
             db.flush()
             db.delete(user); count += 1
@@ -264,8 +264,8 @@ def delete(user_id):
         db.query(Rating).filter(Rating.user_id == uid).delete()
         db.flush()
         # Clear many-to-many
-        db.execute(text(f'DELETE FROM user_locations WHERE user_id={uid}'))
-        db.execute(text(f'DELETE FROM user_venues WHERE user_id={uid}'))
+        db.execute(text('DELETE FROM user_locations WHERE user_id=:uid'), {'uid': uid})
+        db.execute(text('DELETE FROM user_venues WHERE user_id=:uid'), {'uid': uid})
         db.query(LoginLog).filter(LoginLog.user_id == uid).update({'user_id': None})
         db.flush()
         db.delete(user)
@@ -503,18 +503,21 @@ def bulk_message():
 
         try:
             from utils.email_helper import send_bulk
-            # Try rich version with HTML + attachments if supported
-            try:
-                send_bulk(targets, subject, body,
-                          html=editor_mode=='html', attachments=attachments)
-            except TypeError:
-                # Fallback to basic send_bulk if signature doesn't support extra args
-                send_bulk(targets, subject, body)
+            from flask import session as _sess
+            ui_lang = _sess.get('lang', 'ar')  # use admin's UI language
+            send_bulk(targets, subject, body,
+                      html=editor_mode=='html',
+                      attachments=attachments,
+                      interface_lang=ui_lang)
         except Exception as e:
             flash_msg(f'خطأ في الإرسال: {e}', 'danger')
             return redirect(url_for('users.bulk_message'))
 
-        syslog('BULK_MESSAGE', f'رسالة جماعية إلى {len(targets)} مستخدم: {subject}')
+        # Log each recipient for tracking
+        recipients_log = ', '.join([u.email or u.username for u in targets[:10]])
+        if len(targets) > 10:
+            recipients_log += f' ... +{len(targets)-10}'
+        syslog('BULK_MESSAGE', f'رسالة جماعية ({len(targets)} مستخدم) | الموضوع: {subject} | المستلمون: {recipients_log}')
         flash_msg(f'✅ تم إرسال الرسالة إلى {len(targets)} مستخدم', 'success')
         return redirect(url_for('users.index'))
 
@@ -601,16 +604,17 @@ def role_permissions(role_id):
         # حذف القديمة وإعادة بناء — مطابق لـ v54 PermissionsWindow.save
         db.query(RolePermission).filter_by(role_id=role_id).delete()
         for perm in perms:
-            view_val   = request.form.get(f'view_{perm.id}')   == 'on'
-            add_val    = request.form.get(f'add_{perm.id}')    == 'on'
-            edit_val   = request.form.get(f'edit_{perm.id}')   == 'on'
-            delete_val = request.form.get(f'delete_{perm.id}') == 'on'
-            approve_val= request.form.get(f'approve_{perm.id}')== 'on'
-            if any([view_val,add_val,edit_val,delete_val,approve_val]):
+            view_val    = request.form.get(f'view_{perm.id}')    == 'on'
+            add_val     = request.form.get(f'add_{perm.id}')     == 'on'
+            edit_val    = request.form.get(f'edit_{perm.id}')    == 'on'
+            delete_val  = request.form.get(f'delete_{perm.id}')  == 'on'
+            approve_val = request.form.get(f'approve_{perm.id}') == 'on'
+            comment_val = request.form.get(f'comment_{perm.id}') == 'on'
+            if any([view_val,add_val,edit_val,delete_val,approve_val,comment_val]):
                 rp = RolePermission(role_id=role_id, permission_id=perm.id,
                                     can_view=view_val, can_add=add_val,
                                     can_edit=edit_val, can_delete=delete_val,
-                                    can_approve=approve_val)
+                                    can_approve=approve_val, can_comment=comment_val)
                 db.add(rp)
         db.commit()
         _log(db,'EDIT_PERMISSIONS',f'تعديل صلاحيات دور: {role.name}')

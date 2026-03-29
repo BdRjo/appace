@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Staff Booking Portal{% endblock %}
+{% block content %}
+<div class="page-header mb-4">
+  <h4 class="mb-0"><i class="bi bi-telephone me-2 text-primary"></i>Staff Booking Portal</h4>
+  <small class="text-muted">Make a phone booking on behalf of a parent</small>
+</div>
+
+{% if not events %}
+<div class="text-center py-5">
+  <i class="bi bi-calendar-x display-1 text-muted opacity-25"></i>
+  <p class="text-muted mt-3">No active events with open bookings.</p>
+</div>
+{% else %}
+<div class="row g-3">
+  {% for ev in events %}
+  <div class="col-12 col-md-6 col-xl-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="fw-bold fs-5">{{ ev.name }}</div>
+        <div class="text-muted small mb-3">{{ ev.school_name or '' }}</div>
+        <span class="badge bg-success mb-3">Open</span>
+        <div class="d-grid">
+          <a href="{{ url_for('interviews.staff_book', event_id=ev.id) }}"
+             class="btn btn-primary">
+            <i class="bi bi-telephone me-2"></i>Make Phone Booking
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

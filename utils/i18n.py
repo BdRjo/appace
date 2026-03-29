@@ -418,8 +418,8 @@ TRANSLATIONS = {
     # ── Audit log ─────────────────────────────────────────────────────────
     'سجل المراجعة': 'Audit Log',
     'سجل جميع إجراءات النظام': 'All System Actions',
-    'نوع الحدث': 'Event Type',
-    'تفاصيل الحدث': 'Event Details',
+    'نوع الفعالية': 'Event Type',
+    'تفاصيل الفعالية': 'Event Details',
     'عنوان IP': 'IP Address',
     'دخول ناجح': 'Login Success',
     'دخول فاشل': 'Login Failed',
@@ -1118,7 +1118,38 @@ TRANSLATIONS = {
     '١': '1',
     '٢': '2',
     '٣': '3',
-
+    # Bulk message
+    'المرفقات (اختياري)': 'Attachments (optional)',
+    'حسب مجموعة': 'By Group',
+    'اختر مجموعة...': 'Select a group...',
+    'معاينة الرسالة': 'Message Preview',
+    'الموضوع:': 'Subject:',
+    'تبديل للمحرر الغني': 'Switch to Rich Editor',
+    'الرجاء كتابة نص الرسالة': 'Please write the message content',
+    'محدد': 'selected',
+    # Checklist form
+    '📋 تفاصيل القائمة': '📋 List Details',
+    'الأيقونة': 'Icon',
+    'اللون': 'Color',
+    'اسم القائمة': 'List Name',
+    'مثال: قائمة تجهيزات الحفل': 'Example: Event Preparation List',
+    'ملاحظات / وصف': 'Notes / Description',
+    'صف هدف هذه القائمة...': 'Describe the goal of this list...',
+    'معاينة حية': 'Live Preview',
+    '📝 عناصر القائمة': '📝 List Items',
+    '⚡ إضافة سريعة (سطر لكل مهمة)': '⚡ Quick Add (one line per task)',
+    'أضف مهام متعددة — سطر لكل مهمة': 'Add multiple tasks — one per line',
+    'تحليل النص وإضافة المهام': 'Parse text and add tasks',
+    'نص المهمة...': 'Task text...',
+    'ملاحظة اختيارية': 'Optional note',
+    'عادي': 'Normal',
+    'متوسطة': 'Medium',
+    'حذف المهمة': 'Delete task',
+    'إضافة مهمة جديدة': 'Add new task',
+    'القائمة العامة يراها جميع المستخدمين': 'Public lists are visible to all users',
+    # Sidebar email
+    'سجل الرسائل': 'Email Logs',
+    'إعدادات البريد': 'Email Settings',
 }
 
 
@@ -1135,6 +1166,20 @@ def t(ar_text: str) -> str:
 
 
 def set_lang(lang: str):
-    """Set language in Flask session."""
-    session['lang'] = lang if lang in ('ar', 'en') else 'ar'
+    """Set language in Flask session and sync to user.language in DB."""
+    lang = lang if lang in ('ar', 'en') else 'ar'
+    session['lang'] = lang
     session.permanent = True
+    # ← sync to DB so email notifications arrive in the correct language
+    try:
+        from flask_login import current_user
+        if current_user and current_user.is_authenticated:
+            from utils.helpers import get_db
+            from models.database import User
+            db = get_db()
+            u = db.query(User).get(current_user.id)
+            if u and u.language != lang:
+                u.language = lang
+                db.commit()
+    except Exception:
+        pass

@@ -3,6 +3,11 @@
 """
 
 import hashlib
+from werkzeug.security import generate_password_hash, check_password_hash
+
+def _legacy_hash(pw):
+    """Old SHA-256 hash for backward compatibility"""
+    return hashlib.sha256(pw.encode()).hexdigest()
 import json
 import os
 from datetime import datetime
@@ -17,7 +22,15 @@ auth_bp = Blueprint('auth', __name__)
 
 
 def hash_password(pw: str) -> str:
-    return hashlib.sha256(pw.encode()).hexdigest()
+    return generate_password_hash(pw, method="pbkdf2:sha256", salt_length=16)
+
+def verify_password(pw: str, stored_hash: str) -> bool:
+    """Verify password - supports both old SHA-256 and new pbkdf2"""
+    # New pbkdf2 format starts with 'pbkdf2:'
+    if stored_hash.startswith('pbkdf2:'):
+        return check_password_hash(stored_hash, pw)
+    # Legacy SHA-256 (64 hex chars)
+    return stored_hash == _legacy_hash(pw)
 
 
 def _log_login(db, user, success, reason='', request=None):
@@ -64,7 +77,7 @@ def login():
                 flash_msg('النظام معلق مؤقتاً. تواصل مع المدير.', 'danger')
                 return redirect(url_for('auth.login'))
 
-        if not user or user.password_hash != hash_password(password):
+        if not user or not verify_password(password, user.password_hash):
             _log_login(db, user, False, 'wrong_credentials', request)
             flash_msg('اسم المستخدم أو كلمة المرور غير صحيحة', 'danger')
             return redirect(url_for('auth.login'))
@@ -93,6 +106,12 @@ def login():
             pass
 
         login_user(user, remember=request.form.get('remember') == 'on')
+
+        # Sync session language to user.language so emails arrive in correct language
+        _sess_lang = session.get('lang', 'ar')
+        if user.language != _sess_lang:
+            user.language = _sess_lang
+            db.commit()
 
         next_page = request.args.get('next')
         if next_page:
@@ -145,8 +164,8 @@ def register():
             errors.append('جميع الحقول مطلوبة')
         if password != password2:
             errors.append('كلمتا المرور غير متطابقتين')
-        if len(password) < 6:
-            errors.append('كلمة المرور يجب أن تكون 6 أحرف على الأقل')
+        if len(password) < 8:
+            errors.append('كلمة المرور يجب أن تكون 8 أحرف على الأقل')
         if db.query(User).filter_by(username=username).first():
             errors.append('اسم المستخدم مستخدم مسبقاً')
         if db.query(User).filter_by(email=email).first():
@@ -294,7 +313,7 @@ def profile():
         user.language = language
 
         if old_pw and new_pw:
-            if user.password_hash != hash_password(old_pw):
+            if not verify_password(old_pw, user.password_hash):
                 flash_msg('كلمة المرور الحالية غير صحيحة', 'danger')
                 return redirect(url_for('auth.profile'))
             if len(new_pw) < 6:
@@ -373,7 +392,7 @@ def forgot_password():
                 flash_msg('كلمتا المرور غير متطابقتين', 'danger')
                 return render_template('auth/forgot_password.html', step=3)
             if len(new_pw) < 6:
-                flash_msg('كلمة المرور يجب أن تكون 6 أحرف على الأقل', 'danger')
+                flash_msg('كلمة المرور يجب أن تكون 8 أحرف على الأقل', 'danger')
                 return render_template('auth/forgot_password.html', step=3)
             db   = get_db()
             email = session.get('reset_email','')

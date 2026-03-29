@@ -53,11 +53,13 @@
             <div class="col-md-6">
               <label class="form-label fw-bold">{{ _('الدور') }}</label>
               <select name="role_id" class="form-select">
-                <option value="">{{ _('بدون دور') }}</option>
+                <option value="">{% if current_lang=='en' %}No Role{% else %}بدون دور{% endif %}</option>
                 {% for r in roles %}
                 <option value="{{ r.id }}"
                         {% if (user and user.role_id == r.id) or (not user and form.get('role_id','') == r.id|string) %}selected{% endif %}>
-                  {{ r.name }}
+                  {% if current_lang=='en' %}
+                    {{ {'مدير النظام':'System Admin','مشرف':'Supervisor','مستخدم':'User','Manager':'Manager','Admin':'Admin'}.get(r.name, r.name) }}
+                  {% else %}{{ r.name }}{% endif %}
                 </option>
                 {% endfor %}
               </select>
@@ -80,55 +82,120 @@
       </div>
     </div>
 
-    <!-- Access control panel — مطابق لـ v54 LocationWindow + VenueWindow access tabs -->
+    <!-- Access control panel — Redesigned with tabs and select-all -->
     <div class="col-md-4">
       {% if user and all_locations is defined %}
-      <div class="card mb-3">
-        <div class="card-header">
-          <i class="bi bi-geo-alt me-2"></i>{% if current_lang=="en" %}Location Permissions{% else %}صلاحيات المواقع{% endif %}
-          <small class="opacity-75 d-block">{{ _('المديرون والمشرفون يرون الكل تلقائياً') }}</small>
-        </div>
-        <div class="card-body p-2" style="max-height:200px;overflow-y:auto">
-          {% for loc in all_locations %}
-          <div class="form-check">
-            <input class="form-check-input" type="checkbox" name="allowed_locations"
-                   value="{{ loc.id }}" id="loc{{ loc.id }}"
-                   {{ 'checked' if loc.id in assigned_locations else '' }}>
-            <label class="form-check-label small" for="loc{{ loc.id }}">
-              {{ loc.name }}{% if loc.city %} ({{ loc.city }}){% endif %}
-            </label>
+      <div class="card" style="border-radius:14px;border:none;box-shadow:0 2px 16px rgba(12,103,236,.1)">
+        <div class="card-header" style="background:linear-gradient(135deg,#0C67EC,#0847B0);border-radius:14px 14px 0 0;border:none">
+          <div class="d-flex align-items-center justify-content-between">
+            <span style="color:#fff;font-weight:700;font-size:.9rem">
+              <i class="bi bi-shield-lock me-2"></i>
+              {% if current_lang=="en" %}Access Permissions{% else %}صلاحيات الوصول{% endif %}
+            </span>
+            <span class="badge bg-white text-primary" style="font-size:.72rem" id="accessSummary">—</span>
           </div>
-          {% else %}
-          <div class="text-muted small p-2">{{ _('لا توجد مواقع') }}</div>
-          {% endfor %}
+          <small style="color:rgba(255,255,255,.7);font-size:.72rem;display:block;margin-top:2px">
+            {% if current_lang=="en" %}Managers see everything automatically{% else %}المديرون يرون الكل تلقائياً{% endif %}
+          </small>
         </div>
-      </div>
+        <div class="card-body p-0">
+          <!-- Tabs -->
+          <div class="d-flex border-bottom" style="background:#f8fbff">
+            <button type="button" onclick="switchTab('locations')" id="tabLocBtn"
+                    class="flex-fill py-2 border-0 fw-bold"
+                    style="background:transparent;color:#0C67EC;border-bottom:2px solid #0C67EC!important;font-size:.82rem">
+              <i class="bi bi-geo-alt me-1"></i>
+              {% if current_lang=="en" %}Locations{% else %}المواقع{% endif %}
+              <span class="badge bg-primary ms-1" id="locCount" style="font-size:.65rem">{{ assigned_locations|length }}</span>
+            </button>
+            <button type="button" onclick="switchTab('venues')" id="tabVenBtn"
+                    class="flex-fill py-2 border-0"
+                    style="background:transparent;color:#888;border-bottom:2px solid transparent;font-size:.82rem">
+              <i class="bi bi-building me-1"></i>
+              {% if current_lang=="en" %}Venues{% else %}القاعات{% endif %}
+              <span class="badge bg-secondary ms-1" id="venCount" style="font-size:.65rem">{{ assigned_venues|length }}</span>
+            </button>
+          </div>
 
-      <div class="card">
-        <div class="card-header">
-          <i class="bi bi-building me-2"></i>{% if current_lang=="en" %}Venue Permissions{% else %}صلاحيات القاعات{% endif %}
-        </div>
-        <div class="card-body p-2" style="max-height:200px;overflow-y:auto">
-          {% for v in all_venues %}
-          <div class="form-check">
-            <input class="form-check-input" type="checkbox" name="allowed_venues"
-                   value="{{ v.id }}" id="ven{{ v.id }}"
-                   {{ 'checked' if v.id in assigned_venues else '' }}>
-            <label class="form-check-label small" for="ven{{ v.id }}">
-              {{ v.name }}{% if v.location %} — {{ v.location.name }}{% endif %}
-            </label>
+          <!-- Locations tab -->
+          <div id="tabLocations" style="padding:10px">
+            <div class="d-flex gap-2 mb-2">
+              <button type="button" onclick="selectAll('loc',true)" class="btn btn-xs btn-outline-primary btn-sm flex-fill" style="font-size:.75rem">
+                <i class="bi bi-check-all me-1"></i>{% if current_lang=="en" %}All{% else %}الكل{% endif %}
+              </button>
+              <button type="button" onclick="selectAll('loc',false)" class="btn btn-xs btn-outline-secondary btn-sm flex-fill" style="font-size:.75rem">
+                <i class="bi bi-x me-1"></i>{% if current_lang=="en" %}None{% else %}لا شيء{% endif %}
+              </button>
+            </div>
+            <div style="max-height:180px;overflow-y:auto">
+              {% for loc in all_locations %}
+              <div class="form-check access-item" style="padding:5px 6px;border-radius:7px;transition:.12s" onmouseover="this.style.background='#f0f6ff'" onmouseout="this.style.background=''">
+                <input class="form-check-input loc-cb" type="checkbox" name="allowed_locations"
+                       value="{{ loc.id }}" id="loc{{ loc.id }}"
+                       onchange="updateCounts()"
+                       {{ 'checked' if loc.id in assigned_locations else '' }}>
+                <label class="form-check-label" for="loc{{ loc.id }}" style="font-size:.82rem;cursor:pointer">
+                  <i class="bi bi-geo-alt-fill me-1" style="color:#0C67EC;font-size:.7rem"></i>
+                  {{ loc.name }}{% if loc.city %} <span class="text-muted">({{ loc.city }})</span>{% endif %}
+                </label>
+              </div>
+              {% else %}
+              <div class="text-muted small p-2 text-center">
+                <i class="bi bi-geo-alt" style="font-size:1.5rem;opacity:.3;display:block"></i>
+                {% if current_lang=="en" %}No locations yet{% else %}لا توجد مواقع بعد{% endif %}
+              </div>
+              {% endfor %}
+            </div>
           </div>
-          {% else %}
-          <div class="text-muted small p-2">{{ _('لا توجد قاعات') }}</div>
-          {% endfor %}
+
+          <!-- Venues tab -->
+          <div id="tabVenues" style="display:none;padding:10px">
+            <div class="d-flex gap-2 mb-2">
+              <button type="button" onclick="selectAll('ven',true)" class="btn btn-xs btn-outline-primary btn-sm flex-fill" style="font-size:.75rem">
+                <i class="bi bi-check-all me-1"></i>{% if current_lang=="en" %}All{% else %}الكل{% endif %}
+              </button>
+              <button type="button" onclick="selectAll('ven',false)" class="btn btn-xs btn-outline-secondary btn-sm flex-fill" style="font-size:.75rem">
+                <i class="bi bi-x me-1"></i>{% if current_lang=="en" %}None{% else %}لا شيء{% endif %}
+              </button>
+            </div>
+            <!-- Search filter -->
+            <input type="text" id="venSearch" class="form-control form-control-sm mb-2"
+                   placeholder="{% if current_lang=='en' %}Search venues...{% else %}بحث عن قاعة...{% endif %}"
+                   oninput="filterVenues(this.value)" style="border-radius:8px">
+            <div style="max-height:180px;overflow-y:auto" id="venList">
+              {% for v in all_venues %}
+              <div class="form-check venue-item access-item" style="padding:5px 6px;border-radius:7px;transition:.12s" onmouseover="this.style.background='#f0f6ff'" onmouseout="this.style.background=''">
+                <input class="form-check-input ven-cb" type="checkbox" name="allowed_venues"
+                       value="{{ v.id }}" id="ven{{ v.id }}"
+                       onchange="updateCounts()"
+                       {{ 'checked' if v.id in assigned_venues else '' }}>
+                <label class="form-check-label" for="ven{{ v.id }}" style="font-size:.82rem;cursor:pointer">
+                  <i class="bi bi-building-fill me-1" style="color:#198754;font-size:.7rem"></i>
+                  <span class="ven-name">{{ v.name }}</span>
+                  {% if v.location %}<span class="text-muted ven-loc"> — {{ v.location.name }}</span>{% endif %}
+                </label>
+              </div>
+              {% else %}
+              <div class="text-muted small p-2 text-center">
+                <i class="bi bi-building" style="font-size:1.5rem;opacity:.3;display:block"></i>
+                {% if current_lang=="en" %}No venues yet{% else %}لا توجد قاعات بعد{% endif %}
+              </div>
+              {% endfor %}
+            </div>
+          </div>
         </div>
       </div>
       {% else %}
-      <div class="card">
-        <div class="card-header"><i class="bi bi-info-circle me-2"></i>{{ _('ملاحظات') }}</div>
-        <div class="card-body small">
-          <p>{{ _('💡 يمكن تعيين صلاحيات المواقع والقاعات بعد حفظ المستخدم من خلال تعديله.') }}</p>
-          <p>{{ _('🔑 المديرون والمشرفون يرون جميع المواقع تلقائياً.') }}</p>
+      <div class="card" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.08)">
+        <div class="card-body text-center py-4">
+          <i class="bi bi-shield-lock" style="font-size:2.5rem;color:#0C67EC;opacity:.5"></i>
+          <p class="text-muted small mt-2 mb-0">
+            {% if current_lang=="en" %}
+              Save the user first, then edit to assign venue & location permissions.
+            {% else %}
+              احفظ المستخدم أولاً، ثم عدّل لتعيين صلاحيات المواقع والقاعات.
+            {% endif %}
+          </p>
         </div>
       </div>
       {% endif %}
@@ -142,4 +209,49 @@
     <a href="{{ url_for('users.index') }}" class="btn btn-secondary px-4">{{ _('إلغاء') }}</a>
   </div>
 </form>
+{% endblock %}
+{% block extra_js %}
+<script>
+function switchTab(tab) {
+  const isLoc = tab === 'locations';
+  document.getElementById('tabLocations').style.display = isLoc ? 'block' : 'none';
+  document.getElementById('tabVenues').style.display    = isLoc ? 'none'  : 'block';
+  const locBtn = document.getElementById('tabLocBtn');
+  const venBtn = document.getElementById('tabVenBtn');
+  if (locBtn && venBtn) {
+    locBtn.style.color       = isLoc ? '#0C67EC' : '#888';
+    locBtn.style.borderBottom= isLoc ? '2px solid #0C67EC' : '2px solid transparent';
+    locBtn.style.fontWeight  = isLoc ? '700' : '400';
+    venBtn.style.color       = isLoc ? '#888' : '#0C67EC';
+    venBtn.style.borderBottom= isLoc ? '2px solid transparent' : '2px solid #0C67EC';
+    venBtn.style.fontWeight  = isLoc ? '400' : '700';
+  }
+}
+function selectAll(prefix, val) {
+  document.querySelectorAll('.' + prefix + '-cb').forEach(cb => cb.checked = val);
+  updateCounts();
+}
+function updateCounts() {
+  const locN = document.querySelectorAll('.loc-cb:checked').length;
+  const venN = document.querySelectorAll('.ven-cb:checked').length;
+  const locEl = document.getElementById('locCount');
+  const venEl = document.getElementById('venCount');
+  const sumEl = document.getElementById('accessSummary');
+  if (locEl) { locEl.textContent = locN; locEl.className = locN > 0 ? 'badge bg-primary ms-1' : 'badge bg-secondary ms-1'; }
+  if (venEl) { venEl.textContent = venN; venEl.className = venN > 0 ? 'badge bg-success ms-1' : 'badge bg-secondary ms-1'; }
+  if (sumEl) {
+    const IS_EN = document.documentElement.lang === 'en';
+    sumEl.textContent = IS_EN ? `${locN} loc · ${venN} venue` : `${locN} موقع · ${venN} قاعة`;
+  }
+}
+function filterVenues(q) {
+  q = q.toLowerCase();
+  document.querySelectorAll('.venue-item').forEach(item => {
+    const name = (item.querySelector('.ven-name')?.textContent || '').toLowerCase();
+    const loc  = (item.querySelector('.ven-loc')?.textContent  || '').toLowerCase();
+    item.style.display = (!q || name.includes(q) || loc.includes(q)) ? '' : 'none';
+  });
+}
+document.addEventListener('DOMContentLoaded', updateCounts);
+</script>
 {% endblock %}

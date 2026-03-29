@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+{% block content %}
+{%- set ar = (current_lang == 'ar') -%}
+<style>
+.pi-card{background:white;border-radius:14px;border:1.5px solid #f1f5f9;overflow:hidden}
+.fi-input{border:1.5px solid #e2e8f0;border-radius:10px;padding:9px 13px;width:100%;
+  font-size:.88rem;outline:none;transition:border-color .2s}
+.fi-input:focus{border-color:{{ ev.brand_color }}}
+.fi-label{font-size:.8rem;font-weight:600;color:#475569;margin-bottom:5px;display:block}
+.btn-bc{background:{{ ev.brand_color }};color:white;border:none;border-radius:10px;
+  padding:9px 18px;font-weight:600;font-size:.88rem;cursor:pointer;transition:all .15s}
+.btn-bc:hover{filter:brightness(1.1)}
+.tree-stage{background:#faf5ff;border:1.5px solid #e9d5ff;border-radius:14px;padding:16px;margin-bottom:16px}
+.tree-class{background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:12px;padding:14px;margin:10px 0 10px 20px}
+.tree-section{background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;padding:12px;margin:8px 0 8px 20px}
+.tree-assign{background:white;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;margin:6px 0 6px 20px;
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.tree-label{font-weight:700;font-size:.9rem;color:#0f172a;display:flex;align-items:center;gap:8px}
+.tree-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:100px;font-size:.72rem;font-weight:600}
+.add-row{display:flex;gap:8px;align-items:center;margin-top:10px}
+.add-row .fi-input{max-width:200px}
+.code-tag{font-family:monospace;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:6px;font-size:.78rem;font-weight:700}
+.del-btn{background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca;border-radius:8px;padding:4px 10px;font-size:.78rem;cursor:pointer}
+.del-btn:hover{background:#fee2e2}
+</style>
+
+<div class="container-fluid py-4">
+  {# Breadcrumb #}
+  <div class="d-flex align-items-center gap-2 mb-4 flex-wrap">
+    <a href="{{ url_for('interviews.admin_index') }}" class="text-muted text-decoration-none" style="font-size:.85rem">
+      {% if ar %}المقابلات{% else %}Interviews{% endif %}
+    </a>
+    <i class="bi bi-chevron-{{ 'left' if ar else 'right' }} text-muted" style="font-size:.7rem"></i>
+    <a href="{{ url_for('interviews.admin_teachers', event_id=ev.id) }}" class="text-muted text-decoration-none" style="font-size:.85rem">{{ ev.name }}</a>
+    <i class="bi bi-chevron-{{ 'left' if ar else 'right' }} text-muted" style="font-size:.7rem"></i>
+    <span class="fw-700" style="font-size:.85rem;color:#7c3aed">{% if ar %}الهيكل التنظيمي{% else %}Hierarchy{% endif %}</span>
+    <div class="ms-auto d-flex gap-2">
+      <a href="{{ url_for('interviews.admin_teachers', event_id=ev.id) }}"
+         class="btn btn-sm rounded-3" style="background:#f8fafc;color:#475569;border:1.5px solid #e2e8f0">
+        <i class="bi bi-people me-1"></i>{% if ar %}المعلمون{% else %}Teachers{% endif %}
+      </a>
+    </div>
+  </div>
+
+  <h5 class="fw-800 mb-1" style="color:#0f172a"><i class="bi bi-diagram-3 me-2" style="color:#7c3aed"></i>{% if ar %}الهيكل التنظيمي{% else %}Event Hierarchy{% endif %}</h5>
+  <p class="text-muted mb-4" style="font-size:.85rem">{% if ar %}المرحلة ← الصف ← الشعبة ← المعلم ← المادة{% else %}Stage → Class → Section → Teacher → Course{% endif %}</p>
+
+  {# CSV Import #}
+  <div class="pi-card p-3 mb-4">
+    <form method="POST" action="{{ url_for('interviews.admin_hierarchy_import', event_id=ev.id) }}" enctype="multipart/form-data" class="d-flex align-items-center gap-3 flex-wrap">
+      <i class="bi bi-upload" style="font-size:1.1rem;color:#7c3aed"></i>
+      <span class="fw-600" style="font-size:.88rem">{% if ar %}استيراد CSV{% else %}CSV Import{% endif %}</span>
+      <input type="file" name="csv_file" accept=".csv" class="fi-input" style="max-width:300px" required>
+      <button type="submit" class="btn-bc" style="padding:8px 16px;font-size:.82rem">{% if ar %}استيراد{% else %}Import{% endif %}</button>
+      <span class="text-muted" style="font-size:.75rem">{% if ar %}أعمدة: stage, class, section, teacher, email, course, room{% else %}Columns: stage, class, section, teacher, email, course, room{% endif %}</span>
+    </form>
+  </div>
+
+  {# ── Tree View ── #}
+  {% for stage in stages %}
+  <div class="tree-stage">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div class="tree-label"><i class="bi bi-building" style="color:#7c3aed"></i> {{ stage.name }}{% if stage.name_ar %} <span class="text-muted">({{ stage.name_ar }})</span>{% endif %}</div>
+      <div class="d-flex gap-2">
+        <form method="POST" action="{{ url_for('interviews.admin_stage_delete', sid=stage.id) }}" class="m-0"
+              onsubmit="return confirm('{% if ar %}حذف هذه المرحلة وكل محتوياتها؟{% else %}Delete this stage and all contents?{% endif %}')">
+          <button class="del-btn"><i class="bi bi-trash3"></i></button>
+        </form>
+      </div>
+    </div>
+
+    {# Classes within stage #}
+    {% for cls in stage.classes %}
+    <div class="tree-class">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div class="tree-label"><i class="bi bi-mortarboard" style="color:#0284c7"></i> {{ cls.name }}{% if cls.name_ar %} <span class="text-muted">({{ cls.name_ar }})</span>{% endif %}</div>
+        <form method="POST" action="{{ url_for('interviews.admin_class_delete', cid=cls.id) }}" class="m-0"
+              onsubmit="return confirm('{% if ar %}حذف؟{% else %}Delete?{% endif %}')">
+          <button class="del-btn"><i class="bi bi-trash3"></i></button>
+        </form>
+      </div>
+
+      {# Sections within class #}
+      {% for sec in cls.sections %}
+      <div class="tree-section">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+          <div class="tree-label"><i class="bi bi-collection" style="color:#16a34a"></i> {% if ar %}شعبة{% else %}Section{% endif %} {{ sec.name }}</div>
+          <form method="POST" action="{{ url_for('interviews.admin_section_delete', sid=sec.id) }}" class="m-0"
+                onsubmit="return confirm('{% if ar %}حذف؟{% else %}Delete?{% endif %}')">
+            <button class="del-btn"><i class="bi bi-trash3"></i></button>
+          </form>
+        </div>
+
+        {# Assignments within section #}
+        {% for a in sec.assignments %}
+        <div class="tree-assign">
+          <i class="bi bi-person-badge" style="color:{{ ev.brand_color }};font-size:1rem"></i>
+          <strong style="font-size:.85rem">{{ a.teacher.name }}</strong>
+          <span style="font-size:.82rem;color:#475569">— {{ a.course_name }}{% if a.course_name_ar %} ({{ a.course_name_ar }}){% endif %}</span>
+          {% if a.room %}<span class="tree-badge" style="background:#eff6ff;color:#0284c7"><i class="bi bi-door-open"></i> {{ a.room }}</span>{% endif %}
+          <span class="code-tag">{{ a.assignment_code }}</span>
+          <span class="tree-badge" style="background:#f0fdf4;color:#16a34a">{{ a.slots|selectattr('is_booked')|list|length }}/{{ a.slots|length }} {% if ar %}محجوز{% else %}booked{% endif %}</span>
+          <form method="POST" action="{{ url_for('interviews.admin_assignment_delete', aid=a.id) }}" class="m-0 ms-auto"
+                onsubmit="return confirm('{% if ar %}حذف؟{% else %}Delete?{% endif %}')">
+            <button class="del-btn"><i class="bi bi-trash3"></i></button>
+          </form>
+        </div>
+        {% endfor %}
+
+        {# Add assignment to this section #}
+        <form method="POST" action="{{ url_for('interviews.admin_assignment_add', event_id=ev.id) }}" class="add-row">
+          <input type="hidden" name="section_id" value="{{ sec.id }}">
+          <select name="teacher_id" class="fi-input" style="max-width:180px" required>
+            <option value="">{% if ar %}— المعلم —{% else %}— Teacher —{% endif %}</option>
+            {% for t in teachers %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+          </select>
+          <input type="text" name="course_name" class="fi-input" style="max-width:160px" placeholder="{% if ar %}المادة{% else %}Course{% endif %}" required>
+          <input type="text" name="course_name_ar" class="fi-input" style="max-width:140px" placeholder="{% if ar %}المادة (عربي){% else %}Course (AR){% endif %}">
+          <input type="text" name="room" class="fi-input" style="max-width:100px" placeholder="{% if ar %}الغرفة{% else %}Room{% endif %}">
+          <button type="submit" class="btn-bc" style="padding:6px 14px;font-size:.8rem"><i class="bi bi-plus-lg"></i></button>
+        </form>
+      </div>
+      {% endfor %}
+
+      {# Add section to this class #}
+      <form method="POST" action="{{ url_for('interviews.admin_section_add', event_id=ev.id) }}" class="add-row" style="margin-left:20px">
+        <input type="hidden" name="class_id" value="{{ cls.id }}">
+        <input type="text" name="name" class="fi-input" style="max-width:100px" placeholder="{% if ar %}الشعبة (A,B..){% else %}Section (A,B..){% endif %}" required>
+        <button type="submit" class="btn-bc" style="padding:6px 14px;font-size:.8rem"><i class="bi bi-plus-lg me-1"></i>{% if ar %}شعبة{% else %}Section{% endif %}</button>
+      </form>
+    </div>
+    {% endfor %}
+
+    {# Add class to this stage #}
+    <form method="POST" action="{{ url_for('interviews.admin_class_add', event_id=ev.id) }}" class="add-row" style="margin-left:20px">
+      <input type="hidden" name="stage_id" value="{{ stage.id }}">
+      <input type="text" name="name" class="fi-input" style="max-width:160px" placeholder="{% if ar %}اسم الصف{% else %}Class Name{% endif %}" required>
+      <input type="text" name="name_ar" class="fi-input" style="max-width:140px" placeholder="{% if ar %}اسم الصف (عربي){% else %}Class (AR){% endif %}">
+      <button type="submit" class="btn-bc" style="padding:6px 14px;font-size:.8rem"><i class="bi bi-plus-lg me-1"></i>{% if ar %}صف{% else %}Class{% endif %}</button>
+    </form>
+  </div>
+  {% endfor %}
+
+  {# Add new stage #}
+  <div class="pi-card p-3">
+    <form method="POST" action="{{ url_for('interviews.admin_stage_add', event_id=ev.id) }}" class="d-flex align-items-center gap-3 flex-wrap">
+      <i class="bi bi-plus-circle" style="font-size:1.1rem;color:#7c3aed"></i>
+      <input type="text" name="name" class="fi-input" style="max-width:200px" placeholder="{% if ar %}اسم المرحلة{% else %}Stage Name{% endif %}" required>
+      <input type="text" name="name_ar" class="fi-input" style="max-width:180px" placeholder="{% if ar %}الاسم (عربي){% else %}Name (AR){% endif %}">
+      <button type="submit" class="btn-bc"><i class="bi bi-plus-lg me-1"></i>{% if ar %}أضف مرحلة{% else %}Add Stage{% endif %}</button>
+    </form>
+  </div>
+
+  {% if not stages %}
+  <div class="text-center py-5">
+    <i class="bi bi-diagram-3" style="font-size:3rem;color:#e2e8f0"></i>
+    <p class="text-muted mt-3" style="font-size:.9rem">{% if ar %}لم تُضف أي مراحل بعد. ابدأ بإضافة مرحلة دراسية.{% else %}No stages yet. Start by adding a school stage above.{% endif %}</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

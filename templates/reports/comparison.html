@@ -23,8 +23,8 @@
   <h1><i class="bi bi-bar-chart-steps me-2"></i>{{ _('المقارنة المتقدمة') }}</h1>
   <div class="d-flex gap-2">
     {% if result %}
-    <button onclick="window.print()" class="btn btn-outline-danger btn-sm">
-      <i class="bi bi-printer me-1"></i>{% if current_lang=="en" %}Print/PDF{% else %}طباعة{% endif %}
+    <button onclick="printReport()" class="btn btn-outline-danger btn-sm">
+      <i class="bi bi-printer me-1"></i>{% if current_lang=="en" %}Print Report{% else %}طباعة التقرير{% endif %}
     </button>
     <a href="{{ url_for('reports.comparison_csv', **request.args) }}" class="btn btn-outline-success btn-sm">
       <i class="bi bi-download me-1"></i>CSV
@@ -45,13 +45,14 @@
         <!-- Mode -->
         <div class="col-12 col-md-3">
           <label class="form-label fw-bold small">{% if current_lang=="en" %}Comparison Mode{% else %}وضع المقارنة{% endif %}</label>
-          <select name="mode" class="form-select" onchange="this.form.submit()">
+          <select name="mode" class="form-select" onchange="handleModeChange(this)">
             <optgroup label="{% if current_lang=='en' %}Bookings{% else %}الحجوزات{% endif %}">
               <option value="venue"    {% if mode=='venue'    %}selected{% endif %}>{% if current_lang=="en" %}Venue(s){% else %}قاعة ← أو أكثر{% endif %}</option>
               <option value="location" {% if mode=='location' %}selected{% endif %}>{% if current_lang=="en" %}Location(s){% else %}موقع ← أو أكثر{% endif %}</option>
               <option value="user"     {% if mode=='user'     %}selected{% endif %}>{% if current_lang=="en" %}User(s){% else %}مستخدم ← أو أكثر{% endif %}</option>
               <option value="period"   {% if mode=='period'   %}selected{% endif %}>{% if current_lang=="en" %}Period ↔ Period{% else %}فترة ↔ فترة{% endif %}</option>
               <option value="period_user" {% if mode=='period_user' %}selected{% endif %}>{% if current_lang=="en" %}Period ↔ Users{% else %}فترة ↔ مستخدمين{% endif %}</option>
+              <option value="date_all" {% if mode=='date_all' %}selected{% endif %}>📆 {% if current_lang=="en" %}Daily Activity (All){% else %}نشاط يومي — كل الحجوزات{% endif %}</option>
               <option value="user_venue" {% if mode=='user_venue' %}selected{% endif %}>{% if current_lang=="en" %}User ↔ Venue{% else %}مستخدم ↔ قاعة{% endif %}</option>
               <option value="user_location" {% if mode=='user_location' %}selected{% endif %}>{% if current_lang=="en" %}User ↔ Location{% else %}مستخدم ↔ موقع{% endif %}</option>
               <option value="venue_location" {% if mode=='venue_location' %}selected{% endif %}>{% if current_lang=="en" %}Venue ↔ Location{% else %}قاعة ↔ موقع{% endif %}</option>
@@ -62,6 +63,9 @@
               <option value="rating_location" {% if mode=='rating_location' %}selected{% endif %}>⭐ {% if current_lang=="en" %}Location Rating(s){% else %}تقييم موقع(ات){% endif %}</option>
               <option value="rating_user"     {% if mode=='rating_user'     %}selected{% endif %}>⭐ {% if current_lang=="en" %}User Rating(s){% else %}تقييم مستخدم(ين){% endif %}</option>
               <option value="rating_all"      {% if mode=='rating_all'      %}selected{% endif %}>⭐ {% if current_lang=="en" %}Top Rated Venues{% else %}أعلى القاعات تقييماً{% endif %}</option>
+            </optgroup>
+            <optgroup label="📧 {% if current_lang=='en' %}Email{% else %}البريد الإلكتروني{% endif %}">
+              <option value="email_stats" {% if mode=='email_stats' %}selected{% endif %}>📧 {% if current_lang=="en" %}Email Statistics & Analytics{% else %}إحصائيات وتحليل البريد{% endif %}</option>
             </optgroup>
           </select>
         </div>
@@ -171,11 +175,12 @@
         <div class="col-6 col-md-2"><label class="form-label fw-bold small">{% if current_lang=="en" %}To{% else %}إلى{% endif %}</label><input type="date" name="ta" class="form-control" value="{{ ta }}"></div>
         <div class="col-12 col-md-4">
           <label class="form-label fw-bold small">{% if current_lang=="en" %}Select Users (up to 5){% else %}اختر المستخدمين (حتى 5){% endif %}</label>
-          {% for outer_idx in range(5) %}
-          <select name="items" class="form-select form-select-sm mb-1">
-            <option value="">{% if current_lang=="en" %}— User {{ outer_idx+1 }} (optional) —{% else %}— مستخدم {{ outer_idx+1 }} (اختياري) —{% endif %}</option>
+          {% set ukeys = ['a','b','c','d','e'] %}
+          {% for idx in range(5) %}
+          <select name="{{ ukeys[idx] }}" class="form-select form-select-sm mb-1">
+            <option value="">{% if current_lang=="en" %}— User {{ idx+1 }} (optional) —{% else %}— مستخدم {{ idx+1 }} (اختياري) —{% endif %}</option>
             {% for u in users_all %}
-            <option value="{{ u.username }}" {% if items_vals|length > outer_idx and items_vals[outer_idx] == u.username %}selected{% endif %}>{{ u.full_name }}</option>
+            <option value="{{ u.username }}" {% if items_vals|length > idx and items_vals[idx] == u.username %}selected{% endif %}>{{ u.full_name }}</option>
             {% endfor %}
           </select>
           {% endfor %}
@@ -193,7 +198,283 @@
 </div>
 
 {% if result %}
-{% if result.get('multi') %}
+{% if result.get('email_mode') %}
+<!-- ══ EMAIL ANALYTICS ══════════════════════════════════════════════════════ -->
+{% if result.get('error') %}
+<div class="alert alert-danger">❌ {{ result.error }}</div>
+{% else %}
+
+<!-- KPI Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-2">
+    <div class="card text-center p-3" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.1)">
+      <div style="font-size:1.8rem;font-weight:900;color:#0C67EC">{{ result.total_all }}</div>
+      <div class="text-muted small">{% if current_lang=='en' %}All-Time Total{% else %}الإجمالي الكلي{% endif %}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card text-center p-3" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.1)">
+      <div style="font-size:1.8rem;font-weight:900;color:#198754">{{ result.period_sent }}</div>
+      <div class="text-muted small">✅ {% if current_lang=='en' %}Sent (Period){% else %}أُرسِل (الفترة){% endif %}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card text-center p-3" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.1)">
+      <div style="font-size:1.8rem;font-weight:900;color:#DC3545">{{ result.period_fail }}</div>
+      <div class="text-muted small">❌ {% if current_lang=='en' %}Failed{% else %}فشل{% endif %}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card text-center p-3" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.1)">
+      <div style="font-size:1.8rem;font-weight:900;color:#6C3483">{{ result.success_rate }}%</div>
+      <div class="text-muted small">📊 {% if current_lang=='en' %}Success Rate{% else %}نسبة النجاح{% endif %}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card text-center p-3" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.1)">
+      <div style="font-size:1.8rem;font-weight:900;color:#0847B0">{{ result.bulk_all }}</div>
+      <div class="text-muted small">📨 {% if current_lang=='en' %}Bulk Total{% else %}الجماعية{% endif %}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card text-center p-3" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.1)">
+      <div style="font-size:1.8rem;font-weight:900;color:#E67E22">{{ result.notif_all }}</div>
+      <div class="text-muted small">🔔 {% if current_lang=='en' %}Notifications{% else %}إشعارات{% endif %}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Range selector -->
+<div class="card mb-4" style="border-radius:14px;border:none;box-shadow:0 4px 16px rgba(12,103,236,.15);background:linear-gradient(135deg,#0847B0,#0C67EC);overflow:hidden">
+  <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2"
+       style="background:transparent;border-bottom:1px solid rgba(255,255,255,.15)">
+    <span style="color:#fff;font-weight:700"><i class="bi bi-envelope-check me-2"></i>{{ result.title }}</span>
+    <div class="d-flex gap-2 flex-wrap">
+      {% for d in [7,14,30,60,90] %}
+      <a href="?mode=email_stats&date_range={{ d }}"
+         style="border-radius:10px;padding:4px 14px;font-size:.82rem;font-weight:700;text-decoration:none;
+                {% if result.date_range==d %}background:#fff;color:#0C67EC{% else %}background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3){% endif %}">
+        {{ d }}{% if current_lang=='en' %}d{% else %}ي{% endif %}
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="card-body" style="background:#fff;border-radius:0 0 14px 14px">
+    <canvas id="emailDailyChart" height="80"></canvas>
+  </div>
+</div>
+
+<!-- 3 comparison charts -->
+<div class="row g-4 mb-4">
+  <!-- By Type -->
+  {% if result.types_data %}
+  <div class="col-md-4">
+    <div class="card" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.08)">
+      <div class="card-header"><i class="bi bi-pie-chart me-2"></i>{% if current_lang=='en' %}By Type{% else %}حسب النوع{% endif %}</div>
+      <div class="card-body"><canvas id="emailTypeChart" height="220"></canvas></div>
+    </div>
+  </div>
+  {% endif %}
+  <!-- By User/Recipient top 8 -->
+  {% if result.users_data %}
+  <div class="col-md-4">
+    <div class="card" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.08)">
+      <div class="card-header"><i class="bi bi-people me-2"></i>{% if current_lang=='en' %}Top Recipients{% else %}أكثر المستلمين{% endif %}</div>
+      <div class="card-body"><canvas id="emailUsersChart" height="220"></canvas></div>
+    </div>
+  </div>
+  {% endif %}
+  <!-- By user account (who triggered emails) -->
+  {% if result.venue_email_map %}
+  <div class="col-md-4">
+    <div class="card" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.08)">
+      <div class="card-header"><i class="bi bi-person-badge me-2"></i>{% if current_lang=='en' %}Emails per User{% else %}الرسائل لكل مستخدم{% endif %}</div>
+      <div class="card-body"><canvas id="emailVenueChart" height="220"></canvas></div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+(function(){
+  // Daily line chart
+  const dCtx = document.getElementById('emailDailyChart');
+  if (dCtx) {
+    new Chart(dCtx, {
+      type: 'bar',
+      data: {
+        labels: {{ result.email_daily.keys()|list|tojson }},
+        datasets: [{
+          label: '{% if current_lang=="en" %}Emails Sent{% else %}رسائل مرسلة{% endif %}',
+          data: {{ result.email_daily.values()|list|tojson }},
+          backgroundColor: 'rgba(12,103,236,.7)',
+          borderColor: '#0C67EC', borderWidth:1, borderRadius:4
+        }]
+      },
+      options: { responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,ticks:{stepSize:1}}} }
+    });
+  }
+  // Type donut
+  const tCtx = document.getElementById('emailTypeChart');
+  if (tCtx && {{ result.types_data|tojson }}) {
+    const td = {{ result.types_data|tojson }};
+    new Chart(tCtx, {
+      type: 'doughnut',
+      data: {
+        labels: Object.keys(td),
+        datasets: [{ data: Object.values(td), backgroundColor:['#0C67EC','#198754','#E67E22','#9B59B6','#DC3545'], borderWidth:2 }]
+      },
+      options: { responsive:true, plugins:{legend:{position:'bottom'}} }
+    });
+  }
+  // Users bar
+  const uCtx = document.getElementById('emailUsersChart');
+  if (uCtx && {{ result.users_data|tojson }}) {
+    const ud = {{ result.users_data|tojson }};
+    new Chart(uCtx, {
+      type: 'bar',
+      data: {
+        labels: Object.keys(ud),
+        datasets: [{ label:'{% if current_lang=="en" %}Emails{% else %}رسائل{% endif %}', data:Object.values(ud), backgroundColor:'rgba(25,135,84,.7)', borderRadius:4 }]
+      },
+      options: { indexAxis:'y', responsive:true, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true}} }
+    });
+  }
+  // Venue/User triggered
+  const vCtx = document.getElementById('emailVenueChart');
+  if (vCtx && {{ result.venue_email_map|tojson }}) {
+    const vd = {{ result.venue_email_map|tojson }};
+    new Chart(vCtx, {
+      type: 'bar',
+      data: {
+        labels: Object.keys(vd),
+        datasets: [{ label:'{% if current_lang=="en" %}Emails{% else %}رسائل{% endif %}', data:Object.values(vd), backgroundColor:'rgba(108,52,131,.7)', borderRadius:4 }]
+      },
+      options: { indexAxis:'y', responsive:true, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true}} }
+    });
+  }
+})();
+</script>
+{% endif %}
+{% elif result.get('date_all') %}
+<!-- ══ DATE_ALL RESULTS — Daily Activity Chart ══════════════════════════════════ -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card text-center p-3" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.1)">
+      <div style="font-size:1.8rem;font-weight:900;color:#0C67EC">{{ result.period_total }}</div>
+      <div class="text-muted small">{% if current_lang=='en' %}Total in Period{% else %}إجمالي الفترة{% endif %}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center p-3" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.1)">
+      <div style="font-size:1.8rem;font-weight:900;color:#198754">{{ result.busiest_count }}</div>
+      <div class="text-muted small">{% if current_lang=='en' %}Peak Day ({{ result.busiest_day }}){% else %}أعلى يوم ({{ result.busiest_day }}){% endif %}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center p-3" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.1)">
+      <div style="font-size:1.8rem;font-weight:900;color:#E67E22">{{ (result.period_total / result.date_range)|round(1) }}</div>
+      <div class="text-muted small">{% if current_lang=='en' %}Avg/Day{% else %}متوسط/يوم{% endif %}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center p-3" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.1)">
+      <div style="font-size:1.8rem;font-weight:900;color:#6C3483">{{ result.date_range }}</div>
+      <div class="text-muted small">{% if current_lang=='en' %}Days Shown{% else %}عدد الأيام{% endif %}</div>
+    </div>
+  </div>
+</div>
+<!-- Range selector -->
+<div class="card mb-4" style="border-radius:14px;border:none;box-shadow:0 4px 16px rgba(12,103,236,.2);background:linear-gradient(135deg,#0847B0,#0C67EC);overflow:hidden">
+  <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2"
+       style="background:transparent;border-bottom:1px solid rgba(255,255,255,.15)">
+    <span style="color:#fff;font-weight:700">
+      <i class="bi bi-calendar-range me-2"></i>{{ result.title }}
+    </span>
+    <div class="d-flex gap-2 flex-wrap">
+      {% for d in [7, 14, 30, 60, 90] %}
+      <a href="?mode=date_all&date_range={{ d }}"
+         style="border-radius:10px;padding:4px 14px;font-size:.82rem;font-weight:700;text-decoration:none;
+                {% if result.date_range == d %}
+                  background:#fff;color:#0C67EC;
+                {% else %}
+                  background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);
+                {% endif %}">
+        {{ d }}{% if current_lang=='en' %}d{% else %}ي{% endif %}
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="card-body" style="background:#fff;border-radius:0 0 14px 14px">
+    <canvas id="dateAllChart" height="80"></canvas>
+  </div>
+</div>
+<!-- Daily breakdown table -->
+<div class="card" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.08)">
+  <div class="card-header"><i class="bi bi-table me-2"></i>{% if current_lang=='en' %}Daily Breakdown{% else %}تفاصيل يومية{% endif %}</div>
+  <div class="card-body p-0">
+    <div class="table-responsive" style="max-height:380px;overflow-y:auto">
+      <table class="table table-sm table-hover mb-0" style="font-size:.83rem">
+        <thead style="background:#f4f7ff;position:sticky;top:0">
+          <tr>
+            <th class="ps-3">{% if current_lang=='en' %}Date{% else %}التاريخ{% endif %}</th>
+            <th class="text-center">{% if current_lang=='en' %}Total{% else %}الإجمالي{% endif %}</th>
+            {% set first_day = result.status_daily.keys()|list|first %}
+            {% if first_day %}
+              {% for sk in result.status_daily[first_day].keys() %}
+              <th class="text-center" style="white-space:nowrap">{{ sk }}</th>
+              {% endfor %}
+            {% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for day, count in result.daily_data.items()|reverse %}
+          <tr {% if count == result.busiest_count and count > 0 %}style="background:#fffbeb"{% endif %}>
+            <td class="ps-3 fw-semibold">{{ day }}{% if count == result.busiest_count and count > 0 %} 🔥{% endif %}</td>
+            <td class="text-center fw-bold" style="color:#0C67EC">{{ count }}</td>
+            {% if result.status_daily.get(day) %}
+              {% for sv in result.status_daily[day].values() %}
+              <td class="text-center text-muted">{{ sv if sv > 0 else '—' }}</td>
+              {% endfor %}
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  const labels = {{ result.daily_data.keys()|list|tojson }};
+  const data   = {{ result.daily_data.values()|list|tojson }};
+  const ctx = document.getElementById('dateAllChart');
+  if(!ctx) return;
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '{% if current_lang=="en" %}Reservations{% else %}الحجوزات{% endif %}',
+        data: data,
+        backgroundColor: 'rgba(12,103,236,.7)',
+        borderColor: '#0C67EC',
+        borderWidth: 1,
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1 } },
+        x: { ticks: { maxRotation: 45 } }
+      }
+    }
+  });
+})();
+</script>
+{% elif result.get('multi') %}
 <!-- ══ MULTI-ITEM RESULTS ══════════════════════════════════════════════════════ -->
 <div class="row g-4">
   <div class="col-12 col-lg-8">
@@ -223,7 +504,7 @@
               <tr style="background:#f4f7ff">
                 <th class="ps-3">{% if current_lang=="en" %}Metric{% else %}المقياس{% endif %}</th>
                 {% for ds in result.datasets %}
-                <th class="text-center" style="color:{{ colors[loop.index0 % 5] }}">{{ ds.label[:12] }}</th>
+                <th class="text-center" style="color:{{ colors[loop.index0 % 5] }};white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis" title="{{ ds.label }}">{{ ds.label[:18] }}{% if ds.label|length > 18 %}…{% endif %}</th>
                 {% endfor %}
               </tr>
             </thead>
@@ -388,6 +669,52 @@ function updateCount() {
             Array.from(document.querySelectorAll('.item-sel')).filter(s=>!s.value).length;
   const el = document.getElementById('selCount');
   if(el) el.textContent = n;
+}
+
+function printReport() {
+  // Collect result content
+  const title = document.querySelector('.page-header h1')?.textContent?.trim() || 'ARS Report';
+  const table = document.querySelector('.table-responsive')?.innerHTML || '';
+  const chart = document.querySelector('canvas')?.toDataURL('image/png') || '';
+  const dir   = document.documentElement.dir || 'rtl';
+  const lang  = document.documentElement.lang || 'ar';
+  const today = new Date().toLocaleDateString(lang==='en'?'en-US':'ar-SA',{year:'numeric',month:'long',day:'numeric'});
+
+  const html = `<!DOCTYPE html><html lang="${lang}" dir="${dir}">
+<head><meta charset="UTF-8"><title>${title}</title>
+<style>
+  body{font-family:'Segoe UI',Arial,sans-serif;margin:0;padding:24px;background:#fff;color:#222;direction:${dir};font-size:11pt}
+  h1{color:#0C67EC;font-size:16pt;margin-bottom:4px;border-bottom:2px solid #0C67EC;padding-bottom:8px}
+  .sub{color:#888;font-size:9pt;margin-bottom:20px}
+  table{width:100%;border-collapse:collapse;margin-top:16px}
+  th{background:#0C67EC;color:#fff;padding:8px 10px;font-size:10pt;text-align:${dir==='rtl'?'right':'left'}}
+  td{padding:7px 10px;border-bottom:1px solid #eee;font-size:10pt}
+  tr:nth-child(even) td{background:#f7f9fc}
+  img{max-width:100%;margin:16px 0;border-radius:8px}
+  @page{margin:1.5cm;size:A4}
+  @media print{body{padding:0}}
+</style></head>
+<body>
+<h1>📊 ${title}</h1>
+<div class="sub">ARS — Applied Event System &nbsp;·&nbsp; ${today}</div>
+${chart?`<img src="${chart}" />`:''}
+${table}
+<script>window.onload=function(){window.print();setTimeout(()=>window.close(),1000);}<\/script>
+</body></html>`;
+
+  const w = window.open('','_blank','width=800,height=700');
+  if(w){ w.document.write(html); w.document.close(); }
+}
+
+// Handle mode change — email_stats and date_all go directly, others submit form
+function handleModeChange(sel) {
+  const mode = sel.value;
+  const directModes = ['email_stats', 'date_all', 'status', 'rating_all'];
+  if (directModes.includes(mode)) {
+    window.location.href = '?mode=' + mode;
+  } else {
+    sel.form.submit();
+  }
 }
 </script>
 {% endblock %}

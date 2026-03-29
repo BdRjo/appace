@@ -48,7 +48,7 @@
         <!-- System Log -->
         <a href="{{ url_for('admin.system_log') }}" class="btn w-100 d-flex align-items-center gap-3 text-start py-3 px-3" style="background:linear-gradient(135deg,#ede7f6,#f3f0fc);border:1.5px solid #ce93d8;border-radius:12px;color:#4a148c;text-decoration:none;transition:.2s" onmouseover="this.style.transform='translateX(-3px)'" onmouseout="this.style.transform=''">
           <div style="width:38px;height:38px;border-radius:10px;background:#6a1b9a;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0">🛡️</div>
-          <div class="flex-grow-1 min-width-0"><div style="font-size:.85rem;font-weight:700">{{ _('سجل النظام والأمان') }}</div><div style="font-size:.72rem;color:#7b1fa2;margin-top:2px">{% if current_lang=="en" %}System & Security Log{% else %}سجل الأحداث والأمان{% endif %}</div></div>
+          <div class="flex-grow-1 min-width-0"><div style="font-size:.85rem;font-weight:700">{{ _('سجل النظام والأمان') }}</div><div style="font-size:.72rem;color:#7b1fa2;margin-top:2px">{% if current_lang=="en" %}System & Security Log{% else %}سجل الفعاليات والأمان{% endif %}</div></div>
         </a>
         <!-- Login Log -->
         <a href="{{ url_for('users.login_log') }}" class="btn w-100 d-flex align-items-center gap-3 text-start py-3 px-3" style="background:linear-gradient(135deg,#e0f7fa,#f0fcfd);border:1.5px solid #80deea;border-radius:12px;color:#006064;text-decoration:none;transition:.2s" onmouseover="this.style.transform='translateX(-3px)'" onmouseout="this.style.transform=''">
@@ -228,7 +228,7 @@
 </div>
 
 <!-- ══ TICKER MANAGEMENT — v54 exact: font/color/opacity/preview ══════════ -->
-<div class="row g-4 mt-2">
+<div class="row g-4 mt-2" id="tickerSection">
   <div class="col-12">
     <div class="card">
       <div class="card-header">{{ _('📢 إدارة شريط الأخبار (Ticker)') }}</div>
@@ -262,14 +262,14 @@
                   </div>
                   <div id="htmlPreviewAR" class="mt-1 p-2 border rounded small text-muted d-none"></div>
                 </form>
-                <div class="list-group" id="tickerListAR">
+                <div class="list-group" id="tickerListAR" style="max-height:300px;overflow-y:auto">
                   {% for msg in ticker_messages_ar %}
-                  <div class="list-group-item d-flex align-items-center gap-2 py-2">
-                    <div class="flex-grow-1">
-                      <div class="small text-muted mb-1" style="font-family:monospace;font-size:.72rem;word-break:break-all">{{ msg }}</div>
-                      <div class="small" style="background:#f8f9fa;padding:3px 8px;border-radius:4px;border-right:3px solid var(--primary)">{{ msg|safe }}</div>
+                  <div class="list-group-item d-flex align-items-start gap-2 py-2" style="overflow:hidden">
+                    <div class="flex-grow-1" style="min-width:0;overflow:hidden">
+                      <div class="small text-muted mb-1" style="font-family:monospace;font-size:.72rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%" title="{{ msg }}">{{ msg[:120] }}{% if msg|length > 120 %}…{% endif %}</div>
+                      <div class="small" style="background:#f8f9fa;padding:3px 8px;border-radius:4px;border-right:3px solid var(--primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%">{{ msg|safe }}</div>
                     </div>
-                    <form method="POST" action="{{ url_for('admin.maintenance') }}" class="mb-0">
+                    <form method="POST" action="{{ url_for('admin.maintenance') }}" class="mb-0 flex-shrink-0">
                       <input type="hidden" name="ticker_action" value="del_ar">
                       <input type="hidden" name="ticker_idx" value="{{ loop.index0 }}">
                       <button class="btn btn-sm btn-outline-danger py-0 px-2" onclick="return confirm('{% if current_lang=="en" %}Delete?{% else %}حذف؟{% endif %}')">
@@ -299,14 +299,14 @@
                   </div>
                   <div id="htmlPreviewEN" class="mt-1 p-2 border rounded small text-muted d-none"></div>
                 </form>
-                <div class="list-group" id="tickerListEN">
+                <div class="list-group" id="tickerListEN" style="max-height:300px;overflow-y:auto">
                   {% for msg in ticker_messages_en %}
-                  <div class="list-group-item d-flex align-items-center gap-2 py-2">
-                    <div class="flex-grow-1">
-                      <div class="small text-muted mb-1" style="font-family:monospace;font-size:.72rem;word-break:break-all">{{ msg }}</div>
-                      <div class="small" style="background:#f8f9fa;padding:3px 8px;border-radius:4px;border-left:3px solid var(--primary)">{{ msg|safe }}</div>
+                  <div class="list-group-item d-flex align-items-start gap-2 py-2" style="overflow:hidden">
+                    <div class="flex-grow-1" style="min-width:0;overflow:hidden">
+                      <div class="small text-muted mb-1" style="font-family:monospace;font-size:.72rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%" title="{{ msg }}">{{ msg[:120] }}{% if msg|length > 120 %}…{% endif %}</div>
+                      <div class="small" style="background:#f8f9fa;padding:3px 8px;border-radius:4px;border-left:3px solid var(--primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%">{{ msg|safe }}</div>
                     </div>
-                    <form method="POST" action="{{ url_for('admin.maintenance') }}" class="mb-0">
+                    <form method="POST" action="{{ url_for('admin.maintenance') }}" class="mb-0 flex-shrink-0">
                       <input type="hidden" name="ticker_action" value="del_en">
                       <input type="hidden" name="ticker_idx" value="{{ loop.index0 }}">
                       <button class="btn btn-sm btn-outline-danger py-0 px-2" onclick="return confirm('Delete?')">
@@ -340,7 +340,7 @@
                 <div class="col-6">
                   <label class="form-label small fw-bold">{{ _('حجم الخط') }}</label>
                   <select name="ticker_size" class="form-select form-select-sm" id="tSize" onchange="previewTicker()">
-                    {% for s in [9,10,11,12,13,14] %}
+                    {% for s in [9,10,11,12,13,14,15,16,18,20,22,24] %}
                     <option value="{{ s }}" {{ 'selected' if ticker_cfg.get('size',11)|int==s }}>{{ s }}px</option>
                     {% endfor %}
                   </select>
@@ -383,6 +383,71 @@
                 </div>
               </div>
 
+              <!-- Logo URL for marquee ticker -->
+              <div class="mb-3">
+                <label class="form-label small fw-bold">{{ _('رابط شعار الشريط (اختياري)') }}</label>
+                <input type="url" name="ticker_logo_url" class="form-control form-control-sm"
+                       value="{{ ticker_cfg.get('logo_url','') }}"
+                       placeholder="https://example.com/logo.png">
+                <div class="form-text">{{ _('صورة صغيرة تظهر بجانب كل رسالة في الشريط') }}</div>
+              </div>
+
+              <!-- Logo Size -->
+              <div class="mb-3">
+                <label class="form-label small fw-bold">
+                  {% if current_lang=='en' %}Logo Size (px){% else %}حجم الشعار (بكسل){% endif %}
+                </label>
+                <input type="number" name="ticker_logo_size" class="form-control form-control-sm"
+                       value="{{ ticker_cfg.get('logo_size', 28) }}" min="16" max="64" step="2">
+              </div>
+
+              <!-- Logo Pulse Toggle -->
+              <div class="mb-3">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" name="ticker_logo_pulse"
+                         id="logoPulseToggle" value="1"
+                         {{ 'checked' if ticker_cfg.get('logo_pulse', true) else '' }}>
+                  <label class="form-check-label small fw-bold" for="logoPulseToggle">
+                    {% if current_lang=='en' %}Logo Pulse Animation{% else %}تأثير نبض الشعار{% endif %}
+                  </label>
+                </div>
+              </div>
+
+              <!-- Logo Pulse Speed -->
+              <div class="mb-3">
+                <label class="form-label small fw-bold">
+                  {% if current_lang=='en' %}Pulse Speed (seconds){% else %}سرعة النبض (ثواني){% endif %}:
+                  <strong id="pulseSpeedVal">{{ ticker_cfg.get('logo_pulse_speed', 3) }}s</strong>
+                </label>
+                <input type="range" name="ticker_logo_pulse_speed" class="form-range"
+                       min="1" max="10" step="0.5" value="{{ ticker_cfg.get('logo_pulse_speed', 3) }}"
+                       oninput="document.getElementById('pulseSpeedVal').textContent=this.value+'s'">
+              </div>
+
+              <!-- Separator Image URL -->
+              <div class="mb-3">
+                <label class="form-label small fw-bold">{% if current_lang=='en' %}Separator Image URL (replaces ◆){% else %}صورة الفاصل بين الرسائل (بدل ◆){% endif %}</label>
+                <input type="url" name="ticker_sep_img_url" class="form-control form-control-sm"
+                       value="{{ ticker_cfg.get('sep_img_url','') }}"
+                       placeholder="https://example.com/avatar.png">
+                {% if ticker_cfg.get('sep_img_url') %}
+                <div class="mt-1"><img src="{{ ticker_cfg.get('sep_img_url') }}" style="width:24px;height:24px;border-radius:50%;object-fit:contain" alt="sep"> <span class="text-muted small">{% if current_lang=='en' %}Current{% else %}الحالي{% endif %}</span></div>
+                {% endif %}
+                <div class="form-text">{% if current_lang=='en' %}Small round image shown between each ticker message{% else %}صورة صغيرة دائرية تظهر بين كل رسالة في الشريط{% endif %}</div>
+              </div>
+
+              <!-- Mask Fade % -->
+              <div class="mb-3">
+                <label class="form-label small fw-bold">
+                  {% if current_lang=='en' %}Edge Fade %{% else %}نسبة تلاشي الأطراف{% endif %}:
+                  <strong id="fadeVal">{{ ticker_cfg.get('mask_fade',12) }}%</strong>
+                </label>
+                <input type="range" name="ticker_mask_fade" id="tMaskFade" class="form-range"
+                       min="0" max="30" step="1" value="{{ ticker_cfg.get('mask_fade',12) }}"
+                       oninput="document.getElementById('fadeVal').textContent=this.value+'%'">
+                <div class="form-text">{% if current_lang=='en' %}Controls how much the ticker text fades at the edges (0 = no fade, 30 = heavy fade){% else %}تحكم في مقدار تلاشي النص عند أطراف الشريط (0 = بدون تلاشي، 30 = تلاشي كبير){% endif %}</div>
+              </div>
+
               <!-- Live preview — v54 exact -->
               <label class="form-label small fw-bold">{{ _('معاينة حية') }}</label>
               <div id="tickerPreview" style="height:36px;overflow:hidden;border-radius:6px;display:flex;align-items:center;border:1px solid #ddd;margin-bottom:12px">
@@ -398,6 +463,130 @@
             </form>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── شريط أخبار المقابلات ─────────────────────────────────────────────── -->
+<div class="row g-4 mt-1" id="iticker">
+  <div class="col-12">
+    <div class="card" style="border:none;border-radius:18px;overflow:hidden;box-shadow:0 4px 20px rgba(99,102,241,.12)">
+      <div class="card-header" style="background:linear-gradient(135deg,#4f46e5,#6366f1);padding:16px 20px;border:none">
+        <div class="d-flex align-items-center gap-2">
+          <div style="width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:1rem">🎓</div>
+          <div>
+            <div style="color:#fff;font-weight:700;font-size:.92rem">{% if current_lang=='en' %}Interview Pages Ticker{% else %}شريط أخبار صفحات المقابلات{% endif %}</div>
+            <div style="color:rgba(255,255,255,.55);font-size:.68rem">{% if current_lang=='en' %}Separate ticker for parent interview portal{% else %}شريط مستقل لبوابة مقابلات أولياء الأمور{% endif %}</div>
+          </div>
+        </div>
+      </div>
+      <div class="card-body p-4">
+        <div class="row g-3">
+          <!-- Arabic feeds -->
+          <div class="col-md-6">
+            <label class="form-label small fw-bold">{{ _('رسائل عربية') }}</label>
+            {% for msg in iticker_messages_ar %}
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <span class="flex-grow-1 small bg-light rounded px-2 py-1" style="direction:rtl">{{ msg|safe }}</span>
+              <form method="POST" class="m-0"><input type="hidden" name="ticker_action" value="iticker_del_ar"><input type="hidden" name="iticker_idx" value="{{ loop.index0 }}"><button class="btn btn-sm btn-outline-danger px-2 py-0"><i class="bi bi-x"></i></button></form>
+            </div>
+            {% endfor %}
+            <form method="POST" class="d-flex gap-2">
+              <input type="hidden" name="ticker_action" value="iticker_add_ar">
+              <input type="text" name="iticker_text_ar" class="form-control form-control-sm" placeholder="أضف رسالة عربية (نص، إيموجي، HTML مدعوم)..." dir="rtl">
+              <button class="btn btn-sm btn-outline-primary px-3">+</button>
+            </form>
+          </div>
+          <!-- English feeds -->
+          <div class="col-md-6">
+            <label class="form-label small fw-bold">English Messages</label>
+            {% for msg in iticker_messages_en %}
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <span class="flex-grow-1 small bg-light rounded px-2 py-1">{{ msg|safe }}</span>
+              <form method="POST" class="m-0"><input type="hidden" name="ticker_action" value="iticker_del_en"><input type="hidden" name="iticker_idx" value="{{ loop.index0 }}"><button class="btn btn-sm btn-outline-danger px-2 py-0"><i class="bi bi-x"></i></button></form>
+            </div>
+            {% endfor %}
+            <form method="POST" class="d-flex gap-2">
+              <input type="hidden" name="ticker_action" value="iticker_add_en">
+              <input type="text" name="iticker_text_en" class="form-control form-control-sm" placeholder="Add English message (text, emoji, HTML supported)...">
+              <button class="btn btn-sm btn-outline-primary px-3">+</button>
+            </form>
+          </div>
+        </div>
+
+        <hr class="my-3">
+
+        <!-- Appearance settings -->
+        <form method="POST">
+          <input type="hidden" name="ticker_action" value="iticker_save_appearance">
+          <div class="row g-3">
+            <div class="col-6">
+              <label class="form-label small fw-bold">{{ _('الخط') }}</label>
+              <select name="iticker_font" class="form-select form-select-sm">
+                {% for f in ['Tajawal','Segoe UI','Arial','Tahoma','Calibri','Georgia','Courier New'] %}
+                <option value="{{ f }}" {{ 'selected' if iticker.get('font','Tajawal')==f }}>{{ f }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-bold">{{ _('حجم الخط') }}</label>
+              <select name="iticker_size" class="form-select form-select-sm">
+                {% for s in [9,10,11,12,13,14,15,16,18,20,22,24] %}
+                <option value="{{ s }}" {{ 'selected' if iticker.get('size',13)|int==s }}>{{ s }}px</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-bold">{{ _('لون النص') }}</label>
+              <input type="color" name="iticker_fg" class="form-control form-control-sm form-control-color" value="{{ iticker.get('fg','#ffffff') }}">
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-bold">{{ _('لون الخلفية') }}</label>
+              <input type="color" name="iticker_bg" class="form-control form-control-sm form-control-color" value="{{ iticker.get('bg','#2563eb') }}">
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-bold">{% if current_lang=='en' %}Opacity{% else %}شفافية الخلفية{% endif %}: <strong id="iOpVal">{{ iticker.get('opacity',80) }}%</strong></label>
+              <input type="range" name="iticker_opacity" class="form-range" min="0" max="100" step="5" value="{{ iticker.get('opacity',80) }}" oninput="document.getElementById('iOpVal').textContent=this.value+'%'">
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-bold">{% if current_lang=='en' %}Speed{% else %}السرعة{% endif %}: <strong id="iSpeedVal">{{ iticker.get('speed',35) }}s</strong></label>
+              <input type="range" name="iticker_speed" class="form-range" min="10" max="80" step="5" value="{{ iticker.get('speed',35) }}" oninput="document.getElementById('iSpeedVal').textContent=this.value+'s'">
+            </div>
+          </div>
+
+          <!-- Logo controls -->
+          <div class="mt-3">
+            <label class="form-label small fw-bold">{{ _('رابط شعار الشريط') }}</label>
+            <input type="url" name="iticker_logo_url" class="form-control form-control-sm" value="{{ iticker.get('logo_url','') }}" placeholder="https://example.com/logo.png">
+          </div>
+          <div class="row g-3 mt-1">
+            <div class="col-4">
+              <label class="form-label small fw-bold">{% if current_lang=='en' %}Logo Size{% else %}حجم الشعار{% endif %}</label>
+              <input type="number" name="iticker_logo_size" class="form-control form-control-sm" value="{{ iticker.get('logo_size',28) }}" min="16" max="64" step="2">
+            </div>
+            <div class="col-4">
+              <div class="form-check form-switch mt-4">
+                <input class="form-check-input" type="checkbox" name="iticker_logo_pulse" value="1" {{ 'checked' if iticker.get('logo_pulse',true) }}>
+                <label class="form-check-label small">{% if current_lang=='en' %}Pulse{% else %}نبض{% endif %}</label>
+              </div>
+            </div>
+            <div class="col-4">
+              <label class="form-label small fw-bold">{% if current_lang=='en' %}Pulse Speed{% else %}سرعة النبض{% endif %}</label>
+              <input type="range" name="iticker_logo_pulse_speed" class="form-range" min="1" max="10" step="0.5" value="{{ iticker.get('logo_pulse_speed',3) }}">
+            </div>
+          </div>
+          <div class="mt-3">
+            <label class="form-label small fw-bold">{% if current_lang=='en' %}Separator Image URL{% else %}صورة الفاصل{% endif %}</label>
+            <input type="url" name="iticker_sep_img_url" class="form-control form-control-sm" value="{{ iticker.get('sep_img_url','') }}" placeholder="https://example.com/sep.png">
+          </div>
+          <div class="mt-3">
+            <label class="form-label small fw-bold">{% if current_lang=='en' %}Edge Fade %{% else %}تلاشي الأطراف{% endif %}: <strong id="iFadeVal">{{ iticker.get('mask_fade',12) }}%</strong></label>
+            <input type="range" name="iticker_mask_fade" class="form-range" min="0" max="30" step="1" value="{{ iticker.get('mask_fade',12) }}" oninput="document.getElementById('iFadeVal').textContent=this.value+'%'">
+          </div>
+
+          <button type="submit" class="btn btn-primary-ars w-100 mt-3">{{ _('💾 حفظ وتطبيق') }}</button>
+        </form>
       </div>
     </div>
   </div>
@@ -467,7 +656,7 @@
             <div class="d-flex align-items-center gap-3">
               <div style="width:36px;height:36px;border-radius:10px;background:{{ mcfg.get('color_accent','#5C9BDE') }};display:flex;align-items:center;justify-content:center;font-size:1.1rem" id="accentPreview">📅</div>
               <div>
-                <div style="color:#fff;font-weight:700;font-size:.9rem">ARS — Applied Reservation System</div>
+                <div style="color:#fff;font-weight:700;font-size:.9rem">ARS — Applied Event System</div>
                 <div style="color:rgba(255,255,255,.6);font-size:.72rem">{% if current_lang=='en' %}Live Preview of System Colors{% else %}معاينة مباشرة لألوان النظام{% endif %}</div>
               </div>
               <div class="ms-auto d-flex gap-2">

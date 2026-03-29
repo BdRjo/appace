@@ -69,6 +69,7 @@ class PermCheck:
     def can_add(self, code):    return self.can(code, 'add')
     def can_edit(self, code):   return self.can(code, 'edit')
     def can_approve(self, code):return self.can(code, 'approve')
+    def can_comment(self, code):return self.is_admin_or_manager() or self.can(code, 'comment')
 
     def can_delete(self, code):
         # مطابق لـ v54: المستخدم العادي لا يحذف أبداً

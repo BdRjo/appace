@@ -155,6 +155,27 @@ def index():
         row_ids = [u.id for u in users]
         row_url_func = 'users.edit'; row_url_param = 'user_id'
 
+    elif rtype == 'email_stats' and perms.is_admin_or_manager():
+        try:
+            from models.database import EmailLog
+            from sqlalchemy import func as _func2
+            # Detailed email stats
+            email_detail = db.query(EmailLog).order_by(EmailLog.sent_at.desc()).limit(50).all()
+            stats = {}
+            total_count = db.query(EmailLog).count()
+            columns = [_t('المستلم','Recipient'), _t('الموضوع','Subject'),
+                       _t('النوع','Type'), _t('الحالة','Status'),
+                       _t('التاريخ','Date')]
+            rows = [[
+                log.recipient or '—',
+                (log.subject or '')[:50],
+                log.type or '—',
+                log.status or '—',
+                log.sent_at.strftime('%Y-%m-%d %H:%M') if log.sent_at else '—'
+            ] for log in email_detail]
+        except Exception:
+            stats = {}; rows = []; columns = []; total_count = 0
+
     total_pages = max(1, (total_count + per_p - 1) // per_p)
 
     now = datetime.now()
@@ -172,12 +193,29 @@ def index():
                   .order_by(func.count(Reservation.id).desc())
                   .limit(5).all())
 
+    # Email stats for admin
+    email_stats = {}
+    if perms.is_admin_or_manager():
+        try:
+            from models.database import EmailLog
+            from sqlalchemy import func as _func
+            email_stats = {
+                'total':   db.query(EmailLog).count(),
+                'sent':    db.query(EmailLog).filter(EmailLog.status=='sent').count(),
+                'failed':  db.query(EmailLog).filter(EmailLog.status=='failed').count(),
+                'bulk':    db.query(EmailLog).filter(EmailLog.type=='bulk').count(),
+                'notif':   db.query(EmailLog).filter(EmailLog.type=='notification').count(),
+            }
+        except Exception:
+            email_stats = {}
+
     return render_template('reports/index.html',
         rows=rows, columns=columns, stats=stats,
         rtype=rtype, filter=f, start=start, end=end_d,
         page=page, total_pages=total_pages, total_count=total_count,
         monthly=monthly, top_venues=top_venues, perms=perms,
-        row_ids=row_ids, row_url_func=row_url_func, row_url_param=row_url_param)
+        row_ids=row_ids, row_url_func=row_url_func, row_url_param=row_url_param,
+        email_stats=email_stats)
 
 
 
@@ -430,30 +468,36 @@ def comparison():
                   'data_a': _period_stats(fa, ta), 'data_b': _period_stats(fb, tb)}
 
     elif mode == 'period_user' and fa and ta and items_vals:
-        from datetime import date as _date
-        def _user_period_stats(uname, from_d, to_d):
-            u = db.query(User).filter_by(username=uname).first()
-            if not u: return {}
-            q = db.query(Reservation).filter_by(user_id=u.id)
-            q = _date_filter(q, 'custom', from_d, to_d)
-            res_list = q.all()
-            return {
-                _t('إجمالي','Total'): len(res_list),
-                _t('موافقة','Approved'): sum(1 for r in res_list if r.status=='approved'),
-                _t('معلقة','Pending'): sum(1 for r in res_list if r.status=='pending'),
-                _t('مرفوضة','Rejected'): sum(1 for r in res_list if r.status=='rejected'),
-                _t('ملغاة','Cancelled'): sum(1 for r in res_list if r.status=='cancelled'),
-            }
-        datasets = []
+        user_labels = []
+        user_counts = []
+        user_details = []
         for uname in [v for v in items_vals if v]:
             u = db.query(User).filter_by(username=uname).first()
-            if u:
-                datasets.append({'label': u.full_name, 'data': _user_period_stats(uname, fa, ta)})
+            if not u: continue
+            q = _date_filter(db.query(Reservation).filter_by(user_id=u.id), 'custom', fa, ta)
+            res_list = q.all()
+            total    = len(res_list)
+            approved = sum(1 for r in res_list if r.status=='approved')
+            pending  = sum(1 for r in res_list if r.status=='pending')
+            rejected = sum(1 for r in res_list if r.status=='rejected')
+            cancelled= sum(1 for r in res_list if r.status=='cancelled')
+            user_labels.append(u.full_name or u.username)
+            user_counts.append(total)
+            user_details.append({
+                _t('المستخدم','User'): u.full_name or u.username,
+                _t('الإجمالي','Total'): total,
+                _t('موافقة','Approved'): approved,
+                _t('معلقة','Pending'): pending,
+                _t('مرفوضة','Rejected'): rejected,
+                _t('ملغاة','Cancelled'): cancelled,
+            })
         period_label = f'{fa} → {ta}'
         result = {
-            'title': _t(f'مقارنة المستخدمين في الفترة {period_label}', f'Users in Period {period_label}'),
-            'datasets': datasets,
+            'title': _t(f'مقارنة المستخدمين: {period_label}', f'Users Comparison: {period_label}'),
+            'datasets': [{'label': _t('الإجمالي','Total Reservations'), 'data': dict(zip(user_labels, user_counts))}],
+            'metrics': user_labels,
             'multi': True,
+            'user_details': user_details,
             'period': period_label,
         }
 
@@ -495,6 +539,144 @@ def comparison():
         result = {'label_a': _t('متوسط التقييم','Average Rating'), 'label_b': '',
                   'title': _t('أعلى القاعات تقييماً','Top Rated Venues'),
                   'data_a': top, 'data_b': {}, 'single': True}
+
+    elif mode == 'date_all':
+        # Reservations by date — daily activity for selected period
+        date_range = request.args.get('date_range', '30')
+        try:
+            days_back = int(date_range)
+        except:
+            days_back = 30
+        from datetime import date as _date
+        today = _date.today()
+        daily_data = {}
+        status_daily = {}
+        for i in range(days_back - 1, -1, -1):
+            d = today - timedelta(days=i)
+            d_start = datetime.combine(d, datetime.min.time())
+            d_end   = datetime.combine(d, datetime.max.time())
+            q_day = db.query(Reservation).filter(
+                Reservation.start_time >= d_start,
+                Reservation.start_time <= d_end
+            )
+            label = d.strftime('%m/%d')
+            daily_data[label] = q_day.count()
+            status_daily[label] = {
+                _t('موافقة','Approved'):   q_day.filter_by(status='approved').count(),
+                _t('معلقة','Pending'):     q_day.filter_by(status='pending').count(),
+                _t('مرفوضة','Rejected'):   q_day.filter_by(status='rejected').count(),
+                _t('ملغاة','Cancelled'):   q_day.filter_by(status='cancelled').count(),
+                _t('مكتملة','Completed'):  q_day.filter_by(status='completed').count(),
+            }
+        # Total stats for the period
+        period_start = datetime.combine(today - timedelta(days=days_back-1), datetime.min.time())
+        q_period = db.query(Reservation).filter(Reservation.start_time >= period_start)
+        period_total = q_period.count()
+        busiest_day  = max(daily_data, key=daily_data.get) if daily_data else '—'
+        result = {
+            'title':        _t(f'نشاط الحجوزات — آخر {days_back} يوم',
+                               f'Reservation Activity — Last {days_back} days'),
+            'date_all':     True,
+            'daily_data':   daily_data,
+            'status_daily': status_daily,
+            'date_range':   days_back,
+            'period_total': period_total,
+            'busiest_day':  busiest_day,
+            'busiest_count':daily_data.get(busiest_day, 0),
+            'label_a': '', 'label_b': '', 'data_a': daily_data, 'data_b': {},
+        }
+
+    elif mode == 'email_stats':
+        try:
+            from models.database import EmailLog
+            from sqlalchemy import func as _func
+            date_range = request.args.get('date_range', '30')
+            try:
+                days_back = int(date_range)
+            except:
+                days_back = 30
+            from datetime import date as _date
+            today        = _date.today()
+            period_start = datetime.combine(today - timedelta(days=days_back-1), datetime.min.time())
+            q_all  = db.query(EmailLog)
+            q_per  = db.query(EmailLog).filter(EmailLog.sent_at >= period_start)
+
+            # Daily activity
+            email_daily = {}
+            for i in range(days_back - 1, -1, -1):
+                d       = today - timedelta(days=i)
+                d_start = datetime.combine(d, datetime.min.time())
+                d_end   = datetime.combine(d, datetime.max.time())
+                cnt = db.query(EmailLog).filter(
+                    EmailLog.sent_at >= d_start,
+                    EmailLog.sent_at <= d_end
+                ).count()
+                email_daily[d.strftime('%m/%d')] = cnt
+
+            # By type breakdown
+            types_data = {}
+            for etype in ['bulk', 'notification', 'resend', 'invitation']:
+                cnt = q_per.filter(EmailLog.type == etype).count()
+                if cnt > 0:
+                    types_data[_t(
+                        {'bulk':'جماعي','notification':'إشعار','resend':'إعادة إرسال','invitation':'دعوة'}.get(etype, etype),
+                        {'bulk':'Bulk','notification':'Notification','resend':'Resend','invitation':'Invitation'}.get(etype, etype)
+                    )] = cnt
+
+            # By user (top 10 recipients)
+            from sqlalchemy import func as _func2
+            top_recipients = (db.query(EmailLog.recipient, _func2.count(EmailLog.id).label('cnt'))
+                              .filter(EmailLog.sent_at >= period_start)
+                              .group_by(EmailLog.recipient)
+                              .order_by(_func2.count(EmailLog.id).desc())
+                              .limit(10).all())
+            users_email_data = {r.recipient or '—': r.cnt for r in top_recipients}
+
+            # Success rate over time
+            total_period = q_per.count()
+            sent_period  = q_per.filter(EmailLog.status == 'sent').count()
+            fail_period  = q_per.filter(EmailLog.status == 'failed').count()
+            rate         = round(sent_period / total_period * 100) if total_period else 0
+
+            # Per-reservation booking emails (map to venues if user_id available)
+            venue_email_map = {}
+            try:
+                from models.database import User as _UE, Reservation as _RE
+                user_emails = (db.query(EmailLog.user_id, _func2.count(EmailLog.id).label('cnt'))
+                               .filter(EmailLog.sent_at >= period_start, EmailLog.user_id != None)
+                               .group_by(EmailLog.user_id)
+                               .order_by(_func2.count(EmailLog.id).desc())
+                               .limit(8).all())
+                for ue in user_emails:
+                    u = db.query(_UE).get(ue.user_id)
+                    if u:
+                        venue_email_map[u.full_name or u.username] = ue.cnt
+            except Exception:
+                pass
+
+            result = {
+                'title':          _t(f'تحليل البريد الإلكتروني — آخر {days_back} يوم',
+                                     f'Email Analytics — Last {days_back} days'),
+                'email_mode':     True,
+                'date_range':     days_back,
+                'total_all':      q_all.count(),
+                'sent_all':       q_all.filter(EmailLog.status=='sent').count(),
+                'failed_all':     q_all.filter(EmailLog.status=='failed').count(),
+                'bulk_all':       q_all.filter(EmailLog.type=='bulk').count(),
+                'notif_all':      q_all.filter(EmailLog.type=='notification').count(),
+                'period_sent':    sent_period,
+                'period_fail':    fail_period,
+                'period_total':   total_period,
+                'success_rate':   rate,
+                'email_daily':    email_daily,
+                'types_data':     types_data,
+                'users_data':     users_email_data,
+                'venue_email_map':venue_email_map,
+                'label_a': '', 'label_b': '', 'data_a': {}, 'data_b': {},
+            }
+        except Exception as e:
+            result = {'title': 'Email Stats', 'email_mode': True,
+                      'error': str(e), 'label_a':'','label_b':'','data_a':{},'data_b':{}}
 
     return render_template('reports/comparison.html',
         mode=mode, result=result, a=a, b=b,

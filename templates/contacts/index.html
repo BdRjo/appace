@@ -2,16 +2,16 @@
 {% block title %}{% if current_lang=="en" %}Contacts — ARS{% else %}جهات الاتصال — ARS{% endif %}{% endblock %}
 {% block content %}
 <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-  <h1><i class="bi bi-person-lines-fill me-2"></i>{{ _('جهات الاتصال') }} ({{ contacts|length }})</h1>
+  <h1><i class="bi bi-person-lines-fill me-2"></i>{% if current_lang=='en' %}Contacts{% else %}جهات الاتصال{% endif %} ({{ contacts|length }})</h1>
   <div class="d-flex gap-2 flex-wrap">
     <a href="{{ url_for('contacts.import_csv') }}" class="btn btn-outline-secondary btn-sm">
-      <i class="bi bi-upload me-1"></i>{{ _('استيراد CSV') }}
+      <i class="bi bi-upload me-1"></i>{% if current_lang=='en' %}Import CSV{% else %}استيراد CSV{% endif %}
     </a>
     <a href="{{ url_for('contacts.export_csv') }}" class="btn btn-outline-success btn-sm">
-      <i class="bi bi-filetype-csv me-1"></i>{{ _('تصدير CSV') }}
+      <i class="bi bi-filetype-csv me-1"></i>{% if current_lang=='en' %}Export CSV{% else %}تصدير CSV{% endif %}
     </a>
     <a href="{{ url_for('contacts.new') }}" class="btn btn-primary-ars">
-      <i class="bi bi-person-plus me-1"></i>{{ _('إضافة جهة') }}
+      <i class="bi bi-person-plus me-1"></i>{% if current_lang=='en' %}Add Contact{% else %}إضافة جهة{% endif %}
     </a>
   </div>
 </div>
@@ -19,35 +19,35 @@
 <div class="card mb-3"><div class="card-body py-2">
   <form method="GET" class="d-flex gap-2 flex-wrap">
     <input type="text" name="q" class="form-control form-control-sm"
-           placeholder="{{ _('🔍 بحث بالاسم أو البريد أو الشركة') }}" value="{{ search }}" style="max-width:320px">
-    <button class="btn btn-primary-ars btn-sm">{{ _('بحث') }}</button>
-    <a href="{{ url_for('contacts.index') }}" class="btn btn-outline-secondary btn-sm">{{ _('إعادة') }}</a>
+           placeholder="{% if current_lang=='en' %}🔍 Search by name, email or company{% else %}🔍 بحث بالاسم أو البريد أو الشركة{% endif %}" value="{{ search }}" style="max-width:320px">
+    <button class="btn btn-primary-ars btn-sm">{% if current_lang=='en' %}Search{% else %}بحث{% endif %}</button>
+    <a href="{{ url_for('contacts.index') }}" class="btn btn-outline-secondary btn-sm">{% if current_lang=='en' %}Reset{% else %}إعادة{% endif %}</a>
   </form>
 </div></div>
 
 <div class="card"><div class="card-body p-0">
 {% if contacts %}
 <div id="bulkBar" style="display:none!important">
-  <button type="button" class="btn btn-sm" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.5);font-weight:700" onclick="selectAll(true)"><i class="bi bi-check-all me-1"></i>{{ _('تحديد الكل') }}</button>
-  <button type="button" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.4);font-weight:700" onclick="selectAll(false)"><i class="bi bi-x-lg me-1"></i>{{ _('إلغاء الكل') }}</button>
+  <button type="button" class="btn btn-sm" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.5);font-weight:700" onclick="selectAll(true)"><i class="bi bi-check-all me-1"></i>{% if current_lang=='en' %}Select All{% else %}تحديد الكل{% endif %}</button>
+  <button type="button" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.4);font-weight:700" onclick="selectAll(false)"><i class="bi bi-x-lg me-1"></i>{% if current_lang=='en' %}Clear All{% else %}إلغاء الكل{% endif %}</button>
   <span id="selCount" class="small ms-1" style="color:rgba(255,255,255,.9);font-weight:600"></span>
   <form method="POST" action="{{ url_for('contacts.bulk_delete') }}" id="bulkForm" class="ms-auto" onsubmit="return confirmBulk()">
     <div id="bulkIds"></div>
-    <button type="submit" class="btn btn-sm btn-danger"><i class="bi bi-trash me-1"></i>{{ _('حذف المحدد') }}</button>
+    <button type="submit" class="btn btn-sm btn-danger"><i class="bi bi-trash me-1"></i>{% if current_lang=='en' %}Delete Selected{% else %}حذف المحدد{% endif %}</button>
   </form>
 </div>
 <div class="table-responsive">
 <table class="table table-hover mb-0">
   <thead><tr>
     <th style="width:36px"><input type="checkbox" class="form-check-input" id="checkAll" onchange="selectAll(this.checked)"></th>
-    <th>{{ _('الاسم') }}</th>
-    <th>{{ _('المسمى الوظيفي') }}</th>
-    <th class="d-none d-md-table-cell">{% if current_lang=='en' %}Department{% else %}{{ _('الدائرة') }}{% endif %}</th>
-    <th>{{ _('الشركة') }}</th>
-    <th>{{ _('البريد الإلكتروني') }}</th>
-    <th>{{ _('الهاتف') }}</th>
-    <th>{{ _('تاريخ الإضافة') }}</th>
-    <th>{{ _('إجراءات') }}</th>
+    <th>{% if current_lang=='en' %}Name{% else %}الاسم{% endif %}</th>
+    <th>{% if current_lang=='en' %}Job Title{% else %}المسمى الوظيفي{% endif %}</th>
+    <th class="d-none d-md-table-cell">{% if current_lang=='en' %}Department{% else %}{% if current_lang=='en' %}Department{% else %}الدائرة{% endif %}{% endif %}</th>
+    <th>{% if current_lang=='en' %}Company{% else %}الشركة{% endif %}</th>
+    <th>{% if current_lang=='en' %}Email{% else %}البريد الإلكتروني{% endif %}</th>
+    <th>{% if current_lang=='en' %}Phone{% else %}الهاتف{% endif %}</th>
+    <th>{% if current_lang=='en' %}Added Date{% else %}تاريخ الإضافة{% endif %}</th>
+    <th>{% if current_lang=='en' %}Actions{% else %}إجراءات{% endif %}</th>
   </tr></thead>
   <tbody>
   {% for c in contacts %}
@@ -66,11 +66,11 @@
     <td><small class="text-muted">{{ c.created_at.strftime('%Y-%m-%d') if c.created_at else '' }}</small></td>
     <td>
       <div class="d-flex gap-1">
-        <a href="{{ url_for('contacts.edit', cid=c.id) }}" class="btn btn-sm btn-outline-primary" title="{{ _('تعديل') }}"><i class="bi bi-pencil"></i></a>
-        <a href="{{ url_for('contacts.export_single', cid=c.id) }}" class="btn btn-sm btn-outline-success" title="{{ _('تصدير') }}"><i class="bi bi-filetype-csv"></i></a>
+        <a href="{{ url_for('contacts.edit', cid=c.id) }}" class="btn btn-sm btn-outline-primary" title="{% if current_lang=='en' %}Edit{% else %}تعديل{% endif %}"><i class="bi bi-pencil"></i></a>
+        <a href="{{ url_for('contacts.export_single', cid=c.id) }}" class="btn btn-sm btn-outline-success" title="{% if current_lang=='en' %}Export{% else %}تصدير{% endif %}"><i class="bi bi-filetype-csv"></i></a>
         <form method="POST" action="{{ url_for('contacts.delete', cid=c.id) }}"
-              onsubmit="return confirm('{{ _('حذف') }} {{ c.first_name }}؟')">
-          <button class="btn btn-sm btn-outline-danger" title="{{ _('حذف') }}"><i class="bi bi-trash"></i></button>
+              onsubmit="return confirm('{% if current_lang=='en' %}Delete{% else %}حذف{% endif %} {{ c.first_name }}؟')">
+          <button class="btn btn-sm btn-outline-danger" title="{% if current_lang=='en' %}Delete{% else %}حذف{% endif %}"><i class="bi bi-trash"></i></button>
         </form>
       </div>
     </td>
@@ -81,9 +81,9 @@
 </div>
 {% else %}
 <div class="text-center py-5 text-muted">
-  <i class="bi bi-person-x fs-1 d-block mb-2"></i>{{ _('لا توجد جهات اتصال') }}
+  <i class="bi bi-person-x fs-1 d-block mb-2"></i>{% if current_lang=='en' %}No contacts found{% else %}لا توجد جهات اتصال{% endif %}
   <div class="mt-2">
-    <a href="{{ url_for('contacts.new') }}" class="btn btn-primary-ars btn-sm">{{ _('إضافة جهة') }}</a>
+    <a href="{{ url_for('contacts.new') }}" class="btn btn-primary-ars btn-sm">{% if current_lang=='en' %}Add Contact{% else %}إضافة جهة{% endif %}</a>
   </div>
 </div>
 {% endif %}

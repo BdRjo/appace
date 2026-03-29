@@ -1,0 +1,124 @@
+{%- set ar = (current_lang == 'ar') -%}
+{% extends 'interviews/_public_base.html' %}
+{% block title %}{% if ar %}حالة الطلب{% else %}Request Status{% endif %}{% endblock %}
+
+{% block main_class %}pi-shell-tight{% endblock %}
+
+{% block pi_ticker %}{% endblock %}
+{% block nav_action %}
+<a href="{{ url_for('interviews.book_welcome') }}" class="btn-pi-outline btn btn-sm px-3" style="font-size:.82rem">
+  <i class="bi bi-arrow-{{ 'right' if ar else 'left' }} me-1"></i>{% if ar %}رجوع{% else %}Back{% endif %}
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width:760px">
+  <div class="row justify-content-center">
+    <div class="col-12 col-md-10 col-lg-8">
+      <div class="pi-card p-4 p-md-5 text-center mb-4">
+        {% if req.status == 'pending' %}
+        <div style="width:64px;height:64px;border-radius:50%;background:#fef3c7;color:#d97706;display:flex;align-items:center;justify-content:center;font-size:1.6rem;margin:0 auto 18px">
+          <i class="bi bi-hourglass-split"></i>
+        </div>
+        <h4 class="fw-800 mb-2" style="color:#0f172a">{% if ar %}طلبك قيد المراجعة{% else %}Your request is under review{% endif %}</h4>
+        <p style="color:#64748b;line-height:1.8;margin-bottom:24px">
+          {% if ar %}
+            تم استلام طلبك بنجاح وسنقوم بمراجعته والتواصل معك قريباً.
+          {% else %}
+            Your request was received successfully. We’ll review it and get back to you soon.
+          {% endif %}
+        </p>
+        {% elif req.status == 'approved' %}
+        <div style="width:64px;height:64px;border-radius:50%;background:#dcfce7;color:#16a34a;display:flex;align-items:center;justify-content:center;font-size:1.6rem;margin:0 auto 18px">
+          <i class="bi bi-check2-circle"></i>
+        </div>
+        <h4 class="fw-800 mb-2" style="color:#0f172a">{% if ar %}تم قبول الطلب{% else %}Request approved{% endif %}</h4>
+        <p style="color:#64748b;line-height:1.8;margin-bottom:24px">
+          {% if ar %}
+            تمت الموافقة على طلبك. راجع تفاصيل الموعد أدناه.
+          {% else %}
+            Your request has been approved. Review the appointment details below.
+          {% endif %}
+        </p>
+        {% elif req.status == 'rejected' %}
+        <div style="width:64px;height:64px;border-radius:50%;background:#fee2e2;color:#dc2626;display:flex;align-items:center;justify-content:center;font-size:1.6rem;margin:0 auto 18px">
+          <i class="bi bi-x-circle"></i>
+        </div>
+        <h4 class="fw-800 mb-2" style="color:#0f172a">{% if ar %}تعذر قبول الطلب{% else %}Request not approved{% endif %}</h4>
+        <p style="color:#64748b;line-height:1.8;margin-bottom:24px">
+          {% if ar %}
+            نعتذر، لا يمكن تلبية هذا الطلب حالياً. يمكنك إرسال طلب جديد بوقت آخر.
+          {% else %}
+            Sorry, this request can’t be accommodated at the moment. You can submit a new request for another time.
+          {% endif %}
+        </p>
+        {% endif %}
+
+        <div class="d-inline-flex align-items-center gap-2 px-3 py-2 rounded-pill" style="background:#f8fafc;border:1px solid #e2e8f0;font-size:.84rem;color:#475569">
+          <i class="bi bi-hash"></i>
+          <strong>{{ req.request_code }}</strong>
+        </div>
+      </div>
+
+      <div class="pi-card p-4">
+        <div class="row g-3">
+          <div class="col-12 col-md-6">
+            <div class="border rounded-4 p-3 h-100" style="background:#f8fafc">
+              <div style="font-size:.76rem;color:#64748b;font-weight:700;margin-bottom:6px;text-transform:uppercase">{% if ar %}رمز الطلب{% else %}Request Code{% endif %}</div>
+              <div class="fw-700" style="color:#0f172a;word-break:break-word">{{ req.request_code }}</div>
+            </div>
+          </div>
+          <div class="col-12 col-md-6">
+            <div class="border rounded-4 p-3 h-100" style="background:#f8fafc">
+              <div style="font-size:.76rem;color:#64748b;font-weight:700;margin-bottom:6px;text-transform:uppercase">{% if ar %}صاحب الطلب{% else %}Requester{% endif %}</div>
+              <div class="fw-700" style="color:#0f172a">{{ req.requester_name }}</div>
+            </div>
+          </div>
+          <div class="col-12 col-md-6">
+            <div class="border rounded-4 p-3 h-100" style="background:#f8fafc">
+              <div style="font-size:.76rem;color:#64748b;font-weight:700;margin-bottom:6px;text-transform:uppercase">{% if ar %}التاريخ المطلوب{% else %}Requested Date{% endif %}</div>
+              <div class="fw-700" style="color:#0f172a">{{ req.booking_date }}</div>
+            </div>
+          </div>
+          <div class="col-12 col-md-6">
+            <div class="border rounded-4 p-3 h-100" style="background:#f8fafc">
+              <div style="font-size:.76rem;color:#64748b;font-weight:700;margin-bottom:6px;text-transform:uppercase">{% if ar %}الفترة الزمنية{% else %}Time Window{% endif %}</div>
+              <div class="fw-700" style="color:#0f172a">{{ req.start_time }} → {{ req.end_time }}</div>
+            </div>
+          </div>
+          <div class="col-12 col-md-6">
+            <div class="border rounded-4 p-3 h-100" style="background:#f8fafc">
+              <div style="font-size:.76rem;color:#64748b;font-weight:700;margin-bottom:6px;text-transform:uppercase">{% if ar %}الشخص المطلوب مقابلته{% else %}Person to Meet{% endif %}</div>
+              <div class="fw-700" style="color:#0f172a">{{ req.person_to_meet }}</div>
+            </div>
+          </div>
+          {% if req.requester_email %}
+          <div class="col-12 col-md-6">
+            <div class="border rounded-4 p-3 h-100" style="background:#f8fafc">
+              <div style="font-size:.76rem;color:#64748b;font-weight:700;margin-bottom:6px;text-transform:uppercase">{% if ar %}البريد الإلكتروني{% else %}Email{% endif %}</div>
+              <div class="fw-700" style="color:#0f172a;word-break:break-word">{{ req.requester_email }}</div>
+            </div>
+          </div>
+          {% endif %}
+          {% if req.requester_phone %}
+          <div class="col-12 col-md-6">
+            <div class="border rounded-4 p-3 h-100" style="background:#f8fafc">
+              <div style="font-size:.76rem;color:#64748b;font-weight:700;margin-bottom:6px;text-transform:uppercase">{% if ar %}الجوال{% else %}Phone{% endif %}</div>
+              <div class="fw-700" style="color:#0f172a">{{ req.requester_phone }}</div>
+            </div>
+          </div>
+          {% endif %}
+          {% if req.reason %}
+          <div class="col-12">
+            <div class="border rounded-4 p-3 h-100" style="background:#f8fafc">
+              <div style="font-size:.76rem;color:#64748b;font-weight:700;margin-bottom:6px;text-transform:uppercase">{% if ar %}سبب الطلب{% else %}Reason{% endif %}</div>
+              <div style="color:#334155;line-height:1.7">{{ req.reason }}</div>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

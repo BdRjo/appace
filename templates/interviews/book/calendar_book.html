@@ -1,0 +1,62 @@
+{%- set ar = (current_lang == 'ar') -%}
+{% extends 'interviews/_public_base.html' %}
+{% block title %}{% if ar %}طلب موعد{% else %}Request Appointment{% endif %}{% endblock %}
+
+{% block pi_ticker %}{% endblock %}
+{% block nav_action %}
+<a href="{{ url_for('interviews.calendar_public') }}" class="btn-pi-outline btn btn-sm px-3" style="font-size:.82rem">
+  <i class="bi bi-arrow-{{ 'right' if ar else 'left' }} me-1"></i>{% if ar %}رجوع{% else %}Back{% endif %}
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="row justify-content-center">
+    <div class="col-12 col-md-7 col-lg-5">
+      <div class="pi-card p-4 p-md-5">
+        <div class="text-center mb-4">
+          <div style="width:64px;height:64px;border-radius:20px;background:var(--bc-light);color:var(--bc);display:flex;align-items:center;justify-content:center;font-size:1.8rem;margin:0 auto 16px">
+            <i class="bi bi-calendar-plus"></i>
+          </div>
+          <h4 class="fw-800" style="color:#0f172a">{% if ar %}طلب موعد{% else %}Request Appointment{% endif %}</h4>
+          <div class="mt-2 p-2 rounded-3" style="background:#f8fafc;display:inline-block">
+            <i class="bi bi-calendar3 me-1" style="color:var(--bc)"></i>
+            <strong>{{ slot.slot_date }}</strong>
+            <span class="mx-1" style="color:#94a3b8">|</span>
+            <i class="bi bi-clock me-1" style="color:var(--bc)"></i>
+            <strong>{{ slot.start_time }} – {{ slot.end_time }}</strong>
+          </div>
+        </div>
+
+        <form method="post">
+          <div class="mb-3">
+            <label class="pi-label">{% if ar %}الاسم{% else %}Your Name{% endif %} <span class="text-danger">*</span></label>
+            <input type="text" name="requester_name" class="pi-input" required>
+          </div>
+          <div class="mb-3">
+            <label class="pi-label">{% if ar %}البريد الإلكتروني{% else %}Email{% endif %}</label>
+            <input type="email" name="requester_email" class="pi-input">
+          </div>
+          <div class="mb-3">
+            <label class="pi-label">{% if ar %}رقم الهاتف{% else %}Phone{% endif %}</label>
+            <input type="tel" name="requester_phone" class="pi-input">
+          </div>
+          <div class="mb-3">
+            <label class="pi-label">{% if ar %}الشخص المطلوب مقابلته{% else %}Person to Meet{% endif %} <span class="text-danger">*</span></label>
+            <input type="text" name="person_to_meet" class="pi-input" required
+                   placeholder="{% if ar %}اسم المدير أو الموظف أو المعلم{% else %}Director, employee, or teacher name{% endif %}">
+          </div>
+          <div class="mb-3">
+            <label class="pi-label">{% if ar %}سبب الموعد{% else %}Reason{% endif %} <span class="text-danger">*</span></label>
+            <textarea name="reason" class="pi-input" rows="3" required
+                      placeholder="{% if ar %}وضّح سبب طلبك للموعد...{% else %}Explain why you need this appointment...{% endif %}"></textarea>
+          </div>
+          <button type="submit" class="btn-pi btn w-100 mt-2">
+            <i class="bi bi-send me-2"></i>{% if ar %}إرسال الطلب{% else %}Submit Request{% endif %}
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

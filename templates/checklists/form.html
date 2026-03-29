@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{% if current_lang=="en" %}{{ '{% else %}تعديل' if cl else '{% if current_lang=="en" %}New List{% else %}قائمة جديدة{% endif %}' }} — ARS{% endif %}{% endblock %}
+{% block title %}{% if cl %}{% if current_lang=="en" %}Edit List{% else %}تعديل القائمة{% endif %}{% else %}{% if current_lang=="en" %}New List{% else %}قائمة جديدة{% endif %}{% endif %} — ARS{% endblock %}
 {% block extra_css %}
 <style>
 .form-card { border-radius:16px; border:none; box-shadow:0 4px 20px rgba(0,0,0,.09); }
@@ -26,9 +26,16 @@
 
 <div class="page-header d-flex align-items-center gap-2">
   <a href="{{ url_for('checklists.index') }}" class="btn btn-sm btn-outline-secondary">
-    <i class="bi bi-arrow-right"></i>
+    <i class="bi bi-arrow-{% if current_lang=='en' %}left{% else %}right{% endif %} me-1"></i>
+    {% if current_lang=='en' %}Back{% else %}رجوع{% endif %}
   </a>
-  <h1 style="margin:0">{{ 'تعديل: ' + cl.name if cl else 'قائمة مهام جديدة ✨' }}</h1>
+  <h1 style="margin:0">
+    {% if cl %}
+      {% if current_lang=='en' %}Edit: {{ cl.name }}{% else %}تعديل: {{ cl.name }}{% endif %}
+    {% else %}
+      {% if current_lang=='en' %}New List ✨{% else %}قائمة مهام جديدة ✨{% endif %}
+    {% endif %}
+  </h1>
 </div>
 
 <form method="POST" id="clForm">
@@ -176,7 +183,12 @@
 
       <div class="d-flex gap-2 mt-4">
         <button type="submit" class="btn btn-primary-ars px-4">
-          <i class="bi bi-check-lg me-1"></i>{{ 'حفظ التعديلات' if cl else 'إنشاء القائمة' }}
+          <i class="bi bi-check-lg me-1"></i>
+          {% if cl %}
+            {% if current_lang=='en' %}Save Changes{% else %}حفظ التعديلات{% endif %}
+          {% else %}
+            {% if current_lang=='en' %}Create List{% else %}إنشاء القائمة{% endif %}
+          {% endif %}
         </button>
         <a href="{{ url_for('checklists.index') }}" class="btn btn-outline-secondary">{{ _('إلغاء') }}</a>
       </div>

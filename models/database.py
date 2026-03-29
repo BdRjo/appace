@@ -2,6 +2,11 @@
 ARS - قاعدة البيانات الكاملة — مطابقة لـ v54
 """
 import os, hashlib
+try:
+    from werkzeug.security import generate_password_hash as _wph
+    def _h(pw): return _wph(pw, method='pbkdf2:sha256', salt_length=16)
+except ImportError:
+    def _h(pw): return hashlib.sha256(pw.encode()).hexdigest()
 from datetime import datetime
 from sqlalchemy import (create_engine, Column, Integer, String, DateTime,
                         Boolean, ForeignKey, Text, Table, text)
@@ -40,7 +45,7 @@ class RolePermission(Base):
     permission_id=Column(Integer,ForeignKey('permissions.id'))
     can_view=Column(Boolean,default=False); can_add=Column(Boolean,default=False)
     can_edit=Column(Boolean,default=False); can_delete=Column(Boolean,default=False)
-    can_approve=Column(Boolean,default=False)
+    can_approve=Column(Boolean,default=False); can_comment=Column(Boolean,default=False)
     role=relationship('Role',back_populates='role_permissions')
     permission=relationship('Permission',back_populates='role_permissions')
 
@@ -147,6 +152,28 @@ class Checklist(Base):
     items=relationship('ChecklistItem',back_populates='checklist',cascade='all, delete-orphan',
                        foreign_keys='ChecklistItem.checklist_id')
 
+class ChecklistShare(Base):
+    __tablename__ = 'checklist_shares'
+    id           = Column(Integer, primary_key=True)
+    checklist_id = Column(Integer, ForeignKey('checklists.id', ondelete='CASCADE'), nullable=False)
+    user_id      = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    permission   = Column(String(10), default='view')  # 'view' or 'edit'
+    shared_at    = Column(DateTime, default=datetime.now)
+    checklist    = relationship('Checklist', foreign_keys=[checklist_id])
+    user         = relationship('User', foreign_keys=[user_id])
+
+class ChecklistComment(Base):
+    __tablename__ = 'checklist_comments'
+    id           = Column(Integer, primary_key=True)
+    checklist_id = Column(Integer, ForeignKey('checklists.id', ondelete='CASCADE'), nullable=False)
+    item_id      = Column(Integer, ForeignKey('checklist_items.id', ondelete='CASCADE'), nullable=True)
+    user_id      = Column(Integer, ForeignKey('users.id'), nullable=False)
+    content      = Column(Text, nullable=False)
+    created_at   = Column(DateTime, default=datetime.now)
+    checklist    = relationship('Checklist', foreign_keys=[checklist_id])
+    item         = relationship('ChecklistItem', foreign_keys=[item_id])
+    user         = relationship('User', foreign_keys=[user_id])
+
 class ChecklistItem(Base):
     __tablename__='checklist_items'
     id=Column(Integer,primary_key=True); checklist_id=Column(Integer,ForeignKey('checklists.id'),nullable=True)
@@ -159,6 +186,29 @@ class ChecklistItem(Base):
     checklist=relationship('Checklist',back_populates='items',foreign_keys=[checklist_id])
     reservation=relationship('Reservation',back_populates='checklist_items',foreign_keys=[reservation_id])
     checked_by=relationship('User',foreign_keys=[checked_by_id])
+
+
+class ReservationComment(Base):
+    __tablename__ = 'reservation_comments'
+    id             = Column(Integer, primary_key=True)
+    reservation_id = Column(Integer, ForeignKey('reservations.id', ondelete='CASCADE'), nullable=False)
+    user_id        = Column(Integer, ForeignKey('users.id'), nullable=False)
+    content        = Column(Text, nullable=False)
+    is_internal    = Column(Boolean, default=False)  # True = admin only
+    created_at     = Column(DateTime, default=datetime.now)
+    reservation    = relationship('Reservation', foreign_keys=[reservation_id])
+    user           = relationship('User', foreign_keys=[user_id])
+
+class ReservationLog(Base):
+    __tablename__ = 'reservation_logs'
+    id             = Column(Integer, primary_key=True)
+    reservation_id = Column(Integer, ForeignKey('reservations.id', ondelete='CASCADE'), nullable=False)
+    user_id        = Column(Integer, ForeignKey('users.id'), nullable=True)
+    action         = Column(String(50), nullable=False)  # created/approved/rejected/cancelled/edited/commented
+    description    = Column(Text)
+    created_at     = Column(DateTime, default=datetime.now)
+    reservation    = relationship('Reservation', foreign_keys=[reservation_id])
+    user           = relationship('User', foreign_keys=[user_id])
 
 class Rating(Base):
     __tablename__='ratings'
@@ -183,7 +233,19 @@ class EmailLog(Base):
     __tablename__='email_logs'
     id=Column(Integer,primary_key=True); recipient=Column(String(200)); subject=Column(String(500))
     type=Column(String(50)); status=Column(String(20)); error_message=Column(Text)
+    html_body=Column(Text)
     sent_at=Column(DateTime,default=datetime.now); user_id=Column(Integer,ForeignKey('users.id'))
+
+class Notification(Base):
+    __tablename__ = 'notifications'
+    id         = Column(Integer, primary_key=True)
+    user_id    = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    title      = Column(String(200), nullable=False)
+    body       = Column(Text)
+    link       = Column(String(300))
+    is_read    = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.now)
+    user       = relationship('User', foreign_keys=[user_id])
 
 class SystemLog(Base):
     __tablename__='system_logs'
@@ -265,14 +327,202 @@ def get_engine():
         ('users',           'department', 'VARCHAR(200)'),
         ('checklists',      'color',      "VARCHAR(20) DEFAULT '#0C67EC'"),
         ('checklists',      'emoji',      "VARCHAR(10) DEFAULT '📋'"),
+        ('role_permissions', 'can_comment', 'INTEGER DEFAULT 0'),
     ]
+    # ── Create all new tables + safe column migrations in ONE transaction ────
     with _engine.connect() as conn:
-        for tbl, col, cdef in _safe_cols:
+        # New tables
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS email_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            recipient VARCHAR(200), subject VARCHAR(500),
+            type VARCHAR(50), status VARCHAR(20), error_message TEXT,
+            sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            user_id INTEGER REFERENCES users(id))'''))
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS checklist_shares (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            checklist_id INTEGER NOT NULL, user_id INTEGER NOT NULL,
+            permission VARCHAR(10) DEFAULT 'view',
+            shared_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS checklist_comments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            checklist_id INTEGER NOT NULL, item_id INTEGER,
+            user_id INTEGER NOT NULL, content TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS reservation_comments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            reservation_id INTEGER NOT NULL, user_id INTEGER NOT NULL,
+            content TEXT NOT NULL, is_internal INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS reservation_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            reservation_id INTEGER NOT NULL, user_id INTEGER,
+            action VARCHAR(50) NOT NULL, description TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL, title VARCHAR(200) NOT NULL,
+            body TEXT, link VARCHAR(300), is_read INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS announcements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title_ar VARCHAR(300) NOT NULL, title_en VARCHAR(300) DEFAULT '',
+            body_ar TEXT, body_en TEXT,
+            media_type VARCHAR(20) DEFAULT 'none',
+            media_url TEXT, media_b64 TEXT,
+            target VARCHAR(20) DEFAULT 'all',
+            target_roles TEXT DEFAULT '', target_users TEXT DEFAULT '',
+            display_mode VARCHAR(20) DEFAULT 'once_session',
+            modal_size VARCHAR(20) DEFAULT 'medium',
+            modal_pos VARCHAR(20) DEFAULT 'center',
+            header_color VARCHAR(30) DEFAULT '#0847B0,#0C67EC',
+            is_active INTEGER DEFAULT 1,
+            start_date DATETIME, end_date DATETIME,
+            created_by INTEGER REFERENCES users(id),
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS announcement_dismissals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            announcement_id INTEGER NOT NULL REFERENCES announcements(id) ON DELETE CASCADE,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            dismissed_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
+        # Parent Interview tables (safe migration for older databases)
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS pi_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name VARCHAR(200) NOT NULL, event_code VARCHAR(20) UNIQUE NOT NULL,
+            school_name VARCHAR(200), school_logo_url VARCHAR(500),
+            brand_color VARCHAR(10) DEFAULT '#0d6efd', description TEXT,
+            event_date VARCHAR(200), slot_duration INTEGER DEFAULT 5,
+            break_duration INTEGER DEFAULT 0, allow_comments INTEGER DEFAULT 1,
+            allow_multiple_children INTEGER DEFAULT 0,
+            send_reminders INTEGER DEFAULT 1, reminder_hours INTEGER DEFAULT 24,
+            is_active INTEGER DEFAULT 1, is_open INTEGER DEFAULT 1,
+            created_by INTEGER REFERENCES users(id),
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS pi_teachers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_id INTEGER NOT NULL REFERENCES pi_events(id),
+            name VARCHAR(200) NOT NULL, email VARCHAR(200),
+            subjects VARCHAR(500), room VARCHAR(100),
+            teacher_code VARCHAR(30), is_active INTEGER DEFAULT 1,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS pi_slots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            teacher_id INTEGER NOT NULL REFERENCES pi_teachers(id),
+            event_id INTEGER NOT NULL REFERENCES pi_events(id),
+            slot_date VARCHAR(20) NOT NULL, start_time VARCHAR(10) NOT NULL,
+            end_time VARCHAR(10) NOT NULL, is_break INTEGER DEFAULT 0,
+            is_booked INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS pi_bookings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            slot_id INTEGER NOT NULL REFERENCES pi_slots(id),
+            event_id INTEGER NOT NULL REFERENCES pi_events(id),
+            booking_ref VARCHAR(30) UNIQUE NOT NULL,
+            parent_name VARCHAR(200) NOT NULL, parent_email VARCHAR(200),
+            parent_phone VARCHAR(50), child_name VARCHAR(200) NOT NULL,
+            comment TEXT, session_id VARCHAR(100),
+            booked_by_staff INTEGER DEFAULT 0, reminder_sent INTEGER DEFAULT 0,
+            status VARCHAR(20) DEFAULT 'confirmed',
+            cancelled_at DATETIME,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS pi_appointment_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id INTEGER NOT NULL REFERENCES pi_events(id),
+    request_code VARCHAR(30) UNIQUE NOT NULL,
+    parent_name VARCHAR(200) NOT NULL, parent_email VARCHAR(200),
+    parent_phone VARCHAR(50), child_name VARCHAR(200) NOT NULL,
+    child_grade VARCHAR(50), reason TEXT NOT NULL,
+    preferred_date VARCHAR(20), preferred_time VARCHAR(20),
+    status VARCHAR(20) DEFAULT 'pending', admin_notes TEXT,
+    assigned_slot_id INTEGER REFERENCES pi_slots(id),
+    assigned_date VARCHAR(20), assigned_time VARCHAR(10),
+    approved_by INTEGER REFERENCES users(id),
+    approved_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS pi_calendar_slots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            slot_date VARCHAR(20) NOT NULL, start_time VARCHAR(10) NOT NULL,
+            end_time VARCHAR(10) NOT NULL, status VARCHAR(20) DEFAULT 'available',
+            note TEXT, created_by INTEGER REFERENCES users(id),
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
+        # ── Hierarchy tables for structured interview events (v70) ──
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS pi_school_stages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_id INTEGER NOT NULL REFERENCES pi_events(id),
+            name VARCHAR(100) NOT NULL, name_ar VARCHAR(100),
+            sort_order INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS pi_school_classes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            stage_id INTEGER NOT NULL REFERENCES pi_school_stages(id),
+            event_id INTEGER NOT NULL REFERENCES pi_events(id),
+            name VARCHAR(100) NOT NULL, name_ar VARCHAR(100),
+            sort_order INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS pi_sections (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            class_id INTEGER NOT NULL REFERENCES pi_school_classes(id),
+            event_id INTEGER NOT NULL REFERENCES pi_events(id),
+            name VARCHAR(20) NOT NULL, sort_order INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS pi_teacher_assignments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_id INTEGER NOT NULL REFERENCES pi_events(id),
+            teacher_id INTEGER NOT NULL REFERENCES pi_teachers(id),
+            section_id INTEGER NOT NULL REFERENCES pi_sections(id),
+            course_name VARCHAR(200) NOT NULL, course_name_ar VARCHAR(200),
+            room VARCHAR(100), assignment_code VARCHAR(30) UNIQUE NOT NULL,
+            is_active INTEGER DEFAULT 1,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS pi_calendar_bookings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            slot_id INTEGER REFERENCES pi_calendar_slots(id),
+            booking_date VARCHAR(20), start_time VARCHAR(10), end_time VARCHAR(10),
+            request_code VARCHAR(30) UNIQUE NOT NULL,
+            requester_name VARCHAR(200) NOT NULL, requester_email VARCHAR(200),
+            requester_phone VARCHAR(50), person_to_meet VARCHAR(200) NOT NULL,
+            reason TEXT NOT NULL, status VARCHAR(20) DEFAULT 'pending',
+            admin_notes TEXT, approved_by INTEGER REFERENCES users(id),
+            approved_at DATETIME,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
+        conn.commit()
+        # Safe column migrations — all in one go, ignore errors (column exists)
+        safe_cols = [
+            ('reservations',    'requested_employee_id', 'INTEGER REFERENCES users(id)'),
+            ('contacts',        'company',               'VARCHAR(200)'),
+            ('contacts',        'job_title',             'VARCHAR(200)'),
+            ('contacts',        'notes',                 'TEXT'),
+            ('contacts',        'department',            'VARCHAR(200)'),
+            ('checklist_items', 'note',                  'TEXT'),
+            ('users',           'job_title',             'VARCHAR(200)'),
+            ('users',           'department',            'VARCHAR(200)'),
+            ('checklists',      'color',                 "VARCHAR(20) DEFAULT '#0C67EC'"),
+            ('checklists',      'emoji',                 "VARCHAR(10) DEFAULT '📋'"),
+            ('role_permissions','can_comment',           'INTEGER DEFAULT 0'),
+            # Announcement new columns (v60)
+            ('announcements',   'modal_size',            "VARCHAR(20) DEFAULT 'medium'"),
+            ('announcements',   'modal_pos',             "VARCHAR(20) DEFAULT 'center'"),
+            ('announcements',   'header_color',          "VARCHAR(30) DEFAULT '#0847B0,#0C67EC'"),
+            # Calendar bookings — free-form date/time columns (v65)
+            ('pi_calendar_bookings', 'booking_date',     'VARCHAR(20)'),
+            ('pi_calendar_bookings', 'start_time',       'VARCHAR(10)'),
+            ('pi_calendar_bookings', 'end_time',         'VARCHAR(10)'),
+            # Hierarchy mode for interview events (v70)
+            ('pi_events', 'use_hierarchy', 'INTEGER DEFAULT 1'),
+            ('pi_slots',  'assignment_id', 'INTEGER REFERENCES pi_teacher_assignments(id)'),
+            # Teacher photo & attachments (v76)
+            ('pi_teachers', 'photo_url',        'VARCHAR(500)'),
+            ('pi_teachers', 'attachments_json',  'TEXT'),
+            # Per-assignment slot duration (v77)
+            ('pi_teacher_assignments', 'slot_duration', 'INTEGER'),
+            # Store original email body for resend (v79)
+            ('email_logs', 'html_body', 'TEXT'),
+        ]
+        for tbl, col, cdef in safe_cols:
             try:
                 conn.execute(text(f'ALTER TABLE {tbl} ADD COLUMN {col} {cdef}'))
                 conn.commit()
             except Exception:
-                pass  # column already exists — safe to ignore
+                pass  # column already exists
     _Session = sessionmaker(bind=_engine, expire_on_commit=False)
     return _engine
 
@@ -291,6 +541,44 @@ class Attachment(Base):
     uploaded_by   = Column(Integer, ForeignKey('users.id'), nullable=True)
     uploader      = relationship('User', foreign_keys=[uploaded_by])
 
+
+# ── Announcements ─────────────────────────────────────────────────────────────
+class Announcement(Base):
+    __tablename__ = 'announcements'
+    id           = Column(Integer, primary_key=True)
+    title_ar     = Column(String(300), nullable=False)
+    title_en     = Column(String(300), nullable=False, default='')
+    body_ar      = Column(Text)
+    body_en      = Column(Text)
+    media_type   = Column(String(20), default='none')   # none / image / video_url / video_file
+    media_url    = Column(Text)                          # URL or base64
+    media_b64    = Column(Text)                          # uploaded image base64
+    target       = Column(String(20), default='all')    # all / role / users
+    target_roles = Column(Text, default='')             # comma-separated role names
+    target_users = Column(Text, default='')             # comma-separated user IDs
+    display_mode = Column(String(20), default='once_session')  # once_session / once_ever / always
+    modal_size   = Column(String(20), default='medium')        # small / medium / large / fullscreen
+    modal_pos    = Column(String(20), default='center')        # center / top / bottom
+    header_color = Column(String(30), default='#0847B0,#0C67EC')  # gradient start,end
+    is_active    = Column(Boolean, default=True)
+    start_date   = Column(DateTime, nullable=True)
+    end_date     = Column(DateTime, nullable=True)
+    created_by   = Column(Integer, ForeignKey('users.id'))
+    created_at   = Column(DateTime, default=datetime.now)
+    creator      = relationship('User', foreign_keys=[created_by])
+    dismissals   = relationship('AnnouncementDismissal', back_populates='announcement',
+                                cascade='all, delete-orphan')
+
+
+class AnnouncementDismissal(Base):
+    """Tracks which users have dismissed which announcements"""
+    __tablename__ = 'announcement_dismissals'
+    id              = Column(Integer, primary_key=True)
+    announcement_id = Column(Integer, ForeignKey('announcements.id', ondelete='CASCADE'))
+    user_id         = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'))
+    dismissed_at    = Column(DateTime, default=datetime.now)
+    announcement    = relationship('Announcement', back_populates='dismissals')
+    user            = relationship('User', foreign_keys=[user_id])
 
 def seed_database(session):
     if session.query(User).count() > 0:
@@ -433,3 +721,212 @@ def seed_database(session):
     except Exception as e:
         session.rollback()
         print(f'⚠️ البيانات التجريبية فشلت (التطبيق يعمل بشكل طبيعي): {e}')
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PARENT INTERVIEWS MODULE
+# ══════════════════════════════════════════════════════════════════════════════
+
+class PIEvent(Base):
+    """Interview Event (e.g. Term 1 Parent-Teacher Interviews)"""
+    __tablename__ = 'pi_events'
+    id              = Column(Integer, primary_key=True)
+    name            = Column(String(200), nullable=False)
+    event_code      = Column(String(20), unique=True, nullable=False)
+    school_name     = Column(String(200))
+    school_logo_url = Column(String(500))
+    brand_color     = Column(String(10), default='#0d6efd')
+    description     = Column(Text)
+    event_date      = Column(String(200))
+    slot_duration   = Column(Integer, default=5)
+    break_duration  = Column(Integer, default=0)
+    allow_comments  = Column(Boolean, default=True)
+    allow_multiple_children = Column(Boolean, default=False)
+    send_reminders  = Column(Boolean, default=True)
+    reminder_hours  = Column(Integer, default=24)
+    is_active       = Column(Boolean, default=True)
+    is_open         = Column(Boolean, default=True)
+    created_by      = Column(Integer, ForeignKey('users.id'))
+    created_at      = Column(DateTime, default=datetime.now)
+    use_hierarchy   = Column(Boolean, default=True)
+    teachers        = relationship('PITeacher', back_populates='event', cascade='all, delete-orphan')
+    stages          = relationship('PISchoolStage', back_populates='event', cascade='all, delete-orphan')
+    assignments     = relationship('PITeacherAssignment', back_populates='event', cascade='all, delete-orphan')
+    creator         = relationship('User', foreign_keys=[created_by])
+
+class PITeacher(Base):
+    """Teacher participating in an interview event"""
+    __tablename__ = 'pi_teachers'
+    id          = Column(Integer, primary_key=True)
+    event_id    = Column(Integer, ForeignKey('pi_events.id'), nullable=False)
+    name        = Column(String(200), nullable=False)
+    email       = Column(String(200))
+    subjects    = Column(String(500))
+    room        = Column(String(100))
+    teacher_code = Column(String(30))
+    photo_url    = Column(String(500))
+    attachments_json = Column(Text)
+    is_active   = Column(Boolean, default=True)
+    created_at  = Column(DateTime, default=datetime.now)
+    event       = relationship('PIEvent', back_populates='teachers')
+    slots       = relationship('PISlot', back_populates='teacher', cascade='all, delete-orphan')
+
+class PISlot(Base):
+    """Individual time slot for a teacher"""
+    __tablename__ = 'pi_slots'
+    id          = Column(Integer, primary_key=True)
+    teacher_id  = Column(Integer, ForeignKey('pi_teachers.id'), nullable=False)
+    event_id    = Column(Integer, ForeignKey('pi_events.id'), nullable=False)
+    slot_date   = Column(String(20), nullable=False)
+    start_time  = Column(String(10), nullable=False)
+    end_time    = Column(String(10), nullable=False)
+    is_break    = Column(Boolean, default=False)
+    is_booked   = Column(Boolean, default=False)
+    assignment_id = Column(Integer, ForeignKey('pi_teacher_assignments.id'), nullable=True)
+    created_at  = Column(DateTime, default=datetime.now)
+    teacher     = relationship('PITeacher', back_populates='slots')
+    assignment  = relationship('PITeacherAssignment', back_populates='slots')
+    booking     = relationship('PIBooking', back_populates='slot', uselist=False)
+
+class PIBooking(Base):
+    """Parent booking record"""
+    __tablename__ = 'pi_bookings'
+    id              = Column(Integer, primary_key=True)
+    slot_id         = Column(Integer, ForeignKey('pi_slots.id'), nullable=False)
+    event_id        = Column(Integer, ForeignKey('pi_events.id'), nullable=False)
+    booking_ref     = Column(String(30), unique=True, nullable=False)
+    parent_name     = Column(String(200), nullable=False)
+    parent_email    = Column(String(200))
+    parent_phone    = Column(String(50))
+    child_name      = Column(String(200), nullable=False)
+    comment         = Column(Text)
+    session_id      = Column(String(100))
+    booked_by_staff = Column(Boolean, default=False)
+    reminder_sent   = Column(Boolean, default=False)
+    status          = Column(String(20), default='confirmed')
+    cancelled_at    = Column(DateTime)
+    created_at      = Column(DateTime, default=datetime.now)
+    slot            = relationship('PISlot', back_populates='booking')
+    event           = relationship('PIEvent')
+
+class PIAppointmentRequest(Base):
+    """General appointment request — parent requests a meeting, admin assigns"""
+    __tablename__ = 'pi_appointment_requests'
+    id              = Column(Integer, primary_key=True)
+    event_id        = Column(Integer, ForeignKey('pi_events.id'), nullable=False)
+    request_code    = Column(String(30), unique=True, nullable=False)
+    parent_name     = Column(String(200), nullable=False)
+    parent_email    = Column(String(200))
+    parent_phone    = Column(String(50))
+    child_name      = Column(String(200), nullable=False)
+    child_grade     = Column(String(50))
+    reason          = Column(Text, nullable=False)
+    preferred_date  = Column(String(20))
+    preferred_time  = Column(String(20))  # e.g. "morning" / "afternoon" or specific HH:MM
+    status          = Column(String(20), default='pending')  # pending/approved/rejected/amended
+    admin_notes     = Column(Text)
+    assigned_slot_id = Column(Integer, ForeignKey('pi_slots.id'), nullable=True)
+    assigned_date   = Column(String(20))
+    assigned_time   = Column(String(10))
+    approved_by     = Column(Integer, ForeignKey('users.id'), nullable=True)
+    approved_at     = Column(DateTime)
+    created_at      = Column(DateTime, default=datetime.now)
+    event           = relationship('PIEvent')
+    assigned_slot   = relationship('PISlot')
+    approver        = relationship('User', foreign_keys=[approved_by])
+
+class PICalendarSlot(Base):
+    """General appointment calendar — blocked periods / breaks managed by admin"""
+    __tablename__ = 'pi_calendar_slots'
+    id          = Column(Integer, primary_key=True)
+    slot_date   = Column(String(20), nullable=False)
+    start_time  = Column(String(10), nullable=False)
+    end_time    = Column(String(10), nullable=False)
+    status      = Column(String(20), default='available')  # available/blocked
+    note        = Column(Text)
+    created_by  = Column(Integer, ForeignKey('users.id'), nullable=True)
+    created_at  = Column(DateTime, default=datetime.now)
+    creator     = relationship('User', foreign_keys=[created_by])
+    bookings    = relationship('PICalendarBooking', back_populates='slot', cascade='all, delete-orphan')
+
+class PICalendarBooking(Base):
+    """Public appointment request — user picks any time within work hours"""
+    __tablename__ = 'pi_calendar_bookings'
+    id              = Column(Integer, primary_key=True)
+    slot_id         = Column(Integer, ForeignKey('pi_calendar_slots.id'), nullable=True)  # kept for backwards compat
+    booking_date    = Column(String(20))   # date picked by user (YYYY-MM-DD)
+    start_time      = Column(String(10))   # from time picked by user (HH:MM)
+    end_time        = Column(String(10))   # to time picked by user (HH:MM)
+    request_code    = Column(String(30), unique=True, nullable=False)
+    requester_name  = Column(String(200), nullable=False)
+    requester_email = Column(String(200))
+    requester_phone = Column(String(50))
+    person_to_meet  = Column(String(200), nullable=False)
+    reason          = Column(Text, nullable=False)
+    status          = Column(String(20), default='pending')  # pending/approved/rejected
+    admin_notes     = Column(Text)
+    approved_by     = Column(Integer, ForeignKey('users.id'), nullable=True)
+    approved_at     = Column(DateTime)
+    created_at      = Column(DateTime, default=datetime.now)
+    slot            = relationship('PICalendarSlot', back_populates='bookings')
+    approver        = relationship('User', foreign_keys=[approved_by])
+
+# ── Hierarchy models for structured interview events ──────────────────────────
+
+class PISchoolStage(Base):
+    """School stage (e.g. Primary, Middle, High)"""
+    __tablename__ = 'pi_school_stages'
+    id          = Column(Integer, primary_key=True)
+    event_id    = Column(Integer, ForeignKey('pi_events.id'), nullable=False)
+    name        = Column(String(100), nullable=False)
+    name_ar     = Column(String(100))
+    sort_order  = Column(Integer, default=0)
+    created_at  = Column(DateTime, default=datetime.now)
+    event       = relationship('PIEvent', back_populates='stages')
+    classes     = relationship('PISchoolClass', back_populates='stage', cascade='all, delete-orphan',
+                               order_by='PISchoolClass.sort_order')
+
+class PISchoolClass(Base):
+    """Class within a stage (e.g. Grade 1, Grade 2)"""
+    __tablename__ = 'pi_school_classes'
+    id          = Column(Integer, primary_key=True)
+    stage_id    = Column(Integer, ForeignKey('pi_school_stages.id'), nullable=False)
+    event_id    = Column(Integer, ForeignKey('pi_events.id'), nullable=False)
+    name        = Column(String(100), nullable=False)
+    name_ar     = Column(String(100))
+    sort_order  = Column(Integer, default=0)
+    created_at  = Column(DateTime, default=datetime.now)
+    stage       = relationship('PISchoolStage', back_populates='classes')
+    sections    = relationship('PISection', back_populates='school_class', cascade='all, delete-orphan',
+                               order_by='PISection.sort_order')
+
+class PISection(Base):
+    """Section within a class (e.g. A, B, C)"""
+    __tablename__ = 'pi_sections'
+    id          = Column(Integer, primary_key=True)
+    class_id    = Column(Integer, ForeignKey('pi_school_classes.id'), nullable=False)
+    event_id    = Column(Integer, ForeignKey('pi_events.id'), nullable=False)
+    name        = Column(String(20), nullable=False)
+    sort_order  = Column(Integer, default=0)
+    created_at  = Column(DateTime, default=datetime.now)
+    school_class = relationship('PISchoolClass', back_populates='sections')
+    assignments = relationship('PITeacherAssignment', back_populates='section', cascade='all, delete-orphan')
+
+class PITeacherAssignment(Base):
+    """Links a teacher to a specific section+course within an event"""
+    __tablename__ = 'pi_teacher_assignments'
+    id              = Column(Integer, primary_key=True)
+    event_id        = Column(Integer, ForeignKey('pi_events.id'), nullable=False)
+    teacher_id      = Column(Integer, ForeignKey('pi_teachers.id'), nullable=False)
+    section_id      = Column(Integer, ForeignKey('pi_sections.id'), nullable=False)
+    course_name     = Column(String(200), nullable=False)
+    course_name_ar  = Column(String(200))
+    room            = Column(String(100))
+    assignment_code = Column(String(30), unique=True, nullable=False)
+    slot_duration   = Column(Integer)
+    is_active       = Column(Boolean, default=True)
+    created_at      = Column(DateTime, default=datetime.now)
+    event           = relationship('PIEvent', back_populates='assignments')
+    teacher         = relationship('PITeacher')
+    section         = relationship('PISection', back_populates='assignments')
+    slots           = relationship('PISlot', back_populates='assignment')

@@ -18,7 +18,7 @@
 </div>
 
 <div class="card">
-  <div class="card-header">{{ _('📧 إرسال بريد إلكتروني للمستخدمين') }}</div>
+  <div class="card-header">{% if current_lang=='en' %}📧 Send Email to Users{% else %}📧 إرسال بريد إلكتروني للمستخدمين{% endif %}</div>
   <div class="card-body">
     <form method="POST" enctype="multipart/form-data" id="msgForm">
       <div class="row g-3">
@@ -34,8 +34,10 @@
         <div class="col-12">
           <label class="form-label fw-bold">{{ _('نص الرسالة') }} *</label>
           <div class="d-flex gap-2 mb-1">
-            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleEditorMode()">
-              <i class="bi bi-code-slash me-1"></i><span id="editorModeLabel">{{ _('تبديل لنص عادي') }}</span>
+            <button type="button" id="toggleEditorBtn"
+                    onclick="toggleEditorMode()"
+                    style="background:#f0f4ff;color:#0C67EC;border:1.5px solid #c5d8ff;border-radius:8px;padding:4px 12px;font-size:.8rem;font-weight:600;cursor:pointer">
+              <i class="bi bi-code-slash me-1"></i><span id="editorModeLabel">{% if current_lang=='en' %}Switch to Plain Text{% else %}تبديل لنص عادي{% endif %}</span>
             </button>
           </div>
           <!-- Quill editor -->
@@ -72,7 +74,7 @@
               <input class="form-check-input" type="radio" name="recipient"
                      value="all" id="recpAll" checked onchange="toggleRecipient('all')">
               <label class="form-check-label" for="recpAll">
-                {{ _('جميع المستخدمين النشطين') }} ({{ users|length }})
+                {% if current_lang=='en' %}All Active Users{% else %}جميع المستخدمين النشطين{% endif %} ({{ users|length }})
               </label>
             </div>
             {% if groups %}
@@ -88,7 +90,7 @@
             <div class="form-check">
               <input class="form-check-input" type="radio" name="recipient"
                      value="selected" id="recpSel" onchange="toggleRecipient('selected')">
-              <label class="form-check-label" for="recpSel">{{ _('مستخدمون محددون') }}</label>
+              <label class="form-check-label" for="recpSel">{% if current_lang=='en' %}Selected Users{% else %}مستخدمون محددون{% endif %}</label>
             </div>
           </div>
 
@@ -97,7 +99,7 @@
             <select name="group_id" class="form-select">
               <option value="">{{ _('اختر مجموعة...') }}</option>
               {% for g in groups %}
-              <option value="{{ g.id }}">{{ g.name }} ({{ g.users|length }} {{ _('مستخدم') }})</option>
+              <option value="{{ g.id }}">{{ g.name }} ({{ g.users|length }} {% if current_lang=='en' %}users{% else %}مستخدم{% endif %})</option>
               {% endfor %}
             </select>
           </div>
@@ -123,14 +125,19 @@
         </div>
       </div>
 
-      <div class="mt-4 d-flex gap-2">
-        <button type="submit" class="btn btn-success px-4" onclick="prepareSubmit(event)">
-          <i class="bi bi-send me-1"></i>{{ _('إرسال') }}
+      <div class="mt-4">
+        <button type="submit" class="btn btn-success w-100 mb-2 py-2"
+                style="font-size:.95rem;font-weight:700" onclick="prepareSubmit(event)">
+          <i class="bi bi-send me-2"></i>{{ _('إرسال') }}
         </button>
-        <button type="button" class="btn btn-outline-info px-3" onclick="previewMessage()">
-          <i class="bi bi-eye me-1"></i>{{ _('معاينة') }}
-        </button>
-        <a href="{{ url_for('users.index') }}" class="btn btn-secondary px-4">{{ _('إلغاء') }}</a>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-info flex-fill" onclick="previewMessage()">
+            <i class="bi bi-eye me-1"></i>{{ _('معاينة') }}
+          </button>
+          <a href="{{ url_for('users.index') }}" class="btn btn-outline-secondary flex-fill">
+            {{ _('إلغاء') }}
+          </a>
+        </div>
       </div>
     </form>
   </div>
@@ -188,7 +195,7 @@ function toggleEditorMode() {
   document.getElementById('quillWrapper').style.display = isHtmlMode ? 'block' : 'none';
   document.getElementById('plainBody').style.display   = isHtmlMode ? 'none' : 'block';
   document.getElementById('editorModeLabel').textContent = isHtmlMode
-    ? '{{ _("تبديل لنص عادي") }}'
+    ? '{% if current_lang=="en" %}Switch to Plain Text{% else %}تبديل لنص عادي{% endif %}'
     : '{{ _("تبديل للمحرر الغني") }}';
 }
 

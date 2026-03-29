@@ -1,0 +1,74 @@
+{%- set ar = (current_lang == 'ar') -%}
+{% extends 'interviews/_public_base.html' %}
+{% block title %}{% if ar %}طلب موعد{% else %}Request Appointment{% endif %}{% endblock %}
+
+{% block pi_ticker %}{% endblock %}
+{% block nav_action %}
+<a href="{{ url_for('interviews.book_welcome') }}" class="btn-pi-outline btn btn-sm px-3" style="font-size:.82rem">
+  <i class="bi bi-arrow-{{ 'right' if ar else 'left' }} me-1"></i>{% if ar %}رجوع{% else %}Back{% endif %}
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="row justify-content-center">
+    <div class="col-12 col-md-7 col-lg-5">
+      <div class="pi-card p-4 p-md-5">
+        <div class="text-center mb-4">
+          <div style="width:64px;height:64px;border-radius:20px;background:var(--bc-light);color:var(--bc);display:flex;align-items:center;justify-content:center;font-size:1.8rem;margin:0 auto 16px">
+            <i class="bi bi-calendar-plus"></i>
+          </div>
+          <h4 class="fw-800" style="color:#0f172a">{% if ar %}طلب موعد عام{% else %}General Appointment Request{% endif %}</h4>
+          <p style="color:#64748b;font-size:.9rem">{% if ar %}أرسل طلبك وسيتم مراجعته من الإدارة{% else %}Submit your request and admin will review it{% endif %}</p>
+        </div>
+
+        <form method="post">
+          <div class="mb-3">
+            <label class="pi-label">{% if ar %}اسم ولي الأمر{% else %}Parent Name{% endif %} <span class="text-danger">*</span></label>
+            <input type="text" name="parent_name" class="pi-input" required>
+          </div>
+          <div class="mb-3">
+            <label class="pi-label">{% if ar %}البريد الإلكتروني{% else %}Email{% endif %}</label>
+            <input type="email" name="parent_email" class="pi-input">
+          </div>
+          <div class="mb-3">
+            <label class="pi-label">{% if ar %}رقم الهاتف{% else %}Phone{% endif %}</label>
+            <input type="tel" name="parent_phone" class="pi-input">
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-6">
+              <label class="pi-label">{% if ar %}اسم الطالب{% else %}Child Name{% endif %} <span class="text-danger">*</span></label>
+              <input type="text" name="child_name" class="pi-input" required>
+            </div>
+            <div class="col-6">
+              <label class="pi-label">{% if ar %}الصف{% else %}Grade{% endif %}</label>
+              <input type="text" name="child_grade" class="pi-input">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="pi-label">{% if ar %}سبب الطلب{% else %}Reason{% endif %} <span class="text-danger">*</span></label>
+            <textarea name="reason" class="pi-input" rows="3" required placeholder="{% if ar %}وضّح سبب طلبك للموعد...{% else %}Explain why you need this appointment...{% endif %}"></textarea>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-6">
+              <label class="pi-label">{% if ar %}التاريخ المفضل{% else %}Preferred Date{% endif %}</label>
+              <input type="date" name="preferred_date" class="pi-input">
+            </div>
+            <div class="col-6">
+              <label class="pi-label">{% if ar %}الوقت المفضل{% else %}Preferred Time{% endif %}</label>
+              <select name="preferred_time" class="pi-input">
+                <option value="">{% if ar %}أي وقت{% else %}Any time{% endif %}</option>
+                <option value="morning">{% if ar %}صباحاً (08:00-12:00){% else %}Morning (08:00-12:00){% endif %}</option>
+                <option value="afternoon">{% if ar %}مساءً (12:00-16:00){% else %}Afternoon (12:00-16:00){% endif %}</option>
+              </select>
+            </div>
+          </div>
+          <button type="submit" class="btn-pi btn w-100 mt-2">
+            <i class="bi bi-send me-2"></i>{% if ar %}إرسال الطلب{% else %}Submit Request{% endif %}
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

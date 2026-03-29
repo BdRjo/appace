@@ -100,56 +100,61 @@
 
 <!-- ─── HERO ─────────────────────────────────────────────────────────────── -->
 <div class="ws-hero">
-  <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+  <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
     <div>
-      <div class="ws-greeting" id="wsGreeting">{{ _('مرحباً 👋') }}</div>
+      <div class="ws-greeting" id="wsGreeting">{% if current_lang=='en' %}Welcome 👋{% else %}مرحباً 👋{% endif %}</div>
       <div class="ws-date" id="wsDate"></div>
     </div>
-    <!-- Stats -->
-    <div class="d-flex align-items-center gap-3">
-      <div class="ws-stat">
-        <div class="n" id="statTotal">{{ checklists|length }}</div>
-        <div class="l"><span>{{ _('قوائمي') }}</div>
+    <!-- Stats + controls -->
+    <div class="d-flex align-items-center flex-wrap gap-2">
+      <div class="d-flex align-items-center gap-3">
+        <div class="ws-stat">
+          <div class="n" id="statTotal">{{ checklists|length }}</div>
+          <div class="l"><span>{% if current_lang=='en' %}My Lists{% else %}قوائمي{% endif %}</div>
+        </div>
+        <div class="ws-stat-sep"></div>
+        <div class="ws-stat">
+          <div class="n" id="statItems">{% set all_items = namespace(v=0) %}{% for cl in checklists %}{% set all_items.v = all_items.v + (cl.items|length) %}{% endfor %}{{ all_items.v }}</div>
+          <div class="l">{% if current_lang=='en' %}Tasks{% else %}مهمة{% endif %}</div>
+        </div>
+        <div class="ws-stat-sep"></div>
+        <div class="ws-stat">
+          {% set done_total = namespace(v=0) %}
+          {% for cl in checklists %}{% set done_total.v = done_total.v + (cl.items|selectattr('is_checked')|list|length) %}{% endfor %}
+          <div class="n">{{ done_total.v }}</div>
+          <div class="l"><span>{% if current_lang=='en' %}Done{% else %}مكتملة{% endif %}</div>
+        </div>
+        <div class="ws-stat-sep d-none d-md-block"></div>
+        <div class="ws-stat d-none d-md-block">
+          {% set all_items = namespace(v=0) %}
+          {% for cl in checklists %}{% set all_items.v = all_items.v + (cl.items|length) %}{% endfor %}
+          {% set pct = ((done_total.v / all_items.v * 100)|int) if all_items.v > 0 else 0 %}
+          <div class="n">{{ pct }}%</div>
+          <div class="l">{% if current_lang=='en' %}Progress{% else %}إنجاز كلي{% endif %}</div>
+        </div>
       </div>
-      <div class="ws-stat-sep"></div>
-      <div class="ws-stat">
-        <div class="n" id="statItems">{{ checklists|sum(attribute='items') }}</div>
-        <div class="l">{{ _('مهمة') }}</div>
+      <!-- View toggle + New button -->
+      <div class="d-flex align-items-center gap-2">
+        <div class="btn-group btn-group-sm" role="group">
+          <button type="button" class="btn" id="btnCardView"
+                  style="background:rgba(255,255,255,.25);color:#fff;border:1px solid rgba(255,255,255,.4)"
+                  title="{% if current_lang=='en' %}Card View{% else %}عرض بطاقات{% endif %}">
+            <i class="bi bi-grid-3x3-gap"></i>
+          </button>
+          <button type="button" class="btn" id="btnTableView"
+                  style="background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.3)"
+                  title="{% if current_lang=='en' %}Table View{% else %}عرض جدول{% endif %}">
+            <i class="bi bi-table"></i>
+          </button>
+        </div>
+        {% if perms.can('checklists_add') %}
+        <a href="{{ url_for('checklists.new') }}"
+           style="background:var(--ws-gold);color:#fff;border:none;border-radius:10px;font-weight:700;white-space:nowrap;padding:7px 16px;font-size:.85rem;text-decoration:none;display:inline-flex;align-items:center;gap:4px">
+          <i class="bi bi-plus-lg"></i>
+          <span>{% if current_lang=='en' %}New List{% else %}قائمة جديدة{% endif %}</span>
+        </a>
+        {% endif %}
       </div>
-      <div class="ws-stat-sep"></div>
-      <div class="ws-stat">
-        {% set done_total = namespace(v=0) %}
-        {% for cl in checklists %}{% set done_total.v = done_total.v + (cl.items|selectattr('is_checked')|list|length) %}{% endfor %}
-        <div class="n">{{ done_total.v }}</div>
-        <div class="l"><span>{% if current_lang=='en' %}Done{% else %}مكتملة{% endif %}</div>
-      </div>
-      <div class="ws-stat-sep d-none d-md-block"></div>
-      <div class="ws-stat d-none d-md-block">
-        {% set all_items = namespace(v=0) %}
-        {% for cl in checklists %}{% set all_items.v = all_items.v + (cl.items|length) %}{% endfor %}
-        {% set pct = ((done_total.v / all_items.v * 100)|int) if all_items.v > 0 else 0 %}
-        <div class="n">{{ pct }}%</div>
-        <div class="l">{{ _('إنجاز كلي') }}</div>
-      </div>
-      <!-- View toggle -->
-      <div class="btn-group btn-group-sm ms-2" role="group">
-        <button type="button" class="btn" id="btnCardView"
-                style="background:rgba(255,255,255,.25);color:#fff;border:1px solid rgba(255,255,255,.4)"
-                onclick="setView('card')" title="{{ _('عرض بطاقات') }}">
-          <i class="bi bi-grid-3x3-gap"></i>
-        </button>
-        <button type="button" class="btn" id="btnTableView"
-                style="background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.3)"
-                onclick="setView('table')" title="{{ _('عرض جدول') }}">
-          <i class="bi bi-table"></i>
-        </button>
-      </div>
-      {% if perms.can('checklists_add') %}
-      <a href="{{ url_for('checklists.new') }}" class="btn btn-sm ms-2"
-         style="background:var(--ws-gold);color:#fff;border:none;border-radius:10px;font-weight:700;white-space:nowrap">
-        <i class="bi bi-plus-lg me-1"></i>{{ _('قائمة جديدة') }}
-      </a>
-      {% endif %}
     </div>
   </div>
 </div>
@@ -157,22 +162,22 @@
 <!-- Table View (hidden by default) -->
 <div id="clTableView" style="display:none" class="card mb-4">
   <div class="card-header d-flex justify-content-between align-items-center">
-    <span><i class="bi bi-table me-2"></i>{{ _('عرض الجدول') }}</span>
+    <span><i class="bi bi-table me-2"></i>{% if current_lang=='en' %}Table View{% else %}عرض الجدول{% endif %}</span>
     <input type="text" id="clSearch" class="form-control form-control-sm" style="max-width:220px"
-           placeholder="{{ _('بحث...') }}" oninput="filterTable(this.value)">
+           placeholder="{% if current_lang=='en' %}Search...{% else %}بحث...{% endif %}" oninput="filterTable(this.value)">
   </div>
   <div class="card-body p-0">
     <div class="table-responsive">
       <table class="table table-hover mb-0" id="clTable">
         <thead><tr>
           <th>#</th>
-          <th>{{ _('القائمة') }}</th>
-          <th>{{ _('المهام') }}</th>
-          <th>{{ _('مكتملة') }}</th>
-          <th>{{ _('نسبة الإنجاز') }}</th>
-          <th>{{ _('المنشئ') }}</th>
-          <th>{{ _('الحالة') }}</th>
-          <th>{{ _('إجراءات') }}</th>
+          <th>{% if current_lang=='en' %}List{% else %}القائمة{% endif %}</th>
+          <th>{% if current_lang=='en' %}Tasks{% else %}المهام{% endif %}</th>
+          <th>{% if current_lang=='en' %}Done{% else %}مكتملة{% endif %}</th>
+          <th>{% if current_lang=='en' %}Progress{% else %}نسبة الإنجاز{% endif %}</th>
+          <th>{% if current_lang=='en' %}Creator{% else %}المنشئ{% endif %}</th>
+          <th>{% if current_lang=='en' %}Status{% else %}الحالة{% endif %}</th>
+          <th>{% if current_lang=='en' %}Actions{% else %}إجراءات{% endif %}</th>
         </tr></thead>
         <tbody>
           {% for cl in checklists %}
@@ -200,11 +205,11 @@
             <td><small class="text-muted">{{ cl.creator.full_name if cl.creator else '—' }}</small></td>
             <td>
               <span class="badge {% if cl.is_public %}bg-success{% else %}bg-secondary{% endif %} rounded-pill">
-                {% if cl.is_public %}{{ _('عامة') }}{% else %}{{ _('خاصة') }}{% endif %}
+                {% if cl.is_public %}{% if current_lang=='en' %}Public{% else %}عامة{% endif %}{% else %}{% if current_lang=='en' %}Private{% else %}خاصة{% endif %}{% endif %}
               </span>
             </td>
             <td onclick="event.stopPropagation()">
-              <a href="{{ url_for('checklists.detail', cl_id=cl.id) }}" class="btn btn-sm btn-outline-primary" title="{{ _('فتح') }}">
+              <a href="{{ url_for('checklists.detail', cl_id=cl.id) }}" class="btn btn-sm btn-outline-primary" title="{% if current_lang=='en' %}Open{% else %}فتح{% endif %}">
                 <i class="bi bi-arrow-right-circle"></i>
               </a>
             </td>
@@ -227,7 +232,7 @@
     {% set pub_lists = checklists|rejectattr('created_by_id','eq', current_user.id)|list %}
 
     {% if my_lists %}
-    <div class="ws-section-title"><i class="bi bi-person-check"></i>{{ _('قوائمي الشخصية') }}</div>
+    <div class="ws-section-title"><i class="bi bi-person-check"></i>{% if current_lang=='en' %}My Lists{% else %}قوائمي الشخصية{% endif %}</div>
     <div class="row g-3 mb-3">
       {% for cl in my_lists %}
       {% set total = cl.items|length %}
@@ -236,7 +241,7 @@
       <div class="col-sm-6 col-xl-4">
         <a href="{{ url_for('checklists.detail', cl_id=cl.id) }}" class="cl-card">
           <div class="cl-card-top" style="background:linear-gradient(135deg,{{ cl.color or '#0C67EC' }},color-mix(in srgb,{{ cl.color or '#0C67EC' }} 70%,#000))">
-            {% if not cl.is_public %}<span class="cl-card-badge"><i class="bi bi-lock me-1"></i>{{ _('خاص') }}{% endif %}
+            {% if not cl.is_public %}<span class="cl-card-badge"><i class="bi bi-lock me-1"></i>{% if current_lang=='en' %}Private{% else %}خاص{% endif %}{% endif %}
             {{ cl.emoji or '📋' }}
             <div class="cl-card-name">{{ cl.name }}</div>
             {% if cl.description %}<div class="cl-card-desc">{{ cl.description }}</div>{% endif %}
@@ -257,7 +262,7 @@
       <div class="col-sm-6 col-xl-4">
         <a href="{{ url_for('checklists.new') }}" class="new-cl-btn">
           <i class="bi bi-plus-circle fs-2 mb-2"></i>
-          <span class="small fw-bold">{{ _('قائمة جديدة') }}
+          <span class="small fw-bold">{% if current_lang=='en' %}New List{% else %}قائمة جديدة{% endif %}
         </a>
       </div>
       {% endif %}
@@ -403,16 +408,18 @@ fetch('/checklists/upcoming')
     ul.innerHTML = d.items.map(item => {
       const prioColors = {1:'#059669',2:'#ea580c',3:'#be123c'};
       const dotColor = prioColors[item.priority] || '#aaa';
-      return `<div class="due-item ${item.overdue?'overdue':''}">
-        <div class="due-dot" style="background:${dotColor}"></div>
-        <div style="flex:1;min-width:0">
-          <div class="text-truncate" style="font-size:.82rem;font-weight:500">${item.content}</div>
-          <div style="font-size:.7rem;color:#888">${item.cl_name}</div>
+      return `<a href="/checklists/${item.cl_id}" class="text-decoration-none" style="display:block">
+        <div class="due-item ${item.overdue?'overdue':''}" style="cursor:pointer;transition:.15s;border-radius:8px;padding:6px 8px;margin-bottom:4px;background:${item.overdue?'#fff5f5':'#f8fbff'}">
+          <div class="due-dot" style="background:${dotColor}"></div>
+          <div style="flex:1;min-width:0">
+            <div class="text-truncate" style="font-size:.82rem;font-weight:600;color:#1a2e44">${item.content}</div>
+            <div style="font-size:.7rem;color:#0C67EC">${item.cl_name}</div>
+          </div>
+          <div style="font-size:.7rem;color:${item.overdue?'#c62828':'#888'};white-space:nowrap">
+            ${item.overdue ? '⚠️ ' : '📅 '}${item.due}
+          </div>
         </div>
-        <div style="font-size:.7rem;color:${item.overdue?'#c62828':'#888'};white-space:nowrap">
-          ${item.overdue ? '⚠️ ' : ''}${item.due}
-        </div>
-      </div>`;
+      </a>`;
     }).join('');
   });
 
@@ -444,6 +451,10 @@ function filterTable(q) {
 // Restore last view mode
 const savedView = localStorage.getItem('cl_view_mode');
 if (savedView === 'table') setView('table');
+
+// Attach view toggle buttons after DOM ready
+document.getElementById('btnCardView')?.addEventListener('click', () => setView('card'));
+document.getElementById('btnTableView')?.addEventListener('click', () => setView('table'));
 
 // ── Export all lists CSV ─────────────────────────────────────────────────────
 function exportAllCSV() {

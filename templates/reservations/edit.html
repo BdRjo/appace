@@ -1,27 +1,41 @@
 {% extends 'base.html' %}
-{% block title %}تعديل الحجز — {{ res.booking_number }}{% endblock %}
+{% block title %}{% if current_lang=='en' %}Edit Booking — {{ res.booking_number }}{% else %}تعديل الحجز — {{ res.booking_number }}{% endif %}{% endblock %}
 {% block content %}
-<div class="page-header">
-  <h4>{{ _('✏️ تعديل الحجز —') }}{{ res.booking_number }}</h4>
-  {% if res.status == 'approved' %}
-  <div class="alert alert-warning mt-2">
-    {{ _('⚠️ هذا الحجز موافق عليه — سيتم إرجاعه لحالة') }} <strong>{{ _('معلق') }}</strong> {{ _('بعد التعديل لإعادة المراجعة') }}
-  </div>
-  {% endif %}
+
+<div class="page-header d-flex align-items-center gap-2">
+  <a href="{{ url_for('reservations.detail', res_id=res.id) }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-{% if current_lang=='en' %}left{% else %}right{% endif %} me-1"></i>
+    {% if current_lang=='en' %}Back{% else %}رجوع{% endif %}
+  </a>
+  <h4 style="margin:0">
+    <i class="bi bi-pencil me-2"></i>
+    {% if current_lang=='en' %}Edit Booking — {{ res.booking_number }}{% else %}تعديل الحجز — {{ res.booking_number }}{% endif %}
+  </h4>
 </div>
 
-<div class="card">
-  <div class="card-body">
+{% if res.status == 'approved' %}
+<div class="alert alert-warning d-flex align-items-center gap-2 mt-2">
+  <i class="bi bi-exclamation-triangle-fill"></i>
+  {% if current_lang=='en' %}
+    This booking is <strong>Approved</strong> — editing will return it to <strong>Pending</strong> for re-review.
+  {% else %}
+    هذا الحجز <strong>موافق عليه</strong> — سيتم إرجاعه لحالة <strong>معلق</strong> بعد التعديل لإعادة المراجعة.
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="card" style="border-radius:16px;border:none;box-shadow:0 2px 16px rgba(12,103,236,.09)">
+  <div class="card-body p-4">
     <form method="POST">
       <div class="row g-3">
-        <div class="col-md-12">
-          <label class="form-label fw-bold">{{ _('عنوان الحجز') }}*</label>
+        <div class="col-12">
+          <label class="form-label fw-bold">{% if current_lang=='en' %}Booking Title{% else %}عنوان الحجز{% endif %} *</label>
           <input type="text" name="title" class="form-control" value="{{ res.title }}" required>
         </div>
         <div class="col-md-6">
-          <label class="form-label fw-bold">{{ _('القاعة') }} *</label>
+          <label class="form-label fw-bold">{% if current_lang=='en' %}Venue{% else %}القاعة{% endif %} *</label>
           <select name="venue_id" class="form-select" required>
-            <option value="">{{ _('اختر القاعة...') }}</option>
+            <option value="">{% if current_lang=='en' %}Select venue...{% else %}اختر القاعة...{% endif %}</option>
             {% for v in venues %}
             <option value="{{ v.id }}" {% if v.id == res.venue_id %}selected{% endif %}>
               {{ v.name }}{% if v.location %} — {{ v.location.name }}{% endif %}
@@ -29,24 +43,43 @@
             {% endfor %}
           </select>
         </div>
-        <div class="col-md-3">
-          <label class="form-label fw-bold">{{ _('وقت البداية') }}*</label>
+        <div class="col-md-6">
+          <label class="form-label fw-bold">
+            <i class="bi bi-person-badge me-1" style="color:#0C67EC"></i>
+            {% if current_lang=='en' %}Requested Employee{% else %}الموظف المطلوب{% endif %}
+            <span class="text-muted fw-normal small">({% if current_lang=='en' %}optional{% else %}اختياري{% endif %})</span>
+          </label>
+          <select name="requested_employee_id" class="form-select">
+            <option value="">— {% if current_lang=='en' %}No specific employee{% else %}بدون موظف محدد{% endif %}</option>
+            {% for u in employees %}
+            <option value="{{ u.id }}" {% if res.requested_employee_id == u.id %}selected{% endif %}>
+              {{ u.full_name or u.username }}{% if u.job_title %} — {{ u.job_title }}{% endif %}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold">{% if current_lang=='en' %}Start Time{% else %}وقت البداية{% endif %} *</label>
           <input type="datetime-local" name="start_time" class="form-control"
                  value="{{ res.start_time.strftime('%Y-%m-%dT%H:%M') if res.start_time else '' }}" required>
         </div>
-        <div class="col-md-3">
-          <label class="form-label fw-bold">{{ _('وقت الانتهاء') }}*</label>
+        <div class="col-md-6">
+          <label class="form-label fw-bold">{% if current_lang=='en' %}End Time{% else %}وقت الانتهاء{% endif %} *</label>
           <input type="datetime-local" name="end_time" class="form-control"
                  value="{{ res.end_time.strftime('%Y-%m-%dT%H:%M') if res.end_time else '' }}" required>
         </div>
         <div class="col-12">
-          <label class="form-label fw-bold">{{ _('ملاحظات') }}</label>
+          <label class="form-label fw-bold">{% if current_lang=='en' %}Notes{% else %}ملاحظات{% endif %}</label>
           <textarea name="notes" class="form-control" rows="3">{{ res.requester_notes or '' }}</textarea>
         </div>
       </div>
-      <div class="mt-4 d-flex gap-2">
-        <button type="submit" class="btn btn-primary px-4">{{ _('💾 حفظ التعديلات') }}</button>
-        <a href="{{ url_for('reservations.detail', res_id=res.id) }}" class="btn btn-secondary px-4">{{ _('إلغاء') }}</a>
+      <div class="mt-4">
+        <button type="submit" class="btn btn-primary w-100 mb-2 py-2" style="font-size:.95rem;font-weight:700">
+          <i class="bi bi-check-lg me-2"></i>{% if current_lang=='en' %}Save Changes{% else %}💾 حفظ التعديلات{% endif %}
+        </button>
+        <a href="{{ url_for('reservations.detail', res_id=res.id) }}" class="btn btn-outline-secondary w-100">
+          {% if current_lang=='en' %}Cancel{% else %}إلغاء{% endif %}
+        </a>
       </div>
     </form>
   </div>

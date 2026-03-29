@@ -83,6 +83,44 @@ _FLASH_MAP = {
     'يرجى تحديد الفترة الزمنية': 'Please specify the time period',
     'يرجى رفع ملف CSV': 'Please upload a CSV file',
     'أدخل بريداً إلكترونياً للاختبار': 'Enter an email address for testing',
+    # ── Admin email & maintenance ──
+    '✅ تم حفظ إعدادات البريد الإلكتروني': '✅ Email settings saved successfully',
+    '✅ تم الحفظ': '✅ Saved',
+    '✅ تم تحديث إعدادات الصيانة': '✅ Maintenance settings updated',
+    '✅ تم تحسين قاعدة البيانات': '✅ Database optimized',
+    'السجل غير موجود': 'Record not found',
+    '❌ فشلت إعادة الإرسال — تحقق من إعدادات البريد': '❌ Resend failed — check email settings',
+    '🗑️ تم حذف السجل': '🗑️ Record deleted',
+    'بيانات غير صحيحة': 'Invalid data',
+    '❌ فشل التوجيه — تحقق من إعدادات البريد': '❌ Forwarding failed — check email settings',
+    # ── Announcements ──
+    '✅ تم إنشاء الإعلان': '✅ Announcement created',
+    '✅ تم تحديث الإعلان': '✅ Announcement updated',
+    '🗑️ تم حذف الإعلان': '🗑️ Announcement deleted',
+    'العنوان العربي مطلوب': 'Arabic title is required',
+    '✅ تم إعادة تعيين الإعلان — سيظهر لجميع المستخدمين مرة أخرى': '✅ Announcement reset — will appear for all users again',
+    # ── Groups ──
+    'اسم المجموعة مطلوب': 'Group name is required',
+    '✅ تم حفظ التعديلات': '✅ Changes saved',
+    # ── Checklists ──
+    '✅ تم تحديث القائمة': '✅ Checklist updated',
+    # ── Settings ──
+    '✅ تم حفظ الإعدادات': '✅ Settings saved',
+    # ── Auth ──
+    'كلمة المرور يجب أن تكون 8 أحرف على الأقل': 'Password must be at least 8 characters',
+    # ── Backoffice ──
+    'غير مصرح': 'Unauthorized',
+    'هذا الجدول للقراءة فقط': 'This table is read-only',
+    '✅ تم إضافة السجل': '✅ Record added',
+    # ── Comments ──
+    'ليس لديك صلاحية إضافة تعليقات': 'You do not have permission to add comments',
+    'التعليق لا يمكن أن يكون فارغاً': 'Comment cannot be empty',
+    'تم إضافة التعليق بنجاح': 'Comment added successfully',
+    'تم حذف التعليق': 'Comment deleted',
+    # ── CP ──
+    'الصفحة غير موجودة': 'Page not found',
+    '✅ تم إعادة الإعدادات الافتراضية': '✅ Default settings restored',
+    '✅ تم إعادة جميع الإعدادات': '✅ All settings restored',
 }
 
 def flash_msg(ar_text, category='info'):

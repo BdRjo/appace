@@ -3,10 +3,14 @@
 {% block extra_css %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-.stat-card .lbl { font-size:.82rem; font-weight:800; text-shadow:0 1px 4px rgba(0,0,0,.45); opacity:1 !important; letter-spacing:.3px; }
-.stat-card .num { font-size:2.2rem; font-weight:900; line-height:1; text-shadow:0 2px 6px rgba(0,0,0,.3); }
-.stat-card { min-height:100px !important; height:100% !important; display:flex !important; flex-direction:column !important; justify-content:center !important; }
-.col-6.col-md-3 { display:flex; flex-direction:column; }
+.stat-card{border-radius:16px;padding:24px;color:#fff;
+  transition:all .2s;min-height:100px!important;height:100%!important;display:flex!important;
+  flex-direction:column!important;justify-content:center!important;cursor:pointer}
+.stat-card:hover{transform:translateY(-3px);box-shadow:0 6px 24px rgba(0,0,0,.18)}
+.stat-card .num{font-size:2.2rem;font-weight:900;line-height:1;text-shadow:0 2px 6px rgba(0,0,0,.3)}
+.stat-card .lbl{font-size:.82rem;font-weight:800;text-shadow:0 1px 4px rgba(0,0,0,.45);
+  opacity:1!important;letter-spacing:.3px;margin-top:6px}
+.col-6.col-md-3{display:flex;flex-direction:column}
 </style>
 {% endblock %}
 {% block content %}
@@ -25,59 +29,27 @@
   </div>
 </div>
 
-<!-- Quick Stats Row 1 -->
+<!-- Quick Stats — 2 rows × 4 cards -->
+{%- set en = (current_lang == 'en') -%}
 <div class="row g-3 mb-4">
+  {%- for href, icon, grad, num, lbl in [
+    (url_for('reservations.index'), 'calendar3', 'linear-gradient(135deg,#0C67EC,#3D8EF5)', stats.total, ('Total Reservations' if en else 'إجمالي الحجوزات')),
+    (url_for('reservations.index') ~ '?status=pending', 'hourglass-split', 'linear-gradient(135deg,#E67E22,#F39C12)', stats.pending, ('Pending' if en else 'معلقة')),
+    (url_for('reservations.index') ~ '?status=approved', 'check-circle', 'linear-gradient(135deg,#198754,#27AE60)', stats.approved, ('Approved' if en else 'موافق عليها')),
+    (url_for('reservations.index') ~ '?date_filter=today', 'calendar-day', 'linear-gradient(135deg,#0847B0,#0C67EC)', stats.today, ("Today's Bookings" if en else 'حجوزات اليوم')),
+    (url_for('reservations.index') ~ '?date_filter=month', 'calendar-month', 'linear-gradient(135deg,#6C3483,#9B59B6)', stats.this_month, ('This Month' if en else 'هذا الشهر')),
+    (url_for('users.index'), 'people', 'linear-gradient(135deg,#0d6efd,#4fc3f7)', stats.users, ('Users' if en else 'المستخدمون')),
+    (url_for('venues_mgmt.index'), 'building', 'linear-gradient(135deg,#6c757d,#95a5a6)', stats.venues, ('Venues' if en else 'القاعات')),
+    (url_for('reservations.index') ~ '?status=rejected', 'x-circle', 'linear-gradient(135deg,#DC3545,#E74C3C)', stats.rejected, ('Rejected' if en else 'مرفوضة')),
+  ] %}
   <div class="col-6 col-md-3">
-    <div class="stat-card" style="background:linear-gradient(135deg,#0C67EC,#3D8EF5)">
-      <div class="lbl"><i class="bi bi-calendar3 me-1"></i>{{ _('إجمالي الحجوزات') }}</div>
-      <div class="num">{{ stats.total }}</div>
-    </div>
+    <a href="{{ href }}" class="text-decoration-none">
+    <div class="stat-card" style="background:{{ grad }}" onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+      <div class="lbl"><i class="bi bi-{{ icon }} me-1"></i>{{ lbl }}</div>
+      <div class="num">{{ num }}</div>
+    </div></a>
   </div>
-  <div class="col-6 col-md-3">
-    <div class="stat-card" style="background:linear-gradient(135deg,#E67E22,#F39C12)">
-      <div class="lbl"><i class="bi bi-hourglass-split me-1"></i>{{ _('معلقة') }}</div>
-      <div class="num">{{ stats.pending }}</div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="stat-card" style="background:linear-gradient(135deg,#198754,#27AE60)">
-      <div class="lbl"><i class="bi bi-check-circle me-1"></i>{{ _('موافق عليها') }}</div>
-      <div class="num">{{ stats.approved }}</div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="stat-card" style="background:linear-gradient(135deg,#6C3483,#9B59B6)">
-      <div class="lbl"><i class="bi bi-calendar-month me-1"></i>{{ _('هذا الشهر') }}</div>
-      <div class="num">{{ stats.this_month }}</div>
-    </div>
-  </div>
-</div>
-<!-- Quick Stats Row 2 -->
-<div class="row g-3 mb-4">
-  <div class="col-6 col-md-3">
-    <div class="stat-card" style="background:linear-gradient(135deg,#0d6efd,#4fc3f7)">
-      <div class="lbl"><i class="bi bi-people me-1"></i>{{ _('المستخدمون') }}</div>
-      <div class="num">{{ stats.users }}</div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="stat-card" style="background:linear-gradient(135deg,#6c757d,#adb5bd)">
-      <div class="lbl"><i class="bi bi-building me-1"></i>{{ _('القاعات') }}</div>
-      <div class="num">{{ stats.venues }}</div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="stat-card" style="background:linear-gradient(135deg,#DC3545,#e57373)">
-      <div class="lbl"><i class="bi bi-x-circle me-1"></i>{{ _('مرفوضة') }}</div>
-      <div class="num">{{ stats.rejected }}</div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="stat-card" style="background:linear-gradient(135deg,#5C9BDE,#e8c97a)">
-      <div class="lbl"><i class="bi bi-geo-alt me-1"></i>{{ _('المواقع') }}</div>
-      <div class="num">{{ stats.locations }}</div>
-    </div>
-  </div>
+  {%- endfor %}
 </div>
 
 <!-- Charts Row -->

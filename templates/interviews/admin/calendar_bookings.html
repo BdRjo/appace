@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+{% block title %}{% if current_lang=='en' %}Appointment Requests{% else %}طلبات المواعيد{% endif %}{% endblock %}
+{% block content %}
+{%- set ar = (current_lang == 'ar') -%}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+  <h5 class="fw-700 mb-0">
+    <i class="bi bi-inbox me-2"></i>{% if ar %}طلبات المواعيد العامة{% else %}General Appointment Requests{% endif %}
+  </h5>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('interviews.admin_calendar') }}" class="btn btn-sm btn-outline-secondary rounded-3">
+      <i class="bi bi-arrow-{{ 'right' if ar else 'left' }} me-1"></i>{% if ar %}الروزنامة{% else %}Calendar{% endif %}
+    </a>
+    <a href="{{ url_for('interviews.admin_calendar_bookings_export') }}" class="btn btn-sm btn-outline-primary rounded-3">
+      <i class="bi bi-download me-1"></i>{% if ar %}تصدير{% else %}Export{% endif %}
+    </a>
+    <button onclick="window.print()" class="btn btn-sm btn-outline-secondary rounded-3 no-print">
+      <i class="bi bi-printer me-1"></i>{% if ar %}طباعة{% else %}Print{% endif %}
+    </button>
+  </div>
+</div>
+
+{# Status filter tabs #}
+<div class="d-flex gap-2 mb-3 flex-wrap">
+  <a href="{{ url_for('interviews.admin_calendar_bookings') }}" class="btn btn-sm rounded-pill {{ 'btn-primary' if not sel_status else 'btn-outline-secondary' }}">
+    {% if ar %}الكل{% else %}All{% endif %}</a>
+  <a href="{{ url_for('interviews.admin_calendar_bookings', status='pending') }}" class="btn btn-sm rounded-pill {{ 'btn-warning' if sel_status=='pending' else 'btn-outline-warning' }}">
+    {% if ar %}قيد الانتظار{% else %}Pending{% endif %}</a>
+  <a href="{{ url_for('interviews.admin_calendar_bookings', status='approved') }}" class="btn btn-sm rounded-pill {{ 'btn-success' if sel_status=='approved' else 'btn-outline-success' }}">
+    {% if ar %}مقبول{% else %}Approved{% endif %}</a>
+  <a href="{{ url_for('interviews.admin_calendar_bookings', status='rejected') }}" class="btn btn-sm rounded-pill {{ 'btn-danger' if sel_status=='rejected' else 'btn-outline-danger' }}">
+    {% if ar %}مرفوض{% else %}Rejected{% endif %}</a>
+</div>
+
+{% if bookings %}
+<div class="card border-0 shadow-sm rounded-4">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 small align-middle">
+      <thead><tr>
+        <th>{% if ar %}الرمز{% else %}Code{% endif %}</th>
+        <th>{% if ar %}الاسم{% else %}Name{% endif %}</th>
+        <th>{% if ar %}الشخص المطلوب{% else %}Person{% endif %}</th>
+        <th>{% if ar %}التاريخ{% else %}Date{% endif %}</th>
+        <th>{% if ar %}الوقت{% else %}Time{% endif %}</th>
+        <th>{% if ar %}الحالة{% else %}Status{% endif %}</th>
+        <th></th>
+      </tr></thead>
+      <tbody>
+      {% for b in bookings %}
+      <tr>
+        <td class="font-monospace" style="font-size:.78rem">{{ b.request_code }}</td>
+        <td>
+          <div class="fw-600">{{ b.requester_name }}</div>
+          {% if b.requester_phone %}<div style="font-size:.72rem;color:#94a3b8">{{ b.requester_phone }}</div>{% endif %}
+          {% if b.requester_email %}<div style="font-size:.72rem;color:#94a3b8">{{ b.requester_email }}</div>{% endif %}
+        </td>
+        <td>{{ b.person_to_meet }}</td>
+        <td>{{ b.booking_date or (b.slot.slot_date if b.slot else '—') }}</td>
+        <td class="font-monospace">
+          {% if b.start_time and b.end_time %}
+            {{ b.start_time }}–{{ b.end_time }}
+          {% elif b.slot %}
+            {{ b.slot.start_time }}–{{ b.slot.end_time }}
+          {% else %}
+            —
+          {% endif %}
+        </td>
+        <td>
+          {% if b.status == 'pending' %}<span class="badge bg-warning text-dark">{% if ar %}قيد الانتظار{% else %}Pending{% endif %}</span>
+          {% elif b.status == 'approved' %}<span class="badge bg-success">{% if ar %}مقبول{% else %}Approved{% endif %}</span>
+          {% elif b.status == 'rejected' %}<span class="badge bg-danger">{% if ar %}مرفوض{% else %}Rejected{% endif %}</span>
+          {% endif %}
+        </td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-outline-primary" style="font-size:.72rem" data-bs-toggle="modal" data-bs-target="#detail-{{ b.id }}">
+            <i class="bi bi-eye"></i>
+          </button>
+          {% if b.status == 'pending' %}
+          <button class="btn btn-sm btn-outline-success" style="font-size:.72rem" data-bs-toggle="modal" data-bs-target="#action-{{ b.id }}">
+            <i class="bi bi-check-lg"></i>
+          </button>
+          {% endif %}
+
+          {# Detail Modal #}
+          <div class="modal fade" id="detail-{{ b.id }}" tabindex="-1"><div class="modal-dialog"><div class="modal-content rounded-4">
+            <div class="modal-header border-0">
+              <h6 class="modal-title fw-700">{{ b.request_code }}</h6>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table table-sm small">
+                <tr><td class="fw-600" style="width:40%">{% if ar %}الاسم{% else %}Name{% endif %}</td><td>{{ b.requester_name }}</td></tr>
+                {% if b.requester_email %}<tr><td class="fw-600">{% if ar %}البريد{% else %}Email{% endif %}</td><td>{{ b.requester_email }}</td></tr>{% endif %}
+                {% if b.requester_phone %}<tr><td class="fw-600">{% if ar %}الهاتف{% else %}Phone{% endif %}</td><td>{{ b.requester_phone }}</td></tr>{% endif %}
+                <tr><td class="fw-600">{% if ar %}الشخص المطلوب{% else %}Person to Meet{% endif %}</td><td>{{ b.person_to_meet }}</td></tr>
+                <tr><td class="fw-600">{% if ar %}التاريخ{% else %}Date{% endif %}</td><td>{{ b.booking_date or (b.slot.slot_date if b.slot else '—') }}</td></tr>
+                <tr><td class="fw-600">{% if ar %}الوقت{% else %}Time{% endif %}</td>
+                    <td>{% if b.start_time and b.end_time %}{{ b.start_time }} – {{ b.end_time }}{% elif b.slot %}{{ b.slot.start_time }} – {{ b.slot.end_time }}{% else %}—{% endif %}</td></tr>
+                <tr><td class="fw-600">{% if ar %}السبب{% else %}Reason{% endif %}</td><td>{{ b.reason }}</td></tr>
+                <tr><td class="fw-600">{% if ar %}الحالة{% else %}Status{% endif %}</td><td>{{ b.status }}</td></tr>
+                {% if b.admin_notes %}<tr><td class="fw-600">{% if ar %}ملاحظات الإدارة{% else %}Admin Notes{% endif %}</td><td>{{ b.admin_notes }}</td></tr>{% endif %}
+                <tr><td class="fw-600">{% if ar %}تاريخ الطلب{% else %}Submitted{% endif %}</td><td>{{ b.created_at.strftime('%Y-%m-%d %H:%M') if b.created_at else '—' }}</td></tr>
+              </table>
+            </div>
+          </div></div></div>
+
+          {# Action Modal (for pending) #}
+          {% if b.status == 'pending' %}
+          <div class="modal fade" id="action-{{ b.id }}" tabindex="-1"><div class="modal-dialog"><div class="modal-content rounded-4">
+            <div class="modal-header border-0">
+              <h6 class="modal-title fw-700">{{ b.requester_name }} — {{ b.person_to_meet }}</h6>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <p><strong>{% if ar %}التاريخ{% else %}Date{% endif %}:</strong> {{ b.booking_date or (b.slot.slot_date if b.slot else '—') }}</p>
+              <p><strong>{% if ar %}الوقت{% else %}Time{% endif %}:</strong>
+                {% if b.start_time and b.end_time %}{{ b.start_time }} – {{ b.end_time }}{% elif b.slot %}{{ b.slot.start_time }} – {{ b.slot.end_time }}{% else %}—{% endif %}</p>
+              <p><strong>{% if ar %}السبب{% else %}Reason{% endif %}:</strong> {{ b.reason }}</p>
+              {% if b.requester_email %}<p><strong>{% if ar %}البريد{% else %}Email{% endif %}:</strong> {{ b.requester_email }}</p>{% endif %}
+              {% if b.requester_phone %}<p><strong>{% if ar %}الهاتف{% else %}Phone{% endif %}:</strong> {{ b.requester_phone }}</p>{% endif %}
+              <form method="post" action="{{ url_for('interviews.admin_calendar_booking_action', bid=b.id) }}">
+                <div class="mb-3"><label class="form-label small fw-600">{% if ar %}ملاحظات الإدارة{% else %}Admin Notes{% endif %}</label>
+                  <textarea name="admin_notes" class="form-control" rows="3" placeholder="{% if ar %}أضف ملاحظاتك هنا...{% else %}Add your notes here...{% endif %}"></textarea></div>
+                <div class="d-flex gap-2">
+                  <button type="submit" name="action" value="approve" class="btn btn-success flex-fill rounded-3">
+                    <i class="bi bi-check-lg me-1"></i>{% if ar %}قبول{% else %}Approve{% endif %}</button>
+                  <button type="submit" name="action" value="reject" class="btn btn-danger flex-fill rounded-3">
+                    <i class="bi bi-x-lg me-1"></i>{% if ar %}رفض{% else %}Reject{% endif %}</button>
+                </div>
+              </form>
+            </div>
+          </div></div></div>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card border-0 shadow-sm rounded-4">
+  <div class="card-body text-center py-5">
+    <i class="bi bi-inbox fs-1 text-muted"></i>
+    <p class="mt-2 text-muted">{% if ar %}لا توجد طلبات{% else %}No requests{% endif %}</p>
+  </div>
+</div>
+{% endif %}
+
+<style>
+@media print{
+  .no-print{display:none!important}
+  .card{box-shadow:none!important;border:1px solid #dee2e6!important}
+  .table{font-size:.8rem}
+  .badge{border:1px solid #000!important;color:#000!important;background:transparent!important}
+}
+</style>
+{% endblock %}

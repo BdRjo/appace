@@ -41,7 +41,7 @@
             <div class="col-md-6">
               <label class="form-label fw-bold">{{ _('اسم المرسل') }}</label>
               <input type="text" name="sender_name" class="form-control"
-                     value="{{ cfg.get('sender_name','ARS Applied Reservation System') }}">
+                     value="{{ cfg.get('sender_name','ARS Applied Event System') }}">
             </div>
             <div class="col-md-6" id="passwordRow">
               <label class="form-label fw-bold">{{ _('كلمة المرور / App Password') }}
@@ -96,14 +96,22 @@
           </div>
           </div><!-- /smtpSection -->
 
-          <div class="mt-4 d-flex gap-2">
-            <button type="submit" name="action" value="save" class="btn btn-primary px-4">
-              {% if current_lang=="en" %}💾 Save Settings{% else %}💾 حفظ الإعدادات{% endif %}
+          <div class="mt-4">
+            <button type="submit" name="action" value="save"
+                    class="btn btn-primary w-100 mb-2 py-2" style="font-size:.95rem;font-weight:700">
+              💾 {% if current_lang=="en" %}Save Settings{% else %}حفظ الإعدادات{% endif %}
             </button>
-            <button type="submit" name="action" value="test" class="btn btn-outline-success px-4"
-                    onclick="return confirm('{% if current_lang=="en" %}Test server connection. Make sure settings are correct.{% else %}سيتم اختبار الاتصال بالخادم. تأكد من صحة البيانات.{% endif %}')">
-              {% if current_lang=="en" %}🔗 Test Connection{% else %}🔗 اختبار الاتصال{% endif %}
-            </button>
+            <div class="d-flex gap-2">
+              <button type="submit" name="action" value="test"
+                      class="btn btn-outline-success flex-fill"
+                      onclick="return confirm(this.dataset.msg)"
+                      data-msg="{% if current_lang=='en' %}Test connection — make sure settings are saved first.{% else %}سيتم اختبار الاتصال — تأكد من حفظ الإعدادات أولاً.{% endif %}">
+                🔗 {% if current_lang=="en" %}Test{% else %}اختبار{% endif %}
+              </button>
+              <a href="{{ url_for('admin.email_logs') }}" class="btn btn-outline-info flex-fill">
+                <i class="bi bi-envelope-check me-1"></i>{% if current_lang=="en" %}Logs{% else %}السجل{% endif %}
+              </a>
+            </div>
           </div>
         </form>
       </div>

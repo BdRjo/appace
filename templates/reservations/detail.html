@@ -16,7 +16,7 @@
       <div class="card-header d-flex justify-content-between align-items-center">
         <span><i class="bi bi-info-circle me-2"></i>{{ _('معلومات الحجز') }}
         <span class="badge badge-{{ res.status }} fs-6 px-3 py-2">
-          {{ status_ar.get(res.status, res.status) }}
+          {% if current_lang=='en' %}{{ status_en.get(res.status, res.status) }}{% else %}{{ status_ar.get(res.status, res.status) }}{% endif %}
         </span>
       </div>
       <div class="card-body">
@@ -51,7 +51,6 @@
           <a href="{{ url_for('reservations.edit', res_id=res.id) }}" class="btn btn-sm"
              style="background:#5C9BDE;color:#fff;border:none">
             <i class="bi bi-pencil me-1"></i>{% if current_lang=="en" %}Edit{% else %}تعديل{% endif %}
-            {% if res.status == 'approved' %}<small class="opacity-75"> ({% if current_lang=="en" %}Requires Approval{% else %}يتطلب موافقة{% endif %})</small>{% endif %}
           </a>
           {% endif %}
 
@@ -305,5 +304,141 @@ function printReservation(){
   }, 1000);
 }
 </script>
+
+<!-- ══════════════════════════════════════════════════════
+     COMMENTS & ACTIVITY LOG
+══════════════════════════════════════════════════════ -->
+{# Comments and activity log — loaded via res_comments / res_logs from route #}
+
+<div class="row g-4 mt-2" id="comments">
+
+  <!-- Comments -->
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-chat-dots me-2"></i>{% if current_lang=='en' %}Comments{% else %}التعليقات{% endif %}
+          <span class="badge bg-primary ms-1" id="commentCount">{{ res_comments|length }}</span>
+        </span>
+      </div>
+      <div class="card-body p-0">
+        <!-- Comments list -->
+        <div id="commentsList" style="max-height:420px;overflow-y:auto">
+          {% if res_comments %}
+            {% for cm in res_comments %}
+            {% if not cm.is_internal or perms.is_admin_or_manager() %}
+            <div class="d-flex gap-3 p-3 border-bottom {% if cm.is_internal %}bg-warning bg-opacity-10{% endif %}"
+                 {% if cm.is_internal %}style="border-right:3px solid #f59e0b!important"{% endif %}>
+              <div style="width:36px;height:36px;border-radius:50%;background:{% if cm.is_internal %}#f59e0b{% elif cm.user_id==current_user.id %}#0C67EC{% else %}#6c757d{% endif %};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.8rem;flex-shrink:0">
+                {% if cm.is_internal %}🔒{% else %}{{ (cm.user.full_name or cm.user.username)[:1].upper() if cm.user else '?' }}{% endif %}
+              </div>
+              <div style="flex:1;min-width:0">
+                <div class="d-flex justify-content-between align-items-start mb-1">
+                  <strong style="font-size:.85rem">{{ cm.user.full_name or cm.user.username if cm.user else '—' }}</strong>
+                  <div class="d-flex align-items-center gap-2">
+                    {% if cm.is_internal %}<span class="badge bg-warning text-dark" style="font-size:.65rem">{% if current_lang=='en' %}Internal{% else %}داخلي{% endif %}</span>{% endif %}
+                    <small class="text-muted" style="font-size:.72rem">{{ cm.created_at.strftime('%Y-%m-%d %H:%M') if cm.created_at else '' }}</small>
+                    {% if cm.user_id==current_user.id or perms.is_admin_or_manager() %}
+                    <form method="POST" action="{{ url_for('reservations.delete_comment', res_id=res.id, cid=cm.id) }}" onsubmit="return confirm('{% if current_lang=="en" %}Delete comment?{% else %}حذف التعليق؟{% endif %}')">
+                      <button class="btn btn-link btn-sm text-danger p-0" style="font-size:.75rem"><i class="bi bi-trash"></i></button>
+                    </form>
+                    {% endif %}
+                  </div>
+                </div>
+                <p style="font-size:.88rem;color:#2d3748;margin:0;white-space:pre-wrap">{{ cm.content }}</p>
+              </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+          {% else %}
+            <div class="text-center py-4 text-muted">
+              <i class="bi bi-chat-dots" style="font-size:2rem;opacity:.3;display:block;margin-bottom:8px"></i>
+              <small>{% if current_lang=='en' %}No comments yet{% else %}لا توجد تعليقات بعد{% endif %}</small>
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- Add comment form -->
+        {% set can_add_comment = perms.is_admin_or_manager() or perms.can_comment('reservations') or res.user_id==current_user.id %}
+        {% if can_add_comment %}
+        <div class="p-3 border-top bg-light">
+          <form method="POST" action="{{ url_for('reservations.add_comment', res_id=res.id) }}">
+            <div class="mb-2">
+              <textarea name="content" rows="2" class="form-control form-control-sm"
+                placeholder="{% if current_lang=='en' %}Write a comment...{% else %}اكتب تعليقاً...{% endif %}"
+                required style="resize:none"></textarea>
+            </div>
+            <div class="d-flex align-items-center justify-content-between">
+              {% if perms.is_admin_or_manager() %}
+              <div class="form-check form-check-sm">
+                <input class="form-check-input" type="checkbox" name="is_internal" value="1" id="internalCheck">
+                <label class="form-check-label" for="internalCheck" style="font-size:.8rem">
+                  {% if current_lang=='en' %}
+                    🔒 Internal (admin only)
+                    <span class="text-muted" style="font-size:.72rem" title="Only admins/managers can see this comment. The reservation owner will NOT see it.">ⓘ</span>
+                  {% else %}
+                    🔒 داخلي (للإدارة فقط)
+                    <span class="text-muted" style="font-size:.72rem" title="هذا التعليق لن يراه صاحب الحجز — فقط المدير والمشرف يستطيعان رؤيته">ⓘ</span>
+                  {% endif %}
+                </label>
+              </div>
+              {% else %}<span></span>{% endif %}
+              <button class="btn btn-primary-ars btn-sm">
+                <i class="bi bi-send me-1"></i>{% if current_lang=='en' %}Send{% else %}إرسال{% endif %}
+              </button>
+            </div>
+          </form>
+        </div>
+        {% else %}
+        <div class="p-3 border-top text-center text-muted" style="font-size:.82rem">
+          <i class="bi bi-lock me-1"></i>{% if current_lang=='en' %}You don't have permission to add comments{% else %}ليس لديك صلاحية إضافة تعليقات{% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Activity Log -->
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header">
+        <i class="bi bi-clock-history me-2"></i>{% if current_lang=='en' %}Activity Log{% else %}سجل النشاط{% endif %}
+      </div>
+      <div class="card-body p-0">
+        <div style="max-height:480px;overflow-y:auto">
+          {% if res_logs %}
+            {% for log in res_logs %}
+            <div class="d-flex gap-3 p-3 border-bottom">
+              <div style="flex-shrink:0;margin-top:2px">
+                {% if log.action=='created' %}<span style="color:#0C67EC;font-size:1rem">📝</span>
+                {% elif log.action=='approved' %}<span style="color:#27ae60;font-size:1rem">✅</span>
+                {% elif log.action=='rejected' %}<span style="color:#e74c3c;font-size:1rem">❌</span>
+                {% elif log.action=='cancelled' %}<span style="color:#7f8c8d;font-size:1rem">🚫</span>
+                {% elif log.action=='edited' %}<span style="color:#f39c12;font-size:1rem">✏️</span>
+                {% elif log.action=='commented' %}<span style="color:#9b59b6;font-size:1rem">💬</span>
+                {% else %}<span style="color:#95a5a6;font-size:1rem">🔹</span>
+                {% endif %}
+              </div>
+              <div style="flex:1;min-width:0">
+                <p style="font-size:.83rem;color:#2d3748;margin:0 0 3px">{{ log.description }}</p>
+                <div class="d-flex justify-content-between">
+                  <small class="text-muted" style="font-size:.72rem">{{ log.user.full_name if log.user else '—' }}</small>
+                  <small class="text-muted" style="font-size:.72rem">{{ log.created_at.strftime('%Y-%m-%d %H:%M') if log.created_at else '' }}</small>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          {% else %}
+            <div class="text-center py-4 text-muted">
+              <i class="bi bi-clock-history" style="font-size:2rem;opacity:.3;display:block;margin-bottom:8px"></i>
+              <small>{% if current_lang=='en' %}No activity yet{% else %}لا يوجد نشاط بعد{% endif %}</small>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
 {% endblock %}
 {% endblock %}

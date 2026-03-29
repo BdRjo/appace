@@ -187,6 +187,8 @@ def new():
         db.add(res)
         db.commit()
         syslog('NEW_RESERVATION', f'{res.booking_number} — {title}')
+        actor = current_user.full_name or current_user.username
+        _log_activity(db, res.id, 'created', f'تم إنشاء الحجز بواسطة {actor}')
 
         # حفظ المرفقات
         import base64
@@ -253,12 +255,24 @@ def detail(res_id):
     contacts = db.query(BookingContact).filter_by(booking_id=res_id).all()
 
     attachments = db.query(Attachment).filter_by(reservation_id=res_id).all()
+
+    # Load comments and activity log
+    from models.database import ReservationComment, ReservationLog
+    res_comments = db.query(ReservationComment)\
+        .filter_by(reservation_id=res_id)\
+        .order_by(ReservationComment.created_at.asc()).all()
+    res_logs = db.query(ReservationLog)\
+        .filter_by(reservation_id=res_id)\
+        .order_by(ReservationLog.created_at.desc()).all()
+
     return render_template('reservations/detail.html',
         res=res, perms=perms,
         status_ar=STATUS_AR, status_en=STATUS_EN, status_cls=STATUS_CLS,
         checklist_items=checklist_items, rating=rating,
         booking_contacts=contacts,
-        attachments=attachments)
+        attachments=attachments,
+        res_comments=res_comments,
+        res_logs=res_logs)
 
 
 # ── edit pending — مطابق لـ v54 edit_pending_reservation ─────────────────────
@@ -282,14 +296,16 @@ def edit(res_id):
     if res.user_id != current_user.id and not perms.is_admin_or_manager():
         abort(403)
 
-    venues = db.query(Venue).filter_by(is_active=True).all()
+    venues    = db.query(Venue).filter_by(is_active=True).all()
+    employees = db.query(User).filter_by(is_active=True).order_by(User.full_name).all()
 
     if request.method == 'POST':
-        title     = request.form.get('title','').strip()
-        venue_id  = request.form.get('venue_id','')
-        start_str = request.form.get('start_time','')
-        end_str   = request.form.get('end_time','')
-        notes     = request.form.get('notes','').strip()
+        title      = request.form.get('title','').strip()
+        venue_id   = request.form.get('venue_id','')
+        start_str  = request.form.get('start_time','')
+        end_str    = request.form.get('end_time','')
+        notes      = request.form.get('notes','').strip()
+        req_emp_id = request.form.get('requested_employee_id','').strip()
 
         errors = []
         start_dt = end_dt = None
@@ -313,17 +329,31 @@ def edit(res_id):
         if res.status == 'approved':
             res.status = 'pending'
 
-        res.title          = title
-        res.venue_id       = int(venue_id) if venue_id.isdigit() else res.venue_id
-        res.start_time     = start_dt
-        res.end_time       = end_dt
-        res.requester_notes= notes
+        res.title           = title
+        res.venue_id        = int(venue_id) if venue_id.isdigit() else res.venue_id
+        res.start_time      = start_dt
+        res.end_time        = end_dt
+        res.requester_notes = notes
+        # Update requested employee
+        old_emp_id = res.requested_employee_id
+        new_emp_id = int(req_emp_id) if req_emp_id.isdigit() else None
+        res.requested_employee_id = new_emp_id
         db.commit()
         syslog('EDIT_RESERVATION', f'{res.booking_number} — تم التعديل')
-        flash_msg('✅ تم حفظ التعديلات — تم إرجاع الحجز لحالة معلق إن كان موافقاً عليه', 'success')
+        _log_activity(db, res.id, 'edited', f'تم التعديل بواسطة {current_user.full_name or current_user.username}')
+        # Notify new employee if changed
+        if new_emp_id and new_emp_id != old_emp_id:
+            try:
+                from utils.email_helper import send_employee_reservation_notice
+                emp = db.query(User).get(new_emp_id)
+                if emp and emp.email:
+                    send_employee_reservation_notice(emp, res, current_user)
+            except Exception as e:
+                print(f'Employee notify error: {e}')
+        flash_msg('✅ تم حفظ التعديلات' + (' — تم إرجاع الحجز لحالة معلق' if res.status == 'pending' else ''), 'success')
         return redirect(url_for('reservations.detail', res_id=res_id))
 
-    return render_template('reservations/edit.html', res=res, venues=venues)
+    return render_template('reservations/edit.html', res=res, venues=venues, employees=employees)
 
 
 # ── approve / reject / cancel — مطابق لـ v54 ─────────────────────────────────
@@ -348,11 +378,24 @@ def approve(res_id):
     db.add(appr)
     db.commit()
     syslog('APPROVE_RESERVATION', f'{res.booking_number}')
+    actor = current_user.full_name or current_user.username
+    _log_activity(db, res.id, 'approved', f'تمت الموافقة بواسطة {actor}')
 
     # بريد موافقة مثل v54
     try:
-        from utils.email_helper import send_booking_approved
+        from utils.email_helper import send_booking_approved, push_notification
         send_booking_approved(res)
+        # Local notification
+        try:
+            from models.database import Notification
+            lang = getattr(res.user, 'language', 'ar') if res.user else 'ar'
+            push_notification(db, res.user_id,
+                '✅ تمت الموافقة على حجزك',
+                '✅ Your booking has been approved',
+                f'الحجز {res.booking_number} — {res.title}',
+                f'Booking {res.booking_number} — {res.title}',
+                f'/reservations/{res.id}', lang)
+        except: pass
     except: pass
 
     flash_msg('✅ تمت الموافقة على الحجز', 'success')
@@ -381,10 +424,22 @@ def reject(res_id):
     db.add(appr)
     db.commit()
     syslog('REJECT_RESERVATION', f'{res.booking_number} — {reason}')
+    actor = current_user.full_name or current_user.username
+    _log_activity(db, res.id, 'rejected', f'تم الرفض بواسطة {actor} — السبب: {reason}')
 
     try:
-        from utils.email_helper import send_booking_rejected
+        from utils.email_helper import send_booking_rejected, push_notification
         send_booking_rejected(res, reason)
+        # Local notification
+        try:
+            lang = getattr(res.user, 'language', 'ar') if res.user else 'ar'
+            push_notification(db, res.user_id,
+                '❌ تم رفض طلب الحجز',
+                '❌ Booking request rejected',
+                f'الحجز {res.booking_number} — السبب: {reason or "—"}',
+                f'Booking {res.booking_number} — Reason: {reason or "—"}',
+                f'/reservations/{res.id}', lang)
+        except: pass
     except: pass
 
     flash_msg('تم رفض الحجز', 'warning')
@@ -424,7 +479,14 @@ def cancel(res_id):
 
     res.status = 'cancelled'
     db.commit()
+    _log_activity(db, res.id, 'cancelled', f'تم الإلغاء بواسطة {current_user.full_name or current_user.username}')
     syslog('CANCEL_RESERVATION', f'{res.booking_number}')
+    # Email notification
+    try:
+        from utils.email_helper import send_booking_cancelled
+        send_booking_cancelled(res, cancelled_by=current_user)
+    except Exception as e:
+        print(f'Cancel email error: {e}')
     flash_msg('تم إلغاء الحجز', 'success')
     return redirect(url_for('reservations.index'))
 
@@ -945,7 +1007,13 @@ def invite(res_id):
             if grp:
                 group_contact_ids = [c.id for c in grp.contacts]
                 selected_ids = list(set(selected_ids + group_contact_ids))
-        message_body = request.form.get('message','').strip()
+        # Read message — prefer HTML from Quill, fallback to plain
+        editor_mode  = request.form.get('editor_mode', 'plain')
+        message_body = request.form.get('message', '').strip()      # hidden HTML field
+        if not message_body or editor_mode == 'plain':
+            message_body = request.form.get('message_plain', '').strip()
+        if not message_body:
+            message_body = request.form.get('message', '').strip()  # legacy
         if not selected_ids:
             flash_msg('اختر مدعويين على الأقل', 'warning')
             return redirect(url_for('reservations.invite', res_id=res_id))
@@ -1090,3 +1158,148 @@ def reactivate(res_id):
     flash_msg('تم إعادة تفعيل الحجز وإرجاعه للمراجعة', 'success')
     return redirect(url_for('reservations.detail', res_id=res_id))
 
+
+# ══════════════════════════════════════════════════════════════════════════════
+# RESERVATION COMMENTS & ACTIVITY LOG
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _log_activity(db, res_id, action, description, user_id=None):
+    """Add entry to reservation activity log"""
+    from models.database import ReservationLog
+    try:
+        db.add(ReservationLog(
+            reservation_id=res_id,
+            user_id=user_id or (current_user.id if current_user.is_authenticated else None),
+            action=action,
+            description=description
+        ))
+        db.commit()
+    except Exception:
+        pass
+
+
+@reservations_bp.route('/<int:res_id>/comments', methods=['POST'])
+@login_required
+def add_comment(res_id):
+    db    = get_db()
+    perms = get_permissions()
+    res   = db.query(Reservation).get(res_id)
+    if not res: abort(404)
+
+    # Permission check
+    is_owner   = res.user_id == current_user.id
+    is_manager = perms.is_admin_or_manager()
+    can_comment_perm = perms.can_comment('reservations')
+
+    if not (is_owner or is_manager or can_comment_perm):
+        from utils.flash_helper import flash_msg
+        flash_msg('ليس لديك صلاحية إضافة تعليقات', 'danger')
+        return redirect(url_for('reservations.detail', res_id=res_id))
+
+    content     = request.form.get('content', '').strip()
+    is_internal = request.form.get('is_internal') == '1' and is_manager
+
+    if not content:
+        from utils.flash_helper import flash_msg
+        flash_msg('التعليق لا يمكن أن يكون فارغاً', 'warning')
+        return redirect(url_for('reservations.detail', res_id=res_id))
+
+    from models.database import ReservationComment
+    comment = ReservationComment(
+        reservation_id=res_id,
+        user_id=current_user.id,
+        content=content,
+        is_internal=is_internal
+    )
+    db.add(comment)
+    db.commit()
+
+    # Log the activity
+    actor = current_user.full_name or current_user.username
+    _log_activity(db, res_id, 'commented',
+                  f'{"[داخلي] " if is_internal else ""}{actor}: {content[:80]}')
+
+    # Notify reservation owner if commenter is not the owner
+    if res.user_id != current_user.id and res.user:
+        from utils.email_helper import push_notification
+        lang = getattr(res.user, 'language', 'ar')
+        push_notification(db, res.user_id,
+            f'💬 تعليق جديد على حجزك {res.booking_number}',
+            f'💬 New comment on booking {res.booking_number}',
+            f'{actor}: {content[:60]}',
+            f'{actor}: {content[:60]}',
+            f'/reservations/{res_id}', lang)
+        # Email notification
+        try:
+            from utils.email_helper import _send, _html_wrapper, _info_row, _user_lang
+            ulang = _user_lang(res.user)
+            if ulang == 'en':
+                subj = f'💬 New comment on booking {res.booking_number}'
+                html_content = f"""
+<h2 style="color:#0C67EC;margin:0 0 12px">Hello {res.user.full_name},</h2>
+<p style="color:#4a5568">{actor} added a comment on your booking:</p>
+<div style="background:#f4f9ff;border-left:4px solid #0C67EC;border-radius:8px;padding:14px;margin:16px 0;color:#2d3748">
+  {content}
+</div>
+{_info_row('📋 Booking', res.booking_number)}
+{_info_row('📌 Title', res.title, '#FAFCFF')}"""
+            else:
+                subj = f'💬 تعليق جديد على حجزك {res.booking_number}'
+                html_content = f"""
+<h2 style="color:#0C67EC;margin:0 0 12px">مرحباً {res.user.full_name}،</h2>
+<p style="color:#4a5568">أضاف {actor} تعليقاً على حجزك:</p>
+<div style="background:#f4f9ff;border-right:4px solid #0C67EC;border-radius:8px;padding:14px;margin:16px 0;color:#2d3748">
+  {content}
+</div>
+{_info_row('📋 رقم الحجز', res.booking_number)}
+{_info_row('📌 العنوان', res.title, '#FAFCFF')}"""
+            _send(res.user.email, res.user.full_name, subj,
+                  _html_wrapper(html_content, subj, ulang),
+                  sync=True, email_type='notification')
+        except Exception:
+            pass
+
+    # Also notify admins/managers if comment from regular user
+    if not is_manager and res.user_id == current_user.id:
+        from models.database import User as _User, RolePermission as _RP
+        try:
+            managers = db.query(_User).filter(
+                _User.is_active == True,
+                _User.id != current_user.id
+            ).join(_User.role_ref).filter(
+                _User.role_ref.has(name='مدير النظام') |
+                _User.role_ref.has(name='مشرف') |
+                _User.role_ref.has(name='Manager') |
+                _User.role_ref.has(name='Supervisor')
+            ).all()
+            for mgr in managers:
+                lang = getattr(mgr, 'language', 'ar')
+                push_notification(db, mgr.id,
+                    f'💬 تعليق جديد من {actor} على حجز {res.booking_number}',
+                    f'💬 New comment from {actor} on booking {res.booking_number}',
+                    content[:60], content[:60],
+                    f'/reservations/{res_id}', lang)
+        except Exception:
+            pass
+
+    from utils.flash_helper import flash_msg
+    flash_msg('تم إضافة التعليق بنجاح', 'success')
+    return redirect(url_for('reservations.detail', res_id=res_id) + '#comments')
+
+
+@reservations_bp.route('/<int:res_id>/comments/<int:cid>/delete', methods=['POST'])
+@login_required
+def delete_comment(res_id, cid):
+    db    = get_db()
+    perms = get_permissions()
+    from models.database import ReservationComment
+    comment = db.query(ReservationComment).get(cid)
+    if not comment or comment.reservation_id != res_id: abort(404)
+    # Only owner of comment or admin can delete
+    if comment.user_id != current_user.id and not perms.is_admin_or_manager():
+        abort(403)
+    db.delete(comment)
+    db.commit()
+    from utils.flash_helper import flash_msg
+    flash_msg('تم حذف التعليق', 'success')
+    return redirect(url_for('reservations.detail', res_id=res_id) + '#comments')

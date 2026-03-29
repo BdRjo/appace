@@ -28,7 +28,37 @@
           <td><small class="text-muted">{{ r.venue.name if r.venue else '—' }}</small></td>
           <td><small>{{ r.start_time.strftime('%Y-%m-%d %H:%M') if r.start_time else '—' }}</small></td>
           <td>{{ status_label(r.status) }}</td>
-          <td><a href="{{ url_for('reservations.detail', res_id=r.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i></a></td>
+          <td>
+            <div class="d-flex gap-1 align-items-center">
+              <a href="{{ url_for('reservations.detail', res_id=r.id) }}"
+                 class="btn btn-sm btn-outline-primary" style="padding:2px 8px"
+                 title="{{ _('عرض') }}"><i class="bi bi-eye"></i></a>
+              {% if r.status == 'pending' %}
+              <form method="POST" action="{{ url_for('reservations.approve', res_id=r.id) }}" style="display:inline"
+                    onsubmit="return confirm('{% if current_lang=="en" %}Approve this booking?{% else %}الموافقة على هذا الحجز؟{% endif %}')">
+                <input type="hidden" name="note" value="">
+                <button class="btn btn-sm btn-success" style="padding:2px 8px" title="{{ _('موافقة') }}">
+                  <i class="bi bi-check-lg"></i>
+                </button>
+              </form>
+              <form method="POST" action="{{ url_for('reservations.reject', res_id=r.id) }}" style="display:inline"
+                    onsubmit="return confirm('{% if current_lang=="en" %}Reject this booking?{% else %}رفض هذا الحجز؟{% endif %}')">
+                <input type="hidden" name="reason" value="">
+                <button class="btn btn-sm btn-warning" style="padding:2px 8px" title="{{ _('رفض') }}">
+                  <i class="bi bi-x-lg"></i>
+                </button>
+              </form>
+              {% endif %}
+              {% if r.status not in ('cancelled','rejected','completed') %}
+              <form method="POST" action="{{ url_for('reservations.cancel', res_id=r.id) }}" style="display:inline"
+                    onsubmit="return confirm('{% if current_lang=="en" %}Cancel this booking?{% else %}إلغاء هذا الحجز؟{% endif %}')">
+                <button class="btn btn-sm btn-outline-danger" style="padding:2px 8px" title="{{ _('إلغاء') }}">
+                  <i class="bi bi-slash-circle"></i>
+                </button>
+              </form>
+              {% endif %}
+            </div>
+          </td>
         </tr>
         {% endfor %}
       </tbody>

@@ -6,17 +6,21 @@ import os, shutil, json
 from datetime import datetime, timedelta
 from utils.flash_helper import flash_msg
 from flask import (Blueprint, render_template, request, redirect,
-                   url_for, flash, abort, jsonify, send_file)
+                   url_for, flash, abort, jsonify, send_file, session)
 from flask_login import login_required, current_user
 from sqlalchemy import func, text
 from models.database import Reservation, User, Venue, Location, SystemLog, LoginLog
-from utils.helpers import get_db, admin_required, syslog, paginate
+from utils.helpers import get_db, admin_required, syslog, paginate, get_permissions
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
 import os as _os
-CONFIG_EMAIL = _os.environ.get('EMAIL_CONFIG_PATH',
-    _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), 'email_config.json'))
+# On Render: save email config to persistent /data disk, not app directory
+_data_dir = _os.environ.get('DATA_DIR', '/data')
+_default_email_cfg = _os.path.join(_data_dir, 'email_config.json') \
+    if _os.path.isdir(_data_dir) else \
+    _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), 'email_config.json')
+CONFIG_EMAIL = _os.environ.get('EMAIL_CONFIG_PATH', _default_email_cfg)
 CONFIG_MAINT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'maintenance_config.json')
 
 
@@ -41,6 +45,15 @@ def dashboard():
         'locations':  db.query(Location).filter_by(is_active=True).count(),
         'this_month': db.query(Reservation).filter(
             Reservation.created_at >= now.replace(day=1)).count(),
+        'today': db.query(Reservation).filter(
+            Reservation.start_time >= now.replace(hour=0, minute=0, second=0, microsecond=0),
+            Reservation.start_time <  now.replace(hour=23, minute=59, second=59, microsecond=999999)
+        ).count(),
+        'today_approved': db.query(Reservation).filter(
+            Reservation.start_time >= now.replace(hour=0, minute=0, second=0, microsecond=0),
+            Reservation.start_time <  now.replace(hour=23, minute=59, second=59, microsecond=999999),
+            Reservation.status == 'approved'
+        ).count(),
     }
 
     # Trend شهري (12 شهر) — مثل v54 show_bar_chart
@@ -370,6 +383,7 @@ def audit_log():
 # ── Maintenance — مطابق لـ v54 MaintenanceWindow ─────────────────────────────
 CONFIG_TICKER      = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'ticker_config.json')
 CONFIG_AUTH_TICKER = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'auth_ticker_config.json')
+CONFIG_INTERVIEW_TICKER = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'interview_ticker_config.json')
 
 def _load_ticker():
     try:
@@ -397,6 +411,24 @@ def _load_auth_ticker():
 
 def _save_ticker(cfg):
     with open(CONFIG_TICKER, 'w', encoding='utf-8') as f:
+        json.dump(cfg, f, ensure_ascii=False, indent=2)
+
+def _load_interview_ticker():
+    try:
+        with open(CONFIG_INTERVIEW_TICKER, encoding='utf-8') as f:
+            return json.load(f)
+    except:
+        return {
+            'feeds_ar': ['مرحباً بكم في بوابة مقابلات أولياء الأمور'],
+            'feeds_en': ['Welcome to the Parent Interview Portal'],
+            'fg': '#ffffff', 'bg': '#2563eb', 'font': 'Tajawal',
+            'size': 13, 'speed': 35, 'opacity': 80,
+            'logo_url': '', 'logo_size': 28, 'logo_pulse': True,
+            'logo_pulse_speed': 3, 'sep_img_url': '', 'mask_fade': 12
+        }
+
+def _save_interview_ticker(cfg):
+    with open(CONFIG_INTERVIEW_TICKER, 'w', encoding='utf-8') as f:
         json.dump(cfg, f, ensure_ascii=False, indent=2)
 
 def _save_auth_ticker(cfg):
@@ -443,13 +475,58 @@ def maintenance():
             feeds = ticker.get('feeds_en', [])
             if 0 <= idx < len(feeds): feeds.pop(idx); ticker['feeds_en'] = feeds; _save_ticker(ticker)
         elif action == 'save_appearance':
-            ticker['fg']      = request.form.get('ticker_fg', '#F2C99A')
-            ticker['bg']      = request.form.get('ticker_bg', '')
-            ticker['font']    = request.form.get('ticker_font', 'Tajawal')
-            ticker['size']    = int(request.form.get('ticker_size', 11))
-            ticker['speed']   = int(request.form.get('ticker_speed', 35))
-            ticker['opacity'] = int(request.form.get('ticker_opacity', 0) or 0)
+            ticker['fg']       = request.form.get('ticker_fg', '#F2C99A')
+            ticker['bg']       = request.form.get('ticker_bg', '')
+            ticker['font']     = request.form.get('ticker_font', 'Tajawal')
+            ticker['size']     = int(request.form.get('ticker_size', 11))
+            ticker['speed']    = int(request.form.get('ticker_speed', 35))
+            ticker['opacity']     = int(request.form.get('ticker_opacity', 0) or 0)
+            ticker['logo_url']    = request.form.get('ticker_logo_url', '').strip()
+            ticker['logo_size']   = int(request.form.get('ticker_logo_size', 28) or 28)
+            ticker['logo_pulse']  = bool(request.form.get('ticker_logo_pulse'))
+            ticker['logo_pulse_speed'] = float(request.form.get('ticker_logo_pulse_speed', 3) or 3)
+            ticker['sep_img_url'] = request.form.get('ticker_sep_img_url', '').strip()
+            ticker['mask_fade']   = int(request.form.get('ticker_mask_fade', 12) or 12)
+            ticker['interview_mode'] = request.form.get('ticker_interview_mode', 'scroll')
             _save_ticker(ticker)
+        # ── Interview Ticker Actions ──
+        elif action == 'iticker_add_ar':
+            iticker = _load_interview_ticker()
+            text = request.form.get('iticker_text_ar','').strip()
+            if text:
+                iticker.setdefault('feeds_ar', []).append(text)
+                _save_interview_ticker(iticker)
+        elif action == 'iticker_add_en':
+            iticker = _load_interview_ticker()
+            text = request.form.get('iticker_text_en','').strip()
+            if text:
+                iticker.setdefault('feeds_en', []).append(text)
+                _save_interview_ticker(iticker)
+        elif action == 'iticker_del_ar':
+            iticker = _load_interview_ticker()
+            idx = int(request.form.get('iticker_idx', 0))
+            feeds = iticker.get('feeds_ar', [])
+            if 0 <= idx < len(feeds): feeds.pop(idx); iticker['feeds_ar'] = feeds; _save_interview_ticker(iticker)
+        elif action == 'iticker_del_en':
+            iticker = _load_interview_ticker()
+            idx = int(request.form.get('iticker_idx', 0))
+            feeds = iticker.get('feeds_en', [])
+            if 0 <= idx < len(feeds): feeds.pop(idx); iticker['feeds_en'] = feeds; _save_interview_ticker(iticker)
+        elif action == 'iticker_save_appearance':
+            iticker = _load_interview_ticker()
+            iticker['fg']       = request.form.get('iticker_fg', '#ffffff')
+            iticker['bg']       = request.form.get('iticker_bg', '#2563eb')
+            iticker['font']     = request.form.get('iticker_font', 'Tajawal')
+            iticker['size']     = int(request.form.get('iticker_size', 13))
+            iticker['speed']    = int(request.form.get('iticker_speed', 35))
+            iticker['opacity']  = int(request.form.get('iticker_opacity', 80) or 80)
+            iticker['logo_url'] = request.form.get('iticker_logo_url', '').strip()
+            iticker['logo_size']= int(request.form.get('iticker_logo_size', 28) or 28)
+            iticker['logo_pulse']= bool(request.form.get('iticker_logo_pulse'))
+            iticker['logo_pulse_speed'] = float(request.form.get('iticker_logo_pulse_speed', 3) or 3)
+            iticker['sep_img_url'] = request.form.get('iticker_sep_img_url', '').strip()
+            iticker['mask_fade']= int(request.form.get('iticker_mask_fade', 12) or 12)
+            _save_interview_ticker(iticker)
         elif action == 'save_logo':
             import base64
             logo_file = request.files.get('logo_file')
@@ -487,13 +564,19 @@ def maintenance():
             mcfg['color_bg']            = request.form.get('color_bg', '#eef6f7')
             _save_maintenance(mcfg)
         flash_msg('تم تحديث شريط الأخبار', 'success')
-        return redirect(url_for('admin.maintenance'))
+        # Scroll back to the section that was edited
+        anchor = '#iticker' if action.startswith('iticker_') else '#tickerSection'
+        return redirect(url_for('admin.maintenance') + anchor)
 
+    iticker = _load_interview_ticker()
     return render_template('admin/maintenance.html',
         mcfg=mcfg, log_count=log_count,
         ticker=ticker, ticker_cfg=ticker,
         ticker_messages_ar=ticker.get('feeds_ar',[]),
-        ticker_messages_en=ticker.get('feeds_en',[]))
+        ticker_messages_en=ticker.get('feeds_en',[]),
+        iticker=iticker,
+        iticker_messages_ar=iticker.get('feeds_ar',[]),
+        iticker_messages_en=iticker.get('feeds_en',[]))
 
 
 # ── Ticker config API ─────────────────────────────────────────────────────────
@@ -555,7 +638,8 @@ def backup():
     dst = f'backups/acs_backup_{ts}.db'
     shutil.copy2(db_path, dst)
     syslog('BACKUP', f'نسخة احتياطية: {dst}')
-    flash_msg(f'✅ تم إنشاء النسخة الاحتياطية: {dst}', 'success')
+    from utils.i18n import get_lang
+    flash_msg(f'✅ Backup created: {dst}' if get_lang()=='en' else f'✅ تم إنشاء النسخة الاحتياطية: {dst}', 'success')
     return redirect(url_for('admin.maintenance'))
 
 
@@ -569,7 +653,8 @@ def clean_logs():
     deleted = db.query(SystemLog).filter(SystemLog.created_at < cutoff).delete()
     db.commit()
     syslog('CLEAN_LOGS', f'تم حذف {deleted} سجل قديم')
-    flash_msg(f'✅ تم حذف {deleted} سجل قديم (أكثر من 30 يوم)', 'success')
+    from utils.i18n import get_lang
+    flash_msg(f'✅ Deleted {deleted} old records (older than 30 days)' if get_lang()=='en' else f'✅ تم حذف {deleted} سجل قديم (أكثر من 30 يوم)', 'success')
     return redirect(url_for('admin.maintenance'))
 
 
@@ -646,7 +731,7 @@ def settings():
                'sender_email':'','sender_password':'',
                'sender_name':'ARS Applied Reservation System',
                'use_tls':True,'provider_key':'brevo_api',
-               'brevo_api_key':'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'}
+               'brevo_api_key':''}
 
     if request.method == 'POST':
         action = request.form.get('action','save')
@@ -660,6 +745,7 @@ def settings():
                 smtp_port_val = int(smtp_port_raw)
             except (ValueError, TypeError):
                 smtp_port_val = 587
+            from utils.i18n import get_lang
             ok, msg = test_smtp(
                 request.form.get('smtp_server', ''),
                 smtp_port_val,
@@ -667,8 +753,9 @@ def settings():
                 request.form.get('sender_password', ''),
                 request.form.get('use_tls') == 'on',
                 brevo_api_key=brevo_api_key if provider == 'brevo_api' else None,
+                lang=get_lang(),
             )
-            flash_msg(('✅ ' if ok else '❌ ') + msg, 'success' if ok else 'danger')
+            flash(('✅ ' if ok else '❌ ') + msg, 'success' if ok else 'danger')
             return redirect(url_for('admin.settings'))
 
         # Save config
@@ -702,15 +789,22 @@ def ticker_api():
         msgs = ticker.get('feeds_ar', ['مرحباً بكم في نظام ARS']) or ['مرحباً بكم في نظام ARS']
     else:
         msgs = ticker.get('feeds_en', []) or ['Welcome to ARS Reservation Management System']
+    sep_img = ticker.get('sep_img_url', '')
+    if sep_img:
+        sep_html = f' <img src="{sep_img}" style="width:24px;height:24px;object-fit:contain;vertical-align:middle;border-radius:50%;margin:0 8px;opacity:.85"> '
+    else:
+        sep_html = ' ◆ '
     return jsonify({
         'messages': msgs,
-        'text':     ' ◆ '.join(msgs),
+        'text':     sep_html.join(msgs),
         'bg':       ticker.get('bg', ''),
         'fg':       ticker.get('fg', '#F2C99A'),
         'font':     ticker.get('font', 'Tahoma'),
         'size':     ticker.get('size', 15),
         'speed':    ticker.get('speed', 35),
         'opacity':  ticker.get('opacity', 0),
+        'sep_img_url': sep_img,
+        'mask_fade':   ticker.get('mask_fade', 12),
     })
 
 
@@ -724,14 +818,21 @@ def auth_ticker_api():
         msgs = ticker.get('feeds_ar', ['مرحباً بكم — سجّل دخولك للمتابعة']) or ['مرحباً بكم']
     else:
         msgs = ticker.get('feeds_en', ['Welcome — Please sign in']) or ['Welcome']
+    sep_img = ticker.get('sep_img_url', '')
+    if sep_img:
+        sep_html = f' <img src="{sep_img}" style="width:24px;height:24px;object-fit:contain;vertical-align:middle;border-radius:50%;margin:0 8px;opacity:.85"> '
+    else:
+        sep_html = ' ◆ '
     return jsonify({
         'messages': msgs,
-        'text':     ' ◆ '.join(msgs),
+        'text':     sep_html.join(msgs),
         'fg':       ticker.get('fg', '#ffffff'),
         'bg':       ticker.get('bg', 'transparent'),
         'font':     ticker.get('font', 'Tajawal'),
         'size':     ticker.get('size', 14),
         'speed':    ticker.get('speed', 35),
+        'sep_img_url': sep_img,
+        'mask_fade':   ticker.get('mask_fade', 12),
     })
 
 
@@ -764,10 +865,12 @@ def auth_ticker():
             if 0 <= idx < len(feeds): feeds.pop(idx)
             ticker['feeds_en'] = feeds
         elif action == 'style':
-            ticker['fg']    = request.form.get('fg', '#ffffff')
-            ticker['font']  = request.form.get('font', 'Tajawal')
-            ticker['size']  = int(request.form.get('size', 14))
-            ticker['speed'] = int(request.form.get('speed', 35))
+            ticker['fg']          = request.form.get('fg', '#ffffff')
+            ticker['font']        = request.form.get('font', 'Tajawal')
+            ticker['size']        = int(request.form.get('size', 14))
+            ticker['speed']       = int(request.form.get('speed', 35))
+            ticker['sep_img_url'] = request.form.get('sep_img_url', '').strip()
+            ticker['mask_fade']   = int(request.form.get('mask_fade', 12) or 12)
         _save_auth_ticker(ticker)
         from utils.flash_helper import flash_msg
         flash_msg('✅ تم الحفظ', 'success')
@@ -775,3 +878,196 @@ def auth_ticker():
 
     return render_template('admin/auth_ticker.html', ticker=ticker)
 
+
+# ── Notifications API ─────────────────────────────────────────────────────────
+@admin_bp.route('/notifications')
+@login_required
+def get_notifications():
+    from models.database import Notification
+    db = get_db()
+    notifs = db.query(Notification).filter_by(
+        user_id=current_user.id, is_read=False
+    ).order_by(Notification.created_at.desc()).limit(15).all()
+    return jsonify({'count': len(notifs), 'items': [
+        {'id': n.id, 'title': n.title, 'body': n.body,
+         'link': n.link, 'time': n.created_at.strftime('%H:%M')}
+        for n in notifs
+    ]})
+
+@admin_bp.route('/notifications/read/<int:nid>', methods=['POST'])
+@login_required
+def read_notification(nid):
+    from models.database import Notification
+    db = get_db()
+    n = db.query(Notification).filter_by(id=nid, user_id=current_user.id).first()
+    if n: n.is_read = True; db.commit()
+    return jsonify({'ok': True})
+
+@admin_bp.route('/notifications/read-all', methods=['POST'])
+@login_required
+def read_all_notifications():
+    from models.database import Notification
+    from sqlalchemy import update
+    db = get_db()
+    db.query(Notification).filter_by(user_id=current_user.id, is_read=False).update({'is_read': True})
+    db.commit()
+    return jsonify({'ok': True})
+
+
+# ── Email Logs — سجل الرسائل المرسلة ─────────────────────────────────────────
+@admin_bp.route('/email-logs')
+@login_required
+@admin_required
+def email_logs():
+    from models.database import EmailLog, User as _User
+    db   = get_db()
+    page = request.args.get('page', 1, type=int)
+    q    = request.args.get('q', '').strip()
+    status_f = request.args.get('status', '')
+    type_f   = request.args.get('type', '')
+
+    query = db.query(EmailLog).order_by(EmailLog.sent_at.desc())
+    if q:
+        query = query.filter(
+            (EmailLog.recipient.ilike(f'%{q}%')) |
+            (EmailLog.subject.ilike(f'%{q}%'))
+        )
+    if status_f:
+        query = query.filter(EmailLog.status == status_f)
+    if type_f:
+        query = query.filter(EmailLog.type == type_f)
+
+    total  = query.count()
+    logs   = query.offset((page-1)*20).limit(20).all()
+    pages  = (total + 19) // 20
+
+    # stats
+    from sqlalchemy import func as _func
+    sent_count   = db.query(EmailLog).filter(EmailLog.status=='sent').count()
+    failed_count = db.query(EmailLog).filter(EmailLog.status=='failed').count()
+    bulk_count   = db.query(EmailLog).filter(EmailLog.type=='bulk').count()
+
+    return render_template('admin/email_logs.html',
+        logs=logs, page=page, pages=pages, total=total,
+        q=q, status_f=status_f, type_f=type_f,
+        sent_count=sent_count, failed_count=failed_count, bulk_count=bulk_count)
+
+
+@admin_bp.route('/email-logs/resend/<int:log_id>', methods=['POST'])
+@login_required
+@admin_required
+def email_resend(log_id):
+    from models.database import EmailLog
+    from utils.email_helper import _html_wrapper, _send
+    db  = get_db()
+    log = db.query(EmailLog).get(log_id)
+    if not log:
+        flash_msg('السجل غير موجود', 'danger')
+        return redirect(url_for('admin.email_logs'))
+
+    # Resend — use stored original body if available, otherwise rebuild minimal HTML
+    from utils.i18n import get_lang
+    _en = get_lang() == 'en'
+    lang = 'en' if _en else 'ar'
+    if log.html_body:
+        resend_html = log.html_body
+    else:
+        if _en:
+            content = f"""
+<h2 style="color:#0C67EC;margin:0 0 12px">Resend</h2>
+<p style="color:#4a5568">This is a resent message from the ARS email log.</p>
+<p style="color:#888;font-size:12px">Original subject: {log.subject}<br>Original recipient: {log.recipient}</p>"""
+        else:
+            content = f"""
+<h2 style="color:#0C67EC;margin:0 0 12px">إعادة إرسال</h2>
+<p style="color:#4a5568">هذه رسالة مُعاد إرسالها من سجل البريد الإلكتروني لنظام ARS.</p>
+<p style="color:#888;font-size:12px">الموضوع الأصلي: {log.subject}<br>المرسَل إليه الأصلي: {log.recipient}</p>"""
+        resend_html = _html_wrapper(content, log.subject, lang)
+    ok = _send(log.recipient, '', log.subject,
+               resend_html,
+               log.subject,
+               sync=True, email_type='resend',
+               user_id=log.user_id)
+    if ok:
+        syslog('EMAIL_RESEND', f'إعادة إرسال #{log_id} إلى {log.recipient}')
+        flash_msg(f'✅ Resent to {log.recipient}' if _en else f'✅ تم إعادة الإرسال إلى {log.recipient}', 'success')
+    else:
+        flash_msg('❌ فشلت إعادة الإرسال — تحقق من إعدادات البريد', 'danger')
+    return redirect(url_for('admin.email_logs'))
+
+
+@admin_bp.route('/email-logs/stats-json')
+@login_required
+@admin_required
+def email_logs_stats():
+    from models.database import EmailLog
+    from sqlalchemy import func as _func
+    db = get_db()
+    # Daily stats last 30 days
+    rows = (db.query(
+                EmailLog.status,
+                _func.count(EmailLog.id).label('cnt')
+            )
+            .group_by(EmailLog.status).all())
+    return jsonify({r.status: r.cnt for r in rows})
+
+
+@admin_bp.route('/email-logs/delete/<int:log_id>', methods=['POST'])
+@login_required
+@admin_required
+def email_log_delete(log_id):
+    from models.database import EmailLog
+    db  = get_db()
+    log = db.query(EmailLog).get(log_id)
+    if log:
+        db.delete(log)
+        db.commit()
+        flash_msg('🗑️ تم حذف السجل', 'success')
+    return redirect(url_for('admin.email_logs'))
+
+
+@admin_bp.route('/email-logs/forward/<int:log_id>', methods=['POST'])
+@login_required
+@admin_required
+def email_log_forward(log_id):
+    from models.database import EmailLog
+    from utils.email_helper import _send, _html_wrapper
+    db         = get_db()
+    log        = db.query(EmailLog).get(log_id)
+    forward_to = request.form.get('forward_to', '').strip()
+    if not log or not forward_to:
+        flash_msg('بيانات غير صحيحة', 'danger')
+        return redirect(url_for('admin.email_logs'))
+    from utils.i18n import get_lang
+    _en = get_lang() == 'en'
+    lang = 'en' if _en else 'ar'
+    if log.html_body:
+        fwd_html = log.html_body
+    else:
+        if _en:
+            content = f"""
+<h2 style="color:#0C67EC;margin:0 0 12px">Forwarded Email</h2>
+<p style="color:#4a5568">This is a forwarded message from the ARS email log.</p>
+<table style="border-radius:10px;overflow:hidden;border:1px solid #E0E8F5;width:100%;margin:12px 0">
+  <tr><td style="padding:8px 14px;background:#f8fbff;color:#888;width:35%">Original Subject</td><td style="padding:8px 14px;font-weight:600">{log.subject}</td></tr>
+  <tr><td style="padding:8px 14px;background:#f0f6ff;color:#888">Original Recipient</td><td style="padding:8px 14px;font-weight:600">{log.recipient}</td></tr>
+</table>"""
+        else:
+            content = f"""
+<h2 style="color:#0C67EC;margin:0 0 12px">إعادة توجيه</h2>
+<p style="color:#4a5568">هذه رسالة مُعاد توجيهها من سجل البريد الإلكتروني لنظام ARS.</p>
+<table style="border-radius:10px;overflow:hidden;border:1px solid #E0E8F5;width:100%;margin:12px 0">
+  <tr><td style="padding:8px 14px;background:#f8fbff;color:#888;width:35%">الموضوع الأصلي</td><td style="padding:8px 14px;font-weight:600">{log.subject}</td></tr>
+  <tr><td style="padding:8px 14px;background:#f0f6ff;color:#888">المرسَل إليه الأصلي</td><td style="padding:8px 14px;font-weight:600">{log.recipient}</td></tr>
+</table>"""
+        fwd_html = _html_wrapper(content, f'FWD: {log.subject}', lang)
+    ok = _send(forward_to, '', f'FWD: {log.subject}',
+               fwd_html,
+               f'FWD: {log.subject}',
+               sync=True, email_type='resend')
+    if ok:
+        syslog('EMAIL_FORWARD', f'توجيه #{log_id} إلى {forward_to}')
+        flash_msg(f'✅ Forwarded to {forward_to}' if _en else f'✅ تم التوجيه إلى {forward_to}', 'success')
+    else:
+        flash_msg('❌ فشل التوجيه — تحقق من إعدادات البريد', 'danger')
+    return redirect(url_for('admin.email_logs'))

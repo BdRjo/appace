@@ -1,0 +1,178 @@
+{%- set ar = (current_lang == 'ar') -%}
+{% extends 'interviews/_public_base.html' %}
+{% block title %}{% if ar %}حجز موعد{% else %}Book an Appointment{% endif %}{% endblock %}
+
+{% block extra_style %}
+.cal-form-card{background:white;border-radius:18px;box-shadow:0 1px 3px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.06);border:1px solid rgba(255,255,255,.8);overflow:hidden}
+.cal-form-header{background:linear-gradient(135deg,var(--bc),#3b82f6);color:white;padding:28px 24px;text-align:center}
+.cal-form-header h4{margin:0;font-weight:800;font-size:1.3rem}
+.cal-form-header p{margin:8px 0 0;opacity:.85;font-size:.88rem}
+.cal-form-body{padding:28px 24px}
+.cal-field{margin-bottom:20px}
+.cal-field label{font-size:.85rem;font-weight:600;color:#475569;margin-bottom:6px;display:block}
+.cal-field .pi-input{
+  border:1.5px solid #e2e8f0;border-radius:10px;padding:12px 16px;
+  font-size:.95rem;width:100%;background:white;transition:all .2s;
+  color:#1e293b;outline:none;
+}
+.cal-field .pi-input:focus{border-color:var(--bc);box-shadow:0 0 0 4px var(--bc-light)}
+.cal-field select.pi-input{appearance:auto;cursor:pointer}
+.cal-field textarea.pi-input{resize:vertical;min-height:80px}
+.cal-time-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.cal-info-box{background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:14px 16px;margin-bottom:20px;font-size:.85rem;color:#1e40af;display:flex;align-items:flex-start;gap:10px}
+.cal-info-box i{font-size:1.1rem;margin-top:2px;flex-shrink:0}
+.cal-required{color:#ef4444;margin-inline-start:2px}
+@media(max-width:576px){.cal-time-row{grid-template-columns:1fr}}
+{% endblock %}
+
+{% block pi_ticker %}{% endblock %}
+
+{% block nav_action %}
+<a href="{{ url_for('interviews.book_welcome') }}" class="btn-pi-outline btn btn-sm px-3" style="font-size:.82rem">
+  <i class="bi bi-arrow-{{ 'right' if ar else 'left' }} me-1"></i>{% if ar %}رجوع{% else %}Back{% endif %}
+</a>
+{% endblock %}
+
+{% block main_class %}pi-shell-tight{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width:640px">
+  <div class="mb-3">
+    <a id="status-card" href="{{ url_for('interviews.book_lookup') }}" class="pi-card d-flex align-items-start gap-3 p-3 text-decoration-none" style="color:inherit;border-style:dashed">
+      <div style="width:44px;height:44px;border-radius:14px;background:#f0fdf4;color:#16a34a;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <i class="bi bi-clock-history"></i>
+      </div>
+      <div class="flex-grow-1">
+        <div class="fw-700 mb-1" style="color:#0f172a">{% if ar %}هل لديك طلب سابق؟{% else %}Have a previous request?{% endif %}</div>
+        <div style="font-size:.84rem;color:#64748b">{% if ar %}تحقق من حالة طلبك أو مواعيدك الحالية بسرعة{% else %}Quickly check your request status or current bookings{% endif %}</div>
+      </div>
+      <div class="align-self-center" style="color:var(--bc)">
+        {% if ar %}تحقق من الحالة{% else %}Check request status{% endif %}
+      </div>
+    </a>
+  </div>
+  <div class="cal-form-card">
+    <div class="cal-form-header">
+      <div style="width:52px;height:52px;border-radius:14px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:1.4rem;margin:0 auto 12px">
+        <i class="bi bi-calendar-plus"></i>
+      </div>
+      <h4>{% if ar %}حجز موعد{% else %}Book an Appointment{% endif %}</h4>
+      <p>{% if ar %}اختر التاريخ والوقت المناسب لحجز موعدك{% else %}Pick a date and time to request your appointment{% endif %}</p>
+    </div>
+
+    <div class="cal-form-body">
+      <div class="cal-info-box">
+        <i class="bi bi-info-circle-fill"></i>
+        <div>
+          {% if ar %}
+            ساعات العمل: <strong>8:00 صباحاً - 3:30 مساءً</strong>. يرجى اختيار وقت ضمن هذه الفترة.
+          {% else %}
+            Work hours: <strong>8:00 AM - 3:30 PM</strong>. Please select a time within this window.
+          {% endif %}
+        </div>
+      </div>
+
+      <form method="post" action="{{ url_for('interviews.calendar_public') }}" id="calForm">
+        {# Date #}
+        <div class="cal-field">
+          <label>{% if ar %}التاريخ{% else %}Date{% endif %}<span class="cal-required">*</span></label>
+          <input type="date" name="booking_date" class="pi-input" min="{{ today }}" max="{{ max_date }}" required>
+        </div>
+
+        {# Time range #}
+        <div class="cal-time-row">
+          <div class="cal-field">
+            <label>{% if ar %}من الساعة{% else %}From{% endif %}<span class="cal-required">*</span></label>
+            <select name="start_time" class="pi-input" id="startTime" required>
+              <option value="">{% if ar %}اختر...{% else %}Select...{% endif %}</option>
+              {% for t in start_times %}
+              <option value="{{ t.val }}">{{ t.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="cal-field">
+            <label>{% if ar %}إلى الساعة{% else %}To{% endif %}<span class="cal-required">*</span></label>
+            <select name="end_time" class="pi-input" id="endTime" required>
+              <option value="">{% if ar %}اختر...{% else %}Select...{% endif %}</option>
+              {% for t in end_times %}
+              <option value="{{ t.val }}">{{ t.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        {# Name #}
+        <div class="cal-field">
+          <label>{% if ar %}الاسم الكامل{% else %}Full Name{% endif %}<span class="cal-required">*</span></label>
+          <input type="text" name="requester_name" class="pi-input" placeholder="{% if ar %}أدخل اسمك الكامل{% else %}Enter your full name{% endif %}" required>
+        </div>
+
+        {# Email (optional) #}
+        <div class="cal-field">
+          <label>{% if ar %}البريد الإلكتروني{% else %}Email{% endif %}</label>
+          <input type="email" name="requester_email" class="pi-input" placeholder="{% if ar %}example@email.com{% else %}example@email.com{% endif %}">
+        </div>
+
+        {# Phone #}
+        <div class="cal-field">
+          <label>{% if ar %}رقم الجوال{% else %}Phone{% endif %}</label>
+          <input type="tel" name="requester_phone" class="pi-input" placeholder="{% if ar %}05xxxxxxxx{% else %}05xxxxxxxx{% endif %}">
+        </div>
+
+        {# Person to meet #}
+        <div class="cal-field">
+          <label>{% if ar %}الشخص المطلوب مقابلته{% else %}Person to Meet{% endif %}<span class="cal-required">*</span></label>
+          <input type="text" name="person_to_meet" class="pi-input" placeholder="{% if ar %}اسم الشخص أو القسم{% else %}Name or department{% endif %}" required>
+        </div>
+
+        {# Reason #}
+        <div class="cal-field">
+          <label>{% if ar %}سبب الموعد{% else %}Reason{% endif %}<span class="cal-required">*</span></label>
+          <textarea name="reason" class="pi-input" rows="3" placeholder="{% if ar %}اشرح سبب طلب الموعد...{% else %}Describe the reason for your appointment...{% endif %}" required></textarea>
+        </div>
+
+        <button type="submit" class="btn-pi w-100" style="font-size:1rem;padding:14px">
+          <i class="bi bi-send me-2"></i>{% if ar %}إرسال الطلب{% else %}Submit Request{% endif %}
+        </button>
+      </form>
+
+      {# Check status link #}
+      <div class="text-center mt-4" style="font-size:.85rem">
+        <span style="color:#64748b">{% if ar %}لديك طلب سابق؟{% else %}Have a previous request?{% endif %}</span>
+        <a href="#" onclick="document.getElementById('statusLookup').classList.toggle('d-none');return false;" style="color:var(--bc);font-weight:600;text-decoration:none;margin-inline-start:4px">
+          {% if ar %}تحقق من حالة الطلب{% else %}Check request status{% endif %}
+        </a>
+        <div id="statusLookup" class="d-none mt-3">
+          <form class="d-flex gap-2" onsubmit="var c=this.querySelector('input').value.trim();if(c)window.location='/interviews/calendar/status/'+c;return false;">
+            <input type="text" class="pi-input" placeholder="{% if ar %}أدخل رقم الطلب (APT-XXXXXXXX){% else %}Enter request code (APT-XXXXXXXX){% endif %}" style="flex:1">
+            <button type="submit" class="btn-pi" style="padding:12px 20px;white-space:nowrap">
+              <i class="bi bi-search"></i>
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_script %}
+<script>
+// Auto-set end time when start time changes (default +15 min)
+document.getElementById('startTime').addEventListener('change', function(){
+  var st = this.value;
+  if(!st) return;
+  var endSel = document.getElementById('endTime');
+  // find next option after start
+  var parts = st.split(':');
+  var mins = parseInt(parts[0])*60 + parseInt(parts[1]) + 15;
+  var target = ('0'+Math.floor(mins/60)).slice(-2)+':'+('0'+(mins%60)).slice(-2);
+  for(var i=0;i<endSel.options.length;i++){
+    if(endSel.options[i].value === target){
+      endSel.selectedIndex = i;
+      break;
+    }
+  }
+});
+</script>
+{% endblock %}

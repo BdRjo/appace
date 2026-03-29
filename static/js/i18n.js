@@ -81,3 +81,8 @@ document.addEventListener('DOMContentLoaded', () => {
   _startClock();
   _resetIdle();
 });
+
+// Re-init clock after HTMX swaps content (clock element stays in DOM)
+document.addEventListener('htmx:afterSettle', () => {
+  _startClock();
+});

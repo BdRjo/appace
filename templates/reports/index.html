@@ -38,20 +38,20 @@
   <div class="card-body py-3">
     <form method="GET" class="row g-2 align-items-end">
       <div class="col-auto">
-        <span class="fw-bold text-primary">{{ _('نوع التقرير:') }}
+        <span class="fw-bold text-primary">{% if current_lang=='en' %}Report Type:{% else %}نوع التقرير:{% endif %}
       </div>
-      {% for k, lbl, col in [
-        ('my_reservations', 'حجوزاتي', '#247680'),
-        ('all_reservations', 'جميع الحجوزات', '#0C67EC'),
-        ('venues', 'القاعات', '#a38079'),
-        ('locations', 'المواقع', '#2E6B8A'),
+      {% for k, lbl_ar, lbl_en, col in [
+        ('my_reservations', 'حجوزاتي', 'My Bookings', '#247680'),
+        ('all_reservations', 'جميع الحجوزات', 'All Bookings', '#0C67EC'),
+        ('venues', 'القاعات', 'Venues', '#a38079'),
+        ('locations', 'المواقع', 'Locations', '#2E6B8A'),
       ] %}
       {% if k != 'all_reservations' or perms.is_admin_or_manager() %}
       <div class="col-auto">
         <a href="{{ url_for('reports.index', type=k, filter=filter, start=start, end=end) }}"
            class="btn btn-sm {{ 'text-white' if rtype==k else 'btn-outline-secondary' }}"
            style="{{ 'background:'+col+';border-color:'+col if rtype==k else '' }}">
-          {{ lbl }}
+          {% if current_lang=='en' %}{{ lbl_en }}{% else %}{{ lbl_ar }}{% endif %}
         </a>
       </div>
       {% endif %}
@@ -61,18 +61,27 @@
         <a href="{{ url_for('reports.index', type='users', filter=filter) }}"
            class="btn btn-sm {{ 'text-white' if rtype=='users' else 'btn-outline-secondary' }}"
            style="{{ 'background:#8E44AD;border-color:#8E44AD' if rtype=='users' else '' }}">
-          {{ _('المستخدمون') }}
+          {% if current_lang=='en' %}Users{% else %}المستخدمون{% endif %}
+        </a>
+      </div>
+      {% endif %}
+      {% if perms.is_admin_or_manager() %}
+      <div class="col-auto">
+        <a href="{{ url_for('reports.index', type='email_stats') }}"
+           class="btn btn-sm {{ 'text-white' if rtype=='email_stats' else 'btn-outline-secondary' }}"
+           style="{{ 'background:#0C67EC;border-color:#0C67EC' if rtype=='email_stats' else '' }}">
+          <i class="bi bi-envelope-check me-1"></i>{% if current_lang=='en' %}Email Stats{% else %}إحصائيات البريد{% endif %}
         </a>
       </div>
       {% endif %}
 
       <div class="col-auto ms-3">
-        <span class="fw-bold text-secondary">{{ _('الفلتر:') }}
+        <span class="fw-bold text-secondary">{% if current_lang=='en' %}Filter:{% else %}الفلتر:{% endif %}
       </div>
       <div class="col-auto">
         <select name="filter" class="form-select form-select-sm" onchange="this.form.submit()">
-          {% for val, lbl in [('all','الكل'),('today','اليوم'),('week','الأسبوع'),('month','الشهر'),('custom','مخصص')] %}
-          <option value="{{ val }}" {% if filter==val %}selected{% endif %}>{{ lbl }}</option>
+          {% for val, lbl_ar, lbl_en in [('all','الكل','All'),('today','اليوم','Today'),('week','الأسبوع','This Week'),('month','الشهر','This Month'),('custom','مخصص','Custom')] %}
+          <option value="{{ val }}" {% if filter==val %}selected{% endif %}>{% if current_lang=='en' %}{{ lbl_en }}{% else %}{{ lbl_ar }}{% endif %}</option>
           {% endfor %}
         </select>
       </div>
@@ -149,6 +158,47 @@
         <div class="num">{{ stats.verified_users }}</div><div class="lbl">{{ _('موثّقون') }}</div>
       </div>
     </div>
+  {% elif rtype == 'email_stats' %}
+    <div class="col-6 col-md-2">
+      <div class="stat-card" style="background:linear-gradient(135deg,#0C67EC,#3D8EF5)">
+        <div class="num">{{ email_stats.get('total',0) }}</div>
+        <div class="lbl"><i class="bi bi-envelope me-1"></i>{% if current_lang=='en' %}Total Sent{% else %}إجمالي المرسل{% endif %}</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="stat-card" style="background:linear-gradient(135deg,#198754,#27AE60)">
+        <div class="num">{{ email_stats.get('sent',0) }}</div>
+        <div class="lbl">✅ {% if current_lang=='en' %}Success{% else %}نجح{% endif %}</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="stat-card" style="background:linear-gradient(135deg,#DC3545,#e57373)">
+        <div class="num">{{ email_stats.get('failed',0) }}</div>
+        <div class="lbl">❌ {% if current_lang=='en' %}Failed{% else %}فشل{% endif %}</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="stat-card" style="background:linear-gradient(135deg,#0847B0,#0C67EC)">
+        <div class="num">{{ email_stats.get('bulk',0) }}</div>
+        <div class="lbl">📨 {% if current_lang=='en' %}Bulk{% else %}جماعي{% endif %}</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="stat-card" style="background:linear-gradient(135deg,#6C3483,#9B59B6)">
+        <div class="num">{{ email_stats.get('notif',0) }}</div>
+        <div class="lbl">🔔 {% if current_lang=='en' %}Notifications{% else %}إشعارات{% endif %}</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="stat-card" style="background:linear-gradient(135deg,#E67E22,#F39C12)">
+        <div class="num">
+          {% if email_stats.get('total',0) > 0 %}
+            {{ ((email_stats.get('sent',0) / email_stats.get('total',1)) * 100)|round|int }}%
+          {% else %}—{% endif %}
+        </div>
+        <div class="lbl">📊 {% if current_lang=='en' %}Success Rate{% else %}نسبة النجاح{% endif %}</div>
+      </div>
+    </div>
   {% endif %}
 </div>
 {% endif %}
@@ -197,7 +247,56 @@
 {% endif %}
 
 <!-- Data table — مطابق لـ v54 Treeview -->
-{% if rows %}
+{% if rtype == 'email_stats' %}
+<div class="card mt-4" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.08)">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-envelope-check me-2"></i>{% if current_lang=='en' %}Email Activity Log{% else %}سجل نشاط الرسائل{% endif %}</span>
+    <a href="{{ url_for('admin.email_logs') }}" class="btn btn-sm btn-outline-light">
+      <i class="bi bi-box-arrow-up-right me-1"></i>{% if current_lang=='en' %}Full Log{% else %}السجل الكامل{% endif %}
+    </a>
+  </div>
+  <div class="card-body p-0">
+    {% if email_stats.get('total',0) > 0 %}
+    <!-- Summary chart -->
+    <div class="p-4">
+      <canvas id="emailPieChart" height="90"></canvas>
+    </div>
+    <script>
+    (function(){
+      const ctx = document.getElementById('emailPieChart');
+      if (!ctx || typeof Chart === 'undefined') return;
+      new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['{% if current_lang=="en" %}Success{% else %}نجح{% endif %}',
+                   '{% if current_lang=="en" %}Failed{% else %}فشل{% endif %}',
+                   '{% if current_lang=="en" %}Bulk{% else %}جماعي{% endif %}',
+                   '{% if current_lang=="en" %}Notifications{% else %}إشعارات{% endif %}'],
+          datasets: [{
+            data: [{{ email_stats.get('sent',0) }},
+                   {{ email_stats.get('failed',0) }},
+                   {{ email_stats.get('bulk',0) }},
+                   {{ email_stats.get('notif',0) }}],
+            backgroundColor: ['#198754','#dc3545','#0C67EC','#9B59B6'],
+            borderWidth: 2
+          }]
+        },
+        options: { responsive:true, plugins:{ legend:{ position:'bottom' } } }
+      });
+    })();
+    </script>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-envelope" style="font-size:3rem;opacity:.3"></i>
+      <p class="mt-2">{% if current_lang=='en' %}No email logs yet{% else %}لا توجد سجلات بريد بعد{% endif %}</p>
+      <a href="{{ url_for('admin.settings') }}" class="btn btn-primary btn-sm mt-2">
+        {% if current_lang=='en' %}Configure Email Settings{% else %}إعداد البريد الإلكتروني{% endif %}
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% elif rows %}
 <div class="card">
   <div class="card-header d-flex justify-content-between align-items-center">
     <span><i class="bi bi-table me-2"></i>{% if current_lang=="en" %}Data ({{ total_count }} records){% else %}البيانات ({{ total_count }} سجل){% endif %}</span>
@@ -246,12 +345,14 @@
   {% endif %}
 </div>
 {% else %}
+{% if rtype != 'email_stats' %}
 <div class="card">
   <div class="card-body text-center py-5 text-muted">
     <i class="bi bi-inbox" style="font-size:3rem;color:#ccc"></i>
     <p class="mt-3">{{ _('لا توجد بيانات لعرضها') }}</p>
   </div>
 </div>
+{% endif %}
 {% endif %}
 
 {% if monthly %}
@@ -318,5 +419,6 @@ if (document.getElementById('statusChart')) {
   });
 }
 {% endif %}
-</script> %}
+</script>
+{% endif %}
 {% endblock %}
