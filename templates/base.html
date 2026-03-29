@@ -144,26 +144,33 @@ body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background: #F0F4FA; 
 #tickerWrap {
   flex: 1; min-width: 0; overflow: hidden !important;
   height: 36px; display: flex; align-items: center;
-  background: transparent; margin: 0 8px;
-  max-width: 100%; position: relative;
+  background: transparent; margin: 0 !important; padding: 0;
+  max-width: 100%; position: relative; border-radius: 0;
 }
 .ticker-overflow {
   flex: 1; overflow: hidden !important; height: 100%; display: flex; align-items: center;
   max-width: 100%; position: relative;
-  --fade: {{ ticker_cfg.mask_fade|default(12) }}%;
-  --fade-end: calc(100% - var(--fade));
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, black var(--fade), black var(--fade-end), transparent 100%);
-  mask-image: linear-gradient(to right, transparent 0%, black var(--fade), black var(--fade-end), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black {{ ticker_cfg.mask_fade|default(12) }}%, black calc(100% - {{ ticker_cfg.mask_fade|default(12) }}%), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0%, black {{ ticker_cfg.mask_fade|default(12) }}%, black calc(100% - {{ ticker_cfg.mask_fade|default(12) }}%), transparent 100%);
 }
-[dir="rtl"] .ticker-overflow {
-  -webkit-mask-image: linear-gradient(to left, transparent 0%, black var(--fade), black var(--fade-end), transparent 100%);
-  mask-image: linear-gradient(to left, transparent 0%, black var(--fade), black var(--fade-end), transparent 100%);
+html[dir="rtl"] .ticker-overflow {
+  -webkit-mask-image: linear-gradient(to left, transparent 0%, black {{ ticker_cfg.mask_fade|default(12) }}%, black calc(100% - {{ ticker_cfg.mask_fade|default(12) }}%), transparent 100%);
+  mask-image: linear-gradient(to left, transparent 0%, black {{ ticker_cfg.mask_fade|default(12) }}%, black calc(100% - {{ ticker_cfg.mask_fade|default(12) }}%), transparent 100%);
 }
 .ticker-track { display: inline-flex; align-items: center; white-space: nowrap; will-change: transform; }
 .ticker-text { padding: 0 50px; font-weight: 600; white-space: nowrap; }
-.ticker-item { display: inline-flex; align-items: center; white-space: nowrap; margin: 0 24px; flex-shrink: 0; }
-.ticker-item img { width: 28px; height: 28px; object-fit: contain; margin: 0 10px; opacity: .75; border-radius: 4px; }
-.ticker-sep { margin: 0 8px; flex-shrink: 0; }
+.ticker-item { display: inline-flex; align-items: center; white-space: nowrap; margin: 0 16px; flex-shrink: 0; }
+.ticker-item img {
+  width: {{ ticker_cfg.logo_size|default(28) }}px;
+  height: {{ ticker_cfg.logo_size|default(28) }}px;
+  object-fit: contain; margin: 0 16px; border-radius: 4px;
+  display: inline-block; vertical-align: middle; min-width: 20px; min-height: 20px;
+  {% if ticker_cfg.logo_pulse|default(true) %}
+  animation: tickerLogoPulse {{ ticker_cfg.logo_pulse_speed|default(14) }}s ease-in-out infinite; animation-delay:2s;
+  {% endif %}
+}
+@keyframes tickerLogoPulse { 0% { opacity:1; } 30% { opacity:1; } 45% { opacity:0; } 55% { opacity:0; } 70% { opacity:1; } 100% { opacity:1; } }
+.ticker-sep { margin: 0 16px; flex-shrink: 0; }
 .ticker-sep img { width: 24px; height: 24px; object-fit: contain; border-radius: 50%; opacity: .85; vertical-align: middle; }
 
 /* ── 3. TICKER BAR — Mobile/Tablet fixed layer, independent ── */
@@ -173,21 +180,17 @@ body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background: #F0F4FA; 
   inset-inline-start: 0; inset-inline-end: 0;
   height: var(--tkh);
   z-index: 799;
-  background: var(--primary);
+  background: {% if ticker_cfg.bg and ticker_cfg.bg != 'transparent' %}{{ ticker_cfg.bg }}{% else %}#f8fafc{% endif %};
   display: none;
   align-items: center; overflow: hidden;
   transform: translate3d(0, 0, 0);
   -webkit-transform: translate3d(0, 0, 0);
   will-change: transform;
+  border-bottom: 1px solid rgba(0,0,0,.1);
+  box-shadow: 0 2px 4px rgba(0,0,0,.06);
 }
 #arsTickerBar .ticker-overflow {
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, black var(--fade), black var(--fade-end), transparent 100%);
-  mask-image: linear-gradient(to right, transparent 0%, black var(--fade), black var(--fade-end), transparent 100%);
   overflow: hidden !important; max-width: 100%;
-}
-[dir="rtl"] #arsTickerBar .ticker-overflow {
-  -webkit-mask-image: linear-gradient(to left, transparent 0%, black var(--fade), black var(--fade-end), transparent 100%);
-  mask-image: linear-gradient(to left, transparent 0%, black var(--fade), black var(--fade-end), transparent 100%);
 }
 
 /* ── 4. MAIN CONTENT ── */
@@ -430,7 +433,7 @@ body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background: #F0F4FA; 
     {% endif %}
     <div class="brand-text">
       <div class="brand-title">{% if current_lang=='en' %}ARS{% else %}نظام ARS{% endif %}</div>
-      <div class="brand-sub">{% if current_lang=='en' %}Applied Reservation System{% else %}نظام إدارة الحجوزات{% endif %}</div>
+      <div class="brand-sub">{% if current_lang=='en' %}Applied Event System{% else %}نظام إدارة الفعاليات{% endif %}</div>
     </div>
   </div>
   <div class="sidebar-scroll" hx-boost="true" hx-target="#contentArea" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#pageLoader" hx-select="#contentArea">
@@ -521,6 +524,26 @@ body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background: #F0F4FA; 
   <a href="/interviews/admin/" class="nav-link {% if request.blueprint=='interviews' %}active{% endif %}" hx-boost="false">
     <i class="bi bi-people-fill"></i>{% if current_lang=='en' %}Parent Interviews{% else %}مقابلات أولياء الأمور{% endif %}
   </a>
+  <!-- SAS — School Absent System -->
+  <div class="section-label">{% if current_lang=='en' %}📋 SAS{% else %}📋 نظام الغياب{% endif %}</div>
+  <a href="{{ url_for('sas.admin_dashboard') }}" class="nav-link {% if request.endpoint=='sas.admin_dashboard' %}active{% endif %}" hx-boost="false">
+    <i class="bi bi-clipboard2-pulse"></i>{% if current_lang=='en' %}SAS Dashboard{% else %}لوحة الغياب{% endif %}
+  </a>
+  <a href="{{ url_for('sas.admin_staff') }}" class="nav-link {% if request.endpoint=='sas.admin_staff' %}active{% endif %}" hx-boost="false">
+    <i class="bi bi-person-badge"></i>{% if current_lang=='en' %}SAS Staff{% else %}طاقم الغياب{% endif %}
+  </a>
+  <a href="{{ url_for('sas.admin_students') }}" class="nav-link {% if request.endpoint=='sas.admin_students' %}active{% endif %}" hx-boost="false">
+    <i class="bi bi-mortarboard"></i>{% if current_lang=='en' %}Students{% else %}الطلاب{% endif %}
+  </a>
+  <a href="{{ url_for('sas.admin_stages') }}" class="nav-link {% if request.endpoint=='sas.admin_stages' %}active{% endif %}" hx-boost="false">
+    <i class="bi bi-diagram-3"></i>{% if current_lang=='en' %}Stages/Classes{% else %}المراحل/الفصول{% endif %}
+  </a>
+  <a href="{{ url_for('sas.admin_config') }}" class="nav-link {% if request.endpoint=='sas.admin_config' %}active{% endif %}" hx-boost="false">
+    <i class="bi bi-gear"></i>{% if current_lang=='en' %}SAS Settings{% else %}إعدادات الغياب{% endif %}
+  </a>
+  <a href="/sas/" class="nav-link" hx-boost="false" target="_blank">
+    <i class="bi bi-box-arrow-up-right"></i>{% if current_lang=='en' %}SAS Portal{% else %}بوابة الغياب{% endif %}
+  </a>
   <a href="{{ url_for('admin.auth_ticker') }}" class="nav-link {% if request.endpoint=='admin.auth_ticker' %}active{% endif %}">
     <i class="bi bi-megaphone"></i>{% if current_lang=='en' %}Auth Ticker{% else %}تيكر صفحات الدخول{% endif %}
   </a>
@@ -561,13 +584,13 @@ body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background: #F0F4FA; 
     </div>
 
     <!-- Ticker: desktop only — JS-powered smooth scroll -->
-    <div id="tickerWrap" style="flex:1;overflow:hidden;height:36px;display:flex;align-items:center;min-width:0;margin:0 10px;background:transparent;border-radius:8px;max-width:100%">
+    <div id="tickerWrap" style="flex:1;overflow:hidden;height:36px;display:flex;align-items:center;min-width:0;margin:0;background:transparent;border-radius:0;max-width:100%">
       <div class="ticker-overflow" style="flex:1;overflow:hidden;height:36px;display:flex;align-items:center;position:relative;max-width:100%">
         <div class="ticker-track" id="tickerTrack" style="display:inline-flex;align-items:center;white-space:nowrap;will-change:transform">
           {%- for item in ticker_cfg.feeds -%}
           <span class="ticker-item" style="color:{{ ticker_cfg.fg }};font-family:{{ ticker_cfg.font }};font-size:{{ ticker_cfg.size }}px;font-weight:600">
             {{ item|safe }}
-            {%- if ticker_cfg.logo_url %}<img src="{{ ticker_cfg.logo_url }}" alt="">{% endif -%}
+            {%- if ticker_cfg.logo_url %}<img src="{{ ticker_cfg.logo_url }}" alt="" onerror="if(!this.dataset.retry){this.dataset.retry='1';this.src=this.src+'?r='+Date.now()}else{this.style.opacity='0';this.style.width='0';this.style.margin='0'}">{% endif -%}
           </span>
           {%- if not loop.last %}<span class="ticker-sep" style="color:{{ ticker_cfg.fg }}">{% if ticker_cfg.sep_img_url %}<img src="{{ ticker_cfg.sep_img_url }}" alt="">{% else %}◆{% endif %}</span>{% endif -%}
           {%- endfor -%}
@@ -634,7 +657,7 @@ body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background: #F0F4FA; 
       {%- for item in ticker_cfg.feeds -%}
       <span class="ticker-item" style="color:{{ ticker_cfg.fg or '#ffffff' }};font-family:{{ ticker_cfg.font }};font-size:{{ ticker_cfg.size }}px;font-weight:600">
         {{ item|safe }}
-        {%- if ticker_cfg.logo_url %}<img src="{{ ticker_cfg.logo_url }}" alt="">{% endif -%}
+        {%- if ticker_cfg.logo_url %}<img src="{{ ticker_cfg.logo_url }}" alt="" onerror="if(!this.dataset.retry){this.dataset.retry='1';this.src=this.src+'?r='+Date.now()}else{this.style.opacity='0';this.style.width='0';this.style.margin='0'}">{% endif -%}
       </span>
       {%- if not loop.last %}<span class="ticker-sep" style="color:{{ ticker_cfg.fg or '#ffffff' }}">{% if ticker_cfg.sep_img_url %}<img src="{{ ticker_cfg.sep_img_url }}" alt="">{% else %}◆{% endif %}</span>{% endif -%}
       {%- endfor -%}
@@ -671,7 +694,7 @@ body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background: #F0F4FA; 
       <i class="bi bi-calendar-check"></i>
       <strong>ARS</strong>
       <span class="footer-sep">|</span>
-      <span>{% if current_lang=='en' %}Applied Reservation System{% else %}نظام إدارة الحجوزات{% endif %}</span>
+      <span>{% if current_lang=='en' %}Applied Event System{% else %}نظام إدارة الفعاليات{% endif %}</span>
       <span class="footer-sep">|</span>
       <a href="#" class="footer-terms" data-bs-toggle="modal" data-bs-target="#aboutModal">
         {% if current_lang=='en' %}About{% else %}عن النظام{% endif %}
@@ -704,7 +727,7 @@ body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background: #F0F4FA; 
                 <i class="bi bi-calendar-check" style="font-size:1.8rem;color:#fff"></i>
               </div>
               <h4 style="color:var(--primary);font-weight:800;margin-bottom:4px">ARS</h4>
-              <p style="color:#666;font-size:.88rem;margin:0">{% if current_lang=='en' %}Applied Reservation System{% else %}نظام إدارة الحجوزات التطبيقي{% endif %}</p>
+              <p style="color:#666;font-size:.88rem;margin:0">{% if current_lang=='en' %}Applied Event System{% else %}نظام إدارة الفعاليات التطبيقي{% endif %}</p>
             </div>
             {% if current_lang=='en' %}
             <div class="row g-3">
@@ -811,7 +834,7 @@ body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background: #F0F4FA; 
             <p>All data is stored securely using encryption standards. Access is restricted to authorized users only, and all system activities are logged for security purposes.</p>
 
             <h6 class="fw-bold text-primary mb-2"><i class="bi bi-4-circle me-1"></i>Intellectual Property</h6>
-            <p>ARS — Applied Reservation System and all its components, interfaces, code, and content are the exclusive intellectual property of the system owner. Reproduction, copying, or redistribution of any part of this system is strictly prohibited without prior written permission.</p>
+            <p>ARS — Applied Event System and all its components, interfaces, code, and content are the exclusive intellectual property of the system owner. Reproduction, copying, or redistribution of any part of this system is strictly prohibited without prior written permission.</p>
 
             <h6 class="fw-bold text-primary mb-2"><i class="bi bi-5-circle me-1"></i>User Responsibilities</h6>
             <p>Users are responsible for maintaining the confidentiality of their login credentials. Any misuse of the system, unauthorized access attempts, or violation of these terms may result in immediate account suspension and potential legal action.</p>
@@ -823,7 +846,7 @@ body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background: #F0F4FA; 
             <p>These terms are governed by applicable local laws. Any disputes shall be resolved through the competent judicial authorities.</p>
 
             <div class="mt-3 p-2 rounded" style="background:#EEF4FD;border-right:3px solid var(--primary)">
-              <small class="text-muted">Last updated: 2026 · ARS Applied Reservation System · All rights reserved ©</small>
+              <small class="text-muted">Last updated: 2026 · ARS Applied Event System · All rights reserved ©</small>
             </div>
 
             {% else %}
@@ -838,7 +861,7 @@ body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background: #F0F4FA; 
             <p>تُحفظ جميع البيانات بشكل آمن باستخدام معايير التشفير المعتمدة. لا يمكن الوصول إليها إلا للمستخدمين المخولين، وتُسجَّل جميع أنشطة النظام لأغراض أمنية.</p>
 
             <h6 class="fw-bold text-primary mb-2"><i class="bi bi-4-circle me-1"></i>الملكية الفكرية</h6>
-            <p>نظام ARS — Applied Reservation System وجميع مكوناته وواجهاته وكوده ومحتواه هي الملكية الفكرية الحصرية لمالك النظام. يُحظر تمامًا إعادة إنتاج أي جزء من هذا النظام أو نسخه أو توزيعه دون إذن كتابي مسبق.</p>
+            <p>نظام ARS — Applied Event System وجميع مكوناته وواجهاته وكوده ومحتواه هي الملكية الفكرية الحصرية لمالك النظام. يُحظر تمامًا إعادة إنتاج أي جزء من هذا النظام أو نسخه أو توزيعه دون إذن كتابي مسبق.</p>
 
             <h6 class="fw-bold text-primary mb-2"><i class="bi bi-5-circle me-1"></i>مسؤوليات المستخدم</h6>
             <p>يتحمل المستخدم مسؤولية الحفاظ على سرية بيانات تسجيل الدخول الخاصة به. قد يؤدي أي إساءة في استخدام النظام أو محاولات وصول غير مصرح بها أو انتهاك هذه الشروط إلى تعليق الحساب فورًا واتخاذ الإجراءات القانونية اللازمة.</p>
@@ -874,7 +897,7 @@ body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background: #F0F4FA; 
               <div style="color:#fff;font-weight:700;font-size:.95rem;margin-top:4px">
                 {% if current_lang=='en' %}We're here to help!{% else %}نحن هنا لمساعدتك!{% endif %}
               </div>
-              <div style="color:rgba(255,255,255,.75);font-size:.78rem">ARS — Applied Reservation System</div>
+              <div style="color:rgba(255,255,255,.75);font-size:.78rem">ARS — Applied Event System</div>
             </div>
             <div class="p-4 d-flex flex-column gap-3">
               <!-- Email -->
@@ -994,29 +1017,56 @@ function closeSidebar(){
 // ── Robust JS Ticker ──────────────────────────────────────────────────────────
 (function(){
   function initTicker(trackId, speed){
-    const track = document.getElementById(trackId);
+    var track = document.getElementById(trackId);
     if(!track || !track.children.length) return;
+    var overflow = track.parentElement;
     // Duplicate content for seamless loop
-    const clone = track.innerHTML;
+    var clone = track.innerHTML;
     track.innerHTML = clone + clone;
-    const isRTL = document.documentElement.dir === 'rtl';
-    let pos = 0;
-    let halfW = 0;
-    function measureHalf(){ halfW = track.scrollWidth / 2; }
-    measureHalf();
-    // Re-measure on resize
-    window.addEventListener('resize', measureHalf);
-    let paused = false;
-    track.parentElement.addEventListener('mouseenter', ()=> paused=true);
-    track.parentElement.addEventListener('mouseleave', ()=> paused=false);
-    const pxPerMs = Math.max(0.01, (speed || 35) / 1000);
-    let lastTime = 0;
+    var isRTL = document.documentElement.dir === 'rtl';
+    var halfW = 0;
+    var containerW = 0;
+    function measure(){
+      halfW = track.scrollWidth / 2;
+      containerW = overflow ? overflow.offsetWidth : 0;
+    }
+    measure();
+    // Re-measure after images load for correct width
+    var imgs = track.querySelectorAll('img');
+    var loaded = 0;
+    if(imgs.length){
+      imgs.forEach(function(im){
+        if(im.complete){ loaded++; }
+        else{ im.addEventListener('load', function(){ loaded++; if(loaded>=imgs.length) measure(); }); }
+      });
+    }
+    // Smooth initial appearance: hide ticker until first frame measures it
+    var wrap = track.closest('#tickerWrap') || track.closest('#arsTickerBar');
+    if(wrap){
+      wrap.style.opacity = '0';
+      wrap.style.transition = 'opacity 1.5s ease';
+    }
+    window.addEventListener('resize', measure);
+    var paused = false;
+    overflow.addEventListener('mouseenter', function(){ paused=true; });
+    overflow.addEventListener('mouseleave', function(){ paused=false; });
+    var pxPerMs = Math.max(0.01, (speed || 35) / 1000);
+    var lastTime = 0;
+    var pos = 0;
+    var edgeStarted = false;
     function step(timestamp){
       if(!lastTime) lastTime = timestamp;
-      const dt = timestamp - lastTime;
+      // Re-measure on first frame to ensure layout is done
+      if(!edgeStarted){
+        measure();
+        pos = isRTL ? -containerW : containerW;
+        edgeStarted = true;
+        if(wrap) setTimeout(function(){ wrap.style.opacity = '1'; }, 60);
+      }
+      var dt = timestamp - lastTime;
       lastTime = timestamp;
       if(!paused && halfW > 0){
-        const delta = pxPerMs * dt;
+        var delta = pxPerMs * dt;
         if(isRTL){ pos += delta; if(pos >= halfW) pos -= halfW; }
         else { pos -= delta; if(Math.abs(pos) >= halfW) pos += halfW; }
         track.style.transform = 'translate3d(' + pos + 'px,0,0)';

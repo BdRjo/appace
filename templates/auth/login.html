@@ -79,21 +79,37 @@
     .input-group-text { background: #f0f5ff; border: 1.5px solid #e0e7e9; }
     .divider { border-top: 1px solid #eee; margin: 1rem 0; }
     .ticker-scroll {
-      overflow:hidden; white-space:nowrap; width:100%; max-width:100vw;
-      --fade: {{ auth_ticker_cfg.mask_fade|default(12) }}%;
-      --fade-end: calc(100% - var(--fade));
-      -webkit-mask-image: linear-gradient(to right, transparent 0%, black var(--fade), black var(--fade-end), transparent 100%);
-      mask-image: linear-gradient(to right, transparent 0%, black var(--fade), black var(--fade-end), transparent 100%);
+      overflow:hidden; white-space:nowrap;
+      width:60%; max-width:700px; margin:0 auto;
+      height:36px; display:flex; align-items:center;
+      -webkit-mask-image: linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%);
+      mask-image: linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%);
     }
     .ticker-scroll img { vertical-align:middle; }
-    .ticker-scroll-inner { display:inline-block; animation:tickerScroll var(--ticker-duration,15s) linear infinite; padding-left:100%; }
-    @keyframes tickerScroll { 0% { transform:translate3d(0,0,0); } 100% { transform:translate3d(-100%,0,0); } }
-    html[dir="rtl"] .ticker-scroll-inner { animation-name:tickerScrollRTL; padding-left:0; padding-right:100%; }
-    html[dir="rtl"] .ticker-scroll {
-      -webkit-mask-image: linear-gradient(to left, transparent 0%, black var(--fade), black var(--fade-end), transparent 100%);
-      mask-image: linear-gradient(to left, transparent 0%, black var(--fade), black var(--fade-end), transparent 100%);
+    .ticker-scroll-inner {
+      display:inline-block; white-space:nowrap;
+      animation: authTickerScroll var(--ticker-duration,15s) linear infinite,
+                 authTickerFadeIn 1.5s ease-out forwards;
     }
-    @keyframes tickerScrollRTL { 0% { transform:translate3d(0,0,0); } 100% { transform:translate3d(100%,0,0); } }
+    @keyframes authTickerFadeIn {
+      0%   { opacity: 0; }
+      100% { opacity: 1; }
+    }
+    @keyframes authTickerScroll {
+      0%   { transform: translateX(50vw); }
+      100% { transform: translateX(-100%); }
+    }
+    html[dir="rtl"] .ticker-scroll-inner {
+      animation-name: authTickerScrollRTL, authTickerFadeIn;
+    }
+    @keyframes authTickerScrollRTL {
+      0%   { transform: translateX(-50vw); }
+      100% { transform: translateX(100%); }
+    }
+    html[dir="rtl"] .ticker-scroll {
+      -webkit-mask-image: linear-gradient(to left, transparent 0%, black 15%, black 85%, transparent 100%);
+      mask-image: linear-gradient(to left, transparent 0%, black 15%, black 85%, transparent 100%);
+    }
   </style>
 </head>
 <body>
@@ -119,7 +135,7 @@
     <div class="logo-circle"><i class="bi bi-building-check"></i></div>
     <div class="brand-title">ARS</div>
     <div class="brand-sub">
-      {% if current_lang == 'en' %}Applied Reservation System{% else %}نظام إدارة الحجوزات التطبيقي{% endif %}
+      {% if current_lang == 'en' %}Applied Event System{% else %}نظام إدارة الفعاليات التطبيقي{% endif %}
     </div>
   </div>
 
@@ -191,7 +207,7 @@
     <i class="bi bi-calendar-check"></i>
     <strong>ARS</strong>
     <span style="color:rgba(168,125,40,.4)">|</span>
-    <span>{% if current_lang == 'en' %}Applied Reservation System{% else %}نظام إدارة الحجوزات{% endif %}</span>
+    <span>{% if current_lang == 'en' %}Applied Event System{% else %}نظام إدارة الفعاليات{% endif %}</span>
   </span>
   <span style="color:rgba(168,125,40,.4)">·</span>
   <span>© {{ now.year if now is defined else 2026 }} {% if current_lang=='en' %}All rights reserved{% else %}جميع الحقوق محفوظة{% endif %}</span>

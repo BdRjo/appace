@@ -88,9 +88,15 @@
 
     {# ── 2×2 equal card grid ── #}
     <div class="row g-3">
-      {# Card 1: I am a Parent #}
+      {# Card 1: I am a Parent — go directly to parent table #}
       <div class="col-6">
-        <a href="#book-form" class="action-card" id="open-book-card">
+        {% if active_events is defined and active_events|length == 1 %}
+        <a href="{{ url_for('interviews.book_parent_table', event_id=active_events[0].id) }}" class="action-card">
+        {% elif active_events is defined and active_events|length > 1 %}
+        <a href="#event-picker" class="action-card" id="open-book-card">
+        {% else %}
+        <a href="#no-events" class="action-card" id="open-noevents-card">
+        {% endif %}
           <div class="icon-wrap" style="background:var(--bc-light);color:var(--bc)"><i class="bi bi-people-fill"></i></div>
           <h5>{% if ar %}أنا ولي أمر{% else %}I am a Parent{% endif %}</h5>
           <p>{% if ar %}احجز مواعيد مقابلاتك مع المعلمين{% else %}Book appointments with teachers{% endif %}</p>
@@ -142,32 +148,49 @@
     </div>
   </div>
 
-  {# ── Inline book-form (event code entry) ── #}
+  {# ── No events message (when no active events) ── #}
   <div class="row justify-content-center mt-3">
     <div class="col-12 col-sm-8 col-md-5">
-      <div id="book-form" class="pi-card p-3" style="display:none">
-        <h6 class="fw-700 mb-3">
-          <i class="bi bi-ticket-perforated me-2 text-primary"></i>
-          {% if ar %}أدخل رمز الحدث{% else %}Enter Event Code{% endif %}
+      <div id="no-events" class="pi-card p-3 text-center" style="display:none">
+        <i class="bi bi-calendar-x display-4 opacity-25 d-block mb-3"></i>
+        <h6 class="fw-700 mb-2">
+          {% if ar %}لا توجد فعاليات مفتوحة حالياً{% else %}No open events at this time{% endif %}
         </h6>
-        <form method="post" action="{{ url_for('interviews.book_enter') }}">
-          <div class="mb-3">
-            <input type="text" name="event_code" class="pi-input text-center"
-                   style="font-size:1.6rem;font-weight:700;letter-spacing:8px;font-family:monospace"
-                   placeholder="ABC123" maxlength="10" autocomplete="off"
-                   oninput="this.value=this.value.toUpperCase()" required autofocus>
-            <div class="mt-2" style="font-size:.8rem;color:#94a3b8;text-align:center">
-              {% if ar %}الرمز مكوّن من 6 أحرف — زوّدتك به المدرسة{% else %}6-character code provided by your school{% endif %}
-            </div>
-          </div>
-          <button type="submit" class="btn-pi btn w-100">
-            {% if ar %}<i class="bi bi-arrow-left-circle me-2"></i>ابحث عن الحدث
-            {% else %}<i class="bi bi-arrow-right-circle me-2"></i>Find My Event{% endif %}
-          </button>
-        </form>
+        <p class="text-muted mb-0" style="font-size:.85rem">
+          {% if ar %}يرجى المحاولة لاحقاً أو التواصل مع الإدارة{% else %}Please check back later or contact the school{% endif %}
+        </p>
       </div>
     </div>
   </div>
+
+  {# ── Event picker (only when multiple active events) ── #}
+  {% if active_events is defined and active_events|length > 1 %}
+  <div class="row justify-content-center mt-3">
+    <div class="col-12 col-sm-8 col-md-5">
+      <div id="event-picker" class="pi-card p-3" style="display:none">
+        <h6 class="fw-700 mb-3">
+          <i class="bi bi-calendar2-heart me-2 text-primary"></i>
+          {% if ar %}اختر الفعالية{% else %}Select Event{% endif %}
+        </h6>
+        <div class="d-flex flex-column gap-2">
+          {% for ev in active_events %}
+          <a href="{{ url_for('interviews.book_parent_table', event_id=ev.id) }}"
+             class="d-flex align-items-center gap-3 p-3 text-decoration-none"
+             style="background:#f8fafc;border-radius:12px;border:1.5px solid #e2e8f0;color:inherit;transition:all .2s"
+             onmouseover="this.style.borderColor='var(--bc)'" onmouseout="this.style.borderColor='#e2e8f0'">
+            <div style="width:36px;height:36px;border-radius:10px;background:{{ ev.brand_color or 'var(--bc)' }};display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:.82rem;flex-shrink:0">{{ ev.name[0].upper() }}</div>
+            <div style="flex:1;min-width:0">
+              <div class="fw-600" style="font-size:.88rem">{{ ev.name }}</div>
+              {% if ev.school_name %}<div style="font-size:.75rem;color:#64748b">{{ ev.school_name }}</div>{% endif %}
+            </div>
+            <i class="bi bi-chevron-{{ 'left' if ar else 'right' }}" style="color:var(--bc)"></i>
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 
   {# ── Inline teacher-form ── #}
   <div class="row justify-content-center mt-3">
@@ -197,12 +220,28 @@
 
 {% block extra_script %}
 <script>
-document.getElementById('open-book-card').addEventListener('click', function(e){
-  e.preventDefault();
-  var f = document.getElementById('book-form');
-  f.style.display = f.style.display==='none' ? 'block' : 'none';
-  if(f.style.display==='block'){ f.scrollIntoView({behavior:'smooth',block:'center'}); f.querySelector('input').focus(); }
-});
+// Multi-event picker
+var bookCard = document.getElementById('open-book-card');
+if(bookCard){
+  bookCard.addEventListener('click', function(e){
+    e.preventDefault();
+    var f = document.getElementById('event-picker');
+    if(!f) return;
+    f.style.display = f.style.display==='none' ? 'block' : 'none';
+    if(f.style.display==='block'){ f.scrollIntoView({behavior:'smooth',block:'center'}); }
+  });
+}
+// No events fallback
+var noEvCard = document.getElementById('open-noevents-card');
+if(noEvCard){
+  noEvCard.addEventListener('click', function(e){
+    e.preventDefault();
+    var f = document.getElementById('no-events');
+    if(!f) return;
+    f.style.display = f.style.display==='none' ? 'block' : 'none';
+    if(f.style.display==='block'){ f.scrollIntoView({behavior:'smooth',block:'center'}); }
+  });
+}
 document.getElementById('open-teacher-card').addEventListener('click', function(e){
   e.preventDefault();
   var f = document.getElementById('teacher-form');

@@ -233,6 +233,7 @@ class EmailLog(Base):
     __tablename__='email_logs'
     id=Column(Integer,primary_key=True); recipient=Column(String(200)); subject=Column(String(500))
     type=Column(String(50)); status=Column(String(20)); error_message=Column(Text)
+    html_body=Column(Text)
     sent_at=Column(DateTime,default=datetime.now); user_id=Column(Integer,ForeignKey('users.id'))
 
 class Notification(Base):
@@ -443,6 +444,35 @@ def get_engine():
             end_time VARCHAR(10) NOT NULL, status VARCHAR(20) DEFAULT 'available',
             note TEXT, created_by INTEGER REFERENCES users(id),
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
+        # ── Hierarchy tables for structured interview events (v70) ──
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS pi_school_stages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_id INTEGER NOT NULL REFERENCES pi_events(id),
+            name VARCHAR(100) NOT NULL, name_ar VARCHAR(100),
+            sort_order INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS pi_school_classes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            stage_id INTEGER NOT NULL REFERENCES pi_school_stages(id),
+            event_id INTEGER NOT NULL REFERENCES pi_events(id),
+            name VARCHAR(100) NOT NULL, name_ar VARCHAR(100),
+            sort_order INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS pi_sections (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            class_id INTEGER NOT NULL REFERENCES pi_school_classes(id),
+            event_id INTEGER NOT NULL REFERENCES pi_events(id),
+            name VARCHAR(20) NOT NULL, sort_order INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS pi_teacher_assignments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_id INTEGER NOT NULL REFERENCES pi_events(id),
+            teacher_id INTEGER NOT NULL REFERENCES pi_teachers(id),
+            section_id INTEGER NOT NULL REFERENCES pi_sections(id),
+            course_name VARCHAR(200) NOT NULL, course_name_ar VARCHAR(200),
+            room VARCHAR(100), assignment_code VARCHAR(30) UNIQUE NOT NULL,
+            is_active INTEGER DEFAULT 1,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
         conn.execute(text('''CREATE TABLE IF NOT EXISTS pi_calendar_bookings (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             slot_id INTEGER REFERENCES pi_calendar_slots(id),
@@ -453,6 +483,78 @@ def get_engine():
             reason TEXT NOT NULL, status VARCHAR(20) DEFAULT 'pending',
             admin_notes TEXT, approved_by INTEGER REFERENCES users(id),
             approved_at DATETIME,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
+        # ── SAS (School Absent System) tables ─────────────────────────────────
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS sas_configs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            school_name VARCHAR(200), school_name_en VARCHAR(200),
+            school_logo_b64 TEXT, academic_year VARCHAR(20),
+            ticker_json TEXT, is_active INTEGER DEFAULT 1,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS sas_years (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            config_id INTEGER NOT NULL REFERENCES sas_configs(id),
+            name VARCHAR(100) NOT NULL, name_en VARCHAR(100),
+            order_num INTEGER DEFAULT 0, is_active INTEGER DEFAULT 1,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS sas_semesters (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            year_id INTEGER NOT NULL REFERENCES sas_years(id),
+            name VARCHAR(100) NOT NULL, name_en VARCHAR(100),
+            order_num INTEGER DEFAULT 0, is_active INTEGER DEFAULT 1,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS sas_stages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            config_id INTEGER NOT NULL REFERENCES sas_configs(id),
+            name VARCHAR(100) NOT NULL, name_en VARCHAR(100),
+            order_num INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS sas_classes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            stage_id INTEGER NOT NULL REFERENCES sas_stages(id),
+            name VARCHAR(100) NOT NULL, name_en VARCHAR(100),
+            order_num INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS sas_sections (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            class_id INTEGER NOT NULL REFERENCES sas_classes(id),
+            name VARCHAR(20) NOT NULL, name_en VARCHAR(20),
+            order_num INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS sas_students (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            section_id INTEGER NOT NULL REFERENCES sas_sections(id),
+            student_number VARCHAR(30), name VARCHAR(200) NOT NULL,
+            name_en VARCHAR(200), guardian_name VARCHAR(200),
+            guardian_phone VARCHAR(50), guardian_email VARCHAR(200),
+            is_active INTEGER DEFAULT 1,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS sas_staff (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            config_id INTEGER NOT NULL REFERENCES sas_configs(id),
+            name VARCHAR(200) NOT NULL, name_en VARCHAR(200),
+            email VARCHAR(200), phone VARCHAR(50),
+            staff_code VARCHAR(30) UNIQUE, role VARCHAR(20) DEFAULT 'supervisor',
+            stage_id INTEGER REFERENCES sas_stages(id),
+            is_active INTEGER DEFAULT 1,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS sas_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id INTEGER NOT NULL REFERENCES sas_students(id),
+            staff_id INTEGER NOT NULL REFERENCES sas_staff(id),
+            record_date VARCHAR(20) NOT NULL, record_type VARCHAR(20) NOT NULL,
+            status VARCHAR(20) DEFAULT 'pending',
+            approved_by INTEGER REFERENCES sas_staff(id),
+            approved_at DATETIME, notes TEXT, notes_en TEXT,
+            attachment_b64 TEXT, attachment_name VARCHAR(255),
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
+        conn.execute(text('''CREATE TABLE IF NOT EXISTS sas_holidays (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            config_id INTEGER NOT NULL REFERENCES sas_configs(id),
+            title VARCHAR(200) NOT NULL, title_en VARCHAR(200),
+            start_date VARCHAR(20) NOT NULL, end_date VARCHAR(20) NOT NULL,
+            applies_to TEXT, created_by INTEGER REFERENCES sas_staff(id),
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP)'''))
         conn.commit()
         # Safe column migrations — all in one go, ignore errors (column exists)
@@ -476,6 +578,18 @@ def get_engine():
             ('pi_calendar_bookings', 'booking_date',     'VARCHAR(20)'),
             ('pi_calendar_bookings', 'start_time',       'VARCHAR(10)'),
             ('pi_calendar_bookings', 'end_time',         'VARCHAR(10)'),
+            # Hierarchy mode for interview events (v70)
+            ('pi_events', 'use_hierarchy', 'INTEGER DEFAULT 1'),
+            ('pi_slots',  'assignment_id', 'INTEGER REFERENCES pi_teacher_assignments(id)'),
+            # Teacher photo & attachments (v76)
+            ('pi_teachers', 'photo_url',        'VARCHAR(500)'),
+            ('pi_teachers', 'attachments_json',  'TEXT'),
+            # Per-assignment slot duration (v77)
+            ('pi_teacher_assignments', 'slot_duration', 'INTEGER'),
+            # Store original email body for resend (v79)
+            ('email_logs', 'html_body', 'TEXT'),
+            # SAS Year/Semester hierarchy (v80)
+            ('sas_stages', 'semester_id', 'INTEGER REFERENCES sas_semesters(id)'),
         ]
         for tbl, col, cdef in safe_cols:
             try:
@@ -708,7 +822,10 @@ class PIEvent(Base):
     is_open         = Column(Boolean, default=True)
     created_by      = Column(Integer, ForeignKey('users.id'))
     created_at      = Column(DateTime, default=datetime.now)
+    use_hierarchy   = Column(Boolean, default=True)
     teachers        = relationship('PITeacher', back_populates='event', cascade='all, delete-orphan')
+    stages          = relationship('PISchoolStage', back_populates='event', cascade='all, delete-orphan')
+    assignments     = relationship('PITeacherAssignment', back_populates='event', cascade='all, delete-orphan')
     creator         = relationship('User', foreign_keys=[created_by])
 
 class PITeacher(Base):
@@ -721,6 +838,8 @@ class PITeacher(Base):
     subjects    = Column(String(500))
     room        = Column(String(100))
     teacher_code = Column(String(30))
+    photo_url    = Column(String(500))
+    attachments_json = Column(Text)
     is_active   = Column(Boolean, default=True)
     created_at  = Column(DateTime, default=datetime.now)
     event       = relationship('PIEvent', back_populates='teachers')
@@ -737,8 +856,10 @@ class PISlot(Base):
     end_time    = Column(String(10), nullable=False)
     is_break    = Column(Boolean, default=False)
     is_booked   = Column(Boolean, default=False)
+    assignment_id = Column(Integer, ForeignKey('pi_teacher_assignments.id'), nullable=True)
     created_at  = Column(DateTime, default=datetime.now)
     teacher     = relationship('PITeacher', back_populates='slots')
+    assignment  = relationship('PITeacherAssignment', back_populates='slots')
     booking     = relationship('PIBooking', back_populates='slot', uselist=False)
 
 class PIBooking(Base):
@@ -823,3 +944,223 @@ class PICalendarBooking(Base):
     created_at      = Column(DateTime, default=datetime.now)
     slot            = relationship('PICalendarSlot', back_populates='bookings')
     approver        = relationship('User', foreign_keys=[approved_by])
+
+# ── Hierarchy models for structured interview events ──────────────────────────
+
+class PISchoolStage(Base):
+    """School stage (e.g. Primary, Middle, High)"""
+    __tablename__ = 'pi_school_stages'
+    id          = Column(Integer, primary_key=True)
+    event_id    = Column(Integer, ForeignKey('pi_events.id'), nullable=False)
+    name        = Column(String(100), nullable=False)
+    name_ar     = Column(String(100))
+    sort_order  = Column(Integer, default=0)
+    created_at  = Column(DateTime, default=datetime.now)
+    event       = relationship('PIEvent', back_populates='stages')
+    classes     = relationship('PISchoolClass', back_populates='stage', cascade='all, delete-orphan',
+                               order_by='PISchoolClass.sort_order')
+
+class PISchoolClass(Base):
+    """Class within a stage (e.g. Grade 1, Grade 2)"""
+    __tablename__ = 'pi_school_classes'
+    id          = Column(Integer, primary_key=True)
+    stage_id    = Column(Integer, ForeignKey('pi_school_stages.id'), nullable=False)
+    event_id    = Column(Integer, ForeignKey('pi_events.id'), nullable=False)
+    name        = Column(String(100), nullable=False)
+    name_ar     = Column(String(100))
+    sort_order  = Column(Integer, default=0)
+    created_at  = Column(DateTime, default=datetime.now)
+    stage       = relationship('PISchoolStage', back_populates='classes')
+    sections    = relationship('PISection', back_populates='school_class', cascade='all, delete-orphan',
+                               order_by='PISection.sort_order')
+
+class PISection(Base):
+    """Section within a class (e.g. A, B, C)"""
+    __tablename__ = 'pi_sections'
+    id          = Column(Integer, primary_key=True)
+    class_id    = Column(Integer, ForeignKey('pi_school_classes.id'), nullable=False)
+    event_id    = Column(Integer, ForeignKey('pi_events.id'), nullable=False)
+    name        = Column(String(20), nullable=False)
+    sort_order  = Column(Integer, default=0)
+    created_at  = Column(DateTime, default=datetime.now)
+    school_class = relationship('PISchoolClass', back_populates='sections')
+    assignments = relationship('PITeacherAssignment', back_populates='section', cascade='all, delete-orphan')
+
+class PITeacherAssignment(Base):
+    """Links a teacher to a specific section+course within an event"""
+    __tablename__ = 'pi_teacher_assignments'
+    id              = Column(Integer, primary_key=True)
+    event_id        = Column(Integer, ForeignKey('pi_events.id'), nullable=False)
+    teacher_id      = Column(Integer, ForeignKey('pi_teachers.id'), nullable=False)
+    section_id      = Column(Integer, ForeignKey('pi_sections.id'), nullable=False)
+    course_name     = Column(String(200), nullable=False)
+    course_name_ar  = Column(String(200))
+    room            = Column(String(100))
+    assignment_code = Column(String(30), unique=True, nullable=False)
+    slot_duration   = Column(Integer)
+    is_active       = Column(Boolean, default=True)
+    created_at      = Column(DateTime, default=datetime.now)
+    event           = relationship('PIEvent', back_populates='assignments')
+    teacher         = relationship('PITeacher')
+    section         = relationship('PISection', back_populates='assignments')
+    slots           = relationship('PISlot', back_populates='assignment')
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SAS — SCHOOL ABSENT SYSTEM
+# ══════════════════════════════════════════════════════════════════════════════
+
+class SASConfig(Base):
+    """Module-level settings for the School Absent System"""
+    __tablename__ = 'sas_configs'
+    id              = Column(Integer, primary_key=True)
+    school_name     = Column(String(200))
+    school_name_en  = Column(String(200))
+    school_logo_b64 = Column(Text)
+    academic_year   = Column(String(20))
+    ticker_json     = Column(Text)          # JSON — same format as interview ticker
+    is_active       = Column(Boolean, default=True)
+    created_at      = Column(DateTime, default=datetime.now)
+    years           = relationship('SASYear', back_populates='config', cascade='all, delete-orphan',
+                                   order_by='SASYear.order_num')
+    stages          = relationship('SASStage', back_populates='config', cascade='all, delete-orphan')
+    staff           = relationship('SASStaff', back_populates='config', cascade='all, delete-orphan')
+    holidays        = relationship('SASHoliday', back_populates='config', cascade='all, delete-orphan')
+
+class SASYear(Base):
+    """Educational year (e.g. 2025-2026)"""
+    __tablename__ = 'sas_years'
+    id          = Column(Integer, primary_key=True)
+    config_id   = Column(Integer, ForeignKey('sas_configs.id'), nullable=False)
+    name        = Column(String(100), nullable=False)
+    name_en     = Column(String(100))
+    order_num   = Column(Integer, default=0)
+    is_active   = Column(Boolean, default=True)
+    created_at  = Column(DateTime, default=datetime.now)
+    config      = relationship('SASConfig', back_populates='years')
+    semesters   = relationship('SASSemester', back_populates='year', cascade='all, delete-orphan',
+                               order_by='SASSemester.order_num')
+
+class SASSemester(Base):
+    """Semester within a year (First/Second)"""
+    __tablename__ = 'sas_semesters'
+    id          = Column(Integer, primary_key=True)
+    year_id     = Column(Integer, ForeignKey('sas_years.id'), nullable=False)
+    name        = Column(String(100), nullable=False)
+    name_en     = Column(String(100))
+    order_num   = Column(Integer, default=0)
+    is_active   = Column(Boolean, default=True)
+    created_at  = Column(DateTime, default=datetime.now)
+    year        = relationship('SASYear', back_populates='semesters')
+    stages      = relationship('SASStage', back_populates='semester', cascade='all, delete-orphan',
+                               order_by='SASStage.order_num')
+
+class SASStage(Base):
+    """Educational stage (e.g. KG, Primary, Middle, High)"""
+    __tablename__ = 'sas_stages'
+    id          = Column(Integer, primary_key=True)
+    config_id   = Column(Integer, ForeignKey('sas_configs.id'), nullable=False)
+    semester_id = Column(Integer, ForeignKey('sas_semesters.id'), nullable=True)
+    name        = Column(String(100), nullable=False)
+    name_en     = Column(String(100))
+    order_num   = Column(Integer, default=0)
+    created_at  = Column(DateTime, default=datetime.now)
+    config      = relationship('SASConfig', back_populates='stages')
+    semester    = relationship('SASSemester', back_populates='stages')
+    classes     = relationship('SASClass', back_populates='stage', cascade='all, delete-orphan',
+                               order_by='SASClass.order_num')
+
+class SASClass(Base):
+    """Class within a stage (e.g. Grade 1, Grade 2)"""
+    __tablename__ = 'sas_classes'
+    id          = Column(Integer, primary_key=True)
+    stage_id    = Column(Integer, ForeignKey('sas_stages.id'), nullable=False)
+    name        = Column(String(100), nullable=False)
+    name_en     = Column(String(100))
+    order_num   = Column(Integer, default=0)
+    created_at  = Column(DateTime, default=datetime.now)
+    stage       = relationship('SASStage', back_populates='classes')
+    sections    = relationship('SASSection', back_populates='sas_class', cascade='all, delete-orphan',
+                               order_by='SASSection.order_num')
+
+class SASSection(Base):
+    """Section within a class (e.g. A, B, C)"""
+    __tablename__ = 'sas_sections'
+    id          = Column(Integer, primary_key=True)
+    class_id    = Column(Integer, ForeignKey('sas_classes.id'), nullable=False)
+    name        = Column(String(20), nullable=False)
+    name_en     = Column(String(20))
+    order_num   = Column(Integer, default=0)
+    created_at  = Column(DateTime, default=datetime.now)
+    sas_class   = relationship('SASClass', back_populates='sections')
+    students    = relationship('SASStudent', back_populates='section', cascade='all, delete-orphan')
+
+class SASStudent(Base):
+    """Student record"""
+    __tablename__ = 'sas_students'
+    id              = Column(Integer, primary_key=True)
+    section_id      = Column(Integer, ForeignKey('sas_sections.id'), nullable=False)
+    student_number  = Column(String(30))
+    name            = Column(String(200), nullable=False)
+    name_en         = Column(String(200))
+    guardian_name   = Column(String(200))
+    guardian_phone  = Column(String(50))
+    guardian_email  = Column(String(200))
+    is_active       = Column(Boolean, default=True)
+    created_at      = Column(DateTime, default=datetime.now)
+    section         = relationship('SASSection', back_populates='students')
+    records         = relationship('SASRecord', back_populates='student', cascade='all, delete-orphan')
+
+class SASStaff(Base):
+    """Supervisor / Secretary / Manager"""
+    __tablename__ = 'sas_staff'
+    id          = Column(Integer, primary_key=True)
+    config_id   = Column(Integer, ForeignKey('sas_configs.id'), nullable=False)
+    name        = Column(String(200), nullable=False)
+    name_en     = Column(String(200))
+    email       = Column(String(200))
+    phone       = Column(String(50))
+    staff_code  = Column(String(30), unique=True)
+    role        = Column(String(20), default='supervisor')   # supervisor / secretary / manager
+    stage_id    = Column(Integer, ForeignKey('sas_stages.id'), nullable=True)
+    is_active   = Column(Boolean, default=True)
+    created_at  = Column(DateTime, default=datetime.now)
+    config      = relationship('SASConfig', back_populates='staff')
+    stage       = relationship('SASStage')
+    records_logged = relationship('SASRecord', back_populates='staff', foreign_keys='SASRecord.staff_id')
+
+class SASRecord(Base):
+    """Individual attendance event"""
+    __tablename__ = 'sas_records'
+    id              = Column(Integer, primary_key=True)
+    student_id      = Column(Integer, ForeignKey('sas_students.id'), nullable=False)
+    staff_id        = Column(Integer, ForeignKey('sas_staff.id'), nullable=False)
+    record_date     = Column(String(20), nullable=False)        # YYYY-MM-DD
+    record_type     = Column(String(20), nullable=False)        # absent / late / leave / other
+    status          = Column(String(20), default='pending')     # pending / approved / rejected
+    approved_by     = Column(Integer, ForeignKey('sas_staff.id'), nullable=True)
+    approved_at     = Column(DateTime)
+    notes           = Column(Text)
+    notes_en        = Column(Text)
+    attachment_b64  = Column(Text)
+    attachment_name = Column(String(255))
+    created_at      = Column(DateTime, default=datetime.now)
+    updated_at      = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    student         = relationship('SASStudent', back_populates='records')
+    staff           = relationship('SASStaff', back_populates='records_logged', foreign_keys=[staff_id])
+    approver        = relationship('SASStaff', foreign_keys=[approved_by])
+
+class SASHoliday(Base):
+    """Group / bulk holiday entry"""
+    __tablename__ = 'sas_holidays'
+    id          = Column(Integer, primary_key=True)
+    config_id   = Column(Integer, ForeignKey('sas_configs.id'), nullable=False)
+    title       = Column(String(200), nullable=False)
+    title_en    = Column(String(200))
+    start_date  = Column(String(20), nullable=False)
+    end_date    = Column(String(20), nullable=False)
+    applies_to  = Column(Text)          # JSON — list of stage/class/section IDs or "all"
+    created_by  = Column(Integer, ForeignKey('sas_staff.id'), nullable=True)
+    created_at  = Column(DateTime, default=datetime.now)
+    config      = relationship('SASConfig', back_populates='holidays')
+    creator     = relationship('SASStaff', foreign_keys=[created_by])

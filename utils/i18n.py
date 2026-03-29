@@ -418,8 +418,8 @@ TRANSLATIONS = {
     # ── Audit log ─────────────────────────────────────────────────────────
     'سجل المراجعة': 'Audit Log',
     'سجل جميع إجراءات النظام': 'All System Actions',
-    'نوع الحدث': 'Event Type',
-    'تفاصيل الحدث': 'Event Details',
+    'نوع الفعالية': 'Event Type',
+    'تفاصيل الفعالية': 'Event Details',
     'عنوان IP': 'IP Address',
     'دخول ناجح': 'Login Success',
     'دخول فاشل': 'Login Failed',

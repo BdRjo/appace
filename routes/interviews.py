@@ -2,13 +2,15 @@
 routes/interviews.py — Parent Interviews System
 All features matching parentinterviews.co.nz
 """
-import csv, io, json, random, string
+import csv, io, json, random, string, base64
 from datetime import datetime, timedelta
 from flask import (Blueprint, render_template, redirect, url_for,
                    request, flash, jsonify, abort, Response, session, g)
 from flask_login import login_required, current_user
 from utils.helpers import get_db, get_permissions, syslog
-from models.database import PIEvent, PITeacher, PISlot, PIBooking, PIAppointmentRequest, PICalendarSlot, PICalendarBooking
+from models.database import (PIEvent, PITeacher, PISlot, PIBooking, PIAppointmentRequest,
+                              PICalendarSlot, PICalendarBooking,
+                              PISchoolStage, PISchoolClass, PISection, PITeacherAssignment)
 
 interviews_bp = Blueprint('interviews', __name__, url_prefix='/interviews')
 
@@ -16,6 +18,12 @@ interviews_bp = Blueprint('interviews', __name__, url_prefix='/interviews')
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
+def _ajax_or_redirect(event_id):
+    """Return JSON for AJAX requests, redirect for normal form posts."""
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'ok': True})
+    return redirect(url_for('interviews.admin_hierarchy', event_id=event_id))
+
 def _gen_code(length=6):
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
 
@@ -24,6 +32,14 @@ def _gen_ref():
 
 def _gen_teacher_code():
     return 'T-' + ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+def _gen_assignment_code(class_name='', section_name=''):
+    """Generate section-based code like '1A-K7M2' or 'G3B-X9P1'"""
+    cls = ''.join(c for c in class_name if c.isalnum())[:4] if class_name else ''
+    sec = ''.join(c for c in section_name if c.isalnum())[:2] if section_name else ''
+    prefix = (cls + sec).upper() or 'ASG'
+    suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+    return f'{prefix}-{suffix}'
 
 def _generate_slots(db, teacher, date_str, start_hhmm, end_hhmm, duration, break_dur, breaks):
     """
@@ -97,11 +113,15 @@ def _send_confirmation(booking, event, teacher, slot):
         lbl_child = "الطالب" if ar else "Child"
         lbl_ref = "رقم الحجز" if ar else "Booking Ref"
         lbl_auto = "هذه رسالة آلية. يرجى عدم الرد عليها." if ar else "This is an automated message. Please do not reply."
+        logo_html = ''
+        if event.school_logo_url:
+            logo_html = f'<img src="{event.school_logo_url}" alt="logo" style="height:48px;max-width:160px;object-fit:contain;margin-bottom:8px;display:block">'
         body = f"""
 <div style="font-family:sans-serif;max-width:600px;margin:auto;direction:{d}">
-<div style="background:{event.brand_color};color:white;padding:20px;border-radius:8px 8px 0 0">
+<div style="background:{event.brand_color};color:white;padding:20px;border-radius:8px 8px 0 0;text-align:center">
+  {logo_html}
   <h2 style="margin:0">{event.school_name or 'School'}</h2>
-  <p style="margin:5px 0 0">{event.name}</p>
+  <p style="margin:5px 0 0;opacity:.9">{event.name}</p>
 </div>
 <div style="padding:24px;border:1px solid #dee2e6;border-top:none;border-radius:0 0 8px 8px">
   <p>{greeting}</p>
@@ -128,7 +148,8 @@ def _send_confirmation(booking, event, teacher, slot):
 """
         text_body = f"{greeting} {msg} {lbl_ref}: {booking.booking_ref}"
         send_email(to_email=booking.parent_email, to_name=booking.parent_name,
-                   subject=subject, html_body=body, text_body=text_body)
+                   subject=subject, html_body=body, text_body=text_body,
+                   email_type='interview_confirmation')
     except Exception as e:
         print(f"Email error: {e}")
 
@@ -148,9 +169,13 @@ def _send_reminder(booking, event, teacher, slot):
         lbl_room = "الغرفة" if ar else "Room"
         lbl_ref = "رقم الحجز" if ar else "Booking Reference"
         time_sep = " الساعة " if ar else " at "
+        logo_html = ''
+        if event.school_logo_url:
+            logo_html = f'<img src="{event.school_logo_url}" alt="logo" style="height:48px;max-width:160px;object-fit:contain;margin-bottom:8px;display:block">'
         body = f"""
 <div style="font-family:sans-serif;max-width:600px;margin:auto;direction:{d}">
-<div style="background:{event.brand_color};color:white;padding:20px;border-radius:8px 8px 0 0">
+<div style="background:{event.brand_color};color:white;padding:20px;border-radius:8px 8px 0 0;text-align:center">
+  {logo_html}
   <h2 style="margin:0">{event.school_name or 'School'} — {'تذكير' if ar else 'Reminder'}</h2>
 </div>
 <div style="padding:24px;border:1px solid #dee2e6;border-top:none;border-radius:0 0 8px 8px">
@@ -170,7 +195,8 @@ def _send_reminder(booking, event, teacher, slot):
 """
         text_body = f"{greeting} {msg} {lbl_ref}: {booking.booking_ref}"
         send_email(to_email=booking.parent_email, to_name=booking.parent_name,
-                   subject=subject, html_body=body, text_body=text_body)
+                   subject=subject, html_body=body, text_body=text_body,
+                   email_type='interview_reminder')
     except Exception as e:
         print(f"Reminder email error: {e}")
 
@@ -197,19 +223,25 @@ def root():
 @interviews_bp.route('/admin/')
 @login_required
 def admin_index():
+    """Admin landing — go straight to data entry. Auto-create event if none exist."""
     perm = get_permissions()
     if not perm.is_admin_or_manager():
         abort(403)
     db = get_db()
-    events = db.query(PIEvent).order_by(PIEvent.created_at.desc()).all()
-    # stats per event
-    stats = {}
-    for ev in events:
-        total_slots    = db.query(PISlot).filter(PISlot.event_id == ev.id, PISlot.is_break == False).count()
-        booked_slots   = db.query(PISlot).filter(PISlot.event_id == ev.id, PISlot.is_booked == True).count()
-        total_teachers = db.query(PITeacher).filter(PITeacher.event_id == ev.id, PITeacher.is_active == True).count()
-        stats[ev.id] = {'total': total_slots, 'booked': booked_slots, 'teachers': total_teachers}
-    return render_template('interviews/admin/index.html', events=events, stats=stats)
+    ev = db.query(PIEvent).order_by(PIEvent.created_at.desc()).first()
+    if not ev:
+        # Auto-create a default event so admin lands directly on data entry
+        ev = PIEvent(
+            name='Parent-Teacher Interviews',
+            event_code=_gen_code(),
+            is_open=True,
+            is_active=True,
+            slot_duration=5,
+            created_by=current_user.id,
+        )
+        db.add(ev)
+        db.commit()
+    return redirect(url_for('interviews.admin_data_entry', event_id=ev.id))
 
 
 @interviews_bp.route('/admin/events/new', methods=['GET', 'POST'])
@@ -236,14 +268,15 @@ def admin_event_new():
             send_reminders   = 'send_reminders' in request.form,
             reminder_hours   = int(request.form.get('reminder_hours', 24)),
             is_open          = 'is_open' in request.form,
+            use_hierarchy    = 'use_hierarchy' in request.form,
             is_active        = True,
             created_by       = current_user.id,
         )
         db.add(ev)
         db.commit()
-        flash('تم إنشاء الحدث بنجاح' if get_lang()=='ar' else 'Event created successfully.', 'success')
+        flash('تم إنشاء الفعالية — أضف البيانات الآن' if get_lang()=='ar' else 'Event created — add data now.', 'success')
         syslog('PI_EVENT_CREATE', f'Created interview event: {ev.name} [{ev.event_code}]')
-        return redirect(url_for('interviews.admin_teachers', event_id=ev.id))
+        return redirect(url_for('interviews.admin_data_entry', event_id=ev.id))
     return render_template('interviews/admin/event_form.html', ev=None, gen_code=_gen_code())
 
 
@@ -270,8 +303,9 @@ def admin_event_edit(event_id):
         ev.send_reminders  = 'send_reminders' in request.form
         ev.reminder_hours  = int(request.form.get('reminder_hours', 24))
         ev.is_open         = 'is_open' in request.form
+        ev.use_hierarchy   = 'use_hierarchy' in request.form
         db.commit()
-        flash('تم تحديث الحدث' if get_lang()=='ar' else 'Event updated.', 'success')
+        flash('تم تحديث الفعالية' if get_lang()=='ar' else 'Event updated.', 'success')
         return redirect(url_for('interviews.admin_index'))
     return render_template('interviews/admin/event_form.html', ev=ev)
 
@@ -288,7 +322,7 @@ def admin_event_delete(event_id):
     name = ev.name
     db.delete(ev)
     db.commit()
-    flash(f'تم حذف الحدث "{name}"' if get_lang()=='ar' else f'Event "{name}" deleted.', 'success')
+    flash(f'تم حذف الفعالية "{name}"' if get_lang()=='ar' else f'Event "{name}" deleted.', 'success')
     syslog('PI_EVENT_DELETE', f'Deleted interview event: {name}')
     return redirect(url_for('interviews.admin_index'))
 
@@ -642,8 +676,14 @@ def admin_timetable(event_id):
         abort(403)
     db = get_db()
     ev = db.query(PIEvent).get(event_id) or abort(404)
-    teachers = db.query(PITeacher).filter(PITeacher.event_id == event_id,
-                                           PITeacher.is_active == True).all()
+    all_teachers = db.query(PITeacher).filter(PITeacher.event_id == event_id,
+                                              PITeacher.is_active == True).all()
+    # Filter by teacher_ids if provided (multi-select)
+    sel_ids = request.args.getlist('tid', type=int)
+    if sel_ids:
+        teachers = [t for t in all_teachers if t.id in sel_ids]
+    else:
+        teachers = all_teachers
     # Build timetable: {date: {teacher_id: [slots]}}
     timetable = {}
     dates = set()
@@ -660,7 +700,8 @@ def admin_timetable(event_id):
         for tid in timetable[d]:
             timetable[d][tid].sort(key=lambda s: s.start_time)
     return render_template('interviews/admin/timetable.html',
-                           ev=ev, teachers=teachers, timetable=timetable, dates=dates)
+                           ev=ev, teachers=teachers, all_teachers=all_teachers,
+                           timetable=timetable, dates=dates, sel_ids=sel_ids)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -702,7 +743,7 @@ def admin_codes_export(event_id):
     else:
         w.writerow(['Type', 'Code', 'Name', 'Email', 'Notes'])
     # Event code
-    w.writerow([('رمز الحدث' if _ar else 'Event Code'), ev.event_code, ev.name, '', ev.school_name or ''])
+    w.writerow([('رمز الفعالية' if _ar else 'Event Code'), ev.event_code, ev.name, '', ev.school_name or ''])
     # Teacher codes
     for t in teachers:
         w.writerow([('رمز المعلم' if _ar else 'Teacher Code'), t.teacher_code, t.name, t.email or '', t.subjects or ''])
@@ -823,6 +864,982 @@ def admin_slots_template(event_id):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# HIERARCHY Management (admin) + JSON API (public, for cascading dropdowns)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@interviews_bp.route('/admin/events/<int:event_id>/hierarchy')
+@login_required
+def admin_hierarchy(event_id):
+    perm = get_permissions()
+    if not perm.is_admin_or_manager(): abort(403)
+    db = get_db()
+    ev = db.query(PIEvent).get(event_id) or abort(404)
+    stages = db.query(PISchoolStage).filter_by(event_id=event_id).order_by(PISchoolStage.sort_order).all()
+    teachers = db.query(PITeacher).filter_by(event_id=event_id, is_active=True).order_by(PITeacher.name).all()
+    # JSON mode for inline AJAX hierarchy builder in event_form.html
+    if request.args.get('json'):
+        tree = []
+        for st in stages:
+            classes_list = []
+            for cl in sorted(st.classes, key=lambda c: c.sort_order):
+                sections_list = []
+                for sec in sorted(cl.sections, key=lambda s: s.sort_order):
+                    assignments_list = []
+                    for asg in sec.assignments:
+                        assignments_list.append({
+                            'id': asg.id, 'teacher_id': asg.teacher_id,
+                            'teacher_name': asg.teacher.name if asg.teacher else '',
+                            'course': asg.course_name or '', 'course_ar': asg.course_name_ar or '',
+                            'room': asg.room or '', 'code': asg.assignment_code or '',
+                            'is_active': asg.is_active
+                        })
+                    sections_list.append({'id': sec.id, 'name': sec.name, 'assignments': assignments_list})
+                classes_list.append({'id': cl.id, 'name': cl.name, 'name_ar': cl.name_ar or '', 'sections': sections_list})
+            tree.append({'id': st.id, 'name': st.name, 'name_ar': st.name_ar or '', 'classes': classes_list})
+        teachers_list = [{'id': t.id, 'name': t.name, 'room': t.room or ''} for t in teachers]
+        return jsonify({'stages': tree, 'teachers': teachers_list})
+    return render_template('interviews/admin/hierarchy.html', ev=ev, stages=stages, teachers=teachers)
+
+# ── Stage CRUD ──
+@interviews_bp.route('/admin/events/<int:event_id>/stages/add', methods=['POST'])
+@login_required
+def admin_stage_add(event_id):
+    perm = get_permissions()
+    if not perm.is_admin_or_manager(): abort(403)
+    db = get_db()
+    ev = db.query(PIEvent).get(event_id) or abort(404)
+    name = request.form.get('name','').strip()
+    name_ar = request.form.get('name_ar','').strip()
+    if name:
+        mx = db.query(PISchoolStage).filter_by(event_id=event_id).count()
+        db.add(PISchoolStage(event_id=event_id, name=name, name_ar=name_ar, sort_order=mx))
+        db.commit()
+    return _ajax_or_redirect(event_id)
+
+@interviews_bp.route('/admin/stages/<int:sid>/edit', methods=['POST'])
+@login_required
+def admin_stage_edit(sid):
+    perm = get_permissions()
+    if not perm.is_admin_or_manager(): abort(403)
+    db = get_db()
+    st = db.query(PISchoolStage).get(sid) or abort(404)
+    st.name = request.form.get('name', st.name).strip()
+    st.name_ar = request.form.get('name_ar', st.name_ar or '').strip()
+    db.commit()
+    return _ajax_or_redirect(st.event_id)
+
+@interviews_bp.route('/admin/stages/<int:sid>/delete', methods=['POST'])
+@login_required
+def admin_stage_delete(sid):
+    perm = get_permissions()
+    if not perm.is_admin_or_manager(): abort(403)
+    db = get_db()
+    st = db.query(PISchoolStage).get(sid) or abort(404)
+    eid = st.event_id
+    db.delete(st); db.commit()
+    return _ajax_or_redirect(eid)
+
+# ── Class CRUD ──
+@interviews_bp.route('/admin/events/<int:event_id>/classes/add', methods=['POST'])
+@login_required
+def admin_class_add(event_id):
+    perm = get_permissions()
+    if not perm.is_admin_or_manager(): abort(403)
+    db = get_db()
+    stage_id = int(request.form.get('stage_id', 0))
+    name = request.form.get('name','').strip()
+    name_ar = request.form.get('name_ar','').strip()
+    if name and stage_id:
+        mx = db.query(PISchoolClass).filter_by(stage_id=stage_id).count()
+        db.add(PISchoolClass(stage_id=stage_id, event_id=event_id, name=name, name_ar=name_ar, sort_order=mx))
+        db.commit()
+    return _ajax_or_redirect(event_id)
+
+@interviews_bp.route('/admin/classes/<int:cid>/edit', methods=['POST'])
+@login_required
+def admin_class_edit(cid):
+    perm = get_permissions()
+    if not perm.is_admin_or_manager(): abort(403)
+    db = get_db()
+    cl = db.query(PISchoolClass).get(cid) or abort(404)
+    cl.name = request.form.get('name', cl.name).strip()
+    cl.name_ar = request.form.get('name_ar', cl.name_ar or '').strip()
+    db.commit()
+    return _ajax_or_redirect(cl.event_id)
+
+@interviews_bp.route('/admin/classes/<int:cid>/delete', methods=['POST'])
+@login_required
+def admin_class_delete(cid):
+    perm = get_permissions()
+    if not perm.is_admin_or_manager(): abort(403)
+    db = get_db()
+    cl = db.query(PISchoolClass).get(cid) or abort(404)
+    eid = cl.event_id
+    db.delete(cl); db.commit()
+    return _ajax_or_redirect(eid)
+
+# ── Section CRUD ──
+@interviews_bp.route('/admin/events/<int:event_id>/sections/add', methods=['POST'])
+@login_required
+def admin_section_add(event_id):
+    perm = get_permissions()
+    if not perm.is_admin_or_manager(): abort(403)
+    db = get_db()
+    class_id = int(request.form.get('class_id', 0))
+    name = request.form.get('name','').strip()
+    if name and class_id:
+        mx = db.query(PISection).filter_by(class_id=class_id).count()
+        db.add(PISection(class_id=class_id, event_id=event_id, name=name, sort_order=mx))
+        db.commit()
+    return _ajax_or_redirect(event_id)
+
+@interviews_bp.route('/admin/sections/<int:sid>/delete', methods=['POST'])
+@login_required
+def admin_section_delete(sid):
+    perm = get_permissions()
+    if not perm.is_admin_or_manager(): abort(403)
+    db = get_db()
+    sec = db.query(PISection).get(sid) or abort(404)
+    eid = sec.event_id
+    db.delete(sec); db.commit()
+    return _ajax_or_redirect(eid)
+
+# ── Assignment CRUD ──
+@interviews_bp.route('/admin/events/<int:event_id>/assignments/add', methods=['POST'])
+@login_required
+def admin_assignment_add(event_id):
+    perm = get_permissions()
+    if not perm.is_admin_or_manager(): abort(403)
+    db = get_db()
+    teacher_id = int(request.form.get('teacher_id', 0))
+    section_id = int(request.form.get('section_id', 0))
+    course = request.form.get('course_name','').strip()
+    course_ar = request.form.get('course_name_ar','').strip()
+    room = request.form.get('room','').strip()
+    if teacher_id and section_id and course:
+        # Build section-based code: get class name + section name for prefix
+        sec_obj = db.query(PISection).get(section_id)
+        cls_name = sec_obj.school_class.name if sec_obj and sec_obj.school_class else ''
+        sec_name = sec_obj.name if sec_obj else ''
+        code = _gen_assignment_code(cls_name, sec_name)
+        while db.query(PITeacherAssignment).filter_by(assignment_code=code).first():
+            code = _gen_assignment_code(cls_name, sec_name)
+        db.add(PITeacherAssignment(
+            event_id=event_id, teacher_id=teacher_id, section_id=section_id,
+            course_name=course, course_name_ar=course_ar, room=room,
+            assignment_code=code
+        ))
+        db.commit()
+    return _ajax_or_redirect(event_id)
+
+@interviews_bp.route('/admin/assignments/<int:aid>/edit', methods=['POST'])
+@login_required
+def admin_assignment_edit(aid):
+    perm = get_permissions()
+    if not perm.is_admin_or_manager(): abort(403)
+    db = get_db()
+    a = db.query(PITeacherAssignment).get(aid) or abort(404)
+    a.teacher_id = int(request.form.get('teacher_id', a.teacher_id))
+    a.course_name = request.form.get('course_name', a.course_name).strip()
+    a.course_name_ar = request.form.get('course_name_ar', a.course_name_ar or '').strip()
+    a.room = request.form.get('room', a.room or '').strip()
+    db.commit()
+    return _ajax_or_redirect(a.event_id)
+
+@interviews_bp.route('/admin/assignments/<int:aid>/delete', methods=['POST'])
+@login_required
+def admin_assignment_delete(aid):
+    perm = get_permissions()
+    if not perm.is_admin_or_manager(): abort(403)
+    db = get_db()
+    a = db.query(PITeacherAssignment).get(aid) or abort(404)
+    eid = a.event_id
+    db.delete(a); db.commit()
+    return _ajax_or_redirect(eid)
+
+@interviews_bp.route('/admin/assignments/<int:aid>/generate-slots', methods=['POST'])
+@login_required
+def admin_assignment_gen_slots(aid):
+    from utils.i18n import get_lang
+    perm = get_permissions()
+    if not perm.is_admin_or_manager(): abort(403)
+    db = get_db()
+    a = db.query(PITeacherAssignment).get(aid) or abort(404)
+    teacher = db.query(PITeacher).get(a.teacher_id) or abort(404)
+    ev = db.query(PIEvent).get(a.event_id) or abort(404)
+    dates_json = ev.event_date or '[]'
+    try: dates = json.loads(dates_json)
+    except: dates = []
+    if not dates:
+        from datetime import date as _date
+        dates = [_date.today().isoformat()]
+    start_t = request.form.get('start_time', '08:00')
+    end_t = request.form.get('end_time', '14:00')
+    breaks_raw = request.form.get('breaks', '[]')
+    try: breaks = json.loads(breaks_raw)
+    except: breaks = []
+    blocked_raw = request.form.get('blocked', '[]')
+    try: blocked = json.loads(blocked_raw)
+    except: blocked = []
+    # Per-record duration from form or from assignment
+    form_dur = request.form.get('slot_duration')
+    try: form_dur = int(form_dur) if form_dur else None
+    except: form_dur = None
+    if form_dur:
+        a.slot_duration = form_dur
+    total = 0
+    def t2m(t):
+        h, m = map(int, t.split(':'))
+        return h * 60 + m
+    def m2t(m):
+        return f"{m//60:02d}:{m%60:02d}"
+    for d in dates:
+        # Delete existing unbooked slots for this assignment+date
+        for s in db.query(PISlot).filter(
+            PISlot.assignment_id == aid, PISlot.slot_date == d, PISlot.is_booked == False
+        ).all():
+            db.delete(s)
+        db.flush()
+        cur = t2m(start_t)
+        end = t2m(end_t)
+        dur = a.slot_duration or ev.slot_duration or 5
+        brk_dur = ev.break_duration or 0
+        while cur + dur <= end:
+            ss, se = m2t(cur), m2t(cur + dur)
+            # Check if in blocked period — skip entirely
+            is_blocked = False
+            for bp in blocked:
+                bs, be = t2m(bp.get('start','00:00')), t2m(bp.get('end','00:00'))
+                if cur >= bs and cur < be: is_blocked = True; break
+            if is_blocked:
+                cur += dur
+                continue
+            # Check if in break period
+            is_brk = False
+            for b in breaks:
+                bs, be = t2m(b.get('start','00:00')), t2m(b.get('end','00:00'))
+                if cur >= bs and cur < be: is_brk = True; break
+            db.add(PISlot(teacher_id=teacher.id, event_id=ev.id, assignment_id=aid,
+                          slot_date=d, start_time=ss, end_time=se, is_break=is_brk))
+            total += 1
+            cur += dur + brk_dur
+    db.commit()
+    flash(f'تم إنشاء {total} فترة زمنية' if get_lang()=='ar' else f'Created {total} time slots', 'success')
+    return _ajax_or_redirect(a.event_id)
+
+# ── Event Date Management ──
+@interviews_bp.route('/admin/events/<int:event_id>/add-date', methods=['POST'])
+@login_required
+def admin_event_add_date(event_id):
+    perm = get_permissions()
+    if not perm.is_admin_or_manager(): abort(403)
+    db = get_db()
+    ev = db.query(PIEvent).get(event_id) or abort(404)
+    data = request.get_json(silent=True) or {}
+    new_date = data.get('date', '').strip()
+    if not new_date:
+        return jsonify({'ok': False, 'error': 'No date provided'})
+    try: dates = json.loads(ev.event_date or '[]')
+    except: dates = []
+    if new_date not in dates:
+        dates.append(new_date)
+        dates.sort()
+        ev.event_date = json.dumps(dates)
+        db.commit()
+    return jsonify({'ok': True, 'dates': dates})
+
+
+@interviews_bp.route('/admin/events/<int:event_id>/remove-date', methods=['POST'])
+@login_required
+def admin_event_remove_date(event_id):
+    perm = get_permissions()
+    if not perm.is_admin_or_manager(): abort(403)
+    db = get_db()
+    ev = db.query(PIEvent).get(event_id) or abort(404)
+    data = request.get_json(silent=True) or {}
+    rm_date = data.get('date', '').strip()
+    try: dates = json.loads(ev.event_date or '[]')
+    except: dates = []
+    if rm_date in dates:
+        dates.remove(rm_date)
+        ev.event_date = json.dumps(dates)
+        db.commit()
+    return jsonify({'ok': True, 'dates': dates})
+
+
+@interviews_bp.route('/admin/events/<int:event_id>/update-settings', methods=['POST'])
+@login_required
+def admin_event_update_settings(event_id):
+    perm = get_permissions()
+    if not perm.is_admin_or_manager(): abort(403)
+    db = get_db()
+    ev = db.query(PIEvent).get(event_id) or abort(404)
+    data = request.get_json(silent=True) or {}
+    if 'school_name' in data:
+        ev.school_name = (data['school_name'] or '').strip()
+    if 'school_logo_url' in data:
+        ev.school_logo_url = (data['school_logo_url'] or '').strip()
+    db.commit()
+    return jsonify({'ok': True})
+
+
+@interviews_bp.route('/admin/events/<int:event_id>/send-teacher-emails', methods=['POST'])
+@login_required
+def admin_send_teacher_emails(event_id):
+    """Send access code emails to all teachers with an email address."""
+    perm = get_permissions()
+    if not perm.is_admin_or_manager(): abort(403)
+    from utils.email_helper import send_email
+    from utils.i18n import get_lang
+    db = get_db()
+    ev = db.query(PIEvent).get(event_id) or abort(404)
+    teachers = db.query(PITeacher).filter_by(event_id=event_id, is_active=True).all()
+    ar = get_lang() == 'ar'
+    d = 'rtl' if ar else 'ltr'
+    sent = 0
+    logo_html = ''
+    if ev.school_logo_url:
+        logo_html = f'<img src="{ev.school_logo_url}" alt="logo" style="height:48px;max-width:160px;object-fit:contain;margin-bottom:8px;display:block">'
+    for t in teachers:
+        if not t.email or not t.teacher_code:
+            continue
+        portal_url = request.host_url.rstrip('/') + url_for('interviews.teacher_timetable', teacher_code=t.teacher_code)
+        subject = f"رابط بوابة المقابلات — {ev.name}" if ar else f"Your Interview Portal Access — {ev.name}"
+        greeting = f"عزيزي {t.name}،" if ar else f"Dear {t.name},"
+        msg = "تمت إضافتك إلى فعالية مقابلات. استخدم الرابط أدناه لعرض جدولك:" if ar else "You have been added to an interview event. Use the link below to view your schedule:"
+        lbl_code = "رمز الدخول الخاص بك" if ar else "Your Access Code"
+        lbl_btn = "فتح البوابة" if ar else "Open My Portal"
+        body = f"""
+<div style="font-family:sans-serif;max-width:600px;margin:auto;direction:{d}">
+<div style="background:{ev.brand_color or '#0d6efd'};color:white;padding:20px;border-radius:8px 8px 0 0;text-align:center">
+  {logo_html}
+  <h2 style="margin:0">{ev.school_name or 'School'}</h2>
+  <p style="margin:5px 0 0;opacity:.9">{ev.name}</p>
+</div>
+<div style="padding:24px;border:1px solid #dee2e6;border-top:none;border-radius:0 0 8px 8px">
+  <p>{greeting}</p>
+  <p>{msg}</p>
+  <div style="background:#f8f9fa;border-radius:8px;padding:16px;margin:16px 0;text-align:center">
+    <div style="font-size:.85rem;color:#6c757d;margin-bottom:8px">{lbl_code}</div>
+    <div style="font-size:1.4rem;font-weight:800;letter-spacing:4px;color:#0f172a">{t.teacher_code}</div>
+  </div>
+  <div style="text-align:center">
+    <a href="{portal_url}" style="display:inline-block;background:{ev.brand_color or '#0d6efd'};color:white;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700">{lbl_btn}</a>
+  </div>
+</div>
+</div>"""
+        send_email(to_email=t.email, to_name=t.name, subject=subject, html_body=body,
+                   email_type='teacher_access_code')
+        sent += 1
+    return jsonify({'ok': True, 'sent': sent})
+
+
+@interviews_bp.route('/admin/events/<int:event_id>/print-teacher-codes')
+@login_required
+def admin_print_teacher_codes(event_id):
+    """Printable page with all teacher codes."""
+    perm = get_permissions()
+    if not perm.is_admin_or_manager(): abort(403)
+    db = get_db()
+    ev = db.query(PIEvent).get(event_id) or abort(404)
+    teachers = db.query(PITeacher).filter_by(event_id=event_id, is_active=True).order_by(PITeacher.name).all()
+    return render_template('interviews/admin/print_teacher_codes.html', ev=ev, teachers=teachers)
+
+
+@interviews_bp.route('/admin/teachers/<int:tid>/upload-photo', methods=['POST'])
+@login_required
+def admin_teacher_upload_photo(tid):
+    """Upload teacher photo — stored as base64 data URI in photo_url."""
+    perm = get_permissions()
+    if not perm.is_admin_or_manager(): abort(403)
+    db = get_db()
+    t = db.query(PITeacher).get(tid) or abort(404)
+    f = request.files.get('photo')
+    if not f:
+        return jsonify({'ok': False, 'error': 'No file'})
+    data = f.read()
+    if len(data) > 2 * 1024 * 1024:  # 2MB limit
+        return jsonify({'ok': False, 'error': 'File too large (max 2MB)'})
+    mime = f.content_type or 'image/jpeg'
+    b64 = base64.b64encode(data).decode('ascii')
+    t.photo_url = f'data:{mime};base64,{b64}'
+    db.commit()
+    return jsonify({'ok': True, 'photo_url': t.photo_url})
+
+
+@interviews_bp.route('/admin/teachers/<int:tid>/upload-attachment', methods=['POST'])
+@login_required
+def admin_teacher_upload_attachment(tid):
+    """Upload attachment (PDF, DOCX, XLSX, PPTX) — stored as base64 in attachments_json."""
+    perm = get_permissions()
+    if not perm.is_admin_or_manager(): abort(403)
+    db = get_db()
+    t = db.query(PITeacher).get(tid) or abort(404)
+    f = request.files.get('file')
+    if not f:
+        return jsonify({'ok': False, 'error': 'No file'})
+    allowed = {'pdf', 'docx', 'xlsx', 'pptx', 'doc', 'xls', 'ppt'}
+    ext = (f.filename or '').rsplit('.', 1)[-1].lower()
+    if ext not in allowed:
+        return jsonify({'ok': False, 'error': f'File type .{ext} not allowed. Allowed: {", ".join(allowed)}'})
+    data = f.read()
+    if len(data) > 5 * 1024 * 1024:  # 5MB limit
+        return jsonify({'ok': False, 'error': 'File too large (max 5MB)'})
+    mime = f.content_type or 'application/octet-stream'
+    b64 = base64.b64encode(data).decode('ascii')
+    try:
+        attachments = json.loads(t.attachments_json or '[]')
+    except:
+        attachments = []
+    attachments.append({
+        'name': f.filename,
+        'ext': ext,
+        'mime': mime,
+        'size': len(data),
+        'data': b64,
+        'uploaded_at': datetime.now().isoformat()
+    })
+    t.attachments_json = json.dumps(attachments)
+    db.commit()
+    return jsonify({'ok': True, 'count': len(attachments)})
+
+
+@interviews_bp.route('/admin/teachers/<int:tid>/delete-attachment/<int:idx>', methods=['POST'])
+@login_required
+def admin_teacher_delete_attachment(tid, idx):
+    perm = get_permissions()
+    if not perm.is_admin_or_manager(): abort(403)
+    db = get_db()
+    t = db.query(PITeacher).get(tid) or abort(404)
+    try:
+        attachments = json.loads(t.attachments_json or '[]')
+    except:
+        attachments = []
+    if 0 <= idx < len(attachments):
+        attachments.pop(idx)
+        t.attachments_json = json.dumps(attachments)
+        db.commit()
+    return jsonify({'ok': True})
+
+
+@interviews_bp.route('/admin/teachers/<int:tid>/attachment/<int:idx>')
+@login_required
+def admin_teacher_download_attachment(tid, idx):
+    """Download a teacher's attachment by index."""
+    perm = get_permissions()
+    if not perm.is_admin_or_manager(): abort(403)
+    db = get_db()
+    t = db.query(PITeacher).get(tid) or abort(404)
+    try:
+        attachments = json.loads(t.attachments_json or '[]')
+    except:
+        attachments = []
+    if idx < 0 or idx >= len(attachments):
+        abort(404)
+    att = attachments[idx]
+    data = base64.b64decode(att['data'])
+    return Response(data, mimetype=att.get('mime', 'application/octet-stream'),
+                    headers={'Content-Disposition': f'attachment; filename="{att["name"]}"'})
+
+
+# ── Hierarchy CSV Import ──
+@interviews_bp.route('/admin/events/<int:event_id>/hierarchy/import', methods=['POST'])
+@login_required
+def admin_hierarchy_import(event_id):
+    from utils.i18n import get_lang
+    perm = get_permissions()
+    if not perm.is_admin_or_manager(): abort(403)
+    db = get_db()
+    ev = db.query(PIEvent).get(event_id) or abort(404)
+    f = request.files.get('csv_file')
+    if not f:
+        flash('No file uploaded', 'danger')
+        return _ajax_or_redirect(event_id)
+    content = f.read().decode('utf-8-sig')
+    reader = csv.DictReader(io.StringIO(content))
+    count = 0
+    for row in reader:
+        stage_name = (row.get('stage') or row.get('المرحلة') or '').strip()
+        class_name = (row.get('class') or row.get('الصف') or '').strip()
+        section_name = (row.get('section') or row.get('الشعبة') or '').strip()
+        teacher_name = (row.get('teacher') or row.get('المعلم') or '').strip()
+        teacher_email = (row.get('email') or row.get('البريد') or '').strip()
+        course = (row.get('course') or row.get('المادة') or '').strip()
+        room = (row.get('room') or row.get('الغرفة') or '').strip()
+        if not (stage_name and class_name and section_name and teacher_name and course):
+            continue
+        # Find or create stage
+        stage = db.query(PISchoolStage).filter_by(event_id=event_id, name=stage_name).first()
+        if not stage:
+            stage = PISchoolStage(event_id=event_id, name=stage_name, sort_order=0)
+            db.add(stage); db.flush()
+        # Find or create class
+        cls = db.query(PISchoolClass).filter_by(stage_id=stage.id, name=class_name).first()
+        if not cls:
+            cls = PISchoolClass(stage_id=stage.id, event_id=event_id, name=class_name, sort_order=0)
+            db.add(cls); db.flush()
+        # Find or create section
+        sec = db.query(PISection).filter_by(class_id=cls.id, name=section_name).first()
+        if not sec:
+            sec = PISection(class_id=cls.id, event_id=event_id, name=section_name, sort_order=0)
+            db.add(sec); db.flush()
+        # Find or create teacher
+        teacher = db.query(PITeacher).filter_by(event_id=event_id, name=teacher_name).first()
+        if not teacher:
+            teacher = PITeacher(event_id=event_id, name=teacher_name, email=teacher_email,
+                                room=room, teacher_code=_gen_teacher_code(), is_active=True)
+            db.add(teacher); db.flush()
+        # Create assignment with section-based code (e.g. 1A-K7M2)
+        code = _gen_assignment_code(class_name, section_name)
+        while db.query(PITeacherAssignment).filter_by(assignment_code=code).first():
+            code = _gen_assignment_code(class_name, section_name)
+        db.add(PITeacherAssignment(
+            event_id=event_id, teacher_id=teacher.id, section_id=sec.id,
+            course_name=course, room=room, assignment_code=code
+        ))
+        count += 1
+    db.commit()
+    flash(f'تم استيراد {count} تعيين' if get_lang()=='ar' else f'Imported {count} assignments', 'success')
+    return _ajax_or_redirect(event_id)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DATA ENTRY Screen (new unified admin view)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _flatten_assignments(db, event_id):
+    """Return flat list of assignment rows for the data entry table."""
+    assignments = db.query(PITeacherAssignment).filter_by(
+        event_id=event_id, is_active=True
+    ).order_by(PITeacherAssignment.id).all()
+    rows = []
+    for a in assignments:
+        sec = a.section
+        cls = sec.school_class if sec else None
+        stage = cls.stage if cls else None
+        teacher = a.teacher
+        slot_count = db.query(PISlot).filter(
+            PISlot.assignment_id == a.id, PISlot.is_break == False
+        ).count()
+        try:
+            att_list = json.loads(teacher.attachments_json or '[]') if teacher else []
+        except:
+            att_list = []
+        rows.append({
+            'aid': a.id,
+            'tid': teacher.id if teacher else 0,
+            'stage': stage.name if stage else '',
+            'cls': cls.name if cls else '',
+            'section': sec.name if sec else '',
+            'course': a.course_name or '',
+            'teacher': teacher.name if teacher else '',
+            'email': teacher.email if teacher else '',
+            'room': a.room or '',
+            'code': a.assignment_code or '',
+            'slot_count': slot_count,
+            'section_id': sec.id if sec else 0,
+            'photo_url': (teacher.photo_url or '') if teacher else '',
+            'attachments': att_list,
+            'slot_duration': a.slot_duration,
+        })
+    return rows
+
+
+@interviews_bp.route('/admin/events/<int:event_id>/data-entry')
+@login_required
+def admin_data_entry(event_id):
+    """Unified data entry table for an event."""
+    perm = get_permissions()
+    if not perm.is_admin_or_manager(): abort(403)
+    db = get_db()
+    ev = db.query(PIEvent).get(event_id) or abort(404)
+    rows = _flatten_assignments(db, event_id)
+    try: event_dates = json.loads(ev.event_date or '[]')
+    except: event_dates = []
+    return render_template('interviews/admin/data_entry.html', ev=ev, rows=rows, event_dates=event_dates)
+
+
+@interviews_bp.route('/admin/events/<int:event_id>/data-entry/save', methods=['POST'])
+@login_required
+def admin_data_entry_save(event_id):
+    """Bulk save rows — find-or-create stages/classes/sections/teachers/assignments."""
+    perm = get_permissions()
+    if not perm.is_admin_or_manager(): abort(403)
+    db = get_db()
+    ev = db.query(PIEvent).get(event_id) or abort(404)
+    data = request.get_json(force=True)
+    rows = data.get('rows', [])
+    saved = []
+    for row in rows:
+        stage_name = (row.get('stage') or '').strip()
+        class_name = (row.get('class') or '').strip()
+        section_name = (row.get('section') or '').strip()
+        course = (row.get('course') or '').strip()
+        teacher_name = (row.get('teacher') or '').strip()
+        teacher_email = (row.get('email') or '').strip()
+        room = (row.get('room') or '').strip()
+        aid = int(row.get('aid') or 0)
+        if not (stage_name and class_name and section_name and teacher_name and course):
+            continue
+        # Find or create stage
+        stage = db.query(PISchoolStage).filter_by(event_id=event_id, name=stage_name).first()
+        if not stage:
+            stage = PISchoolStage(event_id=event_id, name=stage_name, sort_order=0)
+            db.add(stage); db.flush()
+        # Find or create class
+        cls = db.query(PISchoolClass).filter_by(stage_id=stage.id, name=class_name).first()
+        if not cls:
+            cls = PISchoolClass(stage_id=stage.id, event_id=event_id, name=class_name, sort_order=0)
+            db.add(cls); db.flush()
+        # Find or create section
+        sec = db.query(PISection).filter_by(class_id=cls.id, name=section_name).first()
+        if not sec:
+            sec = PISection(class_id=cls.id, event_id=event_id, name=section_name, sort_order=0)
+            db.add(sec); db.flush()
+        # Find or create teacher
+        teacher = db.query(PITeacher).filter_by(event_id=event_id, name=teacher_name).first()
+        if not teacher:
+            teacher = PITeacher(event_id=event_id, name=teacher_name, email=teacher_email,
+                                room=room, teacher_code=_gen_teacher_code(), is_active=True)
+            db.add(teacher); db.flush()
+        elif teacher_email and not teacher.email:
+            teacher.email = teacher_email
+        # Update or create assignment
+        if aid:
+            a = db.query(PITeacherAssignment).get(aid)
+            if a and a.event_id == event_id:
+                a.teacher_id = teacher.id; a.section_id = sec.id
+                a.course_name = course; a.room = room
+                saved.append({'aid': a.id, 'code': a.assignment_code})
+                continue
+        # Check duplicate
+        existing = db.query(PITeacherAssignment).filter_by(
+            event_id=event_id, teacher_id=teacher.id, section_id=sec.id, course_name=course
+        ).first()
+        if existing:
+            saved.append({'aid': existing.id, 'code': existing.assignment_code})
+            continue
+        code = _gen_assignment_code(class_name, section_name)
+        while db.query(PITeacherAssignment).filter_by(assignment_code=code).first():
+            code = _gen_assignment_code(class_name, section_name)
+        # Per-record slot duration
+        row_dur = row.get('slot_duration')
+        try: row_dur = int(row_dur) if row_dur else None
+        except: row_dur = None
+        a = PITeacherAssignment(
+            event_id=event_id, teacher_id=teacher.id, section_id=sec.id,
+            course_name=course, room=room, assignment_code=code,
+            slot_duration=row_dur
+        )
+        db.add(a); db.flush()
+        saved.append({'aid': a.id, 'code': a.assignment_code})
+        # Generate time slots if slot_start/slot_end provided
+        slot_start = (row.get('slot_start') or '').strip()
+        slot_end = (row.get('slot_end') or '').strip()
+        if slot_start and slot_end:
+            try:
+                dates = json.loads(ev.event_date or '[]')
+                if not dates:
+                    from datetime import date as _date
+                    dates = [_date.today().isoformat()]
+                breaks = []
+                brk_s = (row.get('break_start') or '').strip()
+                brk_e = (row.get('break_end') or '').strip()
+                if brk_s and brk_e: breaks.append({'start': brk_s, 'end': brk_e})
+                blocked = []
+                blk_s = (row.get('blocked_start') or '').strip()
+                blk_e = (row.get('blocked_end') or '').strip()
+                if blk_s and blk_e: blocked.append({'start': blk_s, 'end': blk_e})
+                def t2m(t):
+                    h, m = map(int, t.split(':'))
+                    return h * 60 + m
+                def m2t(m):
+                    return f"{m//60:02d}:{m%60:02d}"
+                dur = a.slot_duration or ev.slot_duration or 5
+                brk_dur = ev.break_duration or 0
+                for d_str in dates:
+                    cur = t2m(slot_start)
+                    end_m = t2m(slot_end)
+                    while cur + dur <= end_m:
+                        ss, se = m2t(cur), m2t(cur + dur)
+                        is_blocked = any(cur >= t2m(bp['start']) and cur < t2m(bp['end']) for bp in blocked)
+                        if is_blocked: cur += dur; continue
+                        is_brk = any(cur >= t2m(b['start']) and cur < t2m(b['end']) for b in breaks)
+                        db.add(PISlot(teacher_id=teacher.id, event_id=ev.id, assignment_id=a.id,
+                                      slot_date=d_str, start_time=ss, end_time=se, is_break=is_brk))
+                        cur += dur + brk_dur
+            except Exception as e:
+                print(f"Inline slot generation error: {e}")
+    db.commit()
+    return jsonify({'ok': True, 'saved': saved, 'count': len(saved)})
+
+
+@interviews_bp.route('/admin/events/<int:event_id>/data-entry/import', methods=['POST'])
+@login_required
+def admin_data_entry_import(event_id):
+    """CSV import for data entry — returns JSON for AJAX."""
+    perm = get_permissions()
+    if not perm.is_admin_or_manager(): abort(403)
+    db = get_db()
+    ev = db.query(PIEvent).get(event_id) or abort(404)
+    f = request.files.get('csv_file')
+    if not f:
+        return jsonify({'ok': False, 'error': 'No file uploaded'})
+    content = f.read().decode('utf-8-sig')
+    reader = csv.DictReader(io.StringIO(content))
+    count = 0
+    for row in reader:
+        stage_name = (row.get('stage') or row.get('المرحلة') or '').strip()
+        class_name = (row.get('class') or row.get('الصف') or '').strip()
+        section_name = (row.get('section') or row.get('الشعبة') or '').strip()
+        teacher_name = (row.get('teacher') or row.get('المعلم') or '').strip()
+        teacher_email = (row.get('email') or row.get('البريد') or '').strip()
+        course = (row.get('course') or row.get('المادة') or '').strip()
+        room = (row.get('room') or row.get('الغرفة') or '').strip()
+        if not (stage_name and class_name and section_name and teacher_name and course):
+            continue
+        stage = db.query(PISchoolStage).filter_by(event_id=event_id, name=stage_name).first()
+        if not stage:
+            stage = PISchoolStage(event_id=event_id, name=stage_name, sort_order=0)
+            db.add(stage); db.flush()
+        cls = db.query(PISchoolClass).filter_by(stage_id=stage.id, name=class_name).first()
+        if not cls:
+            cls = PISchoolClass(stage_id=stage.id, event_id=event_id, name=class_name, sort_order=0)
+            db.add(cls); db.flush()
+        sec = db.query(PISection).filter_by(class_id=cls.id, name=section_name).first()
+        if not sec:
+            sec = PISection(class_id=cls.id, event_id=event_id, name=section_name, sort_order=0)
+            db.add(sec); db.flush()
+        teacher = db.query(PITeacher).filter_by(event_id=event_id, name=teacher_name).first()
+        if not teacher:
+            teacher = PITeacher(event_id=event_id, name=teacher_name, email=teacher_email,
+                                room=room, teacher_code=_gen_teacher_code(), is_active=True)
+            db.add(teacher); db.flush()
+        existing = db.query(PITeacherAssignment).filter_by(
+            event_id=event_id, teacher_id=teacher.id, section_id=sec.id, course_name=course
+        ).first()
+        if existing: continue
+        code = _gen_assignment_code(class_name, section_name)
+        while db.query(PITeacherAssignment).filter_by(assignment_code=code).first():
+            code = _gen_assignment_code(class_name, section_name)
+        # Per-record slot duration from CSV
+        csv_dur = (row.get('slot_duration') or row.get('مدة_المقابلة') or '').strip()
+        try: csv_dur = int(csv_dur) if csv_dur else None
+        except: csv_dur = None
+        a = PITeacherAssignment(
+            event_id=event_id, teacher_id=teacher.id, section_id=sec.id,
+            course_name=course, room=room, assignment_code=code,
+            slot_duration=csv_dur
+        )
+        db.add(a); db.flush()
+        count += 1
+        # Generate slots from CSV columns if provided
+        slot_start = (row.get('slot_start') or '').strip()
+        slot_end = (row.get('slot_end') or '').strip()
+        if slot_start and slot_end:
+            try:
+                dates_json = ev.event_date or '[]'
+                dates = json.loads(dates_json) if dates_json else []
+                if not dates:
+                    from datetime import date as _date
+                    dates = [_date.today().isoformat()]
+                breaks = []
+                brk_s = (row.get('break_start') or '').strip()
+                brk_e = (row.get('break_end') or '').strip()
+                if brk_s and brk_e:
+                    breaks.append({'start': brk_s, 'end': brk_e})
+                blocked = []
+                blk_s = (row.get('blocked_start') or '').strip()
+                blk_e = (row.get('blocked_end') or '').strip()
+                if blk_s and blk_e:
+                    blocked.append({'start': blk_s, 'end': blk_e})
+                def t2m(t):
+                    h, m = map(int, t.split(':'))
+                    return h * 60 + m
+                def m2t(m):
+                    return f"{m//60:02d}:{m%60:02d}"
+                dur = a.slot_duration or ev.slot_duration or 5
+                brk_dur = ev.break_duration or 0
+                for d_str in dates:
+                    cur = t2m(slot_start)
+                    end_m = t2m(slot_end)
+                    while cur + dur <= end_m:
+                        ss, se = m2t(cur), m2t(cur + dur)
+                        is_blocked = False
+                        for bp in blocked:
+                            bs, be = t2m(bp['start']), t2m(bp['end'])
+                            if cur >= bs and cur < be: is_blocked = True; break
+                        if is_blocked:
+                            cur += dur; continue
+                        is_brk = False
+                        for b in breaks:
+                            bs, be = t2m(b['start']), t2m(b['end'])
+                            if cur >= bs and cur < be: is_brk = True; break
+                        db.add(PISlot(teacher_id=teacher.id, event_id=ev.id, assignment_id=a.id,
+                                      slot_date=d_str, start_time=ss, end_time=se, is_break=is_brk))
+                        cur += dur + brk_dur
+            except Exception as e:
+                print(f"Slot generation from CSV error: {e}")
+    db.commit()
+    return jsonify({'ok': True, 'count': count})
+
+
+@interviews_bp.route('/admin/events/<int:event_id>/data-entry/template')
+@login_required
+def admin_data_entry_template(event_id):
+    """Download CSV template for data entry with instructions."""
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['stage', 'class', 'section', 'course', 'teacher', 'email', 'room',
+                      'slot_duration', 'slot_start', 'slot_end', 'break_start', 'break_end', 'blocked_start', 'blocked_end'])
+    writer.writerow(['Primary', 'Grade 1', 'A', 'Mathematics', 'Ahmed Ali', 'ahmed@school.com', '101',
+                      '10', '08:00', '14:00', '10:00', '10:30', '12:00', '13:00'])
+    writer.writerow(['Primary', 'Grade 1', 'A', 'Science', 'Sara Mohammed', 'sara@school.com', '102',
+                      '5', '08:00', '14:00', '', '', '', ''])
+    writer.writerow([])
+    writer.writerow(['# INSTRUCTIONS / تعليمات:'])
+    writer.writerow(['# stage: School stage (e.g. Primary, Secondary) / المرحلة الدراسية'])
+    writer.writerow(['# class: Class name (e.g. Grade 1) / اسم الصف'])
+    writer.writerow(['# section: Section letter (e.g. A, B) / رمز الشعبة'])
+    writer.writerow(['# course: Subject/course name / اسم المبحث'])
+    writer.writerow(['# teacher: Teacher full name / اسم المعلم'])
+    writer.writerow(['# email: Teacher email (for sending codes) / بريد المعلم'])
+    writer.writerow(['# room: Room number / رقم الغرفة'])
+    writer.writerow(['# slot_duration: Meeting duration in minutes (e.g. 5, 10, 15) / مدة المقابلة بالدقائق'])
+    writer.writerow(['# slot_start: Time slots start (HH:MM) / بداية الفترات الزمنية'])
+    writer.writerow(['# slot_end: Time slots end (HH:MM) / نهاية الفترات الزمنية'])
+    writer.writerow(['# break_start/break_end: Break period (HH:MM) / فترة الراحة'])
+    writer.writerow(['# blocked_start/blocked_end: Blocked period - no slots created (HH:MM) / فترة الحظر'])
+    writer.writerow(['# Same teacher can appear multiple times for different classes/sections'])
+    return Response(output.getvalue(), mimetype='text/csv',
+                    headers={'Content-Disposition': 'attachment; filename=data_entry_template.csv'})
+
+
+@interviews_bp.route('/admin/events/<int:event_id>/data-entry/export')
+@login_required
+def admin_data_entry_export(event_id):
+    """Export all assignments as CSV."""
+    perm = get_permissions()
+    if not perm.is_admin_or_manager(): abort(403)
+    db = get_db()
+    ev = db.query(PIEvent).get(event_id) or abort(404)
+    rows = _flatten_assignments(db, event_id)
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['stage', 'class', 'section', 'course', 'teacher', 'email', 'room', 'code', 'slots'])
+    for r in rows:
+        writer.writerow([r['stage'], r['cls'], r['section'], r['course'],
+                         r['teacher'], r['email'], r['room'], r['code'], r['slot_count']])
+    return Response(output.getvalue(), mimetype='text/csv',
+                    headers={'Content-Disposition': f'attachment; filename={ev.name}_data_{datetime.now().strftime("%Y%m%d")}.csv'})
+
+
+# ── Parent Table View (redesigned booking flow) ──
+
+@interviews_bp.route('/book/<int:event_id>/parent-table')
+def book_parent_table(event_id):
+    """Parent sees a table: Stage | Class | Section | Booking Code"""
+    db = get_db()
+    ev = db.query(PIEvent).get(event_id) or abort(404)
+    if not ev.is_open or not ev.is_active:
+        return redirect(url_for('interviews.book_welcome'))
+    session['pi_event_id'] = ev.id
+    session['pi_event_code'] = ev.event_code
+    # Build unique rows: one per section, using first assignment code
+    assignments = db.query(PITeacherAssignment).filter_by(
+        event_id=event_id, is_active=True).all()
+    seen = {}
+    rows = []
+    for a in assignments:
+        sec = a.section
+        if not sec or sec.id in seen: continue
+        seen[sec.id] = True
+        cls = sec.school_class if sec else None
+        stage = cls.stage if cls else None
+        rows.append({
+            'stage': stage.name if stage else '',
+            'cls': cls.name if cls else '',
+            'section': sec.name if sec else '',
+            'code': a.assignment_code or '',
+            'section_id': sec.id,
+        })
+    return render_template('interviews/book/parent_table.html', ev=ev, rows=rows)
+
+
+# ── JSON API for cascading dropdown filters (public, no login required) ──
+
+@interviews_bp.route('/api/events/<int:event_id>/stages')
+def api_stages(event_id):
+    db = get_db()
+    stages = db.query(PISchoolStage).filter_by(event_id=event_id).order_by(PISchoolStage.sort_order).all()
+    return jsonify([{'id': s.id, 'name': s.name, 'name_ar': s.name_ar or s.name} for s in stages])
+
+@interviews_bp.route('/api/events/<int:event_id>/classes')
+def api_classes(event_id):
+    db = get_db()
+    stage_id = request.args.get('stage_id', type=int)
+    q = db.query(PISchoolClass).filter_by(event_id=event_id)
+    if stage_id: q = q.filter_by(stage_id=stage_id)
+    classes = q.order_by(PISchoolClass.sort_order).all()
+    return jsonify([{'id': c.id, 'name': c.name, 'name_ar': c.name_ar or c.name} for c in classes])
+
+@interviews_bp.route('/api/events/<int:event_id>/sections')
+def api_sections(event_id):
+    db = get_db()
+    class_id = request.args.get('class_id', type=int)
+    q = db.query(PISection).filter_by(event_id=event_id)
+    if class_id: q = q.filter_by(class_id=class_id)
+    sections = q.order_by(PISection.sort_order).all()
+    return jsonify([{'id': s.id, 'name': s.name} for s in sections])
+
+@interviews_bp.route('/api/events/<int:event_id>/teachers')
+def api_teachers(event_id):
+    db = get_db()
+    section_id = request.args.get('section_id', type=int)
+    if section_id:
+        assignments = db.query(PITeacherAssignment).filter_by(
+            event_id=event_id, section_id=section_id, is_active=True).all()
+        teacher_ids = list(set(a.teacher_id for a in assignments))
+        teachers = db.query(PITeacher).filter(PITeacher.id.in_(teacher_ids)).all() if teacher_ids else []
+    else:
+        teachers = db.query(PITeacher).filter_by(event_id=event_id, is_active=True).all()
+    return jsonify([{'id': t.id, 'name': t.name, 'subjects': t.subjects or '', 'room': t.room or ''} for t in teachers])
+
+@interviews_bp.route('/api/events/<int:event_id>/courses')
+def api_courses(event_id):
+    db = get_db()
+    section_id = request.args.get('section_id', type=int)
+    teacher_id = request.args.get('teacher_id', type=int)
+    q = db.query(PITeacherAssignment).filter_by(event_id=event_id, is_active=True)
+    if section_id: q = q.filter_by(section_id=section_id)
+    if teacher_id: q = q.filter_by(teacher_id=teacher_id)
+    assignments = q.all()
+    return jsonify([{
+        'id': a.id, 'assignment_code': a.assignment_code,
+        'course_name': a.course_name, 'course_name_ar': a.course_name_ar or a.course_name,
+        'room': a.room or '', 'teacher_id': a.teacher_id
+    } for a in assignments])
+
+@interviews_bp.route('/api/events/<int:event_id>/slots')
+def api_slots(event_id):
+    db = get_db()
+    assignment_id = request.args.get('assignment_id', type=int)
+    if not assignment_id:
+        return jsonify([])
+    slots = db.query(PISlot).filter(
+        PISlot.assignment_id == assignment_id,
+        PISlot.is_break == False,
+        PISlot.is_booked == False
+    ).order_by(PISlot.slot_date, PISlot.start_time).all()
+    by_date = {}
+    for s in slots:
+        by_date.setdefault(s.slot_date, []).append({
+            'id': s.id, 'start': s.start_time, 'end': s.end_time
+        })
+    return jsonify({'dates': by_date})
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # TEACHER Portal
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -840,27 +1857,130 @@ def teacher_timetable(teacher_code):
     for s in slots:
         by_date.setdefault(s.slot_date, []).append(s)
     dates = sorted(by_date.keys())
+    # Assignment details for header table
+    assignments = db.query(PITeacherAssignment).filter_by(
+        teacher_id=teacher.id, event_id=ev.id, is_active=True).all()
+    assignment_info = []
+    for a in assignments:
+        sec = a.section
+        cls = sec.school_class if sec else None
+        stage = cls.stage if cls else None
+        assignment_info.append({
+            'stage': stage.name if stage else '',
+            'cls': cls.name if cls else '',
+            'section': sec.name if sec else '',
+            'course': a.course_name or '',
+            'room': a.room or '',
+            'code': a.assignment_code or '',
+        })
+    # Free slots for this teacher (for change-time feature)
+    free_slots = db.query(PISlot).filter(
+        PISlot.teacher_id == teacher.id,
+        PISlot.is_booked == False,
+        PISlot.is_break == False
+    ).order_by(PISlot.slot_date, PISlot.start_time).all()
+    # Other teachers in same event (for substitute feature)
+    other_teachers = db.query(PITeacher).filter(
+        PITeacher.event_id == ev.id,
+        PITeacher.is_active == True,
+        PITeacher.id != teacher.id
+    ).all()
     return render_template('interviews/teacher/timetable.html',
-                           teacher=teacher, ev=ev, by_date=by_date, dates=dates)
+                           teacher=teacher, ev=ev, by_date=by_date, dates=dates,
+                           assignments=assignment_info,
+                           free_slots=free_slots, other_teachers=other_teachers)
 
 
 @interviews_bp.route('/teacher/<string:teacher_code>/cancel/<int:bid>', methods=['POST'])
 def teacher_cancel_booking(teacher_code, bid):
-    """Teacher cancels a booking from their portal"""
-    from utils.i18n import get_lang
+    """Teachers are not allowed to cancel bookings — admin only."""
+    abort(403)
+
+
+@interviews_bp.route('/teacher/<string:teacher_code>/change-time/<int:bid>', methods=['POST'])
+def teacher_change_time(teacher_code, bid):
+    """Teacher moves a booking to a different available slot of their own."""
     db = get_db()
     teacher = db.query(PITeacher).filter(PITeacher.teacher_code == teacher_code).first()
     if not teacher:
         abort(404)
-    b = db.query(PIBooking).get(bid)
-    if not b or not b.slot or b.slot.teacher_id != teacher.id:
-        abort(404)
-    b.status = 'cancelled'
-    b.cancelled_at = datetime.now()
-    b.slot.is_booked = False
+    booking = db.query(PIBooking).get(bid)
+    if not booking or not booking.slot or booking.slot.teacher_id != teacher.id:
+        abort(403)
+    new_slot_id = request.form.get('new_slot_id', type=int)
+    new_slot = db.query(PISlot).get(new_slot_id) if new_slot_id else None
+    if not new_slot or new_slot.is_booked or new_slot.is_break or new_slot.teacher_id != teacher.id:
+        return redirect(url_for('interviews.teacher_timetable', teacher_code=teacher_code))
+    old_slot = booking.slot
+    old_slot.is_booked = False
+    new_slot.is_booked = True
+    booking.slot_id = new_slot.id
     db.commit()
-    flash('تم إلغاء الحجز' if get_lang()=='ar' else 'Booking cancelled.', 'success')
     return redirect(url_for('interviews.teacher_timetable', teacher_code=teacher_code))
+
+
+@interviews_bp.route('/teacher/<string:teacher_code>/substitute/<int:bid>', methods=['POST'])
+def teacher_substitute(teacher_code, bid):
+    """Teacher transfers a booking to another teacher's available slot."""
+    db = get_db()
+    teacher = db.query(PITeacher).filter(PITeacher.teacher_code == teacher_code).first()
+    if not teacher:
+        abort(404)
+    booking = db.query(PIBooking).get(bid)
+    if not booking or not booking.slot or booking.slot.teacher_id != teacher.id:
+        abort(403)
+    new_slot_id = request.form.get('new_slot_id', type=int)
+    new_slot = db.query(PISlot).get(new_slot_id) if new_slot_id else None
+    if not new_slot or new_slot.is_booked or new_slot.is_break:
+        return redirect(url_for('interviews.teacher_timetable', teacher_code=teacher_code))
+    old_slot = booking.slot
+    old_slot.is_booked = False
+    new_slot.is_booked = True
+    booking.slot_id = new_slot.id
+    db.commit()
+    return redirect(url_for('interviews.teacher_timetable', teacher_code=teacher_code))
+
+
+@interviews_bp.route('/teacher/<string:teacher_code>/merge', methods=['POST'])
+def teacher_merge_bookings(teacher_code):
+    """Teacher merges two bookings — extends first slot to cover second, frees second."""
+    db = get_db()
+    teacher = db.query(PITeacher).filter(PITeacher.teacher_code == teacher_code).first()
+    if not teacher:
+        abort(404)
+    bid1 = request.form.get('bid1', type=int)
+    bid2 = request.form.get('bid2', type=int)
+    b1 = db.query(PIBooking).get(bid1) if bid1 else None
+    b2 = db.query(PIBooking).get(bid2) if bid2 else None
+    if not b1 or not b2:
+        return redirect(url_for('interviews.teacher_timetable', teacher_code=teacher_code))
+    if b1.slot.teacher_id != teacher.id or b2.slot.teacher_id != teacher.id:
+        abort(403)
+    s1, s2 = b1.slot, b2.slot
+    s1.end_time = s2.end_time
+    s2.is_booked = False
+    b2.status = 'cancelled'
+    b2.comment = (b2.comment or '') + f' [Merged into {b1.booking_ref}]'
+    db.commit()
+    return redirect(url_for('interviews.teacher_timetable', teacher_code=teacher_code))
+
+
+@interviews_bp.route('/teacher/<string:teacher_code>/free-slots/<int:tid>')
+def teacher_free_slots_json(teacher_code, tid):
+    """AJAX: Return free slots for a target teacher (used by substitute modal)."""
+    db = get_db()
+    teacher = db.query(PITeacher).filter(PITeacher.teacher_code == teacher_code).first()
+    if not teacher:
+        return jsonify([])
+    target = db.query(PITeacher).get(tid)
+    if not target or target.event_id != teacher.event_id:
+        return jsonify([])
+    slots = db.query(PISlot).filter(
+        PISlot.teacher_id == tid,
+        PISlot.is_booked == False,
+        PISlot.is_break == False
+    ).order_by(PISlot.slot_date, PISlot.start_time).all()
+    return jsonify([{'id': s.id, 'date': s.slot_date, 'start': s.start_time, 'end': s.end_time} for s in slots])
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -870,7 +1990,16 @@ def teacher_cancel_booking(teacher_code, bid):
 @interviews_bp.route('/book/')
 @interviews_bp.route('/book')
 def book_welcome():
-    return render_template('interviews/book/welcome.html')
+    db = get_db()
+    active_events = db.query(PIEvent).filter(
+        PIEvent.is_active == True, PIEvent.is_open == True
+    ).order_by(PIEvent.created_at.desc()).all()
+    # If exactly one active event, grab its logo for the welcome page
+    logo = None
+    if active_events:
+        logo = active_events[0].school_logo_url or None
+    return render_template('interviews/book/welcome.html',
+                           active_events=active_events, logo=logo)
 
 
 @interviews_bp.route('/book/enter', methods=['POST'])
@@ -881,13 +2010,15 @@ def book_enter():
     ev   = db.query(PIEvent).filter(PIEvent.event_code == code,
                                      PIEvent.is_active == True).first()
     if not ev:
-        flash('رمز الحدث غير صحيح. يرجى المحاولة مرة أخرى' if get_lang()=='ar' else 'Invalid event code. Please check and try again.', 'danger')
+        flash('رمز الفعالية غير صحيح. يرجى المحاولة مرة أخرى' if get_lang()=='ar' else 'Invalid event code. Please check and try again.', 'danger')
         return redirect(url_for('interviews.book_welcome'))
     if not ev.is_open:
-        flash('الحجز لهذا الحدث مغلق حالياً' if get_lang()=='ar' else 'Bookings for this event are currently closed.', 'warning')
+        flash('الحجز لهذه الفعالية مغلق حالياً' if get_lang()=='ar' else 'Bookings for this event are currently closed.', 'warning')
         return redirect(url_for('interviews.book_welcome'))
     session['pi_event_id']   = ev.id
     session['pi_event_code'] = code
+    if getattr(ev, 'use_hierarchy', False):
+        return redirect(url_for('interviews.book_cascade', event_id=ev.id))
     return redirect(url_for('interviews.book_select', event_id=ev.id))
 
 
@@ -912,6 +2043,12 @@ def book_select(event_id):
         teacher_slots[t.id] = by_date
     return render_template('interviews/book/select.html',
                            ev=ev, teachers=teachers, teacher_slots=teacher_slots)
+
+
+@interviews_bp.route('/book/<int:event_id>/cascade')
+def book_cascade(event_id):
+    """Redirect to new parent table view"""
+    return redirect(url_for('interviews.book_parent_table', event_id=event_id))
 
 
 @interviews_bp.route('/book/<int:event_id>/confirm', methods=['GET', 'POST'])
@@ -1176,7 +2313,7 @@ def book_request_by_code(code):
     if not ev:
         from utils.i18n import get_lang
         ar = get_lang() == 'ar'
-        flash('رمز الحدث غير صحيح' if ar else 'Invalid event code.', 'danger')
+        flash('رمز الفعالية غير صحيح' if ar else 'Invalid event code.', 'danger')
         return redirect(url_for('interviews.book_welcome'))
     return redirect(url_for('interviews.book_request', event_id=ev.id))
 
@@ -1956,7 +3093,7 @@ def admin_reports_export():
     w = csv.writer(out)
 
     if ar:
-        w.writerow(['الحدث', 'الرمز', 'المعلمين', 'إجمالي الفترات', 'المحجوز', 'نسبة الإشغال', 'مؤكد', 'ملغى', 'الطلبات'])
+        w.writerow(['الفعالية', 'الرمز', 'المعلمين', 'إجمالي الفترات', 'المحجوز', 'نسبة الإشغال', 'مؤكد', 'ملغى', 'الطلبات'])
     else:
         w.writerow(['Event', 'Code', 'Teachers', 'Total Slots', 'Booked', 'Utilization', 'Confirmed', 'Cancelled', 'Requests'])
 

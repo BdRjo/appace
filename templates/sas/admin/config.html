@@ -1,0 +1,320 @@
+{% extends "base.html" %}
+{%- set ar = (current_lang == 'ar') -%}
+
+{% block title %}{{ 'إعدادات نظام الغياب' if ar else 'SAS Configuration' }}{% endblock %}
+
+{% block extra_css %}
+<style>
+:root {
+  --sas: #10b981;
+  --sas-dark: #059669;
+  --sas-light: #34d399;
+  --sas-bg: #ecfdf5;
+}
+.sas-page-header h1 { color: var(--sas) !important; }
+.sas-card { border-radius: 14px; border: none; box-shadow: 0 2px 12px rgba(16,185,129,.1); }
+.sas-card .card-header {
+  background: linear-gradient(135deg, var(--sas-dark), var(--sas-light));
+  color: #fff; border-radius: 14px 14px 0 0 !important;
+  padding: 12px 20px; font-weight: 700; font-size: .9rem;
+}
+.btn-sas {
+  background: linear-gradient(160deg, var(--sas-light), var(--sas), var(--sas-dark));
+  color: #fff; border: none; border-radius: 8px; padding: 8px 22px;
+  font-size: .88rem; font-weight: 700; transition: all .2s;
+}
+.btn-sas:hover { background: linear-gradient(160deg, #059669, #047857); color: #fff; transform: translateY(-1px); }
+.sas-form .form-label { font-weight: 600; color: #374151; font-size: .85rem; margin-bottom: 4px; }
+.sas-form .form-control, .sas-form .form-select {
+  border: 1.5px solid #d1d5db; border-radius: 8px; font-size: .88rem;
+}
+.sas-form .form-control:focus, .sas-form .form-select:focus {
+  border-color: var(--sas); box-shadow: 0 0 0 3px rgba(16,185,129,.12);
+}
+.sas-form .form-text { font-size: .76rem; color: #6b7280; }
+.sas-toggle { position: relative; display: inline-block; width: 48px; height: 26px; }
+.sas-toggle input { opacity: 0; width: 0; height: 0; }
+.sas-toggle .slider {
+  position: absolute; cursor: pointer; inset: 0;
+  background: #d1d5db; border-radius: 26px; transition: .3s;
+}
+.sas-toggle .slider::before {
+  content: ''; position: absolute; height: 20px; width: 20px;
+  bottom: 3px; left: 3px; background: #fff; border-radius: 50%; transition: .3s;
+}
+.sas-toggle input:checked + .slider { background: var(--sas); }
+.sas-toggle input:checked + .slider::before { transform: translateX(22px); }
+.collapsible-header {
+  cursor: pointer; display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px; background: var(--sas-bg); border-radius: 12px;
+  font-weight: 700; color: var(--sas-dark); font-size: .9rem; transition: all .2s;
+  border: 1px solid rgba(16,185,129,.15);
+}
+.collapsible-header:hover { background: #d1fae5; }
+.collapsible-header .chevron { transition: transform .3s; }
+.collapsible-header.active .chevron { transform: rotate(180deg); }
+.ticker-preview {
+  border-radius: 10px; overflow: hidden; height: 42px;
+  display: flex; align-items: center; position: relative;
+  border: 1px solid rgba(16,185,129,.2); margin-top: 12px;
+}
+.ticker-preview .ticker-prev-track {
+  display: inline-flex; align-items: center; white-space: nowrap; will-change: transform;
+  animation: tickerScroll 15s linear infinite;
+}
+@keyframes tickerScroll { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
+[dir="rtl"] @keyframes tickerScroll { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+.logo-preview { width: 80px; height: 80px; border-radius: 12px; object-fit: contain; border: 2px dashed #d1d5db; background: #f9fafb; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3 sas-page-header">
+  <h1 style="font-size:1.35rem;font-weight:700;margin:0">
+    <i class="bi bi-gear-fill me-2"></i>{{ 'إعدادات نظام الغياب' if ar else 'SAS Configuration' }}
+  </h1>
+  <a href="{{ url_for('sas.admin_dashboard') }}" class="btn btn-sm" style="border:1.5px solid var(--sas);color:var(--sas);border-radius:8px;font-weight:600">
+    <i class="bi bi-arrow-{{ 'right' if ar else 'left' }} me-1"></i>{{ 'العودة' if ar else 'Back' }}
+  </a>
+</div>
+
+<form method="POST" action="{{ url_for('sas.admin_config_save') }}" enctype="multipart/form-data" class="sas-form" id="configForm">
+  <!-- General Settings -->
+  <div class="sas-card card mb-4">
+    <div class="card-header">
+      <i class="bi bi-building me-2"></i>{{ 'معلومات المدرسة' if ar else 'School Information' }}
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">{{ 'اسم المدرسة (عربي)' if ar else 'School Name (AR)' }}</label>
+          <input type="text" name="school_name_ar" class="form-control" value="{{ config.school_name_ar or '' }}" dir="rtl" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">{{ 'اسم المدرسة (إنجليزي)' if ar else 'School Name (EN)' }}</label>
+          <input type="text" name="school_name_en" class="form-control" value="{{ config.school_name_en or '' }}" dir="ltr">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">{{ 'العام الدراسي' if ar else 'Academic Year' }}</label>
+          <input type="text" name="academic_year" class="form-control" value="{{ config.academic_year or '' }}" placeholder="2025-2026">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">{{ 'شعار المدرسة' if ar else 'School Logo' }}</label>
+          <div class="d-flex align-items-center gap-3">
+            {% if config.school_logo_b64 %}
+            <img src="{{ config.school_logo_b64 }}" class="logo-preview" id="logoPreview" alt="Logo">
+            {% else %}
+            <div class="logo-preview d-flex align-items-center justify-content-center" id="logoPreview">
+              <i class="bi bi-image text-muted" style="font-size:1.5rem"></i>
+            </div>
+            {% endif %}
+            <div style="flex:1">
+              <input type="file" name="school_logo" class="form-control form-control-sm" accept="image/*" id="logoInput">
+              <div class="form-text">{{ 'PNG أو JPG، حد أقصى 500KB' if ar else 'PNG or JPG, max 500KB' }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">{{ 'الحالة' if ar else 'Status' }}</label>
+          <div class="d-flex align-items-center gap-3 mt-1">
+            <label class="sas-toggle">
+              <input type="checkbox" name="is_active" value="1" {{ 'checked' if config.is_active else '' }}>
+              <span class="slider"></span>
+            </label>
+            <span style="font-size:.85rem;color:#374151;font-weight:500">{{ 'نشط' if ar else 'Active' }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ticker Management (Collapsible) -->
+  <div class="mb-4">
+    <div class="collapsible-header" id="tickerToggle" onclick="toggleTicker()">
+      <span><i class="bi bi-megaphone me-2"></i>{{ 'إدارة الشريط المتحرك' if ar else 'Ticker Management' }}</span>
+      <i class="bi bi-chevron-down chevron"></i>
+    </div>
+    <div id="tickerSection" style="display:none;padding-top:16px">
+      <div class="sas-card card">
+        <div class="card-body">
+          <div class="row g-3">
+            <!-- Feeds -->
+            <div class="col-md-6">
+              <label class="form-label">{{ 'النصوص (عربي) - سطر لكل نص' if ar else 'Feeds (AR) - one per line' }}</label>
+              <textarea name="ticker_feeds_ar" class="form-control" rows="4" dir="rtl" placeholder="{{ 'مرحباً بكم...' if ar else 'Welcome...' }}">{{ config.ticker_feeds_ar or '' }}</textarea>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">{{ 'النصوص (إنجليزي) - سطر لكل نص' if ar else 'Feeds (EN) - one per line' }}</label>
+              <textarea name="ticker_feeds_en" class="form-control" rows="4" dir="ltr">{{ config.ticker_feeds_en or '' }}</textarea>
+            </div>
+
+            <!-- Colors -->
+            <div class="col-md-3">
+              <label class="form-label">{{ 'لون النص' if ar else 'Text Color' }}</label>
+              <div class="d-flex align-items-center gap-2">
+                <input type="color" name="ticker_text_color" value="{{ config.ticker_text_color or '#ffffff' }}" class="form-control form-control-color" style="width:42px;height:36px;padding:2px" id="tickerFg">
+                <input type="text" class="form-control form-control-sm" value="{{ config.ticker_text_color or '#ffffff' }}" id="tickerFgText" style="width:90px" onchange="document.getElementById('tickerFg').value=this.value;updatePreview()">
+              </div>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">{{ 'لون الخلفية' if ar else 'BG Color' }}</label>
+              <div class="d-flex align-items-center gap-2">
+                <input type="color" name="ticker_bg_color" value="{{ config.ticker_bg_color or '#1e293b' }}" class="form-control form-control-color" style="width:42px;height:36px;padding:2px" id="tickerBg">
+                <input type="text" class="form-control form-control-sm" value="{{ config.ticker_bg_color or '#1e293b' }}" id="tickerBgText" style="width:90px" onchange="document.getElementById('tickerBg').value=this.value;updatePreview()">
+              </div>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">{{ 'شفافية الخلفية' if ar else 'BG Opacity' }}</label>
+              <div class="d-flex align-items-center gap-2">
+                <input type="range" name="ticker_bg_opacity" min="0" max="100" value="{{ config.ticker_bg_opacity|default(100) }}" class="form-range" id="tickerOpacity" oninput="document.getElementById('opVal').textContent=this.value+'%';updatePreview()" style="flex:1">
+                <span id="opVal" style="font-size:.82rem;font-weight:600;min-width:36px">{{ config.ticker_bg_opacity|default(100) }}%</span>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">{{ 'نسبة التلاشي' if ar else 'Mask Fade %' }}</label>
+              <input type="number" name="ticker_mask_fade" class="form-control" value="{{ config.ticker_mask_fade|default(12) }}" min="0" max="50">
+            </div>
+
+            <!-- Font & Speed -->
+            <div class="col-md-4">
+              <label class="form-label">{{ 'الخط' if ar else 'Font' }}</label>
+              <select name="ticker_font" class="form-select" id="tickerFont" onchange="updatePreview()">
+                <option value="'Segoe UI',Tahoma,Arial,sans-serif" {{ "selected" if not config.ticker_font or "Segoe" in (config.ticker_font or '') }}>Segoe UI</option>
+                <option value="'Cairo',sans-serif" {{ "selected" if config.ticker_font and "Cairo" in config.ticker_font }}>Cairo</option>
+                <option value="'Tajawal',sans-serif" {{ "selected" if config.ticker_font and "Tajawal" in config.ticker_font }}>Tajawal</option>
+                <option value="'Arial',sans-serif" {{ "selected" if config.ticker_font and config.ticker_font == "'Arial',sans-serif" }}>Arial</option>
+                <option value="'Georgia',serif" {{ "selected" if config.ticker_font and "Georgia" in config.ticker_font }}>Georgia</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">{{ 'حجم الخط (px)' if ar else 'Font Size (px)' }}</label>
+              <input type="number" name="ticker_font_size" class="form-control" value="{{ config.ticker_font_size|default(14) }}" min="10" max="28" id="tickerSize" onchange="updatePreview()">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">{{ 'السرعة' if ar else 'Speed' }}</label>
+              <div class="d-flex align-items-center gap-2">
+                <input type="range" name="ticker_speed" min="10" max="100" value="{{ config.ticker_speed|default(35) }}" class="form-range" id="tickerSpeed" oninput="document.getElementById('speedVal').textContent=this.value" style="flex:1">
+                <span id="speedVal" style="font-size:.82rem;font-weight:600;min-width:24px">{{ config.ticker_speed|default(35) }}</span>
+              </div>
+            </div>
+
+            <!-- Logo -->
+            <div class="col-md-4">
+              <label class="form-label">{{ 'رابط شعار الشريط' if ar else 'Logo URL' }}</label>
+              <input type="url" name="ticker_logo_url" class="form-control" value="{{ config.ticker_logo_url or '' }}" id="tickerLogoUrl" placeholder="https://...">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">{{ 'حجم الشعار (px)' if ar else 'Logo Size (px)' }}</label>
+              <input type="number" name="ticker_logo_size" class="form-control" value="{{ config.ticker_logo_size|default(28) }}" min="16" max="60">
+            </div>
+            <div class="col-md-2">
+              <label class="form-label">{{ 'نبض الشعار' if ar else 'Logo Pulse' }}</label>
+              <div class="mt-1">
+                <label class="sas-toggle">
+                  <input type="checkbox" name="ticker_logo_pulse" value="1" {{ 'checked' if config.ticker_logo_pulse is not defined or config.ticker_logo_pulse }}>
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">{{ 'صورة الفاصل' if ar else 'Separator Image URL' }}</label>
+              <input type="url" name="ticker_sep_img_url" class="form-control" value="{{ config.ticker_sep_img_url or '' }}" placeholder="https://...">
+            </div>
+
+            <!-- Live Preview -->
+            <div class="col-12">
+              <label class="form-label">{{ 'معاينة حية' if ar else 'Live Preview' }}</label>
+              <div class="ticker-preview" id="tickerPreview" style="background:#1e293b">
+                <div class="ticker-prev-track" id="tickerPrevTrack" style="color:#fff;font-size:14px;font-weight:600;padding:0 20px">
+                  {{ 'نص تجريبي للشريط المتحرك...' if ar else 'Sample ticker text preview...' }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Save Button -->
+  <div class="d-flex justify-content-end mb-4">
+    <button type="submit" class="btn-sas" style="padding:10px 36px;font-size:.92rem">
+      <i class="bi bi-check-lg me-2"></i>{{ 'حفظ الإعدادات' if ar else 'Save Configuration' }}
+    </button>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleTicker(){
+  const sec = document.getElementById('tickerSection');
+  const hdr = document.getElementById('tickerToggle');
+  if(sec.style.display === 'none'){
+    sec.style.display = 'block';
+    hdr.classList.add('active');
+  } else {
+    sec.style.display = 'none';
+    hdr.classList.remove('active');
+  }
+}
+
+function updatePreview(){
+  const preview = document.getElementById('tickerPreview');
+  const track = document.getElementById('tickerPrevTrack');
+  if(!preview || !track) return;
+
+  const bg = document.getElementById('tickerBg').value;
+  const opacity = document.getElementById('tickerOpacity').value / 100;
+  const fg = document.getElementById('tickerFg').value;
+  const font = document.getElementById('tickerFont').value;
+  const size = document.getElementById('tickerSize').value;
+
+  // Convert hex to rgba
+  const r = parseInt(bg.slice(1,3),16);
+  const g = parseInt(bg.slice(3,5),16);
+  const b = parseInt(bg.slice(5,7),16);
+  preview.style.background = `rgba(${r},${g},${b},${opacity})`;
+  track.style.color = fg;
+  track.style.fontFamily = font;
+  track.style.fontSize = size + 'px';
+
+  // Update text inputs
+  document.getElementById('tickerFgText').value = fg;
+  document.getElementById('tickerBgText').value = bg;
+}
+
+// Color input sync
+document.getElementById('tickerFg').addEventListener('input', function(){
+  document.getElementById('tickerFgText').value = this.value;
+  updatePreview();
+});
+document.getElementById('tickerBg').addEventListener('input', function(){
+  document.getElementById('tickerBgText').value = this.value;
+  updatePreview();
+});
+
+// Logo preview
+document.getElementById('logoInput').addEventListener('change', function(e){
+  const f = e.target.files[0];
+  if(!f) return;
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    const prev = document.getElementById('logoPreview');
+    if(prev.tagName === 'IMG'){
+      prev.src = ev.target.result;
+    } else {
+      const img = document.createElement('img');
+      img.src = ev.target.result;
+      img.className = 'logo-preview';
+      img.id = 'logoPreview';
+      prev.replaceWith(img);
+    }
+  };
+  reader.readAsDataURL(f);
+});
+
+// Init preview
+updatePreview();
+</script>
+{% endblock %}

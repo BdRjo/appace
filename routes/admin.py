@@ -383,6 +383,7 @@ def audit_log():
 # ── Maintenance — مطابق لـ v54 MaintenanceWindow ─────────────────────────────
 CONFIG_TICKER      = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'ticker_config.json')
 CONFIG_AUTH_TICKER = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'auth_ticker_config.json')
+CONFIG_INTERVIEW_TICKER = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'interview_ticker_config.json')
 
 def _load_ticker():
     try:
@@ -410,6 +411,24 @@ def _load_auth_ticker():
 
 def _save_ticker(cfg):
     with open(CONFIG_TICKER, 'w', encoding='utf-8') as f:
+        json.dump(cfg, f, ensure_ascii=False, indent=2)
+
+def _load_interview_ticker():
+    try:
+        with open(CONFIG_INTERVIEW_TICKER, encoding='utf-8') as f:
+            return json.load(f)
+    except:
+        return {
+            'feeds_ar': ['مرحباً بكم في بوابة مقابلات أولياء الأمور'],
+            'feeds_en': ['Welcome to the Parent Interview Portal'],
+            'fg': '#ffffff', 'bg': '#2563eb', 'font': 'Tajawal',
+            'size': 13, 'speed': 35, 'opacity': 80,
+            'logo_url': '', 'logo_size': 28, 'logo_pulse': True,
+            'logo_pulse_speed': 3, 'sep_img_url': '', 'mask_fade': 12
+        }
+
+def _save_interview_ticker(cfg):
+    with open(CONFIG_INTERVIEW_TICKER, 'w', encoding='utf-8') as f:
         json.dump(cfg, f, ensure_ascii=False, indent=2)
 
 def _save_auth_ticker(cfg):
@@ -463,9 +482,51 @@ def maintenance():
             ticker['speed']    = int(request.form.get('ticker_speed', 35))
             ticker['opacity']     = int(request.form.get('ticker_opacity', 0) or 0)
             ticker['logo_url']    = request.form.get('ticker_logo_url', '').strip()
+            ticker['logo_size']   = int(request.form.get('ticker_logo_size', 28) or 28)
+            ticker['logo_pulse']  = bool(request.form.get('ticker_logo_pulse'))
+            ticker['logo_pulse_speed'] = float(request.form.get('ticker_logo_pulse_speed', 3) or 3)
             ticker['sep_img_url'] = request.form.get('ticker_sep_img_url', '').strip()
             ticker['mask_fade']   = int(request.form.get('ticker_mask_fade', 12) or 12)
+            ticker['interview_mode'] = request.form.get('ticker_interview_mode', 'scroll')
             _save_ticker(ticker)
+        # ── Interview Ticker Actions ──
+        elif action == 'iticker_add_ar':
+            iticker = _load_interview_ticker()
+            text = request.form.get('iticker_text_ar','').strip()
+            if text:
+                iticker.setdefault('feeds_ar', []).append(text)
+                _save_interview_ticker(iticker)
+        elif action == 'iticker_add_en':
+            iticker = _load_interview_ticker()
+            text = request.form.get('iticker_text_en','').strip()
+            if text:
+                iticker.setdefault('feeds_en', []).append(text)
+                _save_interview_ticker(iticker)
+        elif action == 'iticker_del_ar':
+            iticker = _load_interview_ticker()
+            idx = int(request.form.get('iticker_idx', 0))
+            feeds = iticker.get('feeds_ar', [])
+            if 0 <= idx < len(feeds): feeds.pop(idx); iticker['feeds_ar'] = feeds; _save_interview_ticker(iticker)
+        elif action == 'iticker_del_en':
+            iticker = _load_interview_ticker()
+            idx = int(request.form.get('iticker_idx', 0))
+            feeds = iticker.get('feeds_en', [])
+            if 0 <= idx < len(feeds): feeds.pop(idx); iticker['feeds_en'] = feeds; _save_interview_ticker(iticker)
+        elif action == 'iticker_save_appearance':
+            iticker = _load_interview_ticker()
+            iticker['fg']       = request.form.get('iticker_fg', '#ffffff')
+            iticker['bg']       = request.form.get('iticker_bg', '#2563eb')
+            iticker['font']     = request.form.get('iticker_font', 'Tajawal')
+            iticker['size']     = int(request.form.get('iticker_size', 13))
+            iticker['speed']    = int(request.form.get('iticker_speed', 35))
+            iticker['opacity']  = int(request.form.get('iticker_opacity', 80) or 80)
+            iticker['logo_url'] = request.form.get('iticker_logo_url', '').strip()
+            iticker['logo_size']= int(request.form.get('iticker_logo_size', 28) or 28)
+            iticker['logo_pulse']= bool(request.form.get('iticker_logo_pulse'))
+            iticker['logo_pulse_speed'] = float(request.form.get('iticker_logo_pulse_speed', 3) or 3)
+            iticker['sep_img_url'] = request.form.get('iticker_sep_img_url', '').strip()
+            iticker['mask_fade']= int(request.form.get('iticker_mask_fade', 12) or 12)
+            _save_interview_ticker(iticker)
         elif action == 'save_logo':
             import base64
             logo_file = request.files.get('logo_file')
@@ -503,13 +564,19 @@ def maintenance():
             mcfg['color_bg']            = request.form.get('color_bg', '#eef6f7')
             _save_maintenance(mcfg)
         flash_msg('تم تحديث شريط الأخبار', 'success')
-        return redirect(url_for('admin.maintenance'))
+        # Scroll back to the section that was edited
+        anchor = '#iticker' if action.startswith('iticker_') else '#tickerSection'
+        return redirect(url_for('admin.maintenance') + anchor)
 
+    iticker = _load_interview_ticker()
     return render_template('admin/maintenance.html',
         mcfg=mcfg, log_count=log_count,
         ticker=ticker, ticker_cfg=ticker,
         ticker_messages_ar=ticker.get('feeds_ar',[]),
-        ticker_messages_en=ticker.get('feeds_en',[]))
+        ticker_messages_en=ticker.get('feeds_en',[]),
+        iticker=iticker,
+        iticker_messages_ar=iticker.get('feeds_ar',[]),
+        iticker_messages_en=iticker.get('feeds_en',[]))
 
 
 # ── Ticker config API ─────────────────────────────────────────────────────────
@@ -898,22 +965,26 @@ def email_resend(log_id):
         flash_msg('السجل غير موجود', 'danger')
         return redirect(url_for('admin.email_logs'))
 
-    # Simple resend — rebuild minimal HTML and send
+    # Resend — use stored original body if available, otherwise rebuild minimal HTML
     from utils.i18n import get_lang
     _en = get_lang() == 'en'
     lang = 'en' if _en else 'ar'
-    if _en:
-        content = f"""
+    if log.html_body:
+        resend_html = log.html_body
+    else:
+        if _en:
+            content = f"""
 <h2 style="color:#0C67EC;margin:0 0 12px">Resend</h2>
 <p style="color:#4a5568">This is a resent message from the ARS email log.</p>
 <p style="color:#888;font-size:12px">Original subject: {log.subject}<br>Original recipient: {log.recipient}</p>"""
-    else:
-        content = f"""
+        else:
+            content = f"""
 <h2 style="color:#0C67EC;margin:0 0 12px">إعادة إرسال</h2>
 <p style="color:#4a5568">هذه رسالة مُعاد إرسالها من سجل البريد الإلكتروني لنظام ARS.</p>
 <p style="color:#888;font-size:12px">الموضوع الأصلي: {log.subject}<br>المرسَل إليه الأصلي: {log.recipient}</p>"""
+        resend_html = _html_wrapper(content, log.subject, lang)
     ok = _send(log.recipient, '', log.subject,
-               _html_wrapper(content, log.subject, lang),
+               resend_html,
                log.subject,
                sync=True, email_type='resend',
                user_id=log.user_id)
@@ -970,24 +1041,28 @@ def email_log_forward(log_id):
     from utils.i18n import get_lang
     _en = get_lang() == 'en'
     lang = 'en' if _en else 'ar'
-    if _en:
-        content = f"""
+    if log.html_body:
+        fwd_html = log.html_body
+    else:
+        if _en:
+            content = f"""
 <h2 style="color:#0C67EC;margin:0 0 12px">Forwarded Email</h2>
 <p style="color:#4a5568">This is a forwarded message from the ARS email log.</p>
 <table style="border-radius:10px;overflow:hidden;border:1px solid #E0E8F5;width:100%;margin:12px 0">
   <tr><td style="padding:8px 14px;background:#f8fbff;color:#888;width:35%">Original Subject</td><td style="padding:8px 14px;font-weight:600">{log.subject}</td></tr>
   <tr><td style="padding:8px 14px;background:#f0f6ff;color:#888">Original Recipient</td><td style="padding:8px 14px;font-weight:600">{log.recipient}</td></tr>
 </table>"""
-    else:
-        content = f"""
+        else:
+            content = f"""
 <h2 style="color:#0C67EC;margin:0 0 12px">إعادة توجيه</h2>
 <p style="color:#4a5568">هذه رسالة مُعاد توجيهها من سجل البريد الإلكتروني لنظام ARS.</p>
 <table style="border-radius:10px;overflow:hidden;border:1px solid #E0E8F5;width:100%;margin:12px 0">
   <tr><td style="padding:8px 14px;background:#f8fbff;color:#888;width:35%">الموضوع الأصلي</td><td style="padding:8px 14px;font-weight:600">{log.subject}</td></tr>
   <tr><td style="padding:8px 14px;background:#f0f6ff;color:#888">المرسَل إليه الأصلي</td><td style="padding:8px 14px;font-weight:600">{log.recipient}</td></tr>
 </table>"""
+        fwd_html = _html_wrapper(content, f'FWD: {log.subject}', lang)
     ok = _send(forward_to, '', f'FWD: {log.subject}',
-               _html_wrapper(content, f'FWD: {log.subject}', lang),
+               fwd_html,
                f'FWD: {log.subject}',
                sync=True, email_type='resend')
     if ok:

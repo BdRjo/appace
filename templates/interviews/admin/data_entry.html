@@ -1,0 +1,623 @@
+{% extends 'base.html' %}
+{% block content %}
+{%- set ar = (current_lang == 'ar') -%}
+<style>
+.de-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px}
+.de-header h4{font-weight:800;color:#0f172a;margin:0;display:flex;align-items:center;gap:10px}
+.de-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.de-toolbar .btn{border-radius:10px;font-size:.8rem;font-weight:600;padding:7px 14px;display:flex;align-items:center;gap:6px;border:1.5px solid #e2e8f0}
+
+/* ── Input Form Card ── */
+.de-form-card{background:white;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.06);border:1px solid #f1f5f9;padding:24px;margin-bottom:20px}
+.de-form-card h5{font-weight:700;color:#0f172a;margin-bottom:16px;font-size:1rem;display:flex;align-items:center;gap:8px}
+.de-form-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));gap:14px}
+.de-fg{display:flex;flex-direction:column;gap:4px}
+.de-fg label{font-size:.78rem;font-weight:600;color:#475569}
+.de-fg .fi{border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 12px;font-size:.85rem;
+  outline:none;transition:border-color .2s;background:white;width:100%}
+.de-fg .fi:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.1)}
+.de-form-actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+.btn-add-entry{background:#6366f1;color:white;border:none;border-radius:12px;padding:12px 28px;font-weight:700;font-size:.88rem;
+  cursor:pointer;display:flex;align-items:center;gap:8px;transition:all .2s}
+.btn-add-entry:hover{background:#4f46e5;color:white}
+.btn-clear{background:#f1f5f9;color:#475569;border:1.5px solid #e2e8f0;border-radius:12px;padding:12px 20px;font-weight:600;
+  font-size:.85rem;cursor:pointer}
+
+/* ── Results Table ── */
+.de-card{background:white;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.06);border:1px solid #f1f5f9;overflow:hidden}
+.de-table{width:100%;font-size:.82rem;border-collapse:collapse}
+.de-table thead th{background:#f8fafc;border-bottom:2px solid #e2e8f0;font-weight:700;color:#475569;font-size:.75rem;
+  text-transform:uppercase;letter-spacing:.03em;padding:10px 8px;white-space:nowrap;position:sticky;top:0;z-index:2}
+.de-table tbody td{padding:10px 8px;vertical-align:middle;border-bottom:1px solid #f1f5f9}
+.de-table tbody tr:hover{background:#fafbff}
+.code-badge{font-family:'SF Mono','Fira Code',monospace;font-size:.72rem;background:#f0f0ff;color:#6366f1;
+  padding:3px 8px;border-radius:6px;font-weight:600;display:inline-block}
+.slot-count{font-size:.72rem;color:#64748b;display:flex;align-items:center;gap:4px}
+.slot-count .num{font-weight:700;color:#0f172a}
+.btn-del{background:none;border:none;color:#dc2626;font-size:.82rem;cursor:pointer;padding:4px}
+.btn-del:hover{color:#991b1b}
+.btn-icon{background:none;border:none;color:#6366f1;font-size:.82rem;cursor:pointer;padding:4px}
+.btn-icon:hover{color:#4f46e5}
+.empty-state{text-align:center;padding:48px 20px;color:#94a3b8}
+.empty-state i{font-size:2.5rem;opacity:.3;display:block;margin-bottom:12px}
+
+/* ── Slot Modal ── */
+.slot-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9999;display:none;align-items:center;justify-content:center}
+.slot-modal{background:white;border-radius:20px;padding:28px;max-width:520px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.slot-modal h5{font-weight:700;margin-bottom:16px}
+.period-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.period-row input{max-width:130px}
+.period-section{margin-bottom:16px;padding:14px;background:#f8fafc;border-radius:12px;border:1px solid #f1f5f9}
+.period-section h6{font-size:.82rem;font-weight:700;color:#475569;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.upload-zone{background:#fafbff;border:2px dashed #c7d2fe;border-radius:14px;padding:28px;text-align:center;
+  cursor:pointer;transition:all .2s;margin-bottom:8px}
+.upload-zone:hover{border-color:#6366f1;background:#eef2ff}
+
+/* ── Event Settings ── */
+.de-settings{background:#fffbeb;border:1.5px solid #fde68a;border-radius:12px;padding:14px 18px;margin-bottom:20px;
+  display:flex;flex-wrap:wrap;gap:16px;align-items:center;font-size:.82rem}
+.de-settings label{font-weight:600;color:#92400e}
+.de-settings .fi{border:1.5px solid #fde68a;border-radius:8px;padding:6px 10px;font-size:.82rem;max-width:120px}
+
+@media(max-width:767px){
+  .de-form-grid{grid-template-columns:1fr}
+  .de-toolbar{flex-direction:column;align-items:stretch}
+  .de-table{display:block;overflow-x:auto}
+}
+@media print{
+  .de-toolbar,.de-form-card,.btn-del,.btn-icon,.slot-modal-overlay,.no-print,.de-settings{display:none!important}
+  .de-card{box-shadow:none!important;border:1px solid #ddd!important}
+}
+</style>
+
+<div class="container-fluid py-3">
+  {# ── Header ── #}
+  <div class="de-header">
+    <div>
+      <h4>
+        <i class="bi bi-table" style="color:#6366f1"></i>
+        {% if ar %}إدخال بيانات الفعالية{% else %}Event Data Entry{% endif %}
+      </h4>
+      <p class="text-muted mb-0" style="font-size:.82rem">
+        <span class="fw-600">{{ ev.name }}</span>
+        {% if ev.school_name %}<span class="mx-1">·</span>{{ ev.school_name }}{% endif %}
+        <span class="code-badge ms-2">{{ ev.event_code }}</span>
+      </p>
+    </div>
+  </div>
+
+  {# ── Event Settings ── #}
+  <div class="de-settings no-print" style="flex-direction:column;align-items:stretch">
+    {# School Info Row #}
+    <div class="d-flex flex-wrap gap-3 align-items-end mb-2">
+      <div class="de-fg" style="min-width:200px;flex:1">
+        <label><i class="bi bi-building me-1"></i>{% if ar %}اسم المدرسة{% else %}School Name{% endif %}</label>
+        <input class="fi" id="cfg-school-name" value="{{ ev.school_name or '' }}" placeholder="{% if ar %}اسم المدرسة{% else %}School Name{% endif %}">
+      </div>
+      <div class="de-fg" style="min-width:260px;flex:2">
+        <label><i class="bi bi-image me-1"></i>{% if ar %}رابط شعار المدرسة{% else %}School Logo URL{% endif %}</label>
+        <input class="fi" id="cfg-school-logo" value="{{ ev.school_logo_url or '' }}" placeholder="https://example.com/logo.png">
+      </div>
+      <div style="flex-shrink:0">
+        {% if ev.school_logo_url %}
+        <img src="{{ ev.school_logo_url }}" alt="logo" style="height:36px;width:36px;object-fit:contain;border-radius:8px;border:1px solid #e2e8f0">
+        {% endif %}
+      </div>
+      <button class="btn btn-sm" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:8px;font-size:.78rem;font-weight:600;flex-shrink:0" onclick="saveEventSettings()">
+        <i class="bi bi-check2"></i> {% if ar %}حفظ{% else %}Save{% endif %}
+      </button>
+    </div>
+    {# Dates Row #}
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <i class="bi bi-calendar-event" style="color:#d97706"></i>
+      <label style="font-weight:600;color:#92400e">{% if ar %}تواريخ الفعالية:{% else %}Event Dates:{% endif %}</label>
+      <input type="date" id="event-date-input" class="fi" style="max-width:160px">
+      <button class="btn btn-sm" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;border-radius:8px;font-size:.78rem;font-weight:600" onclick="addEventDate()">
+        <i class="bi bi-plus"></i> {% if ar %}إضافة{% else %}Add{% endif %}
+      </button>
+      <div id="event-dates-list" class="d-flex flex-wrap gap-1">
+        {% for d in event_dates %}
+        <span class="badge" style="background:#fef3c7;color:#92400e;border-radius:8px;padding:4px 10px;font-weight:600;font-size:.75rem">
+          {{ d }} <button class="btn-del" style="font-size:.65rem;color:#92400e" onclick="removeEventDate(this,'{{ d }}')">&times;</button>
+        </span>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  {# ── Toolbar ── #}
+  <div class="de-toolbar mb-3 no-print">
+    <button class="btn" style="background:#eef2ff;color:#6366f1" onclick="document.getElementById('csv-upload').click()">
+      <i class="bi bi-upload"></i> {% if ar %}رفع CSV{% else %}Upload CSV{% endif %}
+    </button>
+    <a href="{{ url_for('interviews.admin_data_entry_template', event_id=ev.id) }}" class="btn" style="background:#eff6ff;color:#0284c7">
+      <i class="bi bi-download"></i> {% if ar %}تنزيل القالب{% else %}Download Template{% endif %}
+    </a>
+    <button class="btn" style="background:#f5f3ff;color:#7c3aed" onclick="sendTeacherEmails()">
+      <i class="bi bi-envelope-at"></i> {% if ar %}إرسال أكواد المعلمين{% else %}Email Teacher Codes{% endif %}
+    </button>
+    <a href="{{ url_for('interviews.admin_print_teacher_codes', event_id=ev.id) }}" target="_blank" class="btn" style="background:#f0fdf4;color:#16a34a">
+      <i class="bi bi-printer"></i> {% if ar %}طباعة أكواد المعلمين{% else %}Print Teacher Codes{% endif %}
+    </a>
+    <a href="{{ url_for('interviews.admin_timetable', event_id=ev.id) }}" class="btn" style="background:#eff6ff;color:#1d4ed8">
+      <i class="bi bi-calendar-week"></i> {% if ar %}جدول الحجوزات{% else %}Booking Timetable{% endif %}
+    </a>
+    <a href="{{ url_for('interviews.admin_bookings', event_id=ev.id) }}" class="btn" style="background:#fef3c7;color:#d97706">
+      <i class="bi bi-bookmark-check"></i> {% if ar %}الحجوزات{% else %}Bookings{% endif %}
+    </a>
+    <div style="flex:1"></div>
+    <button class="btn no-print" onclick="window.print()" style="background:#fefce8;color:#a16207">
+      <i class="bi bi-printer"></i> {% if ar %}طباعة{% else %}Print{% endif %}
+    </button>
+    <a href="{{ url_for('interviews.admin_data_entry_export', event_id=ev.id, fmt='csv') }}" class="btn" style="background:#fef2f2;color:#dc2626">
+      <i class="bi bi-filetype-csv"></i> {% if ar %}تصدير CSV{% else %}Export CSV{% endif %}
+    </a>
+  </div>
+
+  <input type="file" id="csv-upload" accept=".csv" style="display:none" onchange="uploadCSV(this)">
+
+  {# ── Input Form (vertical layout) ── #}
+  <div class="de-form-card no-print" id="entry-form">
+    <h5>
+      <i class="bi bi-plus-circle" style="color:#6366f1"></i>
+      {% if ar %}إضافة سجل جديد{% else %}Add New Record{% endif %}
+    </h5>
+    <div class="de-form-grid">
+      <div class="de-fg">
+        <label>{% if ar %}المرحلة{% else %}Stage{% endif %}</label>
+        <input class="fi" id="f-stage" placeholder="{% if ar %}مثال: ابتدائي{% else %}e.g. Primary{% endif %}">
+      </div>
+      <div class="de-fg">
+        <label>{% if ar %}الصف{% else %}Class{% endif %}</label>
+        <input class="fi" id="f-class" placeholder="{% if ar %}مثال: الأول{% else %}e.g. Grade 1{% endif %}">
+      </div>
+      <div class="de-fg">
+        <label>{% if ar %}الشعبة{% else %}Section{% endif %}</label>
+        <input class="fi" id="f-section" maxlength="5" placeholder="{% if ar %}مثال: أ{% else %}e.g. A{% endif %}">
+      </div>
+      <div class="de-fg">
+        <label>{% if ar %}المبحث{% else %}Course{% endif %}</label>
+        <input class="fi" id="f-course" placeholder="{% if ar %}مثال: رياضيات{% else %}e.g. Math{% endif %}">
+      </div>
+      <div class="de-fg">
+        <label>{% if ar %}المعلم{% else %}Teacher{% endif %}</label>
+        <input class="fi" id="f-teacher" placeholder="{% if ar %}اسم المعلم{% else %}Teacher name{% endif %}">
+      </div>
+      <div class="de-fg">
+        <label>{% if ar %}البريد الإلكتروني{% else %}Email{% endif %}</label>
+        <input class="fi" id="f-email" type="email" placeholder="teacher@school.com">
+      </div>
+      <div class="de-fg">
+        <label>{% if ar %}رقم الغرفة{% else %}Room No.{% endif %}</label>
+        <input class="fi" id="f-room" placeholder="{% if ar %}مثال: 101{% else %}e.g. 101{% endif %}">
+      </div>
+    </div>
+    {# ── Time Slot Settings (collapsible) ── #}
+    <div style="margin-top:14px;padding:14px;background:#f8fafc;border-radius:12px;border:1px solid #f1f5f9">
+      <div class="d-flex align-items-center gap-2 mb-2" style="cursor:pointer" onclick="document.getElementById('slot-fields').style.display=document.getElementById('slot-fields').style.display==='none'?'block':'none'">
+        <i class="bi bi-clock" style="color:#6366f1"></i>
+        <span style="font-weight:600;font-size:.85rem;color:#475569">{% if ar %}إعداد الفترات الزمنية (اختياري){% else %}Time Slot Settings (optional){% endif %}</span>
+        <i class="bi bi-chevron-down" style="font-size:.7rem;color:#94a3b8"></i>
+      </div>
+      <div id="slot-fields" style="display:none">
+        <div class="de-form-grid" style="grid-template-columns:repeat(auto-fill, minmax(140px, 1fr))">
+          <div class="de-fg">
+            <label>{% if ar %}مدة المقابلة (دقائق){% else %}Meeting Duration (min){% endif %}</label>
+            <input type="number" class="fi" id="f-slot-duration" value="{{ ev.slot_duration or 5 }}" min="1" max="120" placeholder="5">
+          </div>
+          <div class="de-fg">
+            <label>{% if ar %}بداية{% else %}Start{% endif %}</label>
+            <input type="time" class="fi" id="f-slot-start" value="08:00">
+          </div>
+          <div class="de-fg">
+            <label>{% if ar %}نهاية{% else %}End{% endif %}</label>
+            <input type="time" class="fi" id="f-slot-end" value="14:00">
+          </div>
+          <div class="de-fg">
+            <label>{% if ar %}بداية الراحة{% else %}Break Start{% endif %}</label>
+            <input type="time" class="fi" id="f-brk-start">
+          </div>
+          <div class="de-fg">
+            <label>{% if ar %}نهاية الراحة{% else %}Break End{% endif %}</label>
+            <input type="time" class="fi" id="f-brk-end">
+          </div>
+          <div class="de-fg">
+            <label style="color:#dc2626">{% if ar %}بداية الحظر{% else %}Block Start{% endif %}</label>
+            <input type="time" class="fi" id="f-blk-start" style="border-color:#fecaca">
+          </div>
+          <div class="de-fg">
+            <label style="color:#dc2626">{% if ar %}نهاية الحظر{% else %}Block End{% endif %}</label>
+            <input type="time" class="fi" id="f-blk-end" style="border-color:#fecaca">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="de-form-actions">
+      <button class="btn-add-entry" onclick="addEntry()">
+        <i class="bi bi-plus-circle"></i> {% if ar %}إضافة وحفظ{% else %}Add & Save{% endif %}
+      </button>
+      <button class="btn-clear" onclick="clearForm()">
+        <i class="bi bi-eraser"></i> {% if ar %}مسح{% else %}Clear{% endif %}
+      </button>
+    </div>
+  </div>
+
+  {# ── Results Table ── #}
+  <div class="de-card">
+    <div style="overflow-x:auto;max-height:60vh;overflow-y:auto">
+      <table class="de-table" id="data-table">
+        <thead>
+          <tr>
+            <th style="width:30px">#</th>
+            <th>{% if ar %}المرحلة{% else %}Stage{% endif %}</th>
+            <th>{% if ar %}الصف{% else %}Class{% endif %}</th>
+            <th>{% if ar %}الشعبة{% else %}Section{% endif %}</th>
+            <th>{% if ar %}المبحث{% else %}Course{% endif %}</th>
+            <th>{% if ar %}المعلم{% else %}Teacher{% endif %}</th>
+            <th>{% if ar %}البريد{% else %}Email{% endif %}</th>
+            <th>{% if ar %}الغرفة{% else %}Room{% endif %}</th>
+            <th>{% if ar %}الكود{% else %}Code{% endif %}</th>
+            <th>{% if ar %}المدة{% else %}Dur{% endif %}</th>
+            <th>{% if ar %}الفترات{% else %}Slots{% endif %}</th>
+            <th class="no-print">{% if ar %}صورة{% else %}Photo{% endif %}</th>
+            <th class="no-print">{% if ar %}ملفات{% else %}Files{% endif %}</th>
+            <th class="no-print" style="width:60px"></th>
+          </tr>
+        </thead>
+        <tbody id="data-body">
+          {% for r in rows %}
+          <tr data-aid="{{ r.aid }}" data-tid="{{ r.tid }}">
+            <td class="text-muted" style="font-size:.72rem">{{ loop.index }}</td>
+            <td>{{ r.stage }}</td>
+            <td>{{ r.cls }}</td>
+            <td>{{ r.section }}</td>
+            <td>{{ r.course }}</td>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                {% if r.photo_url %}
+                <img src="{{ r.photo_url }}" style="width:28px;height:28px;object-fit:cover;border-radius:50%;border:1px solid #e2e8f0">
+                {% endif %}
+                {{ r.teacher }}
+              </div>
+            </td>
+            <td style="font-size:.75rem;color:#64748b">{{ r.email }}</td>
+            <td>{{ r.room }}</td>
+            <td>
+              {% if r.code %}
+              <span class="code-badge">{{ r.code }}</span>
+              {% else %}
+              <span class="text-muted" style="font-size:.72rem">—</span>
+              {% endif %}
+            </td>
+            <td style="font-size:.75rem;color:#6366f1;font-weight:600;text-align:center">{{ r.slot_duration or ev.slot_duration or 5 }}m</td>
+            <td>
+              <div class="slot-count">
+                <span class="num">{{ r.slot_count }}</span>
+                <button class="btn-icon no-print" onclick="openSlotModal({{ r.aid }})" title="{% if ar %}إعداد الفترات{% else %}Configure slots{% endif %}">
+                  <i class="bi bi-clock-history"></i>
+                </button>
+              </div>
+            </td>
+            {# Photo upload #}
+            <td class="no-print" style="text-align:center">
+              <label style="cursor:pointer;color:#6366f1;font-size:.78rem" title="{% if ar %}رفع صورة{% else %}Upload photo{% endif %}">
+                <i class="bi bi-camera"></i>
+                <input type="file" accept="image/*" style="display:none" onchange="uploadPhoto(this,{{ r.tid }})">
+              </label>
+            </td>
+            {# File attachments #}
+            <td class="no-print">
+              <div class="d-flex align-items-center gap-1 flex-wrap">
+                {% for att in r.attachments %}
+                <a href="/interviews/admin/teachers/{{ r.tid }}/attachment/{{ loop.index0 }}" class="badge" style="background:#eef2ff;color:#6366f1;font-size:.65rem;text-decoration:none;padding:2px 6px;border-radius:4px" title="{{ att.name }}">
+                  {{ att.ext }}
+                </a>
+                {% endfor %}
+                <label style="cursor:pointer;color:#16a34a;font-size:.78rem" title="{% if ar %}رفع ملف{% else %}Upload file{% endif %}">
+                  <i class="bi bi-paperclip"></i>
+                  <input type="file" accept=".pdf,.docx,.xlsx,.pptx,.doc,.xls,.ppt" style="display:none" onchange="uploadAttachment(this,{{ r.tid }})">
+                </label>
+              </div>
+            </td>
+            <td class="no-print">
+              <button class="btn-del" onclick="deleteRow(this,{{ r.aid }})" title="{% if ar %}حذف{% else %}Delete{% endif %}"><i class="bi bi-trash3"></i></button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% if not rows %}
+      <div class="empty-state">
+        <i class="bi bi-inbox"></i>
+        <p>{% if ar %}لا توجد بيانات بعد — استخدم النموذج أعلاه لإضافة سجلات{% else %}No data yet — use the form above to add records{% endif %}</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ── Slot Configuration Modal ── #}
+  <div class="slot-modal-overlay" id="slot-modal-overlay" onclick="if(event.target===this)closeSlotModal()">
+    <div class="slot-modal">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h5 class="mb-0"><i class="bi bi-clock me-2" style="color:#6366f1"></i>{% if ar %}إعداد الفترات الزمنية{% else %}Configure Time Slots{% endif %}</h5>
+        <button class="btn-del" onclick="closeSlotModal()" style="font-size:1.2rem"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <input type="hidden" id="slot-aid">
+
+      <div class="mb-3">
+        <label class="form-label fw-600" style="font-size:.82rem">{% if ar %}مدة المقابلة (دقائق){% else %}Meeting Duration (min){% endif %}</label>
+        <input type="number" id="slot-duration" class="fi" value="{{ ev.slot_duration or 5 }}" min="1" max="120">
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-600" style="font-size:.82rem">{% if ar %}وقت البداية{% else %}Start Time{% endif %}</label>
+        <input type="time" id="slot-start" class="fi" value="08:00">
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-600" style="font-size:.82rem">{% if ar %}وقت النهاية{% else %}End Time{% endif %}</label>
+        <input type="time" id="slot-end" class="fi" value="14:00">
+      </div>
+
+      {# ── Break Periods ── #}
+      <div class="period-section">
+        <h6><i class="bi bi-cup-hot" style="color:#f59e0b"></i> {% if ar %}فترات الراحة{% else %}Break Periods{% endif %}</h6>
+        <div id="breaks-list"></div>
+        <button type="button" class="btn btn-sm mt-1" style="color:#6366f1;font-size:.78rem;background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px" onclick="addBreak()">
+          <i class="bi bi-plus"></i> {% if ar %}إضافة فترة راحة{% else %}Add Break{% endif %}
+        </button>
+      </div>
+
+      {# ── Blocked Periods ── #}
+      <div class="period-section" style="background:#fef2f2;border-color:#fecaca">
+        <h6><i class="bi bi-slash-circle" style="color:#dc2626"></i> {% if ar %}فترات الحظر{% else %}Blocked Periods{% endif %}</h6>
+        <p style="font-size:.72rem;color:#991b1b;margin-bottom:8px">{% if ar %}لن يتم إنشاء فترات خلال أوقات الحظر{% else %}No slots will be created during blocked times{% endif %}</p>
+        <div id="blocked-list"></div>
+        <button type="button" class="btn btn-sm mt-1" style="color:#dc2626;font-size:.78rem;background:#fef2f2;border:1px solid #fecaca;border-radius:8px" onclick="addBlocked()">
+          <i class="bi bi-plus"></i> {% if ar %}إضافة فترة حظر{% else %}Add Blocked Period{% endif %}
+        </button>
+      </div>
+
+      <button class="btn w-100 text-white fw-600" style="background:#6366f1;border:none;border-radius:12px;padding:12px" onclick="generateSlots()">
+        <i class="bi bi-lightning-charge me-2"></i>{% if ar %}إنشاء الفترات{% else %}Generate Slots{% endif %}
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+var EID = {{ ev.id }};
+var AR = {{ 'true' if ar else 'false' }};
+var ADM = '/interviews/admin';
+
+/* ── Form: Add Entry ── */
+function addEntry() {
+  var fields = {
+    stage: document.getElementById('f-stage').value.trim(),
+    'class': document.getElementById('f-class').value.trim(),
+    section: document.getElementById('f-section').value.trim(),
+    course: document.getElementById('f-course').value.trim(),
+    teacher: document.getElementById('f-teacher').value.trim(),
+    email: document.getElementById('f-email').value.trim(),
+    room: document.getElementById('f-room').value.trim()
+  };
+  // Include time slot data if filled
+  var slotStart = document.getElementById('f-slot-start').value;
+  var slotEnd = document.getElementById('f-slot-end').value;
+  if (slotStart && slotEnd) {
+    fields.slot_start = slotStart;
+    fields.slot_end = slotEnd;
+    var dur = document.getElementById('f-slot-duration').value;
+    if (dur) fields.slot_duration = parseInt(dur);
+    var brkS = document.getElementById('f-brk-start').value;
+    var brkE = document.getElementById('f-brk-end').value;
+    if (brkS && brkE) { fields.break_start = brkS; fields.break_end = brkE; }
+    var blkS = document.getElementById('f-blk-start').value;
+    var blkE = document.getElementById('f-blk-end').value;
+    if (blkS && blkE) { fields.blocked_start = blkS; fields.blocked_end = blkE; }
+  }
+  if (!fields.stage || !fields['class'] || !fields.section || !fields.course || !fields.teacher) {
+    alert(AR ? 'يرجى ملء الحقول المطلوبة (المرحلة، الصف، الشعبة، المبحث، المعلم)' : 'Please fill required fields (Stage, Class, Section, Course, Teacher)');
+    return;
+  }
+  var btn = document.querySelector('.btn-add-entry');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split"></i> ' + (AR ? 'جاري الحفظ...' : 'Saving...');
+  fetch(ADM + '/events/' + EID + '/data-entry/save', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
+    body: JSON.stringify({rows: [fields]})
+  }).then(function(r){ return r.json(); }).then(function(d) {
+    if (d.ok) { location.reload(); }
+    else { alert(d.error || 'Error saving'); btn.disabled = false; btn.innerHTML = '<i class="bi bi-plus-circle"></i> ' + (AR?'إضافة وحفظ':'Add & Save'); }
+  }).catch(function(){ alert('Network error'); btn.disabled = false; btn.innerHTML = '<i class="bi bi-plus-circle"></i> ' + (AR?'إضافة وحفظ':'Add & Save'); });
+}
+
+function clearForm() {
+  ['f-stage','f-class','f-section','f-course','f-teacher','f-email','f-room'].forEach(function(id) {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('f-stage').focus();
+}
+
+/* ── Delete Row ── */
+function deleteRow(btn, aid) {
+  if (!confirm(AR ? 'حذف هذا السجل؟' : 'Delete this record?')) return;
+  var tr = btn.closest('tr');
+  if (aid && aid > 0) {
+    fetch(ADM + '/assignments/' + aid + '/delete', {
+      method: 'POST',
+      headers: {'X-Requested-With':'XMLHttpRequest'}
+    }).then(function(){ tr.remove(); renumberRows(); });
+  } else {
+    tr.remove();
+    renumberRows();
+  }
+}
+
+function renumberRows() {
+  document.querySelectorAll('#data-body tr').forEach(function(tr, i) {
+    tr.querySelector('td').textContent = i + 1;
+  });
+  if (!document.querySelectorAll('#data-body tr').length) location.reload();
+}
+
+/* ── CSV Upload ── */
+function uploadCSV(input) {
+  if (!input.files.length) return;
+  var fd = new FormData();
+  fd.append('csv_file', input.files[0]);
+  fetch(ADM + '/events/' + EID + '/data-entry/import', {
+    method: 'POST',
+    headers: {'X-Requested-With':'XMLHttpRequest'},
+    body: fd
+  }).then(function(r){ return r.json(); }).then(function(d) {
+    if (d.ok) location.reload();
+    else alert(d.error || 'Import error');
+  }).catch(function(){ alert('Upload error'); });
+  input.value = '';
+}
+
+/* ── Slot Modal ── */
+function openSlotModal(aid) {
+  if (!aid) { alert(AR ? 'يرجى الحفظ أولاً' : 'Save this row first'); return; }
+  document.getElementById('slot-aid').value = aid;
+  document.getElementById('breaks-list').innerHTML = '';
+  document.getElementById('blocked-list').innerHTML = '';
+  document.getElementById('slot-modal-overlay').style.display = 'flex';
+}
+function closeSlotModal() {
+  document.getElementById('slot-modal-overlay').style.display = 'none';
+}
+
+function addBreak() {
+  var div = document.createElement('div');
+  div.className = 'period-row';
+  div.innerHTML = '<input type="time" class="fi brk-start" value="10:00">' +
+    '<span style="color:#94a3b8">—</span><input type="time" class="fi brk-end" value="10:30">' +
+    '<button type="button" class="btn-del" onclick="this.parentElement.remove()"><i class="bi bi-x"></i></button>';
+  document.getElementById('breaks-list').appendChild(div);
+}
+
+function addBlocked() {
+  var div = document.createElement('div');
+  div.className = 'period-row';
+  div.innerHTML = '<input type="time" class="fi blk-start" value="12:00">' +
+    '<span style="color:#94a3b8">—</span><input type="time" class="fi blk-end" value="13:00">' +
+    '<button type="button" class="btn-del" onclick="this.parentElement.remove()"><i class="bi bi-x"></i></button>';
+  document.getElementById('blocked-list').appendChild(div);
+}
+
+function generateSlots() {
+  var aid = document.getElementById('slot-aid').value;
+  var breaks = [];
+  document.querySelectorAll('#breaks-list > .period-row').forEach(function(div) {
+    breaks.push({start: div.querySelector('.brk-start').value, end: div.querySelector('.brk-end').value});
+  });
+  var blocked = [];
+  document.querySelectorAll('#blocked-list > .period-row').forEach(function(div) {
+    blocked.push({start: div.querySelector('.blk-start').value, end: div.querySelector('.blk-end').value});
+  });
+  var fd = new FormData();
+  fd.append('start_time', document.getElementById('slot-start').value);
+  fd.append('end_time', document.getElementById('slot-end').value);
+  fd.append('slot_duration', document.getElementById('slot-duration').value);
+  fd.append('breaks', JSON.stringify(breaks));
+  fd.append('blocked', JSON.stringify(blocked));
+  fetch(ADM + '/assignments/' + aid + '/generate-slots', {
+    method: 'POST',
+    headers: {'X-Requested-With':'XMLHttpRequest'},
+    body: fd
+  }).then(function(r){ return r.json(); }).then(function(d) {
+    if (d.ok) { closeSlotModal(); location.reload(); }
+    else alert(d.error || 'Error generating slots');
+  }).catch(function(){ alert('Error'); });
+}
+
+/* ── Event Date Management ── */
+function addEventDate() {
+  var input = document.getElementById('event-date-input');
+  var d = input.value;
+  if (!d) return;
+  fetch(ADM + '/events/' + EID + '/add-date', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
+    body: JSON.stringify({date: d})
+  }).then(function(r){ return r.json(); }).then(function(data) {
+    if (data.ok) location.reload();
+    else alert(data.error || 'Error');
+  });
+}
+function removeEventDate(btn, d) {
+  fetch(ADM + '/events/' + EID + '/remove-date', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
+    body: JSON.stringify({date: d})
+  }).then(function(r){ return r.json(); }).then(function(data) {
+    if (data.ok) btn.closest('span').remove();
+    else alert(data.error || 'Error');
+  });
+}
+
+/* ── Save Event Settings (school name, logo) ── */
+function saveEventSettings() {
+  var name = document.getElementById('cfg-school-name').value.trim();
+  var logo = document.getElementById('cfg-school-logo').value.trim();
+  fetch(ADM + '/events/' + EID + '/update-settings', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
+    body: JSON.stringify({school_name: name, school_logo_url: logo})
+  }).then(function(r){ return r.json(); }).then(function(d) {
+    if (d.ok) location.reload();
+    else alert(d.error || 'Error');
+  });
+}
+
+/* ── Send Teacher Emails ── */
+function sendTeacherEmails() {
+  if (!confirm(AR ? 'إرسال أكواد الوصول لجميع المعلمين بالبريد الإلكتروني؟' : 'Send access codes to all teachers via email?')) return;
+  fetch(ADM + '/events/' + EID + '/send-teacher-emails', {
+    method: 'POST',
+    headers: {'X-Requested-With':'XMLHttpRequest'}
+  }).then(function(r){ return r.json(); }).then(function(d) {
+    if (d.ok) alert(AR ? 'تم إرسال ' + d.sent + ' بريد إلكتروني' : d.sent + ' emails sent');
+    else alert(d.error || 'Error');
+  }).catch(function(){ alert('Network error'); });
+}
+
+/* ── Upload Teacher Photo ── */
+function uploadPhoto(input, tid) {
+  if (!input.files.length || !tid) return;
+  var fd = new FormData();
+  fd.append('photo', input.files[0]);
+  fetch(ADM + '/teachers/' + tid + '/upload-photo', {
+    method: 'POST',
+    headers: {'X-Requested-With':'XMLHttpRequest'},
+    body: fd
+  }).then(function(r){ return r.json(); }).then(function(d) {
+    if (d.ok) location.reload();
+    else alert(d.error || 'Upload error');
+  }).catch(function(){ alert('Upload error'); });
+  input.value = '';
+}
+
+/* ── Upload Attachment ── */
+function uploadAttachment(input, tid) {
+  if (!input.files.length || !tid) return;
+  var fd = new FormData();
+  fd.append('file', input.files[0]);
+  fetch(ADM + '/teachers/' + tid + '/upload-attachment', {
+    method: 'POST',
+    headers: {'X-Requested-With':'XMLHttpRequest'},
+    body: fd
+  }).then(function(r){ return r.json(); }).then(function(d) {
+    if (d.ok) location.reload();
+    else alert(d.error || 'Upload error');
+  }).catch(function(){ alert('Upload error'); });
+  input.value = '';
+}
+
+/* Enter key submits form */
+document.getElementById('entry-form').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { e.preventDefault(); addEntry(); }
+});
+</script>
+{% endblock %}

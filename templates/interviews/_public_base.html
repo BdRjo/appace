@@ -6,6 +6,8 @@
 {%- set logo  = (ev.school_logo_url if ev is defined and ev is not none and ev.school_logo_url else mc.get('logo_b64','')) -%}
 {%- set ftxt  = mc.get('report_header_footer','') -%}
 {%- set bc    = (ev.brand_color if ev is defined and ev is not none else system_colors.primary) | default('#2563eb') -%}
+{%- set itk   = interview_ticker_cfg if interview_ticker_cfg is defined else {} -%}
+{%- set ticker_logo = itk.logo_url|default('') or logo -%}
 <!DOCTYPE html>
 <html lang="{{ current_lang }}" dir="{{ dir }}">
 <head>
@@ -102,6 +104,46 @@ main{flex:1}
   padding:16px 0;text-align:center;font-size:.8rem;color:#94a3b8;
 }
 
+/* ─ Interview Live Ticker (scroll mode) ─ */
+.pi-ticker-wrap{overflow:hidden;height:36px;display:flex;align-items:center;min-width:0;margin:0;flex:1;background:{% if itk.bg and itk.bg != 'transparent' %}{{ itk.bg }}{% else %}#f1f5f9{% endif %};border-radius:0;padding:0}
+.pi-ticker-overflow{
+  flex:1;overflow:hidden!important;height:100%;display:flex;align-items:center;max-width:100%;position:relative;
+  -webkit-mask-image:linear-gradient(to right,transparent 0%,black {{ itk.mask_fade|default(4) }}%,black calc(100% - {{ itk.mask_fade|default(4) }}%),transparent 100%);
+  mask-image:linear-gradient(to right,transparent 0%,black {{ itk.mask_fade|default(4) }}%,black calc(100% - {{ itk.mask_fade|default(4) }}%),transparent 100%);
+}
+html[dir="rtl"] .pi-ticker-overflow{
+  -webkit-mask-image:linear-gradient(to left,transparent 0%,black {{ itk.mask_fade|default(4) }}%,black calc(100% - {{ itk.mask_fade|default(4) }}%),transparent 100%);
+  mask-image:linear-gradient(to left,transparent 0%,black {{ itk.mask_fade|default(4) }}%,black calc(100% - {{ itk.mask_fade|default(4) }}%),transparent 100%);
+}
+.pi-ticker-track{display:inline-flex;align-items:center;white-space:nowrap;will-change:transform}
+.pi-ticker-item{display:inline-flex;align-items:center;white-space:nowrap;margin:0 16px;flex-shrink:0}
+.pi-ticker-item img{
+  width:{{ itk.logo_size|default(28) }}px;height:{{ itk.logo_size|default(28) }}px;
+  object-fit:contain;margin:0 16px;border-radius:4px;
+  display:inline-block;vertical-align:middle;min-width:20px;min-height:20px;
+  {% if itk.logo_pulse|default(true) %}animation:piTickerLogoPulse {{ itk.logo_pulse_speed|default(30) }}s ease-in-out infinite;{% endif %}
+}
+@keyframes piTickerLogoPulse{0%{opacity:1}35%{opacity:1}45%{opacity:0}55%{opacity:0}65%{opacity:1}100%{opacity:1}}
+.pi-ticker-sep{margin:0 16px;flex-shrink:0}
+.pi-ticker-sep img{width:24px;height:24px;object-fit:contain;border-radius:50%;opacity:.85;vertical-align:middle}
+
+/* ─ Mobile interview ticker bar — ALWAYS solid, never transparent ─ */
+#piTickerBar{
+  position:fixed;top:0;left:0;right:0;height:34px;z-index:98;
+  background:white;
+  display:none;align-items:center;overflow:hidden;
+  transform:translate3d(0,0,0);will-change:transform;
+  border-bottom:2px solid #e2e8f0;
+  box-shadow:0 2px 8px rgba(0,0,0,.10);
+}
+@media(max-width:767px){
+  .pi-nav{position:fixed;top:0;left:0;right:0;z-index:100;background:white}
+  #piTickerBar{display:flex!important;top:53px}
+  .pi-ticker-wrap{display:none!important}
+  body{padding-top:87px}
+  .pi-shell{padding-top:12px!important}
+}
+
 /* ─ Flash ─ */
 .pi-flash{border-radius:12px;border:none;font-size:.9rem}
 .pi-flash.alert-success{background:#f0fdf4;color:#166534;border-left:4px solid #22c55e}
@@ -119,13 +161,15 @@ main{flex:1}
   a{text-decoration:none!important;color:#000!important}
   .btn,.btn-pi,.btn-pi-outline{display:none!important}
   /* Report header */
-  .print-header{display:block!important;text-align:center;margin-bottom:20px;padding-bottom:10px;border-bottom:2px solid #000}
+  .print-header{display:block!important;text-align:center;margin-bottom:20px;padding-bottom:12px;border-bottom:2px solid #000}
+  .print-header img{height:48px;max-width:160px;object-fit:contain;margin-bottom:8px;display:block;margin-inline:auto}
   .print-header h3{margin:0;font-weight:800}
   .print-header p{margin:4px 0 0;font-size:10pt;color:#666}
+  #piTickerBar{display:none!important}
 }
 @media screen{.print-header{display:none!important}}
 @media(max-width:576px){
-  .pi-shell{padding-top:14px;padding-bottom:24px}
+  .pi-shell{padding-bottom:24px}
   .pi-nav{padding:10px 0}
   .pi-nav .brand{gap:8px;font-size:.98rem}
   .pi-nav .brand img{height:28px;max-width:132px}
@@ -138,10 +182,10 @@ main{flex:1}
 
 {# ── Navbar ── #}
 <nav class="pi-nav">
-  <div class="container d-flex align-items-center justify-content-between">
-    <a class="brand" href="{{ url_for('interviews.book_welcome') }}">
+  <div class="container d-flex align-items-center justify-content-between gap-2">
+    <a class="brand" href="{{ url_for('interviews.book_welcome') }}" style="flex-shrink:0">
       {% if logo %}
-      <img src="{{ logo }}" alt="logo">
+      <img src="{{ logo }}" alt="logo" onerror="if(!this.dataset.retry){this.dataset.retry='1';if(!this.src.startsWith('data:')){this.src=this.src+'?r='+Date.now()}}">
       {% else %}
       <div class="brand-icon"><i class="bi bi-calendar2-heart-fill"></i></div>
       {% endif %}
@@ -152,8 +196,26 @@ main{flex:1}
         {%- endif -%}
       </span>
     </a>
-    <div class="d-flex align-items-center gap-2">
-      <span class="d-none d-md-flex align-items-center gap-1" style="font-size:.73rem;color:#94a3b8" id="pi-clock">
+
+    {# ── Desktop scrolling ticker (between brand and clock) ── #}
+    {% if itk and itk.feeds and itk.interview_mode|default('scroll') == 'scroll' %}
+    <div class="pi-ticker-wrap d-none d-md-flex">
+      <div class="pi-ticker-overflow">
+        <div class="pi-ticker-track" id="piTickerTrack" style="display:inline-flex;align-items:center;white-space:nowrap;will-change:transform">
+          {%- for item in itk.feeds -%}
+          <span class="pi-ticker-item" style="color:{{ itk.fg }};font-family:{{ itk.font }};font-size:{{ itk.size }}px;font-weight:600">
+            {{ item|safe }}
+            {%- if ticker_logo %}<img src="{{ ticker_logo }}" alt="" onerror="if(!this.dataset.retry){this.dataset.retry='1';if(!this.src.startsWith('data:')){this.src=this.src+'?r='+Date.now()}}">{% endif -%}
+          </span>
+          {%- if not loop.last %}<span class="pi-ticker-sep" style="color:{{ itk.fg }}">{% if itk.sep_img_url %}<img src="{{ itk.sep_img_url }}" alt="">{% else %}◆{% endif %}</span>{% endif -%}
+          {%- endfor -%}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="d-flex align-items-center gap-2" style="flex-shrink:0">
+      <span class="d-flex align-items-center gap-1" style="font-size:.73rem;color:#64748b" id="pi-clock">
         <i class="bi bi-clock" style="font-size:.7rem"></i>
         <span id="pi-clock-text"></span>
       </span>
@@ -166,9 +228,26 @@ main{flex:1}
   </div>
 </nav>
 
+{# ── Mobile ticker bar (fixed below nav) ── #}
+{% if itk and itk.feeds and itk.interview_mode|default('scroll') == 'scroll' %}
+<div id="piTickerBar">
+  <div class="pi-ticker-overflow" style="flex:1;overflow:hidden;height:100%;display:flex;align-items:center;max-width:100%">
+    <div class="pi-ticker-track" id="piTickerTrackMobile" style="display:inline-flex;align-items:center;white-space:nowrap;will-change:transform">
+      {%- for item in itk.feeds -%}
+      <span class="pi-ticker-item" style="color:{{ itk.fg }};font-family:{{ itk.font }};font-size:{{ itk.size }}px;font-weight:600">
+        {{ item|safe }}
+        {%- if ticker_logo %}<img src="{{ ticker_logo }}" alt="" onerror="if(!this.dataset.retry){this.dataset.retry='1';if(!this.src.startsWith('data:')){this.src=this.src+'?r='+Date.now()}}">{% endif -%}
+      </span>
+      {%- if not loop.last %}<span class="pi-ticker-sep" style="color:{{ itk.fg }}">{% if itk.sep_img_url %}<img src="{{ itk.sep_img_url }}" alt="">{% else %}◆{% endif %}</span>{% endif -%}
+      {%- endfor -%}
+    </div>
+  </div>
+</div>
+{% endif %}
+
 {% block pi_ticker %}
-{# ── Interview Portal Ticker — fade in/out ── #}
-{% if auth_ticker_cfg and auth_ticker_cfg.feeds %}
+{# ── Interview Portal Ticker — fade in/out mode ── #}
+{% if itk.interview_mode|default('scroll') == 'fade' and auth_ticker_cfg and auth_ticker_cfg.feeds %}
 <div class="pi-ticker" style="background:{{ auth_ticker_cfg.bg }};overflow:hidden;height:36px;display:flex;align-items:center;justify-content:center;position:relative;width:100vw;margin-inline:calc(50% - 50vw)">
   {% for item in auth_ticker_cfg.feeds %}
   <div class="pi-ticker-item" style="position:absolute;opacity:0;transition:opacity .8s ease;color:{{ auth_ticker_cfg.fg }};font-family:{{ auth_ticker_cfg.font }};font-size:{{ auth_ticker_cfg.size }}px;font-weight:600;white-space:nowrap;padding:0 8px;text-align:center;width:100%;overflow:hidden;text-overflow:ellipsis">
@@ -191,7 +270,7 @@ main{flex:1}
   }
 })();
 </script>
-{% elif auth_ticker_cfg and auth_ticker_cfg.text %}
+{% elif itk.interview_mode|default('scroll') == 'fade' and auth_ticker_cfg and auth_ticker_cfg.text %}
 <div class="pi-ticker" style="background:{{ auth_ticker_cfg.bg }};overflow:hidden;height:36px;display:flex;align-items:center;justify-content:center;width:100vw;margin-inline:calc(50% - 50vw)">
   <span style="color:{{ auth_ticker_cfg.fg }};font-family:{{ auth_ticker_cfg.font }};font-size:{{ auth_ticker_cfg.size }}px;font-weight:600;white-space:nowrap;padding:0 8px;width:100%;text-align:center;overflow:hidden;text-overflow:ellipsis">
     {{ auth_ticker_cfg.text|safe }}
@@ -218,6 +297,7 @@ main{flex:1}
 {# ── Main ── #}
 <main class="pi-shell {% block main_class %}{% endblock %}">
 <div class="print-header">
+  {% if logo %}<img src="{{ logo }}" alt="logo">{% endif %}
   <h3>{%- if ev is defined and ev is not none and ev.school_name -%}{{ ev.school_name }}{%- elif mc.get('report_header_title') -%}{{ mc.get('report_header_title') }}{%- else -%}{% if ar %}بوابة المقابلات{% else %}Interview Portal{% endif %}{%- endif -%}</h3>
   <p id="print-date"></p>
 </div>
@@ -249,4 +329,78 @@ if(pd){var ar=document.documentElement.lang==='ar';pd.textContent=new Date().toL
   setInterval(update, 30000);
 })();
 </script>
+{% if itk and itk.feeds and itk.interview_mode|default('scroll') == 'scroll' %}
+<script>
+(function(){
+  function initPiTicker(trackId, speed){
+    var track = document.getElementById(trackId);
+    if(!track || !track.children.length) return;
+    var wrap = track.closest('.pi-ticker-wrap') || track.closest('#piTickerBar');
+    var overflow = track.parentElement;
+    var clone = track.innerHTML;
+    /* Add a gap separator between the two copies so spacing is even at the join */
+    track.innerHTML = clone + '<span class="pi-ticker-sep" style="margin:0 16px;flex-shrink:0">\u25C6</span>' + clone;
+    var isRTL = document.documentElement.dir === 'rtl';
+    var halfW = 0;
+    var containerW = 0;
+    function measure(){
+      /* halfW = width of one copy + the join separator */
+      halfW = track.scrollWidth / 2;
+      containerW = overflow ? overflow.offsetWidth : 0;
+    }
+    measure();
+    // Re-measure after images load for correct width
+    var imgs = track.querySelectorAll('img');
+    var loaded = 0;
+    if(imgs.length){
+      imgs.forEach(function(im){
+        if(im.complete){ loaded++; }
+        else{ im.addEventListener('load', function(){ loaded++; if(loaded>=imgs.length) measure(); }); }
+      });
+    }
+    // Smooth initial appearance: hide ticker until first frame measures it
+    if(wrap){
+      wrap.style.opacity = '0';
+      wrap.style.transition = 'opacity 1.5s ease';
+    }
+    window.addEventListener('resize', measure);
+    var paused = false;
+    overflow.addEventListener('mouseenter', function(){ paused=true; });
+    overflow.addEventListener('mouseleave', function(){ paused=false; });
+    var pxPerMs = Math.max(0.01, (speed || 35) / 1000);
+    var lastTime = 0;
+    var pos = 0;
+    var edgeStarted = false;
+    function step(timestamp){
+      if(!lastTime) lastTime = timestamp;
+      // Re-measure on first frame to ensure layout is done
+      if(!edgeStarted){
+        measure();
+        /* Start fully off-screen at the container edge */
+        pos = isRTL ? -containerW : containerW;
+        edgeStarted = true;
+        if(wrap) setTimeout(function(){ wrap.style.opacity = '1'; }, 60);
+      }
+      var dt = timestamp - lastTime;
+      lastTime = timestamp;
+      if(!paused && halfW > 0){
+        var delta = pxPerMs * dt;
+        if(isRTL){
+          pos += delta;
+          if(pos >= halfW) pos -= halfW;
+        } else {
+          pos -= delta;
+          if(pos <= -halfW) pos += halfW;
+        }
+        track.style.transform = 'translate3d(' + pos + 'px,0,0)';
+      }
+      requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+  initPiTicker('piTickerTrack', {{ itk.speed }});
+  initPiTicker('piTickerTrackMobile', {{ itk.speed }});
+})();
+</script>
+{% endif %}
 </body></html>

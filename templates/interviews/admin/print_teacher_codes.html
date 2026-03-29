@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Teacher Codes — {{ ev.name }}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,sans-serif;background:#f8fafc;padding:20px}
+.header{text-align:center;margin-bottom:24px;padding:20px;background:white;border-radius:12px;border:1px solid #e2e8f0}
+.header img{height:60px;object-fit:contain;margin-bottom:8px}
+.header h2{font-size:1.3rem;color:#0f172a;margin:4px 0}
+.header p{color:#64748b;font-size:.85rem}
+.codes-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));gap:12px}
+.code-card{background:white;border:2px solid #e2e8f0;border-radius:12px;padding:16px;display:flex;align-items:center;gap:14px}
+.code-card .avatar{width:44px;height:44px;border-radius:10px;background:#eef2ff;color:#6366f1;display:flex;align-items:center;
+  justify-content:center;font-weight:700;font-size:1.1rem;flex-shrink:0}
+.code-card .info{flex:1;min-width:0}
+.code-card .name{font-weight:700;color:#0f172a;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.code-card .email{font-size:.75rem;color:#64748b}
+.code-card .code{font-family:'SF Mono','Fira Code',monospace;font-size:1.1rem;font-weight:800;letter-spacing:3px;
+  color:#6366f1;background:#f0f0ff;padding:6px 14px;border-radius:8px;flex-shrink:0}
+.no-data{text-align:center;padding:40px;color:#94a3b8;font-size:1rem}
+@media print{
+  body{background:white;padding:10px}
+  .no-print{display:none!important}
+  .header{border:none;box-shadow:none}
+  .code-card{break-inside:avoid;border:1.5px solid #ccc}
+}
+</style>
+</head>
+<body>
+<div class="header">
+  {% if ev.school_logo_url %}
+  <img src="{{ ev.school_logo_url }}" alt="logo"><br>
+  {% endif %}
+  <h2>{{ ev.school_name or 'School' }}</h2>
+  <p>{{ ev.name }} — أكواد المعلمين / Teacher Codes</p>
+</div>
+
+<div class="no-print" style="text-align:center;margin-bottom:16px">
+  <button onclick="window.print()" style="background:#6366f1;color:white;border:none;padding:10px 28px;border-radius:10px;font-weight:700;font-size:.9rem;cursor:pointer">
+    🖨️ طباعة / Print
+  </button>
+</div>
+
+{% if teachers %}
+<div class="codes-grid">
+  {% for t in teachers %}
+  <div class="code-card">
+    <div class="avatar">{{ t.name[0] if t.name else '?' }}</div>
+    <div class="info">
+      <div class="name">{{ t.name }}</div>
+      {% if t.email %}<div class="email">{{ t.email }}</div>{% endif %}
+      {% if t.subjects %}<div class="email">{{ t.subjects }}</div>{% endif %}
+    </div>
+    <div class="code">{{ t.teacher_code }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="no-data">لا يوجد معلمون بعد / No teachers yet</div>
+{% endif %}
+
+</body>
+</html>

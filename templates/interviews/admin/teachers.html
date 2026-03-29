@@ -35,7 +35,7 @@
       </a>
       <a href="{{ url_for('interviews.admin_event_edit', event_id=ev.id) }}"
          class="btn btn-sm rounded-3" style="background:#f8fafc;color:#475569;border:1.5px solid #e2e8f0">
-        <i class="bi bi-pencil me-1"></i>{% if ar %}تعديل الحدث{% else %}Edit Event{% endif %}
+        <i class="bi bi-pencil me-1"></i>{% if ar %}تعديل الفعالية{% else %}Edit Event{% endif %}
       </a>
     </div>
   </div>
@@ -64,7 +64,7 @@
       {% if not teachers %}
       <div class="pi-card p-5 text-center" style="color:#94a3b8">
         <i class="bi bi-person-plus display-4 opacity-25 d-block mb-3"></i>
-        {% if ar %}أضف معلمين لهذا الحدث{% else %}Add teachers to this event{% endif %}
+        {% if ar %}أضف معلمين لهذا الفعالية{% else %}Add teachers to this event{% endif %}
       </div>
       {% endif %}
 
