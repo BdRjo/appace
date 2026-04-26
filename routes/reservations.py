@@ -4,7 +4,7 @@
 import csv, io, hashlib
 from datetime import datetime, timedelta
 from utils.flash_helper import flash_msg
-from flask import (current_app, Blueprint, render_template, redirect, url_for,
+from flask import (Blueprint, render_template, redirect, url_for,
                    request, flash, jsonify, abort, Response, session)
 from flask_login import login_required, current_user
 from sqlalchemy import or_
@@ -155,8 +155,7 @@ def new():
                 errors.append('⚠️ Cannot create a booking in the past' if session.get('lang')=='en' else '⚠️ لا يمكن إنشاء حجز بتاريخ في الماضي')
             if end_dt <= start_dt:
                 errors.append('End time must be after start time' if session.get('lang')=='en' else 'وقت الانتهاء يجب أن يكون بعد وقت البداية')
-        except Exception as e:
-            current_app.logger.warning(f"{__name__} error: {e}")
+        except:
             errors.append('Invalid time format' if session.get('lang')=='en' else 'صيغة الوقت غير صحيحة')
 
         if start_dt and end_dt and venue_id and venue_id.isdigit():
@@ -170,14 +169,14 @@ def new():
             _users = db.query(User).filter_by(is_active=True).order_by(User.full_name).all()
             return render_template('reservations/new.html',
                                    venues=venues, form=request.form, now=datetime.now(), contacts=_contacts, all_users=_users)
+
+        venue = db.query(Venue).get(int(venue_id))
         req_emp_id = request.form.get('requested_employee_id', '').strip()
         req_emp_id = int(req_emp_id) if req_emp_id and req_emp_id.isdigit() else None
-        req_emp_email = request.form.get('requested_employee_email', '').strip() or None
-        req_emp_name  = request.form.get('requested_employee_name', '').strip() or None
-        venue = db.query(Venue).get(int(venue_id)) if venue_id and venue_id.isdigit() else None
-        # External email takes priority only if no system user selected
-        if req_emp_id:
-            req_emp_email = None  # system user selected — clear external
+        req_by_email = request.form.get('requested_by_email', '').strip()
+        full_notes = notes
+        if req_by_email:
+            full_notes = (notes + '\n' if notes else '') + f'[on_behalf:{req_by_email}]'
         res   = Reservation(
             booking_number       = _book_num(db),
             title                = title,
@@ -185,10 +184,9 @@ def new():
             venue_id             = int(venue_id),
             start_time           = start_dt,
             end_time             = end_dt,
-            requester_notes      = notes,
+            requester_notes      = full_notes,
             status               = 'pending' if (venue and venue.requires_approval) else 'approved',
-            requested_employee_id   = req_emp_id,
-            requested_employee_email= req_emp_email,
+            requested_employee_id= req_emp_id,
         )
         db.add(res)
         db.commit()
@@ -206,7 +204,7 @@ def new():
                                       mimetype=f.content_type or 'application/octet-stream',
                                       filedata=data, uploaded_by=current_user.id)
                     db.add(att)
-                except Exception as _e: current_app.logger.debug(f"Suppressed: {_e}")
+                except: pass
         db.commit()
 
         # Save selected contacts
@@ -223,7 +221,7 @@ def new():
         try:
             from utils.email_helper import send_booking_request
             send_booking_request(current_user, res)
-        except Exception as _e: current_app.logger.debug(f"Suppressed: {_e}")
+        except: pass
 
         # إشعار الموظف المطلوب بشكل منفصل
         if req_emp_id:
@@ -232,13 +230,7 @@ def new():
                 emp = db.query(User).get(req_emp_id)
                 if emp and emp.email:
                     send_employee_reservation_notice(emp, res, current_user)
-            except Exception as _e: current_app.logger.debug(f"Suppressed: {_e}")
-        elif req_emp_email:
-            try:
-                from utils.email_helper import send_employee_reservation_notice_to_email
-                send_employee_reservation_notice_to_email(
-                    req_emp_email, req_emp_name or req_emp_email, res, current_user)
-            except Exception as _e: current_app.logger.debug(f"Suppressed: {_e}")
+            except: pass
 
         flash_msg(f'✅ تم تقديم طلب الحجز — رقم الحجز: {res.booking_number}', 'success')
         return redirect(url_for('reservations.detail', res_id=res.id))
@@ -248,18 +240,6 @@ def new():
     all_users = db.query(User).filter_by(is_active=True).order_by(User.full_name).all()
     return render_template('reservations/new.html', venues=venues, form={}, now=datetime.now(), contacts=contacts, all_users=all_users)
 
-
-# ── public detail (no login required) ────────────────────────────────────────
-@reservations_bp.route('/public/<int:res_id>')
-def public_detail(res_id):
-    """تفاصيل الحجز للعموم — معتمدة فقط"""
-    db  = get_db()
-    res = db.query(Reservation).get(res_id)
-    if not res or res.status != 'approved':
-        abort(404)
-    return render_template('reservations/public_detail.html',
-        res=res,
-        status_ar=STATUS_AR, status_en=STATUS_EN, status_cls=STATUS_CLS)
 
 # ── detail ────────────────────────────────────────────────────────────────────
 @reservations_bp.route('/<int:res_id>')
@@ -337,8 +317,7 @@ def edit(res_id):
             start_dt = datetime.fromisoformat(start_str)
             end_dt   = datetime.fromisoformat(end_str)
             if end_dt <= start_dt: errors.append('End time must be after start time' if session.get('lang')=='en' else 'وقت الانتهاء يجب أن يكون بعد وقت البداية')
-        except Exception as e:
-            current_app.logger.warning(f"{__name__} error: {e}")
+        except:
             errors.append('Invalid time format' if session.get('lang')=='en' else 'صيغة الوقت غير صحيحة')
 
         if start_dt and end_dt and venue_id and venue_id.isdigit():
@@ -374,7 +353,7 @@ def edit(res_id):
                 if emp and emp.email:
                     send_employee_reservation_notice(emp, res, current_user)
             except Exception as e:
-                current_app.logger.warning(f"Employee notify error: {e}")
+                print(f'Employee notify error: {e}')
         flash_msg('✅ تم حفظ التعديلات' + (' — تم إرجاع الحجز لحالة معلق' if res.status == 'pending' else ''), 'success')
         return redirect(url_for('reservations.detail', res_id=res_id))
 
@@ -420,8 +399,8 @@ def approve(res_id):
                 f'الحجز {res.booking_number} — {res.title}',
                 f'Booking {res.booking_number} — {res.title}',
                 f'/reservations/{res.id}', lang)
-        except Exception as _e: current_app.logger.debug(f"Suppressed: {_e}")
-    except Exception as _e: current_app.logger.debug(f"Suppressed: {_e}")
+        except: pass
+    except: pass
 
     flash_msg('✅ تمت الموافقة على الحجز', 'success')
     return redirect(url_for('reservations.detail', res_id=res_id))
@@ -464,8 +443,8 @@ def reject(res_id):
                 f'الحجز {res.booking_number} — السبب: {reason or "—"}',
                 f'Booking {res.booking_number} — Reason: {reason or "—"}',
                 f'/reservations/{res.id}', lang)
-        except Exception as _e: current_app.logger.debug(f"Suppressed: {_e}")
-    except Exception as _e: current_app.logger.debug(f"Suppressed: {_e}")
+        except: pass
+    except: pass
 
     flash_msg('تم رفض الحجز', 'warning')
     return redirect(url_for('reservations.detail', res_id=res_id))
@@ -483,12 +462,9 @@ def bulk_cancel():
             if res.user_id != current_user.id and not perms.is_admin_or_manager(): continue
             if res.status not in ('cancelled', 'rejected', 'completed'):
                 res.status = 'cancelled'; count += 1
-        except Exception as _e: current_app.logger.debug(f"Suppressed: {_e}")
+        except: pass
     db.commit()
-    if count:
-        flash_msg(f'✅ تم إلغاء {count} حجز بنجاح', 'success')
-    else:
-        flash_msg('⚠️ لم يتم إلغاء أي حجز — يمكن إلغاء الحجوزات المعلقة أو المعتمدة فقط', 'warning')
+    flash_msg(f'✅ تم إلغاء {count} حجز', 'success' if count else 'warning')
     return redirect(url_for('reservations.index'))
 
 
@@ -514,7 +490,7 @@ def cancel(res_id):
         from utils.email_helper import send_booking_cancelled
         send_booking_cancelled(res, cancelled_by=current_user)
     except Exception as e:
-        current_app.logger.warning(f"Cancel email error: {e}")
+        print(f'Cancel email error: {e}')
     flash_msg('تم إلغاء الحجز', 'success')
     return redirect(url_for('reservations.index'))
 
@@ -637,7 +613,7 @@ def export_single_pdf(res_id):
         try:
             p = os.path.join(os.path.dirname(__file__), '..', 'maintenance_config.json')
             if os.path.exists(p): mcfg = json.loads(open(p).read())
-        except Exception as _e: current_app.logger.debug(f"Suppressed: {_e}")
+        except: pass
 
         story = []
 
@@ -919,7 +895,7 @@ def export_pdf():
         try:
             p = os.path.join(os.path.dirname(__file__), '..', 'maintenance_config.json')
             if os.path.exists(p): mcfg = json.loads(open(p).read())
-        except Exception as _e: current_app.logger.debug(f"Suppressed: {_e}")
+        except: pass
 
         # ── Logo ──────────────────────────────────────────────────────────────
         import base64 as _b64
@@ -932,7 +908,7 @@ def export_pdf():
                 li.hAlign = 'CENTER'
                 story.append(li)
                 story.append(Spacer(1, 0.15*cm))
-            except Exception as _e: current_app.logger.debug(f"Suppressed: {_e}")
+            except: pass
 
         center_s = ParagraphStyle('ch', fontName=AFB, fontSize=13, textColor=colors.HexColor('#0C67EC'), alignment=TA_CENTER, spaceAfter=2)
         sub_s    = ParagraphStyle('cs', fontName=AF,  fontSize=10, textColor=colors.HexColor('#3D8EF5'), alignment=TA_CENTER, spaceAfter=4)
@@ -1137,8 +1113,7 @@ def availability():
         return jsonify([])
     try:
         d = datetime.strptime(date_str,'%Y-%m-%d').date()
-    except Exception as e:
-        current_app.logger.warning(f"{__name__} error: {e}")
+    except:
         return jsonify([])
     rsvs = db.query(Reservation).filter(
         Reservation.venue_id == venue_id,

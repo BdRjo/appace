@@ -33,25 +33,7 @@
         </select>
         <div id="venueInfo" class="form-text text-info mt-1"></div>
       </div>
-      {# ── Full Day toggle ── #}
-      <div class="mb-3">
-        <div class="form-check form-switch">
-          <input class="form-check-input" type="checkbox" id="fullDayCheck" onchange="toggleFullDay(this)">
-          <label class="form-check-label fw-bold" for="fullDayCheck">
-            <i class="bi bi-sun me-1"></i>{% if current_lang == 'en' %}Full Day Booking{% else %}حجز يوم كامل{% endif %}
-          </label>
-        </div>
-      </div>
-
-      {# ── Full Day date picker (hidden by default) ── #}
-      <div id="fullDayRow" class="mb-3 d-none">
-        <label class="form-label fw-bold">{{ _('التاريخ') }}*</label>
-        <input type="date" id="fullDayDate" class="form-control"
-               min="{{ now.strftime('%Y-%m-%d') }}"
-               onchange="applyFullDay(this.value)">
-      </div>
-
-      <div class="row" id="timeRow">
+      <div class="row">
         <div class="col-md-6 mb-3">
           <label class="form-label fw-bold">{{ _('وقت البداية') }}*</label>
           <input type="datetime-local" name="start_time" class="form-control"
@@ -100,61 +82,55 @@
       </div>
       {% endif %}
 
-      <!-- Requested Employee (system user OR any external email) -->
+      <!-- Requested Employee -->
+      {% if all_users %}
       <div class="mb-4 p-3 border rounded" style="background:linear-gradient(135deg,#f0f7ff,#f8fcfc)">
         <label class="form-label fw-bold">
           <i class="bi bi-person-badge me-2" style="color:var(--primary)"></i>
-          {% if current_lang=='en' %}Requested Employee / Person{% else %}الموظف / الشخص المطلوب{% endif %}
+          {% if current_lang=='en' %}Requested Employee{% else %}الموظف المطلوب{% endif %}
           <span class="badge ms-1" style="background:var(--accent);font-size:.7rem">{% if current_lang=='en' %}Optional{% else %}اختياري{% endif %}</span>
         </label>
         <p class="text-muted small mb-2">
-          {% if current_lang=='en' %}Select a system user or enter any email address. They will receive a separate notification with full booking details.{% else %}اختر موظفاً من النظام أو أدخل أي بريد إلكتروني. سيصله إشعار منفصل بتفاصيل الحجز الكاملة.{% endif %}
+          {% if current_lang=='en' %}Select the employee this reservation is intended for. They will receive a separate notification.{% else %}اختر الموظف المعني بهذا الحجز، سيصله إشعار بريد إلكتروني منفصل.{% endif %}
         </p>
-        {# Toggle between system user and external email #}
-        <div class="d-flex gap-2 mb-3" id="empToggle">
-          <button type="button" class="btn btn-sm btn-primary-ars active" id="btnSystemUser" onclick="setEmpMode('system')">
-            <i class="bi bi-person-check me-1"></i>{% if current_lang=='en' %}System User{% else %}مستخدم النظام{% endif %}
-          </button>
-          <button type="button" class="btn btn-sm btn-outline-secondary" id="btnExternalEmail" onclick="setEmpMode('external')">
-            <i class="bi bi-envelope me-1"></i>{% if current_lang=='en' %}External Email{% else %}بريد خارجي{% endif %}
-          </button>
-        </div>
-        {# System user picker #}
-        <div id="empSystemDiv">
-          <select name="requested_employee_id" id="requested_employee_id" class="form-select">
-            <option value="">— {% if current_lang=='en' %}No specific employee{% else %}بدون تحديد موظف{% endif %} —</option>
-            {% for u in all_users %}
-            {% if u.id != current_user.id %}
-            <option value="{{ u.id }}" {% if form.get('requested_employee_id')|string == u.id|string %}selected{% endif %}>
-              {{ u.full_name or u.username }}
-              {% if u.role_ref %} — {{ u.role_ref.name }}{% endif %}
-            </option>
-            {% endif %}
-            {% endfor %}
-          </select>
-        </div>
-        {# External email input (hidden by default) #}
-        <div id="empExternalDiv" class="d-none">
-          <div class="row g-2">
-            <div class="col-md-6">
-              <input type="email" name="requested_employee_email" id="requested_employee_email"
-                     class="form-control" placeholder="{% if current_lang=='en' %}email@example.com{% else %}email@example.com{% endif %}"
-                     value="{{ form.get('requested_employee_email','') }}">
-            </div>
-            <div class="col-md-6">
-              <input type="text" name="requested_employee_name" id="requested_employee_name"
-                     class="form-control" placeholder="{% if current_lang=='en' %}Full name (optional){% else %}الاسم الكامل (اختياري){% endif %}"
-                     value="{{ form.get('requested_employee_name','') }}">
-            </div>
-          </div>
-          <div class="form-text mt-1"><i class="bi bi-info-circle me-1"></i>{% if current_lang=='en' %}Enter any valid email address to notify this person.{% else %}أدخل أي بريد إلكتروني لإرسال إشعار لهذا الشخص.{% endif %}</div>
-        </div>
+        <select name="requested_employee_id" class="form-select">
+          <option value="">— {% if current_lang=='en' %}No specific employee{% else %}بدون تحديد موظف{% endif %} —</option>
+          {% for u in all_users %}
+          {% if u.id != current_user.id %}
+          <option value="{{ u.id }}" {% if form.get('requested_employee_id')|string == u.id|string %}selected{% endif %}>
+            {{ u.full_name or u.username }}
+            {% if u.role_ref %} — {{ u.role_ref.name }}{% endif %}
+          </option>
+          {% endif %}
+          {% endfor %}
+        </select>
       </div>
+      {% endif %}
         <label class="form-label fw-bold"><i class="bi bi-paperclip me-1"></i>{{ _('مرفقات (اختياري)') }}</label>
         <input type="file" name="attachments" class="form-control" multiple
                accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif">
         <div class="form-text">{{ _('يمكن إرفاق صور أو مستندات (PDF, Word, Excel, صور)') }}</div>
       </div>
+
+      {# ── Requested By Email ── #}
+      <div class="mb-3">
+        <label class="form-label fw-bold">
+          <i class="bi bi-person-plus me-1"></i>
+          {% if current_lang == 'en' %}Requested On Behalf Of (Email){% else %}الحجز نيابةً عن (البريد الإلكتروني){% endif %}
+          <span class="text-muted fw-normal" style="font-size:.8rem">
+            — {% if current_lang == 'en' %}optional{% else %}اختياري{% endif %}
+          </span>
+        </label>
+        <input type="email" name="requested_by_email"
+               class="form-control"
+               placeholder="{% if current_lang == 'en' %}email@example.com{% else %}example@domain.com{% endif %}"
+               value="{{ form.get('requested_by_email','') }}">
+        <div class="form-text">
+          {% if current_lang == 'en' %}If you are booking on behalf of someone else, enter their email here.
+          {% else %}إذا كنت تحجز نيابةً عن شخص آخر، أدخل بريده الإلكتروني هنا.{% endif %}
+        </div>
+      </div>
+
       <div class="d-flex flex-column flex-sm-row gap-2">
         <button type="submit" class="btn btn-primary-ars w-100 w-sm-auto">
           <i class="bi bi-send me-1"></i>{% if current_lang=="en" %}Submit Booking Request{% else %}تقديم طلب الحجز{% endif %}
@@ -214,66 +190,5 @@ document.getElementById('startTime')?.addEventListener('change', function(){
   const et = document.getElementById('endTime');
   if(et) et.min = this.value;
 });
-
-// ── Full Day functions ────────────────────────────────────────────────
-function toggleFullDay(cb){
-  const fullDayRow = document.getElementById('fullDayRow');
-  const timeRow    = document.getElementById('timeRow');
-  const startTime  = document.getElementById('startTime');
-  const endTime    = document.getElementById('endTime');
-  if(cb.checked){
-    fullDayRow.classList.remove('d-none');
-    timeRow.classList.add('d-none');
-    startTime.removeAttribute('required');
-    endTime.removeAttribute('required');
-    const d = document.getElementById('fullDayDate').value;
-    if(d) applyFullDay(d);
-  } else {
-    fullDayRow.classList.add('d-none');
-    timeRow.classList.remove('d-none');
-    startTime.setAttribute('required','');
-    endTime.setAttribute('required','');
-    startTime.value = '';
-    endTime.value   = '';
-  }
-}
-
-function applyFullDay(dateVal){
-  if(!dateVal) return;
-  document.getElementById('startTime').value = dateVal + 'T00:00';
-  document.getElementById('endTime').value   = dateVal + 'T23:59';
-}
 </script>
-<script>
-// ── Employee / Person mode toggle ──────────────────────────────────────────
-function setEmpMode(mode) {
-  const sysDiv  = document.getElementById('empSystemDiv');
-  const extDiv  = document.getElementById('empExternalDiv');
-  const btnSys  = document.getElementById('btnSystemUser');
-  const btnExt  = document.getElementById('btnExternalEmail');
-  const selUser = document.getElementById('requested_employee_id');
-  const inpEmail= document.getElementById('requested_employee_email');
-  if (mode === 'system') {
-    sysDiv.classList.remove('d-none');
-    extDiv.classList.add('d-none');
-    btnSys.classList.add('active');
-    btnSys.className = btnSys.className.replace('btn-outline-secondary','btn-primary-ars');
-    btnExt.className = btnExt.className.replace('btn-primary-ars','btn-outline-secondary');
-    btnExt.classList.remove('active');
-    if (inpEmail) inpEmail.value = '';  // clear external when switching
-  } else {
-    sysDiv.classList.add('d-none');
-    extDiv.classList.remove('d-none');
-    btnExt.classList.add('active');
-    btnSys.className = btnSys.className.replace('btn-primary-ars','btn-outline-secondary');
-    btnExt.className = btnExt.className.replace('btn-outline-secondary','btn-primary-ars');
-    btnSys.classList.remove('active');
-    if (selUser) selUser.value = '';  // clear system user when switching
-  }
-}
-// Init: if a external email was pre-filled (form re-render), switch to external mode
-(function(){
-  const ext = document.getElementById('requested_employee_email');
-  if (ext && ext.value.trim()) setEmpMode('external');
-})();
-</script>{% endblock %}
+{% endblock %}

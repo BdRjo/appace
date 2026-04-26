@@ -131,6 +131,8 @@ const T = {
   month:    AR?'شهر':'Month',
   list:     AR?'قائمة':'List',
   details:  AR?'تفاصيل الحجز':'Booking Details',
+  titleL:   AR?'العنوان':'Title',
+  attendees:AR?'الحضور':'Attendees',
 };
 
 document.getElementById('brandText').textContent   = T.brand;
@@ -205,7 +207,23 @@ function toggleDetail(id){
 
 function buildRows(d){
   const r=(ic,lb,val,blue)=> val?`<div class="dp-row"><span class="dp-label"><i class="bi bi-${ic} me-1"></i>${lb}</span><span class="dp-value" ${blue?'style="color:#0C67EC;font-weight:800"':''}>${val}</span></div>`:'';
-  return r('hash',T.bookNo,d.booking_number,true)+r('calendar3',T.start,d.start_time)+r('calendar3-range',T.end,d.end_time)+r('building',T.venue,d.venue_name)+r('people-fill',T.capacity,d.venue_capacity)+r('geo-alt',T.location,d.location_name);
+  const onB = d.on_behalf ? r('person-plus', AR?'نيابةً عن':'On Behalf Of', d.on_behalf) : '';
+  const notes = d.notes ? r('chat-text', AR?'ملاحظات':'Notes', d.notes) : '';
+  const atts = d.attachments && d.attachments.length ?
+    `<div class="dp-row"><span class="dp-label"><i class="bi bi-paperclip me-1"></i>${AR?'مرفقات':'Attachments'}</span><span class="dp-value">${
+      d.attachments.map(a=>`<a href="/public-calendar/attachment/${a.id}" target="_blank" class="d-block" style="font-size:.75rem;color:#0C67EC"><i class="bi bi-file-earmark me-1"></i>${a.name}</a>`).join('')
+    }</span></div>` : '';
+  return r('hash',T.bookNo,d.booking_number,true)
+    + r('card-text',T.titleL,d.title)
+    + r('calendar3',T.start,d.start_time)
+    + r('calendar3-range',T.end,d.end_time)
+    + r('people',T.attendees,d.expected_attendees)
+    + onB + notes
+    + `<div style="height:6px"></div>`
+    + r('building',T.venue,d.venue_name)
+    + r('people-fill',T.capacity,d.venue_capacity)
+    + r('geo-alt',T.location,d.location_name)
+    + atts;
 }
 
 /* ══ DESKTOP: FullCalendar ══ */
