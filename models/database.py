@@ -123,7 +123,7 @@ class Reservation(Base):
     cancellation_reason=Column(Text); cancelled_by=Column(Integer,ForeignKey('users.id'))
     cancelled_at=Column(DateTime); created_at=Column(DateTime,default=datetime.now)
     requested_employee_id=Column(Integer,ForeignKey('users.id'),nullable=True)
-    requested_employee_email=Column(String(200),nullable=True)  # external email (non-system user)
+
     user=relationship('User',foreign_keys=[user_id],back_populates='reservations')
     venue=relationship('Venue',back_populates='reservations')
     approver=relationship('User',foreign_keys=[approver_id])
