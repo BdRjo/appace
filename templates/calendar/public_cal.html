@@ -100,9 +100,9 @@ body{background:#f0f4f8;font-family:'Segoe UI',Tahoma,sans-serif;margin:0}
 </div>
 
 <script>
-const urlLang    = new URLSearchParams(window.location.search).get('lang');
-const cookieLang = (document.cookie.match(/(?:^|;\s*)lang=([^;]+)/)||[])[1];
-const LANG = urlLang || cookieLang || 'ar';
+const LANG = '{{ current_lang }}';
+
+
 const AR   = LANG === 'ar';
 const MOBILE = window.innerWidth < 768;
 
