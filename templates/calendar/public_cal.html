@@ -207,23 +207,42 @@ function toggleDetail(id){
 
 function buildRows(d){
   const r=(ic,lb,val,blue)=> val?`<div class="dp-row"><span class="dp-label"><i class="bi bi-${ic} me-1"></i>${lb}</span><span class="dp-value" ${blue?'style="color:#0C67EC;font-weight:800"':''}>${val}</span></div>`:'';
-  const onB = d.on_behalf ? r('person-plus', AR?'نيابةً عن':'On Behalf Of', d.on_behalf) : '';
-  const notes = d.notes ? r('chat-text', AR?'ملاحظات':'Notes', d.notes) : '';
-  const atts = d.attachments && d.attachments.length ?
-    `<div class="dp-row"><span class="dp-label"><i class="bi bi-paperclip me-1"></i>${AR?'مرفقات':'Attachments'}</span><span class="dp-value">${
-      d.attachments.map(a=>`<a href="/public-calendar/attachment/${a.id}" target="_blank" class="d-block" style="font-size:.75rem;color:#0C67EC"><i class="bi bi-file-earmark me-1"></i>${a.name}</a>`).join('')
-    }</span></div>` : '';
-  return r('hash',T.bookNo,d.booking_number,true)
-    + r('card-text',T.titleL,d.title)
+  const title = AR ? d.title : (d.title_en || d.title);
+  const venueName = AR ? d.venue_name : (d.venue_name_en || d.venue_name);
+
+  // المرفقات مع صور
+  let attsHtml = '';
+  if(d.attachments && d.attachments.length){
+    const imgs = d.attachments.filter(a=>a.is_img);
+    const files = d.attachments.filter(a=>!a.is_img);
+    if(imgs.length){
+      attsHtml += `<div style="margin-top:10px"><div style="font-size:.72rem;font-weight:700;color:#0C67EC;margin-bottom:6px"><i class="bi bi-images me-1"></i>${AR?'صور مرفقة':'Attached Images'}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">${
+          imgs.map(a=>`<a href="${a.url}" target="_blank"><img src="${a.url}" style="width:80px;height:60px;object-fit:cover;border-radius:8px;border:2px solid #e8f0ff" onerror="this.style.display='none'"></a>`).join('')
+        }</div></div>`;
+    }
+    if(files.length){
+      attsHtml += `<div style="margin-top:8px">${files.map(a=>`<a href="${a.url}" target="_blank" download class="d-flex align-items-center gap-2" style="font-size:.78rem;color:#0C67EC;padding:4px 0;text-decoration:none"><i class="bi bi-file-earmark-arrow-down"></i>${a.name}</a>`).join('')}</div>`;
+    }
+  }
+
+  return `<div style="font-size:.7rem;font-weight:700;color:#0C67EC;text-transform:uppercase;letter-spacing:.5px;padding-bottom:4px;border-bottom:2px solid #e8f0ff;margin-bottom:6px"><i class="bi bi-calendar-check me-1"></i>${AR?'معلومات الحجز':'Booking Info'}</div>`
+    + r('hash',T.bookNo,d.booking_number,true)
+    + r('card-text',T.titleL,title)
+    + r('tag',AR?'نوع الحجز':'Type',AR?d.booking_type_ar:d.booking_type_en)
     + r('calendar3',T.start,d.start_time)
     + r('calendar3-range',T.end,d.end_time)
     + r('people',T.attendees,d.expected_attendees)
-    + onB + notes
-    + `<div style="height:6px"></div>`
-    + r('building',T.venue,d.venue_name)
+    + r('person',AR?'مقدم الطلب':'Requested By',d.requester_name)
+    + r('person-plus',AR?'نيابةً عن':'On Behalf Of',d.on_behalf)
+    + r('chat-text',AR?'ملاحظات':'Notes',d.notes)
+    + (d.approver_notes ? r('check-circle',AR?'ملاحظات الاعتماد':'Approval Notes',d.approver_notes) : '')
+    + `<div style="font-size:.7rem;font-weight:700;color:#0C67EC;text-transform:uppercase;letter-spacing:.5px;padding-bottom:4px;border-bottom:2px solid #e8f0ff;margin:10px 0 6px"><i class="bi bi-building me-1"></i>${AR?'معلومات القاعة':'Venue Info'}</div>`
+    + r('building',T.venue,venueName)
     + r('people-fill',T.capacity,d.venue_capacity)
     + r('geo-alt',T.location,d.location_name)
-    + atts;
+    + (d.venue_equipment ? r('tools',AR?'التجهيزات':'Equipment',d.venue_equipment) : '')
+    + attsHtml;
 }
 
 /* ══ DESKTOP: FullCalendar ══ */
@@ -254,13 +273,34 @@ function openModal(id){
     .then(r=>r.json())
     .then(d=>{
       const r=(ic,lb,val,blue)=>val?`<div class="mrow"><span class="mlabel"><i class="bi bi-${ic}"></i>${lb}</span><span class="mvalue" ${blue?'style="color:#0C67EC;font-weight:800"':''}>${val}</span></div>`:'';
+      const title = AR ? d.title : (d.title_en || d.title);
+      const vname = AR ? d.venue_name : (d.venue_name_en || d.venue_name);
+      let imgHtml = '';
+      if(d.attachments && d.attachments.length){
+        const imgs = d.attachments.filter(a=>a.is_img);
+        const files = d.attachments.filter(a=>!a.is_img);
+        if(imgs.length) imgHtml += `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${imgs.map(a=>`<a href="${a.url}" target="_blank"><img src="${a.url}" style="width:90px;height:70px;object-fit:cover;border-radius:8px;border:2px solid #e8f0ff"></a>`).join('')}</div>`;
+        if(files.length) imgHtml += `<div style="margin-top:6px">${files.map(a=>`<a href="${a.url}" download target="_blank" style="display:flex;align-items:center;gap:6px;font-size:.8rem;color:#0C67EC;padding:3px 0;text-decoration:none"><i class="bi bi-file-earmark-arrow-down"></i>${a.name}</a>`).join('')}</div>`;
+      }
       document.getElementById('modalBody').innerHTML=`
         <div class="msec-title"><i class="bi bi-calendar-check me-1"></i>${T.bookInfo}</div>
-        ${r('hash',T.bookNo,d.booking_number,true)}${r('card-text',T.titleL,d.title)}
-        <div class="mrow"><span class="mlabel"><i class="bi bi-tag"></i>${T.status}</span><span class="mstatus">${AR?d.status_ar:d.status_en}</span></div>
-        ${r('calendar3',T.start,d.start_time)}${r('calendar3-range',T.end,d.end_time)}
+        ${r('hash',T.bookNo,d.booking_number,true)}
+        ${r('card-text',T.titleL,title)}
+        ${r('tag',AR?'نوع الحجز':'Type',AR?d.booking_type_ar:d.booking_type_en)}
+        <div class="mrow"><span class="mlabel"><i class="bi bi-check-circle"></i>${T.status}</span><span class="mstatus">${AR?d.status_ar:d.status_en}</span></div>
+        ${r('calendar3',T.start,d.start_time)}
+        ${r('calendar3-range',T.end,d.end_time)}
+        ${r('people',T.attendees,d.expected_attendees)}
+        ${r('person',AR?'مقدم الطلب':'Requested By',d.requester_name)}
+        ${r('person-plus',AR?'نيابةً عن':'On Behalf Of',d.on_behalf)}
+        ${r('chat-text',AR?'ملاحظات':'Notes',d.notes)}
+        ${d.approver_notes ? r('check-circle',AR?'ملاحظات الاعتماد':'Approval Notes',d.approver_notes) : ''}
         <div class="msec-title"><i class="bi bi-building me-1"></i>${T.venueInfo}</div>
-        ${r('building',T.venue,d.venue_name)}${r('people-fill',T.capacity,d.venue_capacity)}${r('geo-alt',T.location,d.location_name)}`;
+        ${r('building',T.venue,vname)}
+        ${r('people-fill',T.capacity,d.venue_capacity)}
+        ${r('geo-alt',T.location,d.location_name)}
+        ${d.venue_equipment ? r('tools',AR?'التجهيزات':'Equipment',d.venue_equipment) : ''}
+        ${imgHtml ? `<div class="msec-title"><i class="bi bi-paperclip me-1"></i>${AR?'المرفقات':'Attachments'}</div>${imgHtml}` : ''}`;
     })
     .catch(()=>{document.getElementById('modalBody').innerHTML=`<div class="alert alert-danger">${T.failLoad}</div>`;});
 }
