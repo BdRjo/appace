@@ -42,7 +42,7 @@ def events():
             venue = db.query(Venue).get(r.venue_id) if r.venue_id else None
             result.append({
                 'id':    r.id,
-                'title': venue.name if venue else (r.title or ''),
+                'title': (r.title or '') + (' — ' + venue.name if venue else ''),
                 'start': r.start_time.isoformat() if r.start_time else '',
                 'end':   r.end_time.isoformat()   if r.end_time   else '',
                 'color': '#3D8EF5',
