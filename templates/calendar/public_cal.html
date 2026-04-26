@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html id="pubHtml">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Public Calendar — ARS</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.0/font/bootstrap-icons.min.css">
+<style>
+body{background:#f0f4f8;font-family:'Segoe UI',Tahoma,sans-serif;margin:0}
+.pcal-nav{background:#0C67EC;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px;position:sticky;top:0;z-index:200}
+.pcal-brand{color:white;font-weight:800;font-size:.92rem;display:flex;align-items:center;gap:7px}
+.pcal-clock{color:rgba(255,255,255,.9);font-size:.7rem;flex:1;text-align:center}
+.pcal-lang{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:white;border-radius:7px;padding:3px 10px;font-size:.76rem;font-weight:600;text-decoration:none}
+.pcal-lang:hover{background:rgba(255,255,255,.3);color:white}
+.vbadge{display:inline-block;padding:3px 11px;border-radius:20px;font-size:.74rem;font-weight:600;background:#e8f0ff;color:#0C67EC;border:1px solid #b8d0ff;cursor:pointer;transition:.15s;white-space:nowrap;margin:2px}
+.vbadge.active,.vbadge:hover{background:#0C67EC;color:white;border-color:#0C67EC}
+/* Mobile cards */
+.bcard{background:white;border-radius:14px;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,.07);margin-bottom:10px;cursor:pointer;border:2px solid transparent;transition:.15s}
+.bcard:hover{border-color:#0C67EC}
+.bcard-title{font-weight:700;color:#1e293b;font-size:.9rem}
+.bcard-meta{font-size:.78rem;color:#64748b;margin-top:3px}
+.status-pill{display:inline-block;padding:2px 10px;border-radius:20px;font-size:.7rem;font-weight:700;background:#d1fae5;color:#065f46}
+.dp-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:.83rem}
+.dp-row:last-child{border-bottom:none}
+.dp-label{color:#64748b;font-weight:600}
+.dp-value{color:#1e293b;font-weight:500;text-align:end}
+/* Desktop calendar */
+.pcal-card{background:white;border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.07)}
+.fc{font-size:.82rem}
+.fc-col-header-cell{background:#0C67EC!important;padding:7px 0!important}
+.fc-col-header-cell-cushion{color:#fff!important;font-weight:700!important;text-decoration:none!important}
+.fc-toolbar-title{color:#0C67EC!important;font-weight:800!important;font-size:.95rem!important}
+.fc-button-primary{background:#0C67EC!important;border-color:#0C67EC!important;font-size:.78rem!important}
+.fc-button-primary:hover{background:#0847B0!important;border-color:#0847B0!important}
+.fc-day-today{background:rgba(92,155,222,.1)!important}
+.fc-event{border-radius:5px!important;font-size:.71rem!important;cursor:pointer!important}
+/* Modal for desktop */
+.pcal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;align-items:center;justify-content:center;padding:12px}
+.pcal-overlay.open{display:flex}
+.pcal-modal{background:white;border-radius:18px;width:100%;max-width:520px;max-height:88vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+.pcal-mhead{background:#0C67EC;color:white;padding:14px 18px;border-radius:18px 18px 0 0;display:flex;align-items:center;justify-content:space-between}
+.pcal-mhead h6{margin:0;font-weight:800;font-size:.9rem}
+.pcal-mbody{padding:16px}
+.msec-title{font-size:.7rem;font-weight:700;color:#0C67EC;letter-spacing:.5px;text-transform:uppercase;padding-bottom:5px;border-bottom:2px solid #e8f0ff;margin-bottom:8px;margin-top:14px}
+.msec-title:first-child{margin-top:0}
+.mrow{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f8fafc;font-size:.83rem}
+.mrow:last-child{border-bottom:none}
+.mlabel{color:#64748b;font-weight:600;display:flex;align-items:center;gap:5px}
+.mvalue{color:#1e293b;font-weight:500;text-align:end}
+.mstatus{padding:3px 11px;border-radius:20px;font-size:.73rem;font-weight:700;background:#d1fae5;color:#065f46}
+.mclosebtn{background:rgba(255,255,255,.2);border:none;color:white;border-radius:7px;width:30px;height:30px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center}
+.loading{text-align:center;padding:40px;color:#64748b}
+.empty{text-align:center;padding:40px;color:#94a3b8;font-size:.85rem}
+@media(max-width:575px){.pcal-brand span,.pcal-clock{display:none}}
+</style>
+</head>
+<body>
+
+<nav class="pcal-nav">
+  <div class="pcal-brand">
+    <i class="bi bi-calendar3"></i>
+    <span id="brandText"></span>
+  </div>
+  <div class="pcal-clock" id="clockEl"></div>
+  <a id="langBtn" href="#" class="pcal-lang"></a>
+</nav>
+
+<div class="container-fluid py-3 px-3" style="max-width:1100px;margin:auto">
+  <div class="d-flex flex-wrap align-items-center gap-1 mb-3">
+    <span id="filterLabel" style="color:#64748b;font-weight:600;font-size:.78rem;margin-inline-end:4px"></span>
+    <span class="vbadge active" id="v_all" onclick="filterVenue('')"></span>
+    {% for v in venues %}
+    <span class="vbadge" id="v_{{ v.id }}" onclick="filterVenue('{{ v.id }}')">{{ v.name }}</span>
+    {% endfor %}
+  </div>
+
+  <!-- Mobile: cards list -->
+  <div id="mobileView" class="d-block d-md-none">
+    <div id="bookingsList"><div class="loading"><div class="spinner-border text-primary" style="width:1.8rem;height:1.8rem"></div></div></div>
+  </div>
+
+  <!-- Desktop: FullCalendar -->
+  <div id="desktopView" class="d-none d-md-block">
+    <div class="pcal-card"><div id="calendar"></div></div>
+  </div>
+
+  <div class="text-center mt-2" id="footNote" style="font-size:.7rem;color:#94a3b8"></div>
+</div>
+
+<!-- Modal for desktop -->
+<div class="pcal-overlay" id="pcalOverlay" onclick="overlayClick(event)">
+  <div class="pcal-modal">
+    <div class="pcal-mhead">
+      <h6 id="modalTitle"></h6>
+      <button class="mclosebtn" onclick="closeModal()">✕</button>
+    </div>
+    <div class="pcal-mbody" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+const urlLang    = new URLSearchParams(window.location.search).get('lang');
+const cookieLang = (document.cookie.match(/(?:^|;\s*)lang=([^;]+)/)||[])[1];
+const LANG = urlLang || cookieLang || 'ar';
+const AR   = LANG === 'ar';
+const MOBILE = window.innerWidth < 768;
+
+document.getElementById('pubHtml').lang = AR ? 'ar' : 'en';
+document.getElementById('pubHtml').dir  = AR ? 'rtl' : 'ltr';
+
+const T = {
+  brand:    AR?'الروزنامة العامة':'Public Calendar',
+  all:      AR?'الكل':'All',
+  filter:   AR?'فلترة:':'Filter:',
+  foot:     AR?'يعرض الحجوزات المعتمدة فقط':'Showing approved reservations only',
+  empty:    AR?'لا توجد حجوزات':'No reservations',
+  lang:     AR?'EN':'ع',
+  bookNo:   AR?'رقم الحجز':'Booking No.',
+  titleL:   AR?'العنوان':'Title',
+  status:   AR?'الحالة':'Status',
+  start:    AR?'البداية':'Start',
+  end:      AR?'الانتهاء':'End',
+  venue:    AR?'القاعة':'Venue',
+  capacity: AR?'السعة':'Capacity',
+  location: AR?'الموقع':'Location',
+  approved: AR?'معتمد':'Approved',
+  bookInfo: AR?'معلومات الحجز':'Booking Info',
+  venueInfo:AR?'معلومات القاعة':'Venue Info',
+  failLoad: AR?'تعذر تحميل البيانات':'Failed to load',
+  month:    AR?'شهر':'Month',
+  list:     AR?'قائمة':'List',
+  details:  AR?'تفاصيل الحجز':'Booking Details',
+};
+
+document.getElementById('brandText').textContent   = T.brand;
+document.getElementById('filterLabel').textContent  = T.filter;
+document.getElementById('v_all').textContent        = T.all;
+document.getElementById('footNote').textContent     = T.foot;
+document.getElementById('langBtn').textContent      = T.lang;
+document.getElementById('langBtn').href = `/set-lang/${AR?'en':'ar'}?next=/public-calendar/`;
+document.getElementById('modalTitle').innerHTML = `<i class="bi bi-calendar-check me-2"></i>${T.details}`;
+
+function tick(){
+  const n = new Date();
+  document.getElementById('clockEl').textContent =
+    n.toLocaleDateString(AR?'ar-SA':'en-US',{weekday:'short',day:'numeric',month:'short'}) + '  ' +
+    n.toLocaleTimeString(AR?'ar-SA':'en-US',{hour:'2-digit',minute:'2-digit'});
+}
+tick(); setInterval(tick,1000);
+
+let currentVenue = '';
+
+function filterVenue(vid){
+  currentVenue = vid;
+  document.querySelectorAll('.vbadge').forEach(b=>b.classList.remove('active'));
+  document.getElementById(vid?'v_'+vid:'v_all').classList.add('active');
+  if(MOBILE) loadCards();
+  else if(window._cal) window._cal.refetchEvents();
+}
+
+/* ══ MOBILE: Cards ══ */
+function loadCards(){
+  document.getElementById('bookingsList').innerHTML =
+    '<div class="loading"><div class="spinner-border text-primary" style="width:1.8rem;height:1.8rem"></div></div>';
+  const now   = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth()-1, 1).toISOString().slice(0,10);
+  const end   = new Date(now.getFullYear(), now.getMonth()+3, 0).toISOString().slice(0,10);
+  fetch(`/public-calendar/events?start=${start}&end=${end}&venue_id=${currentVenue}`)
+    .then(r=>r.json())
+    .then(data=>{
+      if(!data.length){
+        document.getElementById('bookingsList').innerHTML = `<div class="empty">${T.empty}</div>`;
+        return;
+      }
+      document.getElementById('bookingsList').innerHTML = data.map(b=>`
+        <div class="bcard" id="card_${b.id}" onclick="toggleDetail(${b.id})">
+          <div class="d-flex justify-content-between align-items-start">
+            <div class="bcard-title">${b.title||'—'}</div>
+            <span class="status-pill">${T.approved}</span>
+          </div>
+          <div class="bcard-meta"><i class="bi bi-calendar3 me-1"></i>${(b.start||'').slice(0,10)}</div>
+          <div id="detail_${b.id}" style="display:none;margin-top:10px;border-top:1px solid #f1f5f9;padding-top:10px"></div>
+        </div>`).join('');
+    })
+    .catch(()=>{
+      document.getElementById('bookingsList').innerHTML = `<div class="empty">${T.failLoad}</div>`;
+    });
+}
+
+function toggleDetail(id){
+  const el   = document.getElementById('detail_'+id);
+  const card = document.getElementById('card_'+id);
+  if(el.style.display!=='none'){ el.style.display='none'; card.style.borderColor='transparent'; return; }
+  document.querySelectorAll('[id^="detail_"]').forEach(e=>e.style.display='none');
+  document.querySelectorAll('.bcard').forEach(c=>c.style.borderColor='transparent');
+  card.style.borderColor='#0C67EC';
+  el.innerHTML='<div class="text-center py-2"><div class="spinner-border text-primary" style="width:1rem;height:1rem"></div></div>';
+  el.style.display='block';
+  fetch(`/public-calendar/booking/${id}`)
+    .then(r=>r.json())
+    .then(d=>{ el.innerHTML = buildRows(d); })
+    .catch(()=>{ el.innerHTML=`<div class="text-danger" style="font-size:.8rem">${T.failLoad}</div>`; });
+}
+
+function buildRows(d){
+  const r=(ic,lb,val,blue)=> val?`<div class="dp-row"><span class="dp-label"><i class="bi bi-${ic} me-1"></i>${lb}</span><span class="dp-value" ${blue?'style="color:#0C67EC;font-weight:800"':''}>${val}</span></div>`:'';
+  return r('hash',T.bookNo,d.booking_number,true)+r('calendar3',T.start,d.start_time)+r('calendar3-range',T.end,d.end_time)+r('building',T.venue,d.venue_name)+r('people-fill',T.capacity,d.venue_capacity)+r('geo-alt',T.location,d.location_name);
+}
+
+/* ══ DESKTOP: FullCalendar ══ */
+function initDesktopCalendar(){
+  if(typeof FullCalendar === 'undefined'){ setTimeout(initDesktopCalendar,300); return; }
+  const cal = new FullCalendar.Calendar(document.getElementById('calendar'),{
+    initialView:'dayGridMonth',
+    direction: AR?'rtl':'ltr',
+    locale:    AR?'ar':'en',
+    headerToolbar:{start:AR?'next,prev':'prev,next',center:'title',end:'dayGridMonth,listMonth'},
+    buttonText:{dayGridMonth:T.month,listMonth:T.list},
+    events: function(info,ok,fail){
+      fetch(`/public-calendar/events?start=${info.startStr}&end=${info.endStr}&venue_id=${currentVenue}`)
+        .then(r=>r.json()).then(ok).catch(fail);
+    },
+    height:'auto',
+    noEventsText:T.empty,
+    eventClick:function(info){ info.jsEvent.preventDefault(); openModal(info.event.id); }
+  });
+  cal.render();
+  window._cal = cal;
+}
+
+function openModal(id){
+  document.getElementById('pcalOverlay').classList.add('open');
+  document.getElementById('modalBody').innerHTML='<div class="text-center py-3"><div class="spinner-border text-primary" style="width:1.8rem;height:1.8rem"></div></div>';
+  fetch(`/public-calendar/booking/${id}`)
+    .then(r=>r.json())
+    .then(d=>{
+      const r=(ic,lb,val,blue)=>val?`<div class="mrow"><span class="mlabel"><i class="bi bi-${ic}"></i>${lb}</span><span class="mvalue" ${blue?'style="color:#0C67EC;font-weight:800"':''}>${val}</span></div>`:'';
+      document.getElementById('modalBody').innerHTML=`
+        <div class="msec-title"><i class="bi bi-calendar-check me-1"></i>${T.bookInfo}</div>
+        ${r('hash',T.bookNo,d.booking_number,true)}${r('card-text',T.titleL,d.title)}
+        <div class="mrow"><span class="mlabel"><i class="bi bi-tag"></i>${T.status}</span><span class="mstatus">${AR?d.status_ar:d.status_en}</span></div>
+        ${r('calendar3',T.start,d.start_time)}${r('calendar3-range',T.end,d.end_time)}
+        <div class="msec-title"><i class="bi bi-building me-1"></i>${T.venueInfo}</div>
+        ${r('building',T.venue,d.venue_name)}${r('people-fill',T.capacity,d.venue_capacity)}${r('geo-alt',T.location,d.location_name)}`;
+    })
+    .catch(()=>{document.getElementById('modalBody').innerHTML=`<div class="alert alert-danger">${T.failLoad}</div>`;});
+}
+
+function closeModal(){document.getElementById('pcalOverlay').classList.remove('open');}
+function overlayClick(e){if(e.target===document.getElementById('pcalOverlay'))closeModal();}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+
+/* ══ Init ══ */
+if(MOBILE){
+  loadCards();
+} else {
+  const s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.8/index.global.min.js';
+  s.onload = initDesktopCalendar;
+  document.head.appendChild(s);
+}
+</script>
+</body>
+</html>

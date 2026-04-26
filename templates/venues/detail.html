@@ -1,0 +1,53 @@
+{% extends "base.html" %}{% block title %}{{ venue.name }} — ARS{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h1><i class="bi bi-building me-2"></i>{{ venue.name }}</h1>
+  <a href="{{ url_for('reservations.new') }}?venue_id={{ venue.id }}" class="btn btn-primary-ars">
+    <i class="bi bi-plus-lg me-1"></i>{% if current_lang=="en" %}Book Now{% else %}احجز الآن{% endif %}
+  </a>
+</div>
+<div class="row g-3">
+  <div class="col-md-5">
+    <div class="card">
+      <div class="card-header"><span>{{ _('معلومات القاعة') }}</div>
+      <div class="card-body">
+        <table class="table table-borderless small mb-0">
+          {% if venue.location %}<tr><th>{{ _('الموقع') }}</th><td>{{ venue.location.name }}</td></tr>{% endif %}
+          {% if venue.capacity %}<tr><th>{{ _('السعة') }}</th><td>{{ venue.capacity }} {% if current_lang=='en' %}persons{% else %}شخص{% endif %}</td></tr>{% endif %}
+          {% if venue.code %}<tr><th><span>{{ _('الكود') }}</th><td><code>{{ venue.code }}</code></td></tr>{% endif %}
+          {% if venue.equipment %}<tr><th>{{ _('التجهيزات') }}</th><td>{{ venue.equipment }}</td></tr>{% endif %}
+          <tr><th>{{ _('يحتاج موافقة') }}</th>
+              <td>{% if venue.requires_approval %}<span class="badge bg-warning text-dark">{{ _('نعم') }}
+                  {% else %}<span class="badge bg-success">{{ _('لا') }}{% endif %}</td></tr>
+          {% if venue.notes %}<tr><th>{{ _('ملاحظات') }}</th><td class="text-muted">{{ venue.notes }}</td></tr>{% endif %}
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-7">
+    <div class="card">
+      <div class="card-header"><span>{{ _('الحجوزات القادمة') }}</div>
+      <div class="card-body p-0">
+        {% if upcoming %}
+        <div class="table-responsive">
+          <table class="table table-sm mb-0">
+            <thead><tr><th>{{ _('العنوان') }}</th><th>{{ _('البداية') }}</th><th>{{ _('الحالة') }}</th></tr></thead>
+            <tbody>
+              {% for r in upcoming %}
+              <tr>
+                <td>{{ r.title }}</td>
+                <td><small>{{ r.start_time.strftime('%Y-%m-%d %H:%M') if r.start_time else '' }}</small></td>
+                <td>{{ r.status }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4 text-muted small">{{ _('لا توجد حجوزات قادمة') }}</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

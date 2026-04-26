@@ -1,0 +1,322 @@
+{% extends "sas/_sas_base.html" %}
+{%- set ar = (current_lang == 'ar') -%}
+
+{% block print_title %}{{ stage.name }} - {% if ar %}الطلاب{% else %}Students{% endif %}{% endblock %}
+
+{% block content %}
+<style>
+  .sas-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: .88rem;
+    color: #6b7280;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .sas-breadcrumb a { color: var(--sas-primary); text-decoration: none; font-weight: 600; }
+  .sas-breadcrumb a:hover { text-decoration: underline; }
+  .sas-breadcrumb .sep { color: #d1d5db; }
+  .sas-search-bar {
+    background: #f9fafb;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .sas-search-bar input {
+    border: none;
+    background: transparent;
+    flex: 1;
+    font-size: .9rem;
+    outline: none;
+  }
+  .sas-section-tabs .nav-pills .nav-link {
+    border-radius: 10px;
+    font-size: .82rem;
+    font-weight: 600;
+    padding: 8px 16px;
+    color: #4b5563;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    margin: 0 3px 6px;
+    transition: all .2s;
+  }
+  .sas-section-tabs .nav-pills .nav-link.active {
+    background: var(--sas-primary);
+    color: #fff;
+    border-color: var(--sas-primary);
+  }
+  .sas-student-card {
+    border: 1.5px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 14px 16px;
+    background: #fff;
+    transition: all .2s;
+    cursor: pointer;
+    position: relative;
+  }
+  .sas-student-card:hover {
+    border-color: var(--sas-primary);
+    box-shadow: 0 4px 12px rgba(8,145,178,.12);
+  }
+  .sas-student-card.selected {
+    border-color: var(--sas-primary);
+    background: #f0f9ff;
+  }
+  .sas-student-card .student-name { font-weight: 700; font-size: .9rem; color: #1f2937; }
+  .sas-student-card .student-number {
+    font-size: .75rem;
+    background: #f3f4f6;
+    border-radius: 20px;
+    padding: 2px 10px;
+    color: #6b7280;
+    font-weight: 600;
+  }
+  .sas-status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+  .sas-status-dot.present { background: #10b981; }
+  .sas-status-dot.absent { background: #ef4444; }
+  .sas-status-dot.late { background: #f59e0b; }
+  .sas-status-dot.leave { background: #3b82f6; }
+  .sas-bulk-bar {
+    position: sticky;
+    bottom: 0;
+    background: #fff;
+    border-top: 2px solid var(--sas-primary);
+    padding: 14px 20px;
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    z-index: 90;
+    box-shadow: 0 -4px 16px rgba(0,0,0,.08);
+    border-radius: 14px 14px 0 0;
+  }
+  .sas-bulk-bar.show { display: flex; }
+  .sas-student-check {
+    position: absolute;
+    top: 10px;
+    inset-inline-end: 10px;
+    width: 20px;
+    height: 20px;
+    accent-color: var(--sas-primary);
+  }
+  @media (max-width: 576px) {
+    .sas-section-tabs .nav-pills .nav-link { font-size: .75rem; padding: 6px 10px; }
+    .sas-bulk-bar { flex-direction: column; align-items: stretch; text-align: center; }
+  }
+</style>
+
+<!-- Breadcrumb -->
+<div class="sas-breadcrumb">
+  <a href="{{ url_for('sas.portal_home', code=staff.staff_code) }}">
+    <i class="bi bi-house-fill"></i> {% if ar %}الرئيسية{% else %}Home{% endif %}
+  </a>
+  <span class="sep"><i class="bi bi-chevron-{{ 'left' if ar else 'right' }}"></i></span>
+  <span class="fw-bold" style="color:#1f2937">{{ stage.name }}</span>
+</div>
+
+<!-- Search Bar -->
+<div class="sas-search-bar">
+  <i class="bi bi-search" style="color:#9ca3af;font-size:1rem"></i>
+  <input type="text" id="studentSearch"
+         placeholder="{% if ar %}بحث عن طالب بالاسم...{% else %}Search students by name...{% endif %}"
+         oninput="filterStudents(this.value)">
+  <span id="searchCount" style="font-size:.78rem;color:#9ca3af;white-space:nowrap"></span>
+</div>
+
+<!-- Section Tabs -->
+{% set sections = [] %}
+{% for cls in stage.classes %}
+  {% for sec in cls.sections %}
+    {% set _ = sections.append({'id': sec.id, 'label': cls.name ~ ' - ' ~ sec.name, 'students': sec.students}) %}
+  {% endfor %}
+{% endfor %}
+
+<div class="sas-section-tabs mb-3">
+  <ul class="nav nav-pills flex-wrap" role="tablist">
+    {% for sec in sections %}
+    <li class="nav-item" role="presentation">
+      <button class="nav-link {% if loop.first %}active{% endif %}"
+              id="sec-tab-{{ sec.id }}"
+              data-bs-toggle="pill"
+              data-bs-target="#sec-pane-{{ sec.id }}"
+              type="button" role="tab"
+              aria-controls="sec-pane-{{ sec.id }}"
+              aria-selected="{{ 'true' if loop.first else 'false' }}">
+        {{ sec.label }}
+        <span class="badge ms-1" style="background:rgba(0,0,0,.1);color:inherit;font-size:.7rem;border-radius:10px;padding:2px 7px">
+          {{ sec.students|length }}
+        </span>
+      </button>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+
+<!-- Tab Content -->
+<form id="bulkForm" method="POST" action="{{ url_for('sas.bulk_absent', code=staff.staff_code) }}" enctype="multipart/form-data">
+
+  <input type="hidden" name="stage_id" value="{{ stage.id }}">
+
+  <div class="tab-content">
+    {% for sec in sections %}
+    <div class="tab-pane fade {% if loop.first %}show active{% endif %}"
+         id="sec-pane-{{ sec.id }}"
+         role="tabpanel"
+         aria-labelledby="sec-tab-{{ sec.id }}">
+      <div class="row g-3">
+        {% for student in sec.students %}
+        <div class="col-sm-6 col-md-4 col-lg-3 student-item" data-name="{{ student.name|lower }}">
+          <div class="sas-student-card" id="card-{{ student.id }}">
+            <input type="checkbox"
+                   class="sas-student-check student-check"
+                   name="student_ids"
+                   value="{{ student.id }}"
+                   onchange="updateBulkBar()">
+            <a href="{{ url_for('sas.student_detail', code=staff.staff_code, student_id=student.id) }}"
+               style="text-decoration:none;color:inherit;display:block">
+              <div class="d-flex align-items-center gap-2 mb-2">
+                {% set record_type = today_records.get(student.id) %}
+                <span class="sas-status-dot {{ record_type if record_type in ('absent','late','leave') else 'present' }}"
+                      title="{% if record_type == 'absent' %}{% if ar %}غائب{% else %}Absent{% endif %}{% elif record_type == 'late' %}{% if ar %}متأخر{% else %}Late{% endif %}{% elif record_type == 'leave' %}{% if ar %}إجازة{% else %}Leave{% endif %}{% else %}{% if ar %}حاضر{% else %}Present{% endif %}{% endif %}">
+                </span>
+                <span class="student-name">{{ student.name }}</span>
+              </div>
+              <div class="d-flex align-items-center justify-content-between">
+                <span class="student-number">
+                  <i class="bi bi-hash"></i>{{ student.student_number }}
+                </span>
+                {% if record_type %}
+                <span class="badge {% if record_type == 'absent' %}bg-danger{% elif record_type == 'late' %}bg-warning text-dark{% elif record_type == 'leave' %}bg-primary{% else %}bg-secondary{% endif %}"
+                      style="font-size:.7rem;border-radius:20px;padding:3px 8px">
+                  {% if record_type == 'absent' %}{% if ar %}غائب{% else %}Absent{% endif %}
+                  {% elif record_type == 'late' %}{% if ar %}متأخر{% else %}Late{% endif %}
+                  {% elif record_type == 'leave' %}{% if ar %}إجازة{% else %}Leave{% endif %}
+                  {% else %}{{ record_type }}{% endif %}
+                </span>
+                {% endif %}
+              </div>
+            </a>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Bulk Action Bar -->
+  <div class="sas-bulk-bar" id="bulkBar">
+    <div class="d-flex align-items-center gap-2 mb-2">
+      <i class="bi bi-check2-square" style="color:var(--sas-primary);font-size:1.2rem"></i>
+      <span style="font-weight:700;font-size:.88rem;color:#1f2937">
+        <span id="selectedCount">0</span>
+        {% if ar %}طالب محدد{% else %}selected{% endif %}
+      </span>
+      <button type="button" class="btn btn-sm btn-outline-secondary" style="font-size:.78rem;border-radius:8px" onclick="clearSelection()">
+        {% if ar %}إلغاء التحديد{% else %}Clear{% endif %}
+      </button>
+      <button type="button" class="btn btn-sm" style="font-size:.78rem;border-radius:8px;background:#f0f9ff;color:var(--sas-primary);border:1px solid var(--sas-primary)" onclick="selectAllVisible()">
+        {% if ar %}تحديد الكل{% else %}Select All{% endif %}
+      </button>
+    </div>
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <select name="record_type" class="form-select form-select-sm" style="width:auto;border-radius:10px;font-weight:600;font-size:.84rem" required>
+        <option value="">{% if ar %}-- نوع السجل --{% else %}-- Record Type --{% endif %}</option>
+        <option value="absent">{% if ar %}غياب{% else %}Absent{% endif %}</option>
+        <option value="late">{% if ar %}تأخر{% else %}Late{% endif %}</option>
+        <option value="leave">{% if ar %}إجازة{% else %}Leave{% endif %}</option>
+        <option value="school_trip">{% if ar %}رحلة مدرسية{% else %}School Trip{% endif %}</option>
+        <option value="school_activity">{% if ar %}نشاط مدرسي{% else %}School Activity{% endif %}</option>
+        <option value="other">{% if ar %}أخرى{% else %}Other{% endif %}</option>
+      </select>
+      <select name="bulk_leave_reason" class="form-select form-select-sm" style="width:auto;border-radius:10px;font-size:.84rem">
+        <option value="">{% if ar %}-- سبب الخروج (اختياري) --{% else %}-- Leave Reason (Optional) --{% endif %}</option>
+        {% for key, labels in leave_types.items() %}
+        <option value="{{ key }}">{{ labels[0] if ar else labels[1] }}</option>
+        {% endfor %}
+      </select>
+      <input type="date" name="record_date" class="form-control form-control-sm"
+             style="width:auto;border-radius:10px;font-size:.84rem"
+             value="{{ today_date|default('') }}" required>
+    </div>
+    <div class="d-flex align-items-center gap-2 flex-wrap mt-2">
+      <input type="text" name="bulk_notes" class="form-control form-control-sm"
+             style="width:220px;border-radius:10px;font-size:.84rem"
+             placeholder="{% if ar %}ملاحظات...{% else %}Notes...{% endif %}">
+      <input type="file" name="bulk_attachment" class="form-control form-control-sm"
+             style="width:200px;border-radius:10px;font-size:.82rem">
+      <button type="submit" class="btn btn-sm"
+              style="background:var(--sas-primary);color:#fff;border:none;border-radius:10px;font-weight:700;padding:8px 20px;font-size:.84rem">
+        <i class="bi bi-check-lg me-1"></i>
+        {% if ar %}تسجيل{% else %}Submit{% endif %}
+      </button>
+    </div>
+  </div>
+</form>
+
+<script>
+function filterStudents(query) {
+  const q = query.toLowerCase().trim();
+  let visible = 0, total = 0;
+  document.querySelectorAll('.student-item').forEach(el => {
+    total++;
+    const name = el.getAttribute('data-name') || '';
+    const match = !q || name.includes(q);
+    el.style.display = match ? '' : 'none';
+    if (match) visible++;
+  });
+  const counter = document.getElementById('searchCount');
+  if (q) {
+    counter.textContent = visible + ' / ' + total;
+  } else {
+    counter.textContent = '';
+  }
+}
+
+function updateBulkBar() {
+  const checks = document.querySelectorAll('.student-check:checked');
+  const bar = document.getElementById('bulkBar');
+  const count = document.getElementById('selectedCount');
+  count.textContent = checks.length;
+  if (checks.length > 0) {
+    bar.classList.add('show');
+  } else {
+    bar.classList.remove('show');
+  }
+  // Highlight selected cards
+  document.querySelectorAll('.sas-student-card').forEach(c => c.classList.remove('selected'));
+  checks.forEach(ch => {
+    const card = ch.closest('.sas-student-card');
+    if (card) card.classList.add('selected');
+  });
+}
+
+function clearSelection() {
+  document.querySelectorAll('.student-check').forEach(ch => { ch.checked = false; });
+  updateBulkBar();
+}
+
+function selectAllVisible() {
+  /* Select all visible (not hidden) student checkboxes across all tabs */
+  document.querySelectorAll('.tab-pane.show.active .student-item').forEach(el => {
+    if (el.style.display !== 'none') {
+      const ch = el.querySelector('.student-check');
+      if (ch) ch.checked = true;
+    }
+  });
+  updateBulkBar();
+}
+</script>
+{% endblock %}

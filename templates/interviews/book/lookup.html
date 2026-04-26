@@ -1,0 +1,119 @@
+{%- set ar = (current_lang == 'ar') -%}
+{% extends 'interviews/_public_base.html' %}
+{% block title %}{% if ar %}ابحث عن حجوزاتي{% else %}Find My Bookings{% endif %}{% endblock %}
+
+{% block extra_style %}
+.search-icon-wrap{width:64px;height:64px;border-radius:20px;background:var(--bc-light);
+  color:var(--bc);display:flex;align-items:center;justify-content:center;
+  font-size:1.8rem;margin:0 auto 20px}
+@media print{.no-print{display:none!important}body{background:white}.pi-card{box-shadow:none!important}}
+{% endblock %}
+
+{% block pi_ticker %}{% endblock %}
+{% block nav_action %}
+<div class="d-flex gap-2 align-items-center">
+  {% if bookings %}
+  <button onclick="window.print()" class="btn btn-sm btn-outline-secondary rounded-3 no-print" style="font-size:.82rem">
+    <i class="bi bi-printer me-1"></i>{% if ar %}طباعة{% else %}Print{% endif %}
+  </button>
+  {% endif %}
+<a href="{{ url_for('interviews.book_welcome') }}" class="nav-back-btn"><i class="bi bi-arrow-{{ 'right' if ar else 'left' }}"></i></a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="row justify-content-center">
+    <div class="col-12 col-sm-9 col-md-7 col-lg-5">
+
+      <div class="pi-card p-4 p-md-5 mb-4 text-center">
+        <div class="search-icon-wrap"><i class="bi bi-search"></i></div>
+        <h4 class="fw-800 mb-2" style="color:#0f172a">
+          {% if ar %}ابحث عن حجوزاتي{% else %}Find your bookings{% endif %}
+        </h4>
+        <p style="color:#64748b;font-size:.9rem;margin-bottom:28px">
+          {% if ar %}أدخل البريد الإلكتروني الذي استخدمته عند الحجز{% else %}Enter the email address you used to book your interviews{% endif %}
+        </p>
+
+        <form method="post">
+          <div class="mb-3" style="text-align:{{ 'right' if ar else 'left' }}">
+            <label class="pi-label">{% if ar %}البريد الإلكتروني{% else %}Email Address{% endif %}</label>
+            <input type="email" name="email" class="pi-input"
+                   placeholder="{% if ar %}email@example.com{% else %}jane@example.com{% endif %}">
+          </div>
+
+          <div class="d-flex align-items-center gap-3 my-3">
+            <div style="flex:1;height:1px;background:#e2e8f0"></div>
+            <span style="font-size:.8rem;color:#94a3b8">{% if ar %}أو{% else %}or{% endif %}</span>
+            <div style="flex:1;height:1px;background:#e2e8f0"></div>
+          </div>
+
+          <div class="mb-4" style="text-align:{{ 'right' if ar else 'left' }}">
+            <label class="pi-label">{% if ar %}رقم الحجز{% else %}Booking Reference{% endif %}</label>
+            <input type="text" name="ref" class="pi-input" style="font-family:monospace;text-transform:uppercase"
+                   placeholder="PI-XXXXXXXX">
+          </div>
+
+          <button type="submit" class="btn-pi btn w-100">
+            <i class="bi bi-search me-2"></i>{% if ar %}بحث{% else %}Search{% endif %}
+          </button>
+        </form>
+      </div>
+
+      {% if bookings %}
+      <div class="pi-card overflow-hidden mb-4">
+        <div class="p-4 border-bottom" style="background:#f8fafc;border-color:#f1f5f9!important">
+          <h6 class="fw-700 mb-0" style="color:#0f172a">
+            <i class="bi bi-calendar-check me-2" style="color:#16a34a"></i>
+            {% if ar %}حجوزاتك ({{ bookings|length }}){% else %}Your Bookings ({{ bookings|length }}){% endif %}
+          </h6>
+        </div>
+        {% for b in bookings %}
+        {%- set sl=b.slot -%}{%- set te=sl.teacher if sl else none -%}
+        <div class="p-4 {{ '' if loop.last else 'border-bottom' }}" style="border-color:#f1f5f9!important">
+          <div class="d-flex align-items-start gap-3 flex-wrap flex-md-nowrap">
+          <div class="text-center" style="min-width:56px">
+            <div class="fw-700" style="color:var(--bc)">{{ sl.start_time if sl else '' }}</div>
+            <div style="font-size:.75rem;color:#94a3b8">{{ sl.slot_date if sl else '' }}</div>
+          </div>
+          <div class="flex-grow-1">
+            <div class="fw-600" style="color:#0f172a;font-size:.92rem">{{ te.name if te else '—' }}</div>
+            <div style="font-size:.8rem;color:#64748b">{{ b.event.name }}</div>
+            <div style="font-size:.78rem;color:#475569;margin-top:4px"><strong>{% if ar %}الحاجز:{% else %}Booked by:{% endif %}</strong> {{ b.parent_name or '—' }}</div>
+            {% if te and te.room %}<div style="font-size:.78rem;color:#94a3b8">
+              {% if ar %}غرفة{% else %}Room{% endif %} {{ te.room }}</div>{% endif %}
+            <div class="font-monospace" style="font-size:.72rem;color:#94a3b8;margin-top:4px">{{ b.booking_ref }}</div>
+          </div>
+          <div class="text-md-end w-100" style="max-width:180px">
+            {% if b.status=='confirmed' %}
+            <span class="badge bg-success mb-2 d-block" style="font-size:.72rem">
+              {% if ar %}مؤكد{% else %}Confirmed{% endif %}
+            </span>
+            <div class="d-flex flex-column gap-1">
+              <a href="{{ url_for('interviews.book_change', booking_ref=b.booking_ref) }}"
+                 class="btn btn-sm btn-outline-primary" style="font-size:.75rem;border-radius:8px">
+                <i class="bi bi-arrow-repeat me-1"></i>{% if ar %}تغيير{% else %}Change{% endif %}
+              </a>
+              <form method="post" action="{{ url_for('interviews.book_cancel', booking_ref=b.booking_ref) }}"
+                    onsubmit="return confirm('{% if ar %}تأكيد الإلغاء؟{% else %}Cancel?{% endif %}')">
+                <button type="submit" class="btn btn-sm btn-outline-danger w-100" style="font-size:.75rem;border-radius:8px">
+                  <i class="bi bi-x-circle me-1"></i>{% if ar %}إلغاء{% else %}Cancel{% endif %}
+                </button>
+              </form>
+            </div>
+            {% else %}
+            <span class="badge bg-light text-secondary border" style="font-size:.72rem">
+              {% if ar %}ملغى{% else %}Cancelled{% endif %}
+            </span>
+            {% endif %}
+          </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+{% endblock %}

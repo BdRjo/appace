@@ -1,0 +1,424 @@
+{% extends 'base.html' %}
+{% block title %}{% if current_lang=="en" %}Reports — ARS{% else %}التقارير — ARS{% endif %}{% endblock %}
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+<style>
+.table-row-clickable:hover { background: #EEF4FD !important; cursor: pointer; }
+.table-row-clickable td { transition: background .15s; }
+</style>
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h1><i class="bi bi-bar-chart me-2"></i><span>{{ _('التقارير والإحصاءات') }}</h1>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('reports.export_csv', type=rtype, filter=filter, start=start, end=end) }}"
+       class="btn btn-outline-success btn-sm">
+      <i class="bi bi-filetype-csv me-1"></i>{{ _('تصدير CSV') }}
+    </a>
+    <a href="{{ url_for('reports.export_excel', type=rtype, filter=filter, start=start, end=end) }}"
+       class="btn btn-outline-success btn-sm">
+      <i class="bi bi-file-earmark-excel me-1"></i>{{ _('تصدير Excel') }}
+    </a>
+    <a href="{{ url_for('reports.export_pdf', type=rtype, filter=filter, start=start, end=end) }}"
+       class="btn btn-outline-danger btn-sm">
+      <i class="bi bi-file-earmark-pdf me-1"></i>{{ _('تصدير PDF') }}
+    </a>
+    <button onclick="window.print()" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-printer me-1"></i>{{ _('طباعة') }}
+    </button>
+    <a href="{{ url_for('reports.comparison') }}" class="btn btn-outline-primary btn-sm">
+      <i class="bi bi-bar-chart-steps me-1"></i>{{ _('المقارنة') }}
+    </a>
+  </div>
+</div>
+
+<!-- فلاتر نوع التقرير — مطابق لـ v54 _rt_defs -->
+<div class="card mb-4">
+  <div class="card-body py-3">
+    <form method="GET" class="row g-2 align-items-end">
+      <div class="col-auto">
+        <span class="fw-bold text-primary">{% if current_lang=='en' %}Report Type:{% else %}نوع التقرير:{% endif %}
+      </div>
+      {% for k, lbl_ar, lbl_en, col in [
+        ('my_reservations', 'حجوزاتي', 'My Bookings', '#247680'),
+        ('all_reservations', 'جميع الحجوزات', 'All Bookings', '#0C67EC'),
+        ('venues', 'القاعات', 'Venues', '#a38079'),
+        ('locations', 'المواقع', 'Locations', '#2E6B8A'),
+      ] %}
+      {% if k != 'all_reservations' or perms.is_admin_or_manager() %}
+      <div class="col-auto">
+        <a href="{{ url_for('reports.index', type=k, filter=filter, start=start, end=end) }}"
+           class="btn btn-sm {{ 'text-white' if rtype==k else 'btn-outline-secondary' }}"
+           style="{{ 'background:'+col+';border-color:'+col if rtype==k else '' }}">
+          {% if current_lang=='en' %}{{ lbl_en }}{% else %}{{ lbl_ar }}{% endif %}
+        </a>
+      </div>
+      {% endif %}
+      {% endfor %}
+      {% if perms.can('users_view') %}
+      <div class="col-auto">
+        <a href="{{ url_for('reports.index', type='users', filter=filter) }}"
+           class="btn btn-sm {{ 'text-white' if rtype=='users' else 'btn-outline-secondary' }}"
+           style="{{ 'background:#8E44AD;border-color:#8E44AD' if rtype=='users' else '' }}">
+          {% if current_lang=='en' %}Users{% else %}المستخدمون{% endif %}
+        </a>
+      </div>
+      {% endif %}
+      {% if perms.is_admin_or_manager() %}
+      <div class="col-auto">
+        <a href="{{ url_for('reports.index', type='email_stats') }}"
+           class="btn btn-sm {{ 'text-white' if rtype=='email_stats' else 'btn-outline-secondary' }}"
+           style="{{ 'background:#0C67EC;border-color:#0C67EC' if rtype=='email_stats' else '' }}">
+          <i class="bi bi-envelope-check me-1"></i>{% if current_lang=='en' %}Email Stats{% else %}إحصائيات البريد{% endif %}
+        </a>
+      </div>
+      {% endif %}
+
+      <div class="col-auto ms-3">
+        <span class="fw-bold text-secondary">{% if current_lang=='en' %}Filter:{% else %}الفلتر:{% endif %}
+      </div>
+      <div class="col-auto">
+        <select name="filter" class="form-select form-select-sm" onchange="this.form.submit()">
+          {% for val, lbl_ar, lbl_en in [('all','الكل','All'),('today','اليوم','Today'),('week','الأسبوع','This Week'),('month','الشهر','This Month'),('custom','مخصص','Custom')] %}
+          <option value="{{ val }}" {% if filter==val %}selected{% endif %}>{% if current_lang=='en' %}{{ lbl_en }}{% else %}{{ lbl_ar }}{% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% if filter == 'custom' %}
+      <div class="col-auto">
+        <input type="date" name="start" class="form-control form-control-sm" value="{{ start }}">
+      </div>
+      <div class="col-auto">
+        <input type="date" name="end" class="form-control form-control-sm" value="{{ end }}">
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-primary btn-sm">{{ _('تطبيق') }}</button>
+      </div>
+      {% endif %}
+      <input type="hidden" name="type" value="{{ rtype }}">
+    </form>
+  </div>
+</div>
+
+<!-- إحصاءات — مطابق لـ v54 update_stats_bar -->
+{% if stats %}
+<div class="row g-3 mb-4">
+  {% if rtype in ('my_reservations','all_reservations') %}
+    {% for lbl, key, grad, icon in [
+      ('الإجمالي','total','#0C67EC,#3D8EF5','calendar3'),
+      ('موافق عليها','approved','#198754,#27AE60','check-circle'),
+      ('معلقة','pending','#E67E22,#F39C12','hourglass-split'),
+      ('مرفوضة','rejected','#DC3545,#E74C3C','x-circle'),
+      ('ملغية','cancelled','#6C757D,#95A5A6','slash-circle'),
+    ] %}
+    <div class="col-6 col-md">
+      <div class="stat-card" style="background:linear-gradient(135deg,{{ grad }})">
+        <i class="bi bi-{{ icon }} d-block mb-1 opacity-75"></i>
+        <div class="num">{{ stats.get(key,0) }}</div>
+        <div class="lbl">{{ lbl }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  {% elif rtype == 'venues' %}
+    <div class="col-6 col-md-3">
+      <div class="stat-card" style="background:linear-gradient(135deg,#a38079,#c09080)">
+        <div class="num">{{ stats.total_venues }}</div><div class="lbl"><span>{{ _('إجمالي القاعات') }}</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card" style="background:linear-gradient(135deg,#198754,#27AE60)">
+        <div class="num">{{ stats.active_venues }}</div><div class="lbl">{{ _('قاعات نشطة') }}</div>
+      </div>
+    </div>
+  {% elif rtype == 'locations' %}
+    <div class="col-6 col-md-3">
+      <div class="stat-card" style="background:linear-gradient(135deg,#2E6B8A,#3498DB)">
+        <div class="num">{{ stats.total_locations }}</div><div class="lbl"><span>{{ _('إجمالي المواقع') }}</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card" style="background:linear-gradient(135deg,#198754,#27AE60)">
+        <div class="num">{{ stats.active_locations }}</div><div class="lbl">{{ _('مواقع نشطة') }}</div>
+      </div>
+    </div>
+  {% elif rtype == 'users' %}
+    <div class="col-6 col-md-3">
+      <div class="stat-card" style="background:linear-gradient(135deg,#8E44AD,#9B59B6)">
+        <div class="num">{{ stats.total_users }}</div><div class="lbl"><span>{{ _('إجمالي المستخدمين') }}</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card" style="background:linear-gradient(135deg,#198754,#27AE60)">
+        <div class="num">{{ stats.active_users }}</div><div class="lbl">{{ _('مستخدمون نشطون') }}</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card" style="background:linear-gradient(135deg,#2E6B8A,#3498DB)">
+        <div class="num">{{ stats.verified_users }}</div><div class="lbl">{{ _('موثّقون') }}</div>
+      </div>
+    </div>
+  {% elif rtype == 'email_stats' %}
+    <div class="col-6 col-md-2">
+      <div class="stat-card" style="background:linear-gradient(135deg,#0C67EC,#3D8EF5)">
+        <div class="num">{{ email_stats.get('total',0) }}</div>
+        <div class="lbl"><i class="bi bi-envelope me-1"></i>{% if current_lang=='en' %}Total Sent{% else %}إجمالي المرسل{% endif %}</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="stat-card" style="background:linear-gradient(135deg,#198754,#27AE60)">
+        <div class="num">{{ email_stats.get('sent',0) }}</div>
+        <div class="lbl">✅ {% if current_lang=='en' %}Success{% else %}نجح{% endif %}</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="stat-card" style="background:linear-gradient(135deg,#DC3545,#e57373)">
+        <div class="num">{{ email_stats.get('failed',0) }}</div>
+        <div class="lbl">❌ {% if current_lang=='en' %}Failed{% else %}فشل{% endif %}</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="stat-card" style="background:linear-gradient(135deg,#0847B0,#0C67EC)">
+        <div class="num">{{ email_stats.get('bulk',0) }}</div>
+        <div class="lbl">📨 {% if current_lang=='en' %}Bulk{% else %}جماعي{% endif %}</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="stat-card" style="background:linear-gradient(135deg,#6C3483,#9B59B6)">
+        <div class="num">{{ email_stats.get('notif',0) }}</div>
+        <div class="lbl">🔔 {% if current_lang=='en' %}Notifications{% else %}إشعارات{% endif %}</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="stat-card" style="background:linear-gradient(135deg,#E67E22,#F39C12)">
+        <div class="num">
+          {% if email_stats.get('total',0) > 0 %}
+            {{ ((email_stats.get('sent',0) / email_stats.get('total',1)) * 100)|round|int }}%
+          {% else %}—{% endif %}
+        </div>
+        <div class="lbl">📊 {% if current_lang=='en' %}Success Rate{% else %}نسبة النجاح{% endif %}</div>
+      </div>
+    </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- Charts row -->
+{% if rtype in ('my_reservations','all_reservations') %}
+<div class="row g-3 mb-4">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-graph-up me-2"></i>{{ _('الحجوزات شهرياً (آخر 12 شهر)') }}</div>
+      <div class="card-body"><canvas id="monthlyChart" height="100"></canvas></div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-pie-chart me-2"></i>{{ _('توزيع الحالات') }}</div>
+      <div class="card-body d-flex align-items-center justify-content-center">
+        <canvas id="statusChart" height="200"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Top venues -->
+{% if top_venues and rtype in ('my_reservations','all_reservations') %}
+<div class="card mb-4">
+  <div class="card-header"><i class="bi bi-trophy me-2"></i>{{ _('أكثر القاعات حجزاً') }}</div>
+  <div class="card-body">
+    {% for name, cnt in top_venues %}
+    <div class="d-flex align-items-center mb-2">
+      {{ loop.index }}
+      <div class="flex-grow-1">
+        <div class="d-flex justify-content-between mb-1">
+          <span>{{ name }}</span>{{ cnt }}
+        </div>
+        {% set pct = (cnt / (top_venues[0][1] if top_venues[0][1] > 0 else 1) * 100)|int %}
+        <div class="progress" style="height:6px">
+          <div class="progress-bar" style="width:{{ pct }}%;background:var(--primary)"></div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Data table — مطابق لـ v54 Treeview -->
+{% if rtype == 'email_stats' %}
+<div class="card mt-4" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.08)">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-envelope-check me-2"></i>{% if current_lang=='en' %}Email Activity Log{% else %}سجل نشاط الرسائل{% endif %}</span>
+    <a href="{{ url_for('admin.email_logs') }}" class="btn btn-sm btn-outline-light">
+      <i class="bi bi-box-arrow-up-right me-1"></i>{% if current_lang=='en' %}Full Log{% else %}السجل الكامل{% endif %}
+    </a>
+  </div>
+  <div class="card-body p-0">
+    {% if email_stats.get('total',0) > 0 %}
+    <!-- Summary chart -->
+    <div class="p-4">
+      <canvas id="emailPieChart" height="90"></canvas>
+    </div>
+    <script>
+    (function(){
+      const ctx = document.getElementById('emailPieChart');
+      if (!ctx || typeof Chart === 'undefined') return;
+      new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['{% if current_lang=="en" %}Success{% else %}نجح{% endif %}',
+                   '{% if current_lang=="en" %}Failed{% else %}فشل{% endif %}',
+                   '{% if current_lang=="en" %}Bulk{% else %}جماعي{% endif %}',
+                   '{% if current_lang=="en" %}Notifications{% else %}إشعارات{% endif %}'],
+          datasets: [{
+            data: [{{ email_stats.get('sent',0) }},
+                   {{ email_stats.get('failed',0) }},
+                   {{ email_stats.get('bulk',0) }},
+                   {{ email_stats.get('notif',0) }}],
+            backgroundColor: ['#198754','#dc3545','#0C67EC','#9B59B6'],
+            borderWidth: 2
+          }]
+        },
+        options: { responsive:true, plugins:{ legend:{ position:'bottom' } } }
+      });
+    })();
+    </script>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-envelope" style="font-size:3rem;opacity:.3"></i>
+      <p class="mt-2">{% if current_lang=='en' %}No email logs yet{% else %}لا توجد سجلات بريد بعد{% endif %}</p>
+      <a href="{{ url_for('admin.settings') }}" class="btn btn-primary btn-sm mt-2">
+        {% if current_lang=='en' %}Configure Email Settings{% else %}إعداد البريد الإلكتروني{% endif %}
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% elif rows %}
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-table me-2"></i>{% if current_lang=="en" %}Data ({{ total_count }} records){% else %}البيانات ({{ total_count }} سجل){% endif %}</span>
+    <small class="text-white opacity-75">{% if current_lang=="en" %}Page {{ page }} of {{ total_pages }}{% else %}صفحة {{ page }} من {{ total_pages }}{% endif %}</small>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>{% for c in columns %}<th>{{ c }}</th>{% endfor %}</tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        {% set row_id = row_ids[loop.index0] if row_ids is defined and row_ids else none %}
+        <tr {% if row_id %}onclick="window.location='{{ url_for(row_url_func, **{row_url_param: row_id}) }}'" style="cursor:pointer" class="table-row-clickable"{% endif %}>
+          {% for cell in row %}
+          <td>
+            {% if loop.index == 1 and row_id %}
+              <a href="{{ url_for(row_url_func, **{row_url_param: row_id}) }}" class="fw-bold text-decoration-none" style="color:var(--primary)">{{ cell }}</a>
+            {% elif loop.index == columns|length and rtype in ('my_reservations','all_reservations') %}
+              {% set s = cell %}
+              <span class="badge badge-{{ s }}">
+                {% if current_lang=='en' %}{{ {'pending':'Pending','approved':'Approved','rejected':'Rejected','cancelled':'Cancelled','completed':'Completed'}.get(s,s) }}{% else %}{{ {'pending':'معلق','approved':'موافق','rejected':'مرفوض','cancelled':'ملغي','completed':'مكتمل'}.get(s,s) }}{% endif %}
+              </span>
+            {% elif cell == '✓' %}✓
+            {% elif cell == '✗' %}✗
+            {% else %}{{ cell }}{% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if total_pages > 1 %}
+  <div class="card-footer d-flex justify-content-center gap-2">
+    {% if page > 1 %}
+    <a href="{{ url_for('reports.index', type=rtype, filter=filter, start=start, end=end, page=page-1) }}"
+       class="btn btn-sm btn-outline-primary">{{ _('« السابق') }}</a>
+    {% endif %}
+    {{ page }} / {{ total_pages }}
+    {% if page < total_pages %}
+    <a href="{{ url_for('reports.index', type=rtype, filter=filter, start=start, end=end, page=page+1) }}"
+       class="btn btn-sm btn-outline-primary">{{ _('التالي »') }}</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% else %}
+{% if rtype != 'email_stats' %}
+<div class="card">
+  <div class="card-body text-center py-5 text-muted">
+    <i class="bi bi-inbox" style="font-size:3rem;color:#ccc"></i>
+    <p class="mt-3">{{ _('لا توجد بيانات لعرضها') }}</p>
+  </div>
+</div>
+{% endif %}
+{% endif %}
+
+{% if monthly %}
+<script>
+const monthLabels = {{ monthly | map(attribute='month') | list | tojson }};
+const monthData   = {{ monthly | map(attribute='count') | list | tojson }};
+
+const isRTL = document.documentElement.dir === 'rtl';
+Chart.defaults.font.family = "'Segoe UI', Tahoma, Arial, sans-serif";
+
+new Chart(document.getElementById('monthlyChart'), {
+  type: 'bar',
+  data: {
+    labels: monthLabels,
+    datasets: [{ label: '{{ _("الحجوزات") }}', data: monthData,
+      backgroundColor: 'rgba(12,103,236,0.75)', borderColor: '#0C67EC',
+      borderWidth: 1, borderRadius: 6 }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: { rtl: isRTL, textDirection: isRTL ? 'rtl' : 'ltr' }
+    },
+    scales: {
+      y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 12 } } },
+      x: {
+        ticks: {
+          font: { size: 11 },
+          maxRotation: 35,
+          minRotation: 0,
+          callback: function(val, index) {
+            const label = this.getLabelForValue(val);
+            return label && label.length > 10 ? label.substring(0,10)+'…' : label;
+          }
+        }
+      }
+    }
+  }
+});
+
+{% if stats %}
+const s = {{ stats | tojson }};
+if (document.getElementById('statusChart')) {
+  new Chart(document.getElementById('statusChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['{{ _("موافقة") }}','{{ _("معلقة") }}','{{ _("مرفوضة") }}','{{ _("ملغية") }}'],
+      datasets: [{ data: [s.approved||0, s.pending||0, s.rejected||0, s.cancelled||0],
+        backgroundColor: ['#198754','#FFC107','#DC3545','#6C757D'],
+        borderWidth: 2 }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          rtl: isRTL,
+          labels: { font: { size: 12 }, padding: 16, usePointStyle: true }
+        },
+        tooltip: { rtl: isRTL, textDirection: isRTL ? 'rtl' : 'ltr' }
+      }
+    }
+  });
+}
+{% endif %}
+</script>
+{% endif %}
+{% endblock %}

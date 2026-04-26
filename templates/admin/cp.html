@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% block title %}Control Panel — ARS{% endblock %}
+{% block content %}
+
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-sliders me-2"></i>{% if current_lang=='en' %}Control Panel{% else %}لوحة التحكم{% endif %}</h1>
+    <p class="text-muted small mb-0">{% if current_lang=='en' %}Manage each page settings, titles and visibility{% else %}أدر إعدادات كل صفحة وعناوينها وإمكانية الوصول إليها{% endif %}</p>
+  </div>
+  <form method="POST" action="{{ url_for('cp.reset_all') }}" onsubmit="return confirm('Reset ALL page settings?')">
+    <button type="submit" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-counterclockwise me-1"></i>{% if current_lang=='en' %}Reset All{% else %}إعادة الكل{% endif %}
+    </button>
+  </form>
+</div>
+
+<div class="row g-3">
+  {% for page in pages %}
+  {% set pid = page.id %}
+  {% set page_cfg = cfg.get(pid, {}) %}
+  {% set is_enabled = page_cfg.get('enabled', True) %}
+
+  <div class="col-12 col-md-6 col-xl-4">
+    <div class="card h-100" style="border-radius:14px;overflow:hidden;border:none;box-shadow:0 3px 14px rgba(0,0,0,.09);transition:.2s">
+
+      <!-- Card Header -->
+      <div class="card-header d-flex align-items-center justify-content-between py-3 px-4"
+           style="background:{{ page.color }};border:none">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi {{ page.icon }} fs-5" style="color:rgba(255,255,255,.9)"></i>
+          <div>
+            <div style="color:#fff;font-weight:700;font-size:.9rem;line-height:1.2">
+              {{ page.label_ar if current_lang != 'en' else page.label_en }}
+            </div>
+            <div style="color:rgba(255,255,255,.65);font-size:.68rem">/{{ page.id }}</div>
+          </div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <!-- Status badge -->
+          <span class="badge" style="background:{{ 'rgba(255,255,255,.25)' if is_enabled else 'rgba(0,0,0,.25)' }};font-size:.7rem">
+            {% if is_enabled %}
+              <i class="bi bi-eye me-1"></i>{% if current_lang=='en' %}Visible{% else %}ظاهر{% endif %}
+            {% else %}
+              <i class="bi bi-eye-slash me-1"></i>{% if current_lang=='en' %}Hidden{% else %}مخفي{% endif %}
+            {% endif %}
+          </span>
+        </div>
+      </div>
+
+      <!-- Card Body: summary of settings -->
+      <div class="card-body px-4 py-3">
+        <div class="d-flex flex-wrap gap-1 mb-3">
+          {% for field in page.fields %}
+          {% if field.type == 'toggle' %}
+          {% set val = page_cfg.get(field.key, field.default) %}
+          <span class="badge" style="font-size:.7rem;background:{{ '#d4eaec' if val else '#f5e6d0' }};color:{{ '#0847B0' if val else '#7a3800' }};border:1px solid {{ '#3D8EF5' if val else '#5C9BDE' }}">
+            <i class="bi {{ 'bi-check-circle' if val else 'bi-x-circle' }} me-1"></i>{{ field.label_ar if current_lang != 'en' else field.label }}
+          </span>
+          {% elif field.type == 'text' %}
+          {% set val = page_cfg.get(field.key, field.default) %}
+          {% if val and val != field.default %}
+          <span class="badge" style="font-size:.7rem;background:#e8f5e9;color:#1b5e20;border:1px solid #a5d6a7">
+            <i class="bi bi-pencil me-1"></i>{{ field.key }}: {{ val[:15] }}{% if val|length > 15 %}…{% endif %}
+          </span>
+          {% endif %}
+          {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Card Footer -->
+      <div class="card-footer bg-white border-0 px-4 pb-3 pt-0 d-flex gap-2">
+        <a href="{{ url_for('cp.page_edit', page_id=pid) }}" class="btn btn-sm btn-primary-ars flex-fill">
+          <i class="bi bi-gear me-1"></i>{% if current_lang=='en' %}Manage{% else %}إدارة{% endif %}
+        </a>
+        {% set url_map = {
+          'dashboard':    '/admin/dashboard',
+          'reservations': '/reservations/',
+          'venues':       '/venues/',
+          'venues_mgmt':  '/venues-mgmt/',
+          'locations':    '/locations/',
+          'users':        '/users/',
+          'contacts':     '/contacts/',
+          'checklists':   '/checklists/',
+          'reports':      '/reports/',
+          'calendar':     '/calendar/',
+          'blocked':      '/blocked/'
+        } %}
+        {% if pid in url_map %}
+        <a href="{{ url_map[pid] }}" target="_blank"
+           class="btn btn-sm btn-outline-secondary"
+           title="{% if current_lang=='en' %}Open Page{% else %}فتح الصفحة{% endif %}">
+          <i class="bi bi-box-arrow-up-right"></i>
+        </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

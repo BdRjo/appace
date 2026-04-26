@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+{% block content %}
+{%- set ar = (current_lang == 'ar') -%}
+<style>
+.req-badge{border-radius:100px;padding:4px 12px;font-size:.75rem;font-weight:600}
+.req-pending{background:#fef3c7;color:#92400e}
+.req-approved{background:#dcfce7;color:#166534}
+.req-rejected{background:#fef2f2;color:#991b1b}
+.req-amended{background:#dbeafe;color:#1e40af}
+</style>
+
+<div class="container-fluid py-4">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
+    <div>
+      <h4 class="fw-800 mb-1" style="color:#0f172a">
+        <i class="bi bi-inbox me-2" style="color:#6366f1"></i>
+        {% if ar %}طلبات المواعيد — {{ ev.name }}{% else %}Appointment Requests — {{ ev.name }}{% endif %}
+      </h4>
+    </div>
+    <a href="{{ url_for('interviews.admin_index') }}" class="btn btn-outline-secondary btn-sm rounded-3">
+      <i class="bi bi-arrow-{{ 'right' if ar else 'left' }} me-1"></i>{% if ar %}رجوع{% else %}Back{% endif %}
+    </a>
+  </div>
+
+  {# Filter tabs #}
+  <div class="d-flex gap-2 mb-3 flex-wrap">
+    {% for val, lbl_ar, lbl_en, icon in [('','الكل','All','funnel'),('pending','معلّق','Pending','hourglass'),('approved','مقبول','Approved','check-circle'),('rejected','مرفوض','Rejected','x-circle'),('amended','معدّل','Amended','pencil')] %}
+    <a href="{{ url_for('interviews.admin_requests', event_id=ev.id, status=val) }}"
+       class="btn btn-sm rounded-3 {{ 'btn-primary' if sel_status==val else 'btn-outline-secondary' }}">
+      <i class="bi bi-{{ icon }} me-1"></i>{% if ar %}{{ lbl_ar }}{% else %}{{ lbl_en }}{% endif %}
+    </a>
+    {% endfor %}
+  </div>
+
+  {# Requests table #}
+  <div class="card border-0" style="border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle" style="font-size:.88rem">
+        <thead style="background:#f8fafc">
+          <tr>
+            <th>{% if ar %}الرمز{% else %}Code{% endif %}</th>
+            <th>{% if ar %}ولي الأمر{% else %}Parent{% endif %}</th>
+            <th>{% if ar %}الطالب{% else %}Child{% endif %}</th>
+            <th>{% if ar %}السبب{% else %}Reason{% endif %}</th>
+            <th>{% if ar %}التاريخ المفضل{% else %}Preferred{% endif %}</th>
+            <th>{% if ar %}الحالة{% else %}Status{% endif %}</th>
+            <th>{% if ar %}إجراء{% else %}Action{% endif %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in requests %}
+          <tr>
+            <td class="font-monospace fw-600" style="font-size:.8rem">{{ r.request_code }}</td>
+            <td>
+              <div class="fw-600">{{ r.parent_name }}</div>
+              {% if r.parent_email %}<div style="font-size:.75rem;color:#64748b">{{ r.parent_email }}</div>{% endif %}
+            </td>
+            <td>{{ r.child_name }}{% if r.child_grade %}<br><small class="text-muted">{{ r.child_grade }}</small>{% endif %}</td>
+            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ r.reason }}">{{ r.reason[:80] }}{% if r.reason|length > 80 %}…{% endif %}</td>
+            <td>{{ r.preferred_date or '—' }}<br><small>{{ r.preferred_time or '' }}</small></td>
+            <td>
+              <span class="req-badge req-{{ r.status }}">
+                {% if r.status=='pending' %}{% if ar %}معلّق{% else %}Pending{% endif %}
+                {% elif r.status=='approved' %}{% if ar %}مقبول{% else %}Approved{% endif %}
+                {% elif r.status=='rejected' %}{% if ar %}مرفوض{% else %}Rejected{% endif %}
+                {% elif r.status=='amended' %}{% if ar %}معدّل{% else %}Amended{% endif %}
+                {% endif %}
+              </span>
+            </td>
+            <td>
+              {% if r.status == 'pending' %}
+              <button class="btn btn-sm btn-outline-primary rounded-3" data-bs-toggle="modal" data-bs-target="#reqModal{{ r.id }}" style="font-size:.78rem">
+                <i class="bi bi-gear me-1"></i>{% if ar %}مراجعة{% else %}Review{% endif %}
+              </button>
+              {% else %}
+              <span style="font-size:.75rem;color:#94a3b8">{% if r.assigned_date %}{{ r.assigned_date }} {{ r.assigned_time or '' }}{% else %}—{% endif %}</span>
+              {% endif %}
+            </td>
+          </tr>
+
+          {# Action modal #}
+          {% if r.status == 'pending' %}
+          <div class="modal fade" id="reqModal{{ r.id }}" tabindex="-1">
+            <div class="modal-dialog">
+              <div class="modal-content" style="border-radius:16px">
+                <div class="modal-header" style="background:#f8fafc;border-radius:16px 16px 0 0">
+                  <h6 class="modal-title fw-700">{% if ar %}مراجعة الطلب{% else %}Review Request{% endif %} — {{ r.request_code }}</h6>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                  <div class="mb-3 p-3" style="background:#f1f5f9;border-radius:10px;font-size:.88rem">
+                    <strong>{{ r.parent_name }}</strong> — {{ r.child_name }}<br>
+                    <span class="text-muted">{{ r.reason }}</span>
+                  </div>
+                  <form method="post" action="{{ url_for('interviews.admin_request_action', rid=r.id) }}">
+                    <div class="row g-2 mb-3">
+                      <div class="col-6">
+                        <label class="form-label small fw-bold">{% if ar %}التاريخ{% else %}Date{% endif %}</label>
+                        <input type="date" name="assigned_date" class="form-control form-control-sm" value="{{ r.preferred_date or '' }}">
+                      </div>
+                      <div class="col-6">
+                        <label class="form-label small fw-bold">{% if ar %}الوقت{% else %}Time{% endif %}</label>
+                        <input type="time" name="assigned_time" class="form-control form-control-sm" value="08:00">
+                      </div>
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label small fw-bold">{% if ar %}ملاحظات{% else %}Notes{% endif %}</label>
+                      <textarea name="admin_notes" class="form-control form-control-sm" rows="2"></textarea>
+                    </div>
+                    <div class="d-flex gap-2">
+                      <button type="submit" name="action" value="approve" class="btn btn-success btn-sm flex-fill rounded-3">
+                        <i class="bi bi-check-lg me-1"></i>{% if ar %}قبول{% else %}Approve{% endif %}
+                      </button>
+                      <button type="submit" name="action" value="amend" class="btn btn-primary btn-sm flex-fill rounded-3">
+                        <i class="bi bi-pencil me-1"></i>{% if ar %}تعديل{% else %}Amend{% endif %}
+                      </button>
+                      <button type="submit" name="action" value="reject" class="btn btn-danger btn-sm flex-fill rounded-3">
+                        <i class="bi bi-x-lg me-1"></i>{% if ar %}رفض{% else %}Reject{% endif %}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endif %}
+          {% else %}
+          <tr><td colspan="7" class="text-center py-5 text-muted">{% if ar %}لا توجد طلبات{% else %}No requests{% endif %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

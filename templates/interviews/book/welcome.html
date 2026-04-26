@@ -1,0 +1,257 @@
+{%- set ar = (current_lang == 'ar') -%}
+{% extends 'interviews/_public_base.html' %}
+{% block title %}{% if ar %}مقابلات أولياء الأمور{% else %}Parent Interviews{% endif %}{% endblock %}
+
+{% block extra_style %}
+.hero{padding:0 0 8px}
+.hero-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--bc-light);color:var(--bc);
+  border-radius:100px;padding:4px 12px;font-size:.75rem;font-weight:600;
+  border:1px solid var(--bc-mid);margin-bottom:12px;
+}
+.status-banner{
+  background:white;border-radius:14px;padding:12px 18px;
+  border:1.5px dashed #e2e8f0;text-decoration:none;color:inherit;
+  display:flex;align-items:center;gap:12px;
+  transition:all .2s;margin-bottom:18px;
+}
+.status-banner:hover{border-color:var(--bc-mid);box-shadow:0 2px 12px rgba(0,0,0,.06);color:inherit}
+.status-banner .sb-icon{
+  width:40px;height:40px;border-radius:12px;background:#f0fdf4;color:#16a34a;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1rem;
+}
+.status-banner .sb-text{flex:1;min-width:0}
+.status-banner .sb-text strong{font-size:.88rem;color:#0f172a;display:block}
+.status-banner .sb-text span{font-size:.78rem;color:#64748b}
+.status-banner .sb-arrow{color:var(--bc);font-size:.82rem;font-weight:600;white-space:nowrap;flex-shrink:0}
+.action-card{
+  background:white;border-radius:16px;padding:24px 20px;
+  box-shadow:0 1px 3px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.06);
+  border:1.5px solid #f1f5f9;
+  transition:all .25s;cursor:pointer;text-decoration:none;color:inherit;
+  display:flex;flex-direction:column;height:100%;
+}
+.action-card:hover{transform:translateY(-3px);box-shadow:0 6px 24px rgba(0,0,0,.1);border-color:var(--bc-mid);color:inherit}
+.action-card .icon-wrap{
+  width:48px;height:48px;border-radius:14px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.3rem;margin-bottom:12px;
+}
+.action-card h5{font-weight:700;font-size:.95rem;margin-bottom:6px;color:#0f172a}
+.action-card p{color:#64748b;font-size:.82rem;margin-bottom:auto;line-height:1.5}
+.action-card .link-arrow{
+  color:var(--bc);font-weight:600;font-size:.82rem;
+  display:flex;align-items:center;gap:4px;margin-top:12px;
+}
+.welcome-wrap{max-width:560px;margin:0 auto}
+@media(max-width:575px){
+  .action-card{padding:18px 16px}
+  .action-card .icon-wrap{width:42px;height:42px;font-size:1.1rem;margin-bottom:10px}
+  .action-card h5{font-size:.88rem}
+  .action-card p{font-size:.78rem}
+}
+{% endblock %}
+
+{% block pi_ticker %}{% endblock %}
+{% block main_class %}pi-shell-tight{% endblock %}
+
+{% block nav_action %}
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="hero text-center">
+    {% if logo %}
+    <div class="mb-2">
+      <img src="{{ logo }}" alt="logo" style="max-width:80px;max-height:80px;object-fit:contain;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.08)">
+    </div>
+    {% endif %}
+    <div class="hero-badge">
+      <i class="bi bi-calendar2-heart-fill"></i>
+      {% if ar %}مقابلات أولياء الأمور - المعلمين{% else %}Parent-Teacher Interviews{% endif %}
+    </div>
+  </div>
+
+  <div class="welcome-wrap">
+    {# ── Status banner at top ── #}
+    <a href="/interviews/calendar#status-card" class="status-banner">
+      <div class="sb-icon"><i class="bi bi-clock-history"></i></div>
+      <div class="sb-text">
+        <strong>{% if ar %}هل لديك طلب سابق؟{% else %}Have a previous request?{% endif %}</strong>
+        <span>{% if ar %}تحقق من حالة طلبك{% else %}Check your request status{% endif %}</span>
+      </div>
+      <div class="sb-arrow">
+        {% if ar %}تحقق <i class="bi bi-arrow-left"></i>{% else %}Check <i class="bi bi-arrow-right"></i>{% endif %}
+      </div>
+    </a>
+
+    {# ── 2×2 equal card grid ── #}
+    <div class="row g-3">
+      {# Card 1: I am a Parent — go directly to parent table #}
+      <div class="col-6">
+        {% if active_events is defined and active_events|length == 1 %}
+        <a href="{{ url_for('interviews.book_parent_table', event_id=active_events[0].id) }}" class="action-card">
+        {% elif active_events is defined and active_events|length > 1 %}
+        <a href="#event-picker" class="action-card" id="open-book-card">
+        {% else %}
+        <a href="#no-events" class="action-card" id="open-noevents-card">
+        {% endif %}
+          <div class="icon-wrap" style="background:var(--bc-light);color:var(--bc)"><i class="bi bi-people-fill"></i></div>
+          <h5>{% if ar %}أنا ولي أمر{% else %}I am a Parent{% endif %}</h5>
+          <p>{% if ar %}احجز مواعيد مقابلاتك مع المعلمين{% else %}Book appointments with teachers{% endif %}</p>
+          <div class="link-arrow">
+            {% if ar %}احجز مقابلة <i class="bi bi-arrow-left"></i>
+            {% else %}Book an interview <i class="bi bi-arrow-right"></i>{% endif %}
+          </div>
+        </a>
+      </div>
+
+      {# Card 2: General Appointment #}
+      <div class="col-6">
+        <a href="/interviews/calendar" class="action-card">
+          <div class="icon-wrap" style="background:#f5f3ff;color:#8b5cf6"><i class="bi bi-calendar-plus"></i></div>
+          <h5>{% if ar %}طلب موعد عام{% else %}General Appointment{% endif %}</h5>
+          <p>{% if ar %}حجز موعد بدون رمز{% else %}Book without a code{% endif %}</p>
+          <div class="link-arrow">
+            {% if ar %}طلب موعد <i class="bi bi-arrow-left"></i>
+            {% else %}Request <i class="bi bi-arrow-right"></i>{% endif %}
+          </div>
+        </a>
+      </div>
+
+      {# Card 3: My Bookings #}
+      <div class="col-6">
+        <a href="{{ url_for('interviews.book_lookup') }}" class="action-card">
+          <div class="icon-wrap" style="background:#fef3c7;color:#d97706"><i class="bi bi-search"></i></div>
+          <h5>{% if ar %}حجوزاتي{% else %}My Bookings{% endif %}</h5>
+          <p>{% if ar %}ابحث عن مقابلاتك المؤكدة الحالية{% else %}Find your confirmed bookings{% endif %}</p>
+          <div class="link-arrow">
+            {% if ar %}عرض الحجوزات <i class="bi bi-arrow-left"></i>
+            {% else %}View bookings <i class="bi bi-arrow-right"></i>{% endif %}
+          </div>
+        </a>
+      </div>
+
+      {# Card 4: Teacher Portal #}
+      <div class="col-6">
+        <a href="#teacher-form" class="action-card" id="open-teacher-card">
+          <div class="icon-wrap" style="background:#eef2ff;color:#6366f1"><i class="bi bi-mortarboard"></i></div>
+          <h5>{% if ar %}بوابة المعلم{% else %}Teacher Portal{% endif %}</h5>
+          <p>{% if ar %}ادخل برمزك الخاص{% else %}Enter with your teacher code{% endif %}</p>
+          <div class="link-arrow">
+            {% if ar %}دخول البوابة <i class="bi bi-arrow-left"></i>
+            {% else %}Open portal <i class="bi bi-arrow-right"></i>{% endif %}
+          </div>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  {# ── No events message (when no active events) ── #}
+  <div class="row justify-content-center mt-3">
+    <div class="col-12 col-sm-8 col-md-5">
+      <div id="no-events" class="pi-card p-3 text-center" style="display:none">
+        <i class="bi bi-calendar-x display-4 opacity-25 d-block mb-3"></i>
+        <h6 class="fw-700 mb-2">
+          {% if ar %}لا توجد فعاليات مفتوحة حالياً{% else %}No open events at this time{% endif %}
+        </h6>
+        <p class="text-muted mb-0" style="font-size:.85rem">
+          {% if ar %}يرجى المحاولة لاحقاً أو التواصل مع الإدارة{% else %}Please check back later or contact the school{% endif %}
+        </p>
+      </div>
+    </div>
+  </div>
+
+  {# ── Event picker (only when multiple active events) ── #}
+  {% if active_events is defined and active_events|length > 1 %}
+  <div class="row justify-content-center mt-3">
+    <div class="col-12 col-sm-8 col-md-5">
+      <div id="event-picker" class="pi-card p-3" style="display:none">
+        <h6 class="fw-700 mb-3">
+          <i class="bi bi-calendar2-heart me-2 text-primary"></i>
+          {% if ar %}اختر الفعالية{% else %}Select Event{% endif %}
+        </h6>
+        <div class="d-flex flex-column gap-2">
+          {% for ev in active_events %}
+          <a href="{{ url_for('interviews.book_parent_table', event_id=ev.id) }}"
+             class="d-flex align-items-center gap-3 p-3 text-decoration-none"
+             style="background:#f8fafc;border-radius:12px;border:1.5px solid #e2e8f0;color:inherit;transition:all .2s"
+             onmouseover="this.style.borderColor='var(--bc)'" onmouseout="this.style.borderColor='#e2e8f0'">
+            <div style="width:36px;height:36px;border-radius:10px;background:{{ ev.brand_color or 'var(--bc)' }};display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:.82rem;flex-shrink:0">{{ ev.name[0].upper() }}</div>
+            <div style="flex:1;min-width:0">
+              <div class="fw-600" style="font-size:.88rem">{{ ev.name }}</div>
+              {% if ev.school_name %}<div style="font-size:.75rem;color:#64748b">{{ ev.school_name }}</div>{% endif %}
+            </div>
+            <i class="bi bi-chevron-{{ 'left' if ar else 'right' }}" style="color:var(--bc)"></i>
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Inline teacher-form ── #}
+  <div class="row justify-content-center mt-3">
+    <div class="col-12 col-sm-8 col-md-5">
+      <div id="teacher-form" class="pi-card p-3" style="display:none">
+        <h6 class="fw-700 mb-3" style="font-size:.9rem">
+          <i class="bi bi-mortarboard me-2" style="color:#6366f1"></i>
+          {% if ar %}بوابة المعلم{% else %}Teacher Portal{% endif %}
+        </h6>
+        <form id="teacher-code-form" onsubmit="goTeacher(event)">
+          <div class="mb-3">
+            <input type="text" id="teacher-code-input" class="pi-input text-center"
+                   style="font-size:1.2rem;font-weight:700;letter-spacing:4px;font-family:monospace"
+                   placeholder="{% if ar %}رمز المعلم{% else %}TEACHER-CODE{% endif %}" maxlength="30" autocomplete="off" required>
+          </div>
+          <button type="submit" class="btn-pi btn w-100">
+            {% if ar %}<i class="bi bi-arrow-left-circle me-2"></i>دخول البوابة
+            {% else %}<i class="bi bi-arrow-right-circle me-2"></i>Open My Portal{% endif %}
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_script %}
+<script>
+// Multi-event picker
+var bookCard = document.getElementById('open-book-card');
+if(bookCard){
+  bookCard.addEventListener('click', function(e){
+    e.preventDefault();
+    var f = document.getElementById('event-picker');
+    if(!f) return;
+    f.style.display = f.style.display==='none' ? 'block' : 'none';
+    if(f.style.display==='block'){ f.scrollIntoView({behavior:'smooth',block:'center'}); }
+  });
+}
+// No events fallback
+var noEvCard = document.getElementById('open-noevents-card');
+if(noEvCard){
+  noEvCard.addEventListener('click', function(e){
+    e.preventDefault();
+    var f = document.getElementById('no-events');
+    if(!f) return;
+    f.style.display = f.style.display==='none' ? 'block' : 'none';
+    if(f.style.display==='block'){ f.scrollIntoView({behavior:'smooth',block:'center'}); }
+  });
+}
+document.getElementById('open-teacher-card').addEventListener('click', function(e){
+  e.preventDefault();
+  var f = document.getElementById('teacher-form');
+  f.style.display = f.style.display==='none' ? 'block' : 'none';
+  if(f.style.display==='block'){ f.scrollIntoView({behavior:'smooth',block:'center'}); f.querySelector('input').focus(); }
+});
+function goTeacher(e){
+  e.preventDefault();
+  var code = document.getElementById('teacher-code-input').value.trim();
+  if(code) window.location.href = '/interviews/teacher/' + encodeURIComponent(code);
+}
+</script>
+{% endblock %}

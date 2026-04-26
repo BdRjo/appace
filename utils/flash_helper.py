@@ -1,0 +1,134 @@
+"""
+Bilingual flash messages — auto-translate based on session lang
+"""
+from flask import session
+
+# AR → EN translation map
+_FLASH_MAP = {
+    'حدث خطأ غير متوقع': 'An unexpected error occurred',
+    'صلاحيات غير كافية': 'Insufficient permissions',
+    'تم تعديل جهة الاتصال': 'Contact updated successfully',
+    'تم إضافة جهة الاتصال': 'Contact added successfully',
+    'تم حذف القاعة': 'Venue deleted successfully',
+    'تم تعديل القاعة': 'Venue updated successfully',
+    'تم إضافة القاعة بنجاح': 'Venue added successfully',
+    'تم حذف الموقع': 'Location deleted successfully',
+    'تم تعديل الموقع': 'Location updated successfully',
+    'تم إضافة الموقع بنجاح': 'Location added successfully',
+    'تم تعديل الحجز': 'Booking updated successfully',
+    'تم إضافة الحجز بنجاح': 'Booking created successfully',
+    'تم حذف المستخدم': 'User deleted successfully',
+    'تم إضافة المستخدم بنجاح': 'User added successfully',
+    'تم تحديث بيانات المستخدم': 'User data updated successfully',
+    'تم الموافقة على الحجز': 'Booking approved successfully',
+    'النظام معلق مؤقتاً للصيانة': 'System temporarily suspended for maintenance',
+    'تم تسجيل الخروج بنجاح': 'Signed out successfully',
+    '⏱️ تم تسجيل خروجك تلقائياً بسبب عدم النشاط': '⏱️ You were automatically signed out due to inactivity',
+    'اسم المستخدم أو كلمة المرور غير صحيحة': 'Incorrect username or password',
+    'حسابك موقوف. تواصل مع المدير.': 'Your account is suspended. Contact admin.',
+    'بريدك الإلكتروني غير مفعّل. تحقق من بريدك أو تواصل مع المدير.': 'Email not verified. Check your inbox or contact admin.',
+    'النظام معلق مؤقتاً. تواصل مع المدير.': 'System temporarily suspended. Contact admin.',
+    'التسجيل معلق مؤقتاً. تواصل مع المدير.': 'Registration temporarily suspended. Contact admin.',
+    'تم التسجيل بنجاح! يمكنك تسجيل الدخول الآن.': 'Registered successfully! You can sign in now.',
+    'كلمة المرور الحالية غير صحيحة': 'Current password is incorrect',
+    'كلمة المرور الجديدة قصيرة جداً': 'New password is too short',
+    'تم تغيير كلمة المرور': 'Password changed successfully',
+    'تم حفظ التغييرات': 'Changes saved successfully',
+    'البريد الإلكتروني غير مسجل': 'Email address not found',
+    'انتهت صلاحية الكود. أعد المحاولة.': 'Code expired. Please try again.',
+    'الكود غير صحيح': 'Incorrect code',
+    'كلمتا المرور غير متطابقتين': 'Passwords do not match',
+    'كلمة المرور يجب أن تكون 6 أحرف على الأقل': 'Password must be at least 6 characters',
+    'كلمة المرور 6 أحرف على الأقل': 'Password must be at least 6 characters',
+    'تم تغيير كلمة المرور بنجاح. يمكنك تسجيل الدخول.': 'Password changed successfully. You can now sign in.',
+    'تم إلغاء الحجز': 'Booking cancelled successfully',
+    'تم رفض الحجز': 'Booking rejected',
+    'تم إعادة تفعيل الحجز وإرجاعه للمراجعة': 'Booking reactivated and returned for review',
+    'الحجز ملغي أو مرفوض بالفعل': 'Booking is already cancelled or rejected',
+    'لا يمكن تعديل هذا الحجز — الحالة الحالية: ': 'Cannot edit this booking — current status: ',
+    'يمكن إعادة تفعيل الحجوزات الملغية أو المرفوضة فقط': 'Only cancelled or rejected bookings can be reactivated',
+    'يمكن الموافقة فقط على الحجوزات المعلقة': 'Only pending bookings can be approved',
+    'يمكن رفض الحجوزات المعلقة فقط': 'Only pending bookings can be rejected',
+    'ليس لديك صلاحية إنشاء حجز': 'You do not have permission to create bookings',
+    'لا يمكن التقييم إلا للحجوزات المعتمدة': 'Only approved bookings can be rated',
+    'لقد قيّمت هذا الحجز مسبقاً': 'You have already rated this booking',
+    'يرجى اختيار تقييم من 1 إلى 5': 'Please select a rating from 1 to 5',
+    'تم تحديث شريط الأخبار': 'News ticker updated',
+    'لا توجد قاعدة بيانات SQLite (PostgreSQL لا تدعم هذه العملية في Render)': 'No SQLite database (PostgreSQL does not support this on Render)',
+    'اسم القاعة مطلوب': 'Venue name is required',
+    'اسم الموقع مطلوب': 'Location name is required',
+    'اسم الدور مطلوب': 'Role name is required',
+    'لا يمكن حذف دور مرتبط بمستخدمين': 'Cannot delete a role assigned to users',
+    'لا يمكن حذف موقع يحتوي على قاعات': 'Cannot delete a location that has venues',
+    'لا يمكنك حذف حسابك الخاص': 'You cannot delete your own account',
+    'لم يتم العثور على دور المستخدم الافتراضي': 'Default user role not found',
+    'تعذّر حفظ الإعدادات (تحقق من صلاحيات الملف)': 'Could not save settings (check file permissions)',
+    'تم حظر الفترة بنجاح': 'Period blocked successfully',
+    'تم تحديث الفترة المحظورة': 'Blocked period updated',
+    'تم حذف الفترة المحظورة': 'Blocked period deleted',
+    'تاريخ النهاية يجب أن يكون بعد تاريخ البداية': 'End date must be after start date',
+    'صيغة التاريخ غير صحيحة': 'Invalid date format',
+    'اختر مدعويين على الأقل': 'Please select at least one invitee',
+    'اختر ملف CSV': 'Please select a CSV file',
+    'الاسم والبريد الإلكتروني مطلوبان': 'Name and email are required',
+    'تم حذف جهة الاتصال': 'Contact deleted successfully',
+    'اسم القائمة مطلوب': 'Checklist name is required',
+    'تم حذف القائمة': 'Checklist deleted successfully',
+    'عنوان ومحتوى الرسالة مطلوبان': 'Message subject and body are required',
+    'openpyxl غير مثبت': 'openpyxl not installed',
+    'reportlab غير مثبت': 'reportlab not installed',
+    'يرجى تثبيت openpyxl: pip install openpyxl': 'Please install openpyxl: pip install openpyxl',
+    'يرجى تثبيت reportlab': 'Please install reportlab',
+    'يرجى تثبيت reportlab: pip install reportlab': 'Please install reportlab: pip install reportlab',
+    'يرجى تحديد الفترة الزمنية': 'Please specify the time period',
+    'يرجى رفع ملف CSV': 'Please upload a CSV file',
+    'أدخل بريداً إلكترونياً للاختبار': 'Enter an email address for testing',
+    # ── Admin email & maintenance ──
+    '✅ تم حفظ إعدادات البريد الإلكتروني': '✅ Email settings saved successfully',
+    '✅ تم الحفظ': '✅ Saved',
+    '✅ تم تحديث إعدادات الصيانة': '✅ Maintenance settings updated',
+    '✅ تم تحسين قاعدة البيانات': '✅ Database optimized',
+    'السجل غير موجود': 'Record not found',
+    '❌ فشلت إعادة الإرسال — تحقق من إعدادات البريد': '❌ Resend failed — check email settings',
+    '🗑️ تم حذف السجل': '🗑️ Record deleted',
+    'بيانات غير صحيحة': 'Invalid data',
+    '❌ فشل التوجيه — تحقق من إعدادات البريد': '❌ Forwarding failed — check email settings',
+    # ── Announcements ──
+    '✅ تم إنشاء الإعلان': '✅ Announcement created',
+    '✅ تم تحديث الإعلان': '✅ Announcement updated',
+    '🗑️ تم حذف الإعلان': '🗑️ Announcement deleted',
+    'العنوان العربي مطلوب': 'Arabic title is required',
+    '✅ تم إعادة تعيين الإعلان — سيظهر لجميع المستخدمين مرة أخرى': '✅ Announcement reset — will appear for all users again',
+    # ── Groups ──
+    'اسم المجموعة مطلوب': 'Group name is required',
+    '✅ تم حفظ التعديلات': '✅ Changes saved',
+    # ── Checklists ──
+    '✅ تم تحديث القائمة': '✅ Checklist updated',
+    # ── Settings ──
+    '✅ تم حفظ الإعدادات': '✅ Settings saved',
+    # ── Auth ──
+    'كلمة المرور يجب أن تكون 8 أحرف على الأقل': 'Password must be at least 8 characters',
+    # ── Backoffice ──
+    'غير مصرح': 'Unauthorized',
+    'هذا الجدول للقراءة فقط': 'This table is read-only',
+    '✅ تم إضافة السجل': '✅ Record added',
+    # ── Comments ──
+    'ليس لديك صلاحية إضافة تعليقات': 'You do not have permission to add comments',
+    'التعليق لا يمكن أن يكون فارغاً': 'Comment cannot be empty',
+    'تم إضافة التعليق بنجاح': 'Comment added successfully',
+    'تم حذف التعليق': 'Comment deleted',
+    # ── CP ──
+    'الصفحة غير موجودة': 'Page not found',
+    '✅ تم إعادة الإعدادات الافتراضية': '✅ Default settings restored',
+    '✅ تم إعادة جميع الإعدادات': '✅ All settings restored',
+}
+
+def flash_msg(ar_text, category='info'):
+    """Flash a message translated to current session language."""
+    from flask import flash
+    lang = session.get('lang', 'ar')
+    if lang == 'en':
+        text = _FLASH_MAP.get(ar_text, ar_text)
+    else:
+        text = ar_text
+    flash(text, category)

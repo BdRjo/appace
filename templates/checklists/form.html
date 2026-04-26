@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+{% block title %}{% if cl %}{% if current_lang=="en" %}Edit List{% else %}تعديل القائمة{% endif %}{% else %}{% if current_lang=="en" %}New List{% else %}قائمة جديدة{% endif %}{% endif %} — ARS{% endblock %}
+{% block extra_css %}
+<style>
+.form-card { border-radius:16px; border:none; box-shadow:0 4px 20px rgba(0,0,0,.09); }
+.emoji-btn { font-size:1.5rem; padding:6px 10px; border-radius:10px; border:2px solid transparent;
+             cursor:pointer; background:#f8f9fa; transition:.15s; }
+.emoji-btn:hover, .emoji-btn.selected { border-color:var(--primary); background:#e8f5f5; }
+.color-dot { width:28px; height:28px; border-radius:50%; cursor:pointer; border:3px solid transparent;
+             transition:.15s; }
+.color-dot.selected { border-color:#333; transform:scale(1.15); }
+.item-build-row { display:flex; gap:8px; align-items:flex-start; padding:10px 12px;
+                  border:1.5px solid #e9ecef; border-radius:10px; margin-bottom:8px;
+                  background:#fff; transition:.15s; }
+.item-build-row:focus-within { border-color:#0C67EC; box-shadow:0 0 0 3px rgba(12,103,236,.08); }
+.item-build-row .drag-handle { color:#ccc; cursor:grab; padding-top:4px; font-size:1rem; }
+.item-main-input { border:none; outline:none; flex:1; font-size:.9rem; font-weight:500; background:transparent; }
+.item-note-input { border:none; outline:none; width:100%; font-size:.78rem; color:#888; background:transparent; margin-top:4px; }
+.prio-select { border:none; border-radius:6px; font-size:.72rem; padding:2px 6px; cursor:pointer; background:#f0f0f0; }
+.due-input { border:1px solid #e0e0e0; border-radius:6px; font-size:.72rem; padding:2px 6px; color:#555; }
+.section-title { font-size:.8rem; font-weight:700; text-transform:uppercase;
+                 letter-spacing:.5px; color:#888; margin-bottom:8px; }
+</style>
+{% endblock %}
+{% block content %}
+
+<div class="page-header d-flex align-items-center gap-2">
+  <a href="{{ url_for('checklists.index') }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-{% if current_lang=='en' %}left{% else %}right{% endif %} me-1"></i>
+    {% if current_lang=='en' %}Back{% else %}رجوع{% endif %}
+  </a>
+  <h1 style="margin:0">
+    {% if cl %}
+      {% if current_lang=='en' %}Edit: {{ cl.name }}{% else %}تعديل: {{ cl.name }}{% endif %}
+    {% else %}
+      {% if current_lang=='en' %}New List ✨{% else %}قائمة مهام جديدة ✨{% endif %}
+    {% endif %}
+  </h1>
+</div>
+
+<form method="POST" id="clForm">
+<div class="row g-3">
+
+  <!-- Left: Details -->
+  <div class="col-lg-5">
+    <div class="card form-card p-4 mb-3">
+      <div class="section-title mb-3">{{ _('📋 تفاصيل القائمة') }}</div>
+
+      <!-- Emoji picker -->
+      <div class="mb-3">
+        <label class="form-label fw-bold small">{{ _('الأيقونة') }}</label>
+        <div class="d-flex gap-2 flex-wrap mb-2" id="emojiPicker">
+          {% for em in ['📋','✅','🎯','🚀','📌','💼','🏠','📅','🔧','⭐','📝','🎉','💡','🔑','📊'] %}
+          <button type="button" class="emoji-btn {{ 'selected' if (cl and cl.emoji==em) or (not cl and em=='📋') else '' }}"
+                  onclick="selectEmoji('{{ em }}', this)">{{ em }}</button>
+          {% endfor %}
+        </div>
+        <input type="hidden" name="emoji" id="emojiInput" value="{{ cl.emoji if cl else '📋' }}">
+      </div>
+
+      <!-- Color picker -->
+      <div class="mb-3">
+        <label class="form-label fw-bold small">{{ _('اللون') }}</label>
+        <div class="d-flex gap-2 flex-wrap" id="colorPicker">
+          {% for col in ['#0C67EC','#3D8EF5','#0847B0','#5C9BDE','#DC3545','#6f42c1','#0d6efd','#198754','#fd7e14','#e91e63'] %}
+          <div class="color-dot {{ 'selected' if (cl and cl.color==col) or (not cl and col=='#0C67EC') else '' }}"
+               style="background:{{ col }}" onclick="selectColor('{{ col }}', this)" title="{{ col }}"></div>
+          {% endfor %}
+        </div>
+        <input type="hidden" name="color" id="colorInput" value="{{ cl.color if cl else '#0C67EC' }}">
+      </div>
+
+      <!-- Name -->
+      <div class="mb-3">
+        <label class="form-label fw-bold small">{{ _('اسم القائمة') }} *</label>
+        <input type="text" name="name" class="form-control" required
+               value="{{ cl.name if cl else '' }}" placeholder="{{ _('مثال: قائمة تجهيزات الحفل') }}">
+      </div>
+
+      <!-- Description -->
+      <div class="mb-3">
+        <label class="form-label fw-bold small">{{ _('ملاحظات / وصف') }}</label>
+        <textarea name="description" class="form-control" rows="3"
+                  placeholder="{{ _('صف هدف هذه القائمة...') }}">{{ cl.description if cl else '' }}</textarea>
+      </div>
+
+      <!-- Visibility -->
+      <div class="p-3 rounded" style="background:#f8f9fa">
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" name="is_public" id="isPub"
+                 {% if cl is none or cl.is_public %}checked{% endif %}>
+          <label class="form-check-label fw-bold small" for="isPub">
+            <i class="bi bi-globe me-1"></i>{% if current_lang=="en" %}Public Template{% else %}قائمة عامة{% endif %}
+          </label>
+        </div>
+        <div class="text-muted small mt-1">{{ _('القائمة العامة يراها جميع المستخدمين') }}</div>
+      </div>
+    </div>
+
+    <!-- Preview card -->
+    <div class="card form-card p-3" id="previewCard" style="border-top:6px solid #0C67EC;transition:.3s">
+      <div class="section-title">{{ _('معاينة حية') }}</div>
+      <div class="d-flex align-items-center gap-2">
+        📋
+        <div>
+          <div id="pvName" class="fw-bold" style="color:#0C67EC">{{ _('اسم القائمة') }}</div>
+          <div class="text-muted small"><span>{{ _('0 عنصر') }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Items builder -->
+  <div class="col-lg-7">
+    <div class="card form-card p-4">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="section-title mb-0">{{ _('📝 عناصر القائمة') }}</div>
+        <button type="button" class="btn btn-sm btn-primary-ars" onclick="addItemRow()">
+          <i class="bi bi-plus-lg me-1"></i>{% if current_lang=="en" %}Add Item{% else %}إضافة عنصر{% endif %}
+        </button>
+      </div>
+
+      <div id="itemsContainer">
+        {% if cl and cl.items %}
+          {% for item in cl.items %}
+          <div class="item-build-row">
+            ⠿
+            <div class="flex-grow-1">
+              <input type="text" name="items[]" class="item-main-input"
+                     value="{{ item.content }}" placeholder="{{ _('نص المهمة...') }}" required>
+              <input type="text" name="notes[]" class="item-note-input"
+                     value="{{ item.note or '' }}" placeholder="{{ _('ملاحظة اختيارية...') }}">
+              <div class="d-flex gap-2 mt-2 flex-wrap">
+                <select name="priorities[]" class="prio-select">
+                  <option value="0" {{ 'selected' if item.priority==0 }}>{{ _('بدون أولوية') }}</option>
+                  <option value="1" {{ 'selected' if item.priority==1 }}>{{ _('🟢 عادي') }}</option>
+                  <option value="2" {{ 'selected' if item.priority==2 }}>{{ _('🟠 مهم') }}</option>
+                  <option value="3" {{ 'selected' if item.priority==3 }}>{{ _('🔴 عاجل') }}</option>
+                </select>
+                <input type="datetime-local" name="due_dates[]" class="due-input"
+                       value="{{ item.due_date.strftime('%Y-%m-%dT%H:%M') if item.due_date else '' }}"
+                       placeholder="{{ _('تاريخ الاستحقاق') }}">
+              </div>
+            </div>
+            <button type="button" onclick="this.parentElement.remove()" class="btn btn-sm text-muted" style="border:none;background:none">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+          {% endfor %}
+        {% else %}
+          <!-- Default first row -->
+          <div class="item-build-row">
+            ⠿
+            <div class="flex-grow-1">
+              <input type="text" name="items[]" class="item-main-input" placeholder="{{ _('نص المهمة الأولى...') }}" autofocus>
+              <input type="text" name="notes[]" class="item-note-input" placeholder="{{ _('ملاحظة اختيارية...') }}">
+              <div class="d-flex gap-2 mt-2 flex-wrap">
+                <select name="priorities[]" class="prio-select">
+                  <option value="0">{{ _('بدون أولوية') }}</option>
+                  <option value="1">{{ _('🟢 عادي') }}</option>
+                  <option value="2">{{ _('🟠 مهم') }}</option>
+                  <option value="3">{{ _('🔴 عاجل') }}</option>
+                </select>
+                <input type="datetime-local" name="due_dates[]" class="due-input">
+              </div>
+            </div>
+            <button type="button" onclick="this.parentElement.remove()" class="btn btn-sm text-muted" style="border:none;background:none">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Quick multi-add -->
+      <div class="mt-3 p-3 rounded" style="background:#f8f9fa">
+        <div class="section-title">{{ _('⚡ إضافة سريعة (سطر لكل مهمة)') }}</div>
+        <textarea id="bulkInput" class="form-control form-control-sm" rows="3"
+                  placeholder="{% if current_lang=='en' %}Task 1&#10;Task 2&#10;Task 3{% else %}مهمة 1&#10;مهمة 2&#10;مهمة 3{% endif %}"></textarea>
+        <button type="button" onclick="bulkAdd()" class="btn btn-sm btn-outline-primary mt-2">
+          <i class="bi bi-lightning me-1"></i>{% if current_lang=="en" %}Add All{% else %}إضافة الكل{% endif %}
+        </button>
+      </div>
+
+      <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-primary-ars px-4">
+          <i class="bi bi-check-lg me-1"></i>
+          {% if cl %}
+            {% if current_lang=='en' %}Save Changes{% else %}حفظ التعديلات{% endif %}
+          {% else %}
+            {% if current_lang=='en' %}Create List{% else %}إنشاء القائمة{% endif %}
+          {% endif %}
+        </button>
+        <a href="{{ url_for('checklists.index') }}" class="btn btn-outline-secondary">{{ _('إلغاء') }}</a>
+      </div>
+    </div>
+  </div>
+
+</div>
+</form>
+
+
+<script>
+// Live preview
+function updatePreview() {
+  const name  = document.querySelector('[name=name]').value || '{% if current_lang=="en" %}List name{% else %}اسم القائمة{% endif %}';
+  const emoji = document.getElementById('emojiInput').value;
+  const color = document.getElementById('colorInput').value;
+  document.getElementById('pvEmoji').textContent = emoji;
+  document.getElementById('pvName').textContent  = name;
+  document.getElementById('pvName').style.color  = color;
+  document.getElementById('previewCard').style.borderTopColor = color;
+}
+document.querySelector('[name=name]').addEventListener('input', updatePreview);
+
+function selectEmoji(em, btn) {
+  document.querySelectorAll('.emoji-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById('emojiInput').value = em;
+  updatePreview();
+}
+function selectColor(col, dot) {
+  document.querySelectorAll('.color-dot').forEach(d=>d.classList.remove('selected'));
+  dot.classList.add('selected');
+  document.getElementById('colorInput').value = col;
+  updatePreview();
+}
+
+// Add item row
+function addItemRow() {
+  const c = document.getElementById('itemsContainer');
+  const d = document.createElement('div');
+  d.className = 'item-build-row';
+  d.innerHTML = `
+    ⠿
+    <div class="flex-grow-1">
+      <input type="text" name="items[]" class="item-main-input" placeholder="{{ _('نص المهمة...') }}">
+      <input type="text" name="notes[]" class="item-note-input" placeholder="{{ _('ملاحظة اختيارية...') }}">
+      <div class="d-flex gap-2 mt-2 flex-wrap">
+        <select name="priorities[]" class="prio-select">
+          <option value="0">{{ _('بدون أولوية') }}</option>
+          <option value="1">{{ _('🟢 عادي') }}</option>
+          <option value="2">{{ _('🟠 مهم') }}</option>
+          <option value="3">{{ _('🔴 عاجل') }}</option>
+        </select>
+        <input type="datetime-local" name="due_dates[]" class="due-input">
+      </div>
+    </div>
+    <button type="button" onclick="this.parentElement.remove()" class="btn btn-sm text-muted" style="border:none;background:none">
+      <i class="bi bi-x-lg"></i>
+    </button>`;
+  c.appendChild(d);
+  d.querySelector('.item-main-input').focus();
+}
+
+// Bulk add
+function bulkAdd() {
+  const lines = document.getElementById('bulkInput').value.split('\n').map(l=>l.trim()).filter(Boolean);
+  lines.forEach(line => {
+    const c = document.getElementById('itemsContainer');
+    const d = document.createElement('div');
+    d.className = 'item-build-row';
+    d.innerHTML = `
+      ⠿
+      <div class="flex-grow-1">
+        <input type="text" name="items[]" class="item-main-input" value="${line}" placeholder="{{ _('نص المهمة...') }}">
+        <input type="text" name="notes[]" class="item-note-input" placeholder="{{ _('ملاحظة اختيارية...') }}">
+        <div class="d-flex gap-2 mt-2 flex-wrap">
+          <select name="priorities[]" class="prio-select">
+            <option value="0">{{ _('بدون أولوية') }}</option>
+            <option value="1">{{ _('🟢 عادي') }}</option>
+            <option value="2">{{ _('🟠 مهم') }}</option>
+            <option value="3">{{ _('🔴 عاجل') }}</option>
+          </select>
+          <input type="datetime-local" name="due_dates[]" class="due-input">
+        </div>
+      </div>
+      <button type="button" onclick="this.parentElement.remove()" class="btn btn-sm text-muted" style="border:none;background:none">
+        <i class="bi bi-x-lg"></i>
+      </button>`;
+    c.appendChild(d);
+  });
+  document.getElementById('bulkInput').value = '';
+}
+
+// Init preview
+updatePreview();
+</script>
+{% endblock %}

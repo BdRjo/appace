@@ -1,0 +1,215 @@
+{% extends "sas/_sas_base.html" %}
+{%- set ar = (current_lang == 'ar') -%}
+
+{% block print_title %}{% if ar %}بانتظار الموافقة{% else %}Pending Approvals{% endif %}{% endblock %}
+
+{% block content %}
+<style>
+  .sas-breadcrumb { display:flex;align-items:center;gap:8px;font-size:.85rem;color:#6b7280;margin-bottom:20px;flex-wrap:wrap }
+  .sas-breadcrumb a { color:var(--sas-primary);text-decoration:none;font-weight:600 }
+  .sas-breadcrumb a:hover { text-decoration:underline }
+  .sas-breadcrumb .sep { color:#d1d5db }
+  .pending-tabs .nav-link { border-radius:10px 10px 0 0;font-size:.84rem;font-weight:700;color:#6b7280;padding:10px 18px }
+  .pending-tabs .nav-link.active { color:var(--sas-primary-dark);border-color:#e5e7eb #e5e7eb #fff;background:#fff }
+  .pending-card { background:#fff;border:1.5px solid #e5e7eb;border-radius:14px;padding:14px 16px;margin-bottom:10px;transition:all .15s }
+  .pending-card:hover { border-color:var(--sas-primary);box-shadow:0 4px 12px rgba(8,145,178,.08) }
+  .sas-badge-type { border-radius:20px;padding:3px 10px;font-size:.72rem;font-weight:700;display:inline-block }
+  .sas-badge-type.absent { background:#fef2f2;color:#dc2626;border:1px solid #fca5a5 }
+  .sas-badge-type.late { background:#fffbeb;color:#d97706;border:1px solid #fcd34d }
+  .sas-badge-type.leave { background:#eff6ff;color:#2563eb;border:1px solid #93c5fd }
+  .sas-badge-type.other { background:#f9fafb;color:#4b5563;border:1px solid #d1d5db }
+  .sas-action-btns { display:flex;align-items:center;gap:4px }
+  .sas-approve-btn { background:#cffafe;color:#164e63;border:1px solid #22d3ee;border-radius:8px;font-size:.75rem;font-weight:700;padding:4px 12px;cursor:pointer }
+  .sas-reject-btn { background:#fee2e2;color:#991b1b;border:1px solid #f87171;border-radius:8px;font-size:.75rem;font-weight:700;padding:4px 12px;cursor:pointer }
+  .tab-count { background:rgba(0,0,0,.08);border-radius:20px;padding:1px 8px;font-size:.72rem;margin-inline-start:4px }
+</style>
+
+<!-- Breadcrumb -->
+<div class="sas-breadcrumb">
+  <a href="{{ url_for('sas.portal_home', code=staff.staff_code) }}">
+    <i class="bi bi-house-fill"></i> {% if ar %}الرئيسية{% else %}Home{% endif %}
+  </a>
+  <span class="sep"><i class="bi bi-chevron-{{ 'left' if ar else 'right' }}"></i></span>
+  <span class="fw-bold" style="color:#1f2937">{% if ar %}بانتظار الموافقة{% else %}Pending Approvals{% endif %}</span>
+</div>
+
+<h5 class="fw-bold mb-3" style="color:var(--sas-primary-dark)">
+  <i class="bi bi-hourglass-split me-2"></i>
+  {% if ar %}بانتظار الموافقة{% else %}Pending Approvals{% endif %}
+</h5>
+
+<!-- Tabs -->
+<ul class="nav nav-tabs pending-tabs mb-3" role="tablist">
+  {% if staff.role == 'manager' %}
+  <li class="nav-item">
+    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabRecords" type="button">
+      <i class="bi bi-journal-text me-1"></i>{% if ar %}السجلات{% else %}Records{% endif %}
+      <span class="tab-count">{{ records|length }}</span>
+    </button>
+  </li>
+  {% endif %}
+  <li class="nav-item">
+    <button class="nav-link {% if staff.role != 'manager' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tabClassLeave" type="button">
+      <i class="bi bi-door-open me-1"></i>{% if ar %}الخروج من الحصة{% else %}Class Leave{% endif %}
+      <span class="tab-count">{{ class_leaves|default([])|length }}</span>
+    </button>
+  </li>
+  {% if staff.role == 'manager' %}
+  <li class="nav-item">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabHolidays" type="button">
+      <i class="bi bi-calendar-event me-1"></i>{% if ar %}الإجازات{% else %}Holidays{% endif %}
+      <span class="tab-count">{{ pending_holidays|default([])|length }}</span>
+    </button>
+  </li>
+  {% endif %}
+</ul>
+
+<div class="tab-content">
+  <!-- Tab: Attendance Records (manager only) -->
+  {% if staff.role == 'manager' %}
+  <div class="tab-pane fade show active" id="tabRecords">
+    {% if records %}
+    {% for record in records %}
+    <div class="pending-card">
+      <div class="d-flex align-items-start justify-content-between flex-wrap gap-2">
+        <div>
+          <a href="{{ url_for('sas.student_detail', code=staff.staff_code, student_id=record.student.id) }}"
+             style="color:var(--sas-primary-dark);text-decoration:none;font-weight:700;font-size:.88rem">
+            {{ record.student.name }}
+          </a>
+          <span style="font-size:.72rem;color:#9ca3af;margin-inline-start:6px">#{{ record.student.student_number }}</span>
+          <div style="font-size:.78rem;color:#6b7280;margin-top:2px">
+            {% if record.student.section and record.student.section.sas_class %}
+            {{ record.student.section.sas_class.stage.name if record.student.section.sas_class.stage else '' }} &bull;
+            {{ record.student.section.sas_class.name }} &bull;
+            {{ record.student.section.name }}
+            {% endif %}
+          </div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <span style="font-size:.82rem;font-weight:600">{{ record.record_date }}</span>
+          <span class="sas-badge-type {{ record.record_type }}">
+            {% if record.record_type == 'absent' %}{% if ar %}غياب{% else %}Absent{% endif %}
+            {% elif record.record_type == 'late' %}{% if ar %}تأخر{% else %}Late{% endif %}
+            {% elif record.record_type == 'leave' %}{% if ar %}إجازة{% else %}Leave{% endif %}
+            {% elif record.record_type == 'school_trip' %}{% if ar %}رحلة مدرسية{% else %}School Trip{% endif %}
+            {% elif record.record_type == 'school_activity' %}{% if ar %}نشاط مدرسي{% else %}School Activity{% endif %}
+            {% else %}{% if ar %}أخرى{% else %}Other{% endif %}{% endif %}
+          </span>
+        </div>
+      </div>
+      {% if record.notes %}<div style="font-size:.78rem;color:#6b7280;margin-top:4px"><i class="bi bi-chat-text me-1"></i>{{ record.notes }}</div>{% endif %}
+      <div class="d-flex align-items-center justify-content-between mt-2">
+        <span style="font-size:.72rem;color:#9ca3af">{% if ar %}بواسطة{% else %}By{% endif %}: {{ record.staff.name if record.staff else '—' }}</span>
+        <div class="sas-action-btns">
+          <form method="POST" action="{{ url_for('sas.record_approve', code=staff.staff_code, rid=record.id) }}">
+            <input type="hidden" name="action" value="approve">
+            <button type="submit" class="sas-approve-btn"><i class="bi bi-check-lg me-1"></i>{% if ar %}اعتماد{% else %}Approve{% endif %}</button>
+          </form>
+          <form method="POST" action="{{ url_for('sas.record_approve', code=staff.staff_code, rid=record.id) }}">
+            <input type="hidden" name="action" value="reject">
+            <button type="submit" class="sas-reject-btn"><i class="bi bi-x-lg me-1"></i>{% if ar %}رفض{% else %}Reject{% endif %}</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="text-center py-4" style="color:#9ca3af">
+      <i class="bi bi-check-circle" style="font-size:2rem;opacity:.4"></i>
+      <div style="font-size:.85rem;margin-top:6px">{% if ar %}لا توجد سجلات معلقة{% else %}No pending records{% endif %}</div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- Tab: Class Leave -->
+  <div class="tab-pane fade {% if staff.role != 'manager' %}show active{% endif %}" id="tabClassLeave">
+    {% for cl in class_leaves|default([]) %}
+    <div class="pending-card">
+      <div class="d-flex align-items-start justify-content-between flex-wrap gap-2">
+        <div>
+          <span class="fw-bold" style="font-size:.88rem;color:#1f2937">{{ cl.student.name if cl.student else '—' }}</span>
+          {% if cl.student and cl.student.student_number %}
+          <span style="font-size:.72rem;color:#9ca3af;margin-inline-start:4px">#{{ cl.student.student_number }}</span>
+          {% endif %}
+          <div style="font-size:.78rem;color:#6b7280;margin-top:2px">
+            {% if cl.student and cl.student.section and cl.student.section.sas_class %}
+            {{ cl.student.section.sas_class.stage.name if cl.student.section.sas_class.stage else '' }} &bull;
+            {{ cl.student.section.sas_class.name }} &bull;
+            {{ cl.student.section.name }}
+            {% endif %}
+          </div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <span style="font-size:.82rem;font-weight:600">{{ cl.leave_date }}</span>
+          <span style="font-size:.78rem;color:var(--sas-primary);font-weight:600">{{ cl.leave_time or '' }}</span>
+          <span class="sas-badge-type other" style="background:#f0f9ff;color:#0891b2;border-color:#22d3ee">
+            {% set lt = leave_types.get(cl.leave_type, (cl.leave_type, cl.leave_type)) %}
+            {{ lt[0] if ar else lt[1] }}
+          </span>
+        </div>
+      </div>
+      {% if cl.notes %}<div style="font-size:.78rem;color:#6b7280;margin-top:4px"><i class="bi bi-chat-text me-1"></i>{{ cl.notes }}</div>{% endif %}
+      <div class="d-flex align-items-center justify-content-between mt-2">
+        <span style="font-size:.72rem;color:#9ca3af">{% if ar %}بواسطة{% else %}By{% endif %}: {{ cl.staff.name if cl.staff else '—' }}</span>
+        <div class="sas-action-btns">
+          <form method="POST" action="{{ url_for('sas.class_leave_approve', code=staff.staff_code, lid=cl.id) }}">
+            <input type="hidden" name="action" value="approve">
+            <button type="submit" class="sas-approve-btn"><i class="bi bi-check-lg me-1"></i>{% if ar %}قبول{% else %}Approve{% endif %}</button>
+          </form>
+          <form method="POST" action="{{ url_for('sas.class_leave_approve', code=staff.staff_code, lid=cl.id) }}">
+            <input type="hidden" name="action" value="reject">
+            <button type="submit" class="sas-reject-btn"><i class="bi bi-x-lg me-1"></i>{% if ar %}رفض{% else %}Reject{% endif %}</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="text-center py-4" style="color:#9ca3af">
+      <i class="bi bi-check-circle" style="font-size:2rem;opacity:.4"></i>
+      <div style="font-size:.85rem;margin-top:6px">{% if ar %}لا توجد إذونات معلقة{% else %}No pending class leaves{% endif %}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Tab: Holidays (manager only) -->
+  {% if staff.role == 'manager' %}
+  <div class="tab-pane fade" id="tabHolidays">
+    {% for h in pending_holidays|default([]) %}
+    <div class="pending-card">
+      <div class="d-flex align-items-start justify-content-between flex-wrap gap-2">
+        <div>
+          <span class="fw-bold" style="font-size:.88rem;color:#1f2937">
+            <i class="bi bi-calendar-event me-1" style="color:var(--sas-primary)"></i>
+            {% if ar %}{{ h.title }}{% else %}{{ h.title_en or h.title }}{% endif %}
+          </span>
+          <div style="font-size:.78rem;color:#6b7280;margin-top:4px">
+            <i class="bi bi-calendar3 me-1"></i>{{ h.start_date }} → {{ h.end_date }}
+          </div>
+          <div style="font-size:.75rem;color:#9ca3af;margin-top:2px">
+            {% if ar %}النطاق{% else %}Scope{% endif %}: {{ h.scope_type|default('school') }}
+          </div>
+        </div>
+        <div class="sas-action-btns">
+          <form method="POST" action="{{ url_for('sas.holiday_approve', code=staff.staff_code, holiday_id=h.id) }}">
+            <input type="hidden" name="action" value="approve">
+            <button type="submit" class="sas-approve-btn"><i class="bi bi-check-lg me-1"></i>{% if ar %}اعتماد{% else %}Approve{% endif %}</button>
+          </form>
+          <form method="POST" action="{{ url_for('sas.holiday_approve', code=staff.staff_code, holiday_id=h.id) }}">
+            <input type="hidden" name="action" value="reject">
+            <button type="submit" class="sas-reject-btn"><i class="bi bi-x-lg me-1"></i>{% if ar %}رفض{% else %}Reject{% endif %}</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="text-center py-4" style="color:#9ca3af">
+      <i class="bi bi-check-circle" style="font-size:2rem;opacity:.4"></i>
+      <div style="font-size:.85rem;margin-top:6px">{% if ar %}لا توجد إجازات معلقة{% else %}No pending holidays{% endif %}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

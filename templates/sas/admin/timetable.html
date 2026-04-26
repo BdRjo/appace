@@ -1,0 +1,332 @@
+{% extends "base.html" %}
+{%- set ar = (current_lang == 'ar') -%}
+
+{% block title %}{{ 'جدول الحصص' if ar else 'Timetable' }} — {{ stage.name }} / {{ cls.name }} / {{ section.name }}{% endblock %}
+
+{% block extra_css %}
+{% include 'sas/_sas_admin_styles.html' %}
+<style>
+.sas-page-header h1 { color: var(--sas) !important; }
+.btn-sas {
+  background: linear-gradient(160deg, var(--sas-light), var(--sas), var(--sas-dark));
+  color: #fff; border: none; border-radius: 8px; padding: 7px 18px;
+  font-size: .84rem; font-weight: 700; transition: all .2s;
+}
+.btn-sas:hover { background: linear-gradient(160deg, #0e7490, #155e75); color: #fff; }
+.tt-wrapper { overflow-x: auto; border-radius: 14px; border: 1px solid #e5e7eb; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.05); }
+.tt-table { width: 100%; border-collapse: collapse; font-size: .82rem; min-width: 600px; }
+.tt-table th, .tt-table td { border: 1px solid #e5e7eb; padding: 0; }
+.tt-table thead th { background: var(--sas-bg); color: var(--sas-dark); font-weight: 700; font-size: .78rem; padding: 8px 6px; text-align: center; }
+.tt-table thead .period-col-header { min-width: 145px; }
+.tt-table thead .break-col-header { min-width: 70px; background: #fef9c3; color: #92400e; }
+.tt-table .day-cell {
+  background: linear-gradient(160deg, var(--sas-dark), var(--sas)); color: #fff;
+  font-weight: 700; font-size: .79rem; text-align: center; padding: 6px 4px;
+  width: 56px; min-width: 56px; white-space: nowrap;
+  writing-mode: vertical-rl; text-orientation: mixed;
+}
+html[dir="rtl"] .tt-table .day-cell { writing-mode: vertical-lr; }
+.tt-cell { padding: 4px 5px; vertical-align: top; }
+.tt-cell-inner { display: flex; flex-direction: column; gap: 3px; }
+.break-cell { background: #fef9c3; text-align: center; vertical-align: middle; padding: 4px; }
+.break-label { font-size: .72rem; font-weight: 700; color: #92400e; }
+.tt-subject-input {
+  width: 100%; border: 1px solid #e5e7eb; border-radius: 6px;
+  padding: 4px 7px; font-size: .82rem; font-weight: 600; color: #1e293b;
+  background: #f9fafb; transition: all .15s;
+}
+.tt-subject-input:focus { border-color: var(--sas); background: #fff; outline: none; box-shadow: 0 0 0 2px rgba(8,145,178,.12); }
+.tt-subject-input::placeholder { color: #d1d5db; font-weight: 400; }
+.tt-teacher-wrap { position: relative; }
+.tt-teacher-input {
+  width: 100%; border: 1px solid #e5e7eb; border-radius: 6px;
+  padding: 3px 7px; font-size: .75rem; color: #6b7280;
+  background: #f9fafb; transition: all .15s;
+}
+.tt-teacher-input:focus { border-color: var(--sas); background: #fff; outline: none; box-shadow: 0 0 0 2px rgba(8,145,178,.12); }
+.tt-teacher-input::placeholder { color: #d1d5db; }
+.tt-staff-dropdown {
+  display: none; position: absolute; z-index: 300;
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.14);
+  max-height: 180px; overflow-y: auto;
+  min-width: 210px; top: 100%; inset-inline-start: 0;
+}
+.tt-staff-item {
+  padding: 7px 10px; cursor: pointer; font-size: .8rem; color: #1e293b;
+  border-bottom: 1px solid #f3f4f6; transition: background .1s;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.tt-staff-item:last-child { border-bottom: none; }
+.tt-staff-item:hover { background: #ecfeff; color: var(--sas-dark); }
+.tt-staff-item .role-tag { font-size: .68rem; color: #9ca3af; white-space: nowrap; }
+.tt-no-results { padding: 8px 12px; font-size: .8rem; color: #9ca3af; text-align: center; }
+.path-breadcrumb { font-size: .82rem; color: #6b7280; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.path-breadcrumb span { color: var(--sas-dark); font-weight: 700; }
+.tt-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .76rem; margin-bottom: 10px; align-items: center; }
+.tt-legend-item { display: flex; align-items: center; gap: 5px; }
+.tt-legend-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+@media print {
+  .no-print { display: none !important; }
+  .tt-wrapper { border: none !important; box-shadow: none !important; }
+  .tt-subject-input, .tt-teacher-input { border: 1px solid #ccc !important; background: #fff !important; }
+  .tt-staff-dropdown { display: none !important; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3 sas-page-header">
+  <div>
+    <h1 style="font-size:1.3rem;font-weight:700;margin:0">
+      <i class="bi bi-calendar2-week me-2"></i>{{ 'جدول الشعبة' if ar else 'Section Timetable' }}
+    </h1>
+    <div class="path-breadcrumb mt-1">
+      <span>{{ stage.name }}</span>
+      <i class="bi bi-chevron-{{ 'left' if ar else 'right' }}" style="font-size:.7rem;color:#9ca3af"></i>
+      <span>{{ cls.name }}</span>
+      <i class="bi bi-chevron-{{ 'left' if ar else 'right' }}" style="font-size:.7rem;color:#9ca3af"></i>
+      <span>{{ 'شعبة' if ar else 'Sec.' }} {{ section.name }}</span>
+    </div>
+  </div>
+  <div class="d-flex gap-2 flex-wrap no-print">
+    <button class="btn-sas" onclick="saveTimetable()" id="saveBtn">
+      <i class="bi bi-check-lg me-1"></i>{{ 'حفظ' if ar else 'Save' }}
+    </button>
+    <button class="btn btn-sm" style="background:#f0f9ff;color:var(--sas-dark);border:none;border-radius:8px;font-weight:600;font-size:.84rem" onclick="window.print()">
+      <i class="bi bi-printer me-1"></i>{{ 'طباعة' if ar else 'Print' }}
+    </button>
+    <a href="{{ url_for('sas.admin_periods', stage_id=stage.id) }}" class="btn btn-sm" style="background:#ecfeff;color:var(--sas-dark);border:1px solid var(--sas);border-radius:8px;font-weight:600;font-size:.82rem">
+      <i class="bi bi-clock me-1"></i>{{ 'إعداد الحصص' if ar else 'Periods' }}
+    </a>
+    <a href="{{ url_for('sas.admin_stages') }}" class="btn btn-sm" style="border:1.5px solid var(--sas);color:var(--sas);border-radius:8px;font-weight:600">
+      <i class="bi bi-arrow-{{ 'right' if ar else 'left' }} me-1"></i>{{ 'العودة' if ar else 'Back' }}
+    </a>
+  </div>
+</div>
+
+{% if not by_day %}
+<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:12px;padding:24px;text-align:center">
+  <i class="bi bi-exclamation-triangle" style="font-size:2.2rem;color:#d97706;display:block;margin-bottom:10px"></i>
+  <div style="font-weight:700;color:#92400e;margin-bottom:6px;font-size:.95rem">
+    {{ 'لم يتم إعداد جدول الحصص لهذه المرحلة بعد' if ar else 'No period schedule set up for this stage yet' }}
+  </div>
+  <div style="font-size:.84rem;color:#b45309;margin-bottom:14px">
+    {{ 'أعدّ الحصص والأوقات أولاً ثم عد لإنشاء الجدول' if ar else 'Please set up periods and times first before creating the timetable' }}
+  </div>
+  <a href="{{ url_for('sas.admin_periods', stage_id=stage.id) }}" class="btn-sas" style="display:inline-block;text-decoration:none;padding:8px 28px;border-radius:8px">
+    <i class="bi bi-clock me-1"></i>{{ 'إعداد جدول الحصص' if ar else 'Set Up Periods' }}
+  </a>
+</div>
+
+{% else %}
+
+{# Find the day with the MOST period columns to use as header reference #}
+{% set max_day = namespace(val=none, count=0) %}
+{% for day_num in range(7) %}
+  {% if by_day.get(day_num) and by_day[day_num]|length > max_day.count %}
+    {% set max_day.val = day_num %}
+    {% set max_day.count = by_day[day_num]|length %}
+  {% endif %}
+{% endfor %}
+{% set col_periods = by_day.get(max_day.val, []) %}
+
+<div class="tt-legend no-print">
+  <div class="tt-legend-item">
+    <div class="tt-legend-dot" style="background:#dbeafe"></div>
+    <span style="color:#1e40af;font-weight:600">{{ 'حصة دراسية' if ar else 'Period' }}</span>
+  </div>
+  <div class="tt-legend-item">
+    <div class="tt-legend-dot" style="background:#fef9c3"></div>
+    <span style="color:#92400e;font-weight:600">{{ 'فرصة' if ar else 'Break' }}</span>
+  </div>
+  <div class="tt-legend-item" style="color:#6b7280">
+    <i class="bi bi-search me-1" style="color:var(--sas)"></i>
+    {{ 'انقر على حقل المعلم لاستدعائه من القاعدة' if ar else 'Click teacher field to search staff database' }}
+  </div>
+</div>
+
+<div class="tt-wrapper">
+  <table class="tt-table" id="ttGrid">
+    <thead>
+      <tr>
+        <th style="width:58px;min-width:58px">{{ 'اليوم' if ar else 'Day' }}</th>
+        {% for p in col_periods %}
+        <th class="{{ 'break-col-header' if p.period_type == 'break' else 'period-col-header' }}">
+          {% if p.period_type == 'break' %}
+            <div style="font-size:.8rem">🕐 {{ p.label or ('فرصة' if ar else 'Break') }}</div>
+            <div style="font-size:.67rem;opacity:.8;margin-top:2px">{{ p.start_time }}–{{ p.end_time }}</div>
+          {% else %}
+            <div>{{ p.label or (('الحصة ' ~ loop.index) if ar else ('Period ' ~ loop.index)) }}</div>
+            <div style="font-size:.68rem;opacity:.75;margin-top:2px">{{ p.start_time }} – {{ p.end_time }}</div>
+          {% endif %}
+        </th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for day_num in range(7) %}
+      {% set day_periods = by_day.get(day_num, []) %}
+      {% if day_periods %}
+      <tr>
+        <td class="day-cell">{{ day_names_ar[day_num] if ar else day_names_en[day_num] }}</td>
+        {% for col_p in col_periods %}
+          {# Match period by order_num #}
+          {% set matched = namespace(p=none) %}
+          {% for dp in day_periods %}
+            {% if dp.order_num == col_p.order_num and not matched.p %}
+              {% set matched.p = dp %}
+            {% endif %}
+          {% endfor %}
+          {% if matched.p %}
+            {% set p = matched.p %}
+            {% if p.period_type == 'break' %}
+            <td class="break-cell">
+              <div class="break-label">{{ p.label or ('فرصة' if ar else 'Break') }}</div>
+              <div style="font-size:.67rem;color:#a16207;margin-top:2px">{{ p.start_time }}–{{ p.end_time }}</div>
+            </td>
+            {% else %}
+            {% set entry = entry_map.get(p.id) %}
+            <td class="tt-cell" data-period-id="{{ p.id }}">
+              <div class="tt-cell-inner">
+                <input type="text" class="tt-subject-input"
+                       value="{{ entry.subject_name if entry else '' }}"
+                       placeholder="{{ 'المادة...' if ar else 'Subject...' }}"
+                       data-pid="{{ p.id }}" autocomplete="off">
+                <div class="tt-teacher-wrap">
+                  <input type="text" class="tt-teacher-input"
+                         value="{{ entry.teacher_name if entry else '' }}"
+                         placeholder="{{ '👤 المعلم/ة...' if ar else '👤 Teacher...' }}"
+                         data-pid="{{ p.id }}" autocomplete="off"
+                         oninput="searchTeacher(this)"
+                         onfocus="triggerTeacherSearch(this)">
+                  <div class="tt-staff-dropdown" id="drop-{{ p.id }}"></div>
+                </div>
+              </div>
+            </td>
+            {% endif %}
+          {% else %}
+            <td style="background:#f9fafb;"></td>
+          {% endif %}
+        {% endfor %}
+      </tr>
+      {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="text-center mt-3 mb-4 no-print">
+  <button class="btn-sas" style="padding:10px 44px;font-size:.9rem" onclick="saveTimetable()">
+    <i class="bi bi-check-lg me-1"></i>{{ 'حفظ الجدول' if ar else 'Save Timetable' }}
+  </button>
+</div>
+{% endif %}
+
+<script>
+var ar = {{ 'true' if ar else 'false' }};
+var stageId = {{ stage_id }};
+var _teacherTimeout = null;
+
+function triggerTeacherSearch(input) {
+  // On focus: if empty, load all staff for quick pick
+  searchTeacher(input, true);
+}
+
+function searchTeacher(input, forceShow) {
+  clearTimeout(_teacherTimeout);
+  var pid = input.dataset.pid;
+  var drop = document.getElementById('drop-' + pid);
+  if (!drop) return;
+  var q = input.value.trim();
+
+  // Hide if empty and not forced
+  if (!q && !forceShow) { drop.style.display = 'none'; return; }
+
+  _teacherTimeout = setTimeout(function () {
+    var url = '{{ url_for("sas.api_staff") }}?stage_id=' + stageId + (q ? '&q=' + encodeURIComponent(q) : '');
+    fetch(url)
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var staff = data.staff || [];
+        if (!staff.length) {
+          drop.innerHTML = '<div class="tt-no-results">' + (ar ? 'لا نتائج' : 'No results') + '</div>';
+          drop.style.display = 'block';
+          return;
+        }
+        var roleLabels = { supervisor: ar?'مشرف':'Supervisor', secretary: ar?'مساعد إداري':'Admin Asst', manager: ar?'مدير':'Manager' };
+        var html = '';
+        staff.forEach(function (s) {
+          var displayName = ar ? s.name : (s.name_en || s.name);
+          var safeName = s.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+          html += '<div class="tt-staff-item" onmousedown="event.preventDefault();selectTeacher(\'' + safeName + '\',\'' + pid + '\')">'
+            + '<span>' + displayName + '</span>'
+            + (roleLabels[s.role] ? '<span class="role-tag">' + roleLabels[s.role] + '</span>' : '')
+            + '</div>';
+        });
+        drop.innerHTML = html;
+        drop.style.display = 'block';
+      })
+      .catch(function () { drop.style.display = 'none'; });
+  }, 160);
+}
+
+function selectTeacher(name, pid) {
+  var cell = document.querySelector('[data-period-id="' + pid + '"]');
+  if (!cell) return;
+  var inp = cell.querySelector('.tt-teacher-input');
+  if (inp) { inp.value = name; inp.blur(); }
+  var drop = document.getElementById('drop-' + pid);
+  if (drop) drop.style.display = 'none';
+}
+
+// Close dropdowns on outside click
+document.addEventListener('click', function (e) {
+  if (!e.target.closest('.tt-teacher-wrap')) {
+    document.querySelectorAll('.tt-staff-dropdown').forEach(function (d) { d.style.display = 'none'; });
+  }
+});
+
+/* ── Save ── */
+function saveTimetable() {
+  var btn = document.getElementById('saveBtn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>' + (ar ? 'جارٍ الحفظ...' : 'Saving...'); }
+
+  var entries = [];
+  document.querySelectorAll('.tt-cell').forEach(function (cell) {
+    var pid = cell.dataset.periodId;
+    var subjectEl = cell.querySelector('.tt-subject-input');
+    var teacherEl = cell.querySelector('.tt-teacher-input');
+    if (pid) {
+      entries.push({
+        period_id: parseInt(pid),
+        subject: subjectEl ? subjectEl.value.trim() : '',
+        teacher: teacherEl ? teacherEl.value.trim() : '',
+      });
+    }
+  });
+
+  fetch('{{ url_for("sas.admin_timetable_save", section_id=section.id) }}', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ entries: entries })
+  })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d.ok) {
+        if (btn) { btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>' + (ar ? 'تم الحفظ ✓' : 'Saved ✓'); btn.style.background = '#0e7490'; btn.disabled = false; }
+        setTimeout(function () {
+          if (btn) { btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>' + (ar ? 'حفظ' : 'Save'); btn.style.background = ''; }
+        }, 2500);
+      } else {
+        alert(d.error || (ar ? 'حدث خطأ' : 'Error saving timetable'));
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>' + (ar ? 'حفظ' : 'Save'); }
+      }
+    })
+    .catch(function () {
+      alert(ar ? 'فشل الاتصال بالخادم' : 'Connection error');
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>' + (ar ? 'حفظ' : 'Save'); }
+    });
+}
+</script>
+{% endblock %}

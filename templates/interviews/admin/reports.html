@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+{% block title %}{% if current_lang=='en' %}Interview Reports{% else %}تقارير المقابلات{% endif %}{% endblock %}
+{% block content %}
+{%- set ar = (current_lang == 'ar') -%}
+<style>
+.stat-card{background:white;border-radius:14px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.06);border:1px solid #f1f5f9;text-align:center}
+.stat-card .stat-num{font-size:1.8rem;font-weight:800;line-height:1.2}
+.stat-card .stat-label{font-size:.78rem;color:#64748b;margin-top:4px}
+.progress-thin{height:6px;border-radius:3px}
+@media print{
+  .no-print{display:none!important}
+  .card,.stat-card{box-shadow:none!important;border:1px solid #dee2e6!important;page-break-inside:avoid}
+  body{font-size:10pt}
+}
+</style>
+
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+  <h5 class="fw-700 mb-0">
+    <i class="bi bi-bar-chart-line me-2"></i>{% if ar %}تقارير المقابلات{% else %}Interview Reports & Statistics{% endif %}
+  </h5>
+  <div class="d-flex gap-2 no-print">
+    <a href="{{ url_for('interviews.admin_reports_export') }}" class="btn btn-sm btn-outline-primary rounded-3">
+      <i class="bi bi-download me-1"></i>{% if ar %}تصدير CSV{% else %}Export CSV{% endif %}
+    </a>
+    <button onclick="window.print()" class="btn btn-sm btn-outline-secondary rounded-3">
+      <i class="bi bi-printer me-1"></i>{% if ar %}طباعة{% else %}Print{% endif %}
+    </button>
+  </div>
+</div>
+
+{# ── Overview Stats ── #}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3"><div class="stat-card">
+    <div class="stat-num text-primary">{{ total_events }}</div>
+    <div class="stat-label">{% if ar %}إجمالي الفعاليات{% else %}Total Events{% endif %}</div>
+  </div></div>
+  <div class="col-6 col-md-3"><div class="stat-card">
+    <div class="stat-num text-success">{{ confirmed_bookings }}</div>
+    <div class="stat-label">{% if ar %}حجوزات مؤكدة{% else %}Confirmed Bookings{% endif %}</div>
+  </div></div>
+  <div class="col-6 col-md-3"><div class="stat-card">
+    <div class="stat-num text-info">{{ total_teachers }}</div>
+    <div class="stat-label">{% if ar %}المعلمين{% else %}Teachers{% endif %}</div>
+  </div></div>
+  <div class="col-6 col-md-3"><div class="stat-card">
+    <div class="stat-num" style="color:#8b5cf6">{{ overall_utilization }}%</div>
+    <div class="stat-label">{% if ar %}نسبة الإشغال{% else %}Utilization{% endif %}</div>
+  </div></div>
+</div>
+
+{# ── Additional Stats Row ── #}
+<div class="row g-3 mb-4">
+  <div class="col-4 col-md-2"><div class="stat-card">
+    <div class="stat-num fs-4 text-danger">{{ cancelled_bookings }}</div>
+    <div class="stat-label">{% if ar %}ملغى{% else %}Cancelled{% endif %}</div>
+  </div></div>
+  <div class="col-4 col-md-2"><div class="stat-card">
+    <div class="stat-num fs-4 text-warning">{{ pending_requests }}</div>
+    <div class="stat-label">{% if ar %}طلبات معلقة{% else %}Pending Requests{% endif %}</div>
+  </div></div>
+  <div class="col-4 col-md-2"><div class="stat-card">
+    <div class="stat-num fs-4">{{ booked_slots }}/{{ total_slots }}</div>
+    <div class="stat-label">{% if ar %}الفترات{% else %}Slots Used{% endif %}</div>
+  </div></div>
+  <div class="col-4 col-md-2"><div class="stat-card">
+    <div class="stat-num fs-4 text-primary">{{ cal_slots }}</div>
+    <div class="stat-label">{% if ar %}روزنامة متاحة{% else %}Calendar Slots{% endif %}</div>
+  </div></div>
+  <div class="col-4 col-md-2"><div class="stat-card">
+    <div class="stat-num fs-4">{{ cal_bookings }}</div>
+    <div class="stat-label">{% if ar %}حجوزات روزنامة{% else %}Cal. Bookings{% endif %}</div>
+  </div></div>
+  <div class="col-4 col-md-2"><div class="stat-card">
+    <div class="stat-num fs-4 text-warning">{{ cal_pending }}</div>
+    <div class="stat-label">{% if ar %}معلق (روزنامة){% else %}Cal. Pending{% endif %}</div>
+  </div></div>
+</div>
+
+{# ── Per-Event Comparison ── #}
+{% for es in event_stats %}
+<div class="card border-0 shadow-sm rounded-4 mb-4">
+  <div class="card-header bg-light border-0 rounded-top-4 py-3 px-4 d-flex justify-content-between align-items-center">
+    <div>
+      <h6 class="fw-700 mb-0">{{ es.event.name }}</h6>
+      <small class="text-muted font-monospace">{{ es.event.event_code }}</small>
+    </div>
+    <div class="d-flex gap-3 text-end">
+      <div><div class="fw-700 text-primary">{{ es.utilization }}%</div><small class="text-muted">{% if ar %}إشغال{% else %}Util.{% endif %}</small></div>
+      <div><div class="fw-700 text-success">{{ es.confirmed }}</div><small class="text-muted">{% if ar %}مؤكد{% else %}Conf.{% endif %}</small></div>
+      <div><div class="fw-700 text-danger">{{ es.cancelled }}</div><small class="text-muted">{% if ar %}ملغى{% else %}Canc.{% endif %}</small></div>
+    </div>
+  </div>
+  <div class="card-body p-0">
+    {# Progress bar #}
+    <div class="px-4 py-2">
+      <div class="d-flex justify-content-between small mb-1">
+        <span>{% if ar %}{{ es.booked }} محجوز من {{ es.total_slots }}{% else %}{{ es.booked }} booked of {{ es.total_slots }}{% endif %}</span>
+        <span class="fw-600">{{ es.utilization }}%</span>
+      </div>
+      <div class="progress progress-thin">
+        <div class="progress-bar bg-primary" style="width:{{ es.utilization }}%"></div>
+      </div>
+    </div>
+    {# Teacher comparison table #}
+    {% if es.teacher_stats %}
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0 small">
+        <thead><tr class="table-light">
+          <th class="ps-4">{% if ar %}المعلم{% else %}Teacher{% endif %}</th>
+          <th>{% if ar %}المادة{% else %}Subject{% endif %}</th>
+          <th class="text-center">{% if ar %}الفترات{% else %}Slots{% endif %}</th>
+          <th class="text-center">{% if ar %}محجوز{% else %}Booked{% endif %}</th>
+          <th style="width:120px">{% if ar %}الإشغال{% else %}Usage{% endif %}</th>
+        </tr></thead>
+        <tbody>
+        {% for ts in es.teacher_stats %}
+        <tr>
+          <td class="ps-4 fw-600">{{ ts.name }}</td>
+          <td class="text-muted">{{ ts.subjects or '—' }}</td>
+          <td class="text-center">{{ ts.total }}</td>
+          <td class="text-center fw-600">{{ ts.booked }}</td>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <div class="progress progress-thin flex-grow-1">
+                <div class="progress-bar {{ 'bg-success' if ts.pct >= 70 else 'bg-warning' if ts.pct >= 40 else 'bg-danger' }}" style="width:{{ ts.pct }}%"></div>
+              </div>
+              <span class="fw-600" style="min-width:32px;font-size:.72rem">{{ ts.pct }}%</span>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endfor %}
+
+{% if not event_stats %}
+<div class="card border-0 shadow-sm rounded-4">
+  <div class="card-body text-center py-5">
+    <i class="bi bi-bar-chart-line fs-1 text-muted"></i>
+    <p class="mt-2 text-muted">{% if ar %}لا توجد فعاليات للتقرير{% else %}No events to report{% endif %}</p>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

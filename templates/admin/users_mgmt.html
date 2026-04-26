@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+{% block title %}{% if current_lang=="en" %}Manage Users — ARS{% else %}إدارة المستخدمين — ARS{% endif %}{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h1><i class="bi bi-people me-2"></i>{{ _('إدارة المستخدمين') }}</h1>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('users.new') }}" class="btn btn-primary-ars btn-sm">
+      <i class="bi bi-person-plus me-1"></i><span>{{ _('إضافة مستخدم') }}
+    </a>
+    <a href="{{ url_for('users.import_csv') }}" class="btn btn-outline-success btn-sm">
+      <i class="bi bi-upload me-1"></i>{{ _('استيراد CSV') }}
+    </a>
+    <a href="{{ url_for('users.export_csv') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-download me-1"></i>{{ _('تصدير CSV') }}
+    </a>
+    <a href="{{ url_for('users.bulk_message') }}" class="btn btn-outline-info btn-sm">
+      <i class="bi bi-envelope-paper me-1"></i>{{ _('رسالة جماعية') }}
+    </a>
+    <a href="{{ url_for('users.roles') }}" class="btn btn-outline-warning btn-sm">
+      <i class="bi bi-shield me-1"></i><span>{{ _('الأدوار') }}
+    </a>
+    <a href="{{ url_for('users.login_log') }}" class="btn btn-outline-dark btn-sm">
+      <i class="bi bi-clock-history me-1"></i>{{ _('سجل الدخول') }}
+    </a>
+  </div>
+</div>
+
+<!-- Search/filter -->
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <form method="GET" class="row g-2 align-items-end">
+      <div class="col-md-4">
+        <input type="text" name="q" class="form-control form-control-sm"
+               placeholder="{{ _('🔍 بحث بالاسم أو اسم المستخدم أو البريد') }}"
+               value="{{ search }}">
+      </div>
+      <div class="col-md-2">
+        <select name="role_id" class="form-select form-select-sm">
+          <option value="">{% if current_lang=='en' %}All Roles{% else %}كل الأدوار{% endif %}</option>
+          {% for r in roles %}
+          <option value="{{ r.id }}" {% if role_f==r.id|string %}selected{% endif %}>{% if current_lang=='en' %}{{ _(r.name) }}{% else %}{{ r.name }}{% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select name="department" class="form-select form-select-sm">
+          <option value="">{% if current_lang=='en' %}All Departments{% else %}كل الدوائر{% endif %}</option>
+          {% for d in all_depts %}
+          <option value="{{ d }}" {% if dept_f==d %}selected{% endif %}>{{ d }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-auto d-flex gap-2">
+        <button type="submit" class="btn btn-primary-ars btn-sm">{% if current_lang=='en' %}Filter{% else %}{{ _('تصفية') }}{% endif %}</button>
+        <a href="{{ url_for('users.index') }}" class="btn btn-outline-secondary btn-sm">{% if current_lang=='en' %}Reset{% else %}{{ _('إعادة') }}{% endif %}</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Stats badges -->
+<div class="mb-3 d-flex gap-2 flex-wrap">
+  {% if current_lang=='en' %}Total: {{ total }} Active: {{ users | selectattr('is_active') | list | length }}{% else %}إجمالي: {{ total }} نشطون: {{ users | selectattr('is_active') | list | length }}{% endif %}
+</div>
+
+<!-- Table -->
+<div class="card">
+  <div class="card-header d-flex justify-content-between">
+    <span><i class="bi bi-table me-2"></i>{% if current_lang=="en" %}Users ({{ total }}){% else %}المستخدمون ({{ total }}){% endif %}</span>
+    <small class="text-white opacity-75">{% if current_lang=="en" %}Page {{ page }}/{{ total_pages }}{% else %}صفحة {{ page }}/{{ total_pages }}{% endif %}</small>
+  </div>
+  <div class="px-3 pt-2 pb-1 d-flex align-items-center gap-2" id="bulkBar" style="display:none!important">
+    <button type="button" class="btn btn-sm" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.5);font-weight:700" onclick="selectAll(true)"><i class="bi bi-check-all me-1"></i>{{ _('تحديد الكل') }}</button>
+    <button type="button" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.4);font-weight:700" onclick="selectAll(false)"><i class="bi bi-x-lg me-1"></i>{{ _('إلغاء الكل') }}</button>
+    <span id="selCount" class="text-white-50 small ms-1"></span>
+    <form method="POST" action="{{ url_for('users.bulk_delete') }}" id="bulkForm" class="ms-auto" onsubmit="return confirmBulk()">
+      <div id="bulkIds"></div>
+      <button type="submit" class="btn btn-sm btn-danger"><i class="bi bi-trash me-1"></i>{{ _('حذف المحدد') }}</button>
+    </form>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th style="width:36px"><input type="checkbox" class="form-check-input" id="checkAll" onchange="selectAll(this.checked)"></th>
+          <th>{% if current_lang=='en' %}Full Name{% else %}{{ _('الاسم الكامل') }}{% endif %}</th>
+          <th>{% if current_lang=='en' %}Username{% else %}{{ _('اسم المستخدم') }}{% endif %}</th>
+          <th class="d-none d-md-table-cell">{% if current_lang=='en' %}Department{% else %}{{ _('الدائرة') }}{% endif %}</th>
+          <th class="d-none d-lg-table-cell">{% if current_lang=='en' %}Job Title{% else %}{{ _('المسمى الوظيفي') }}{% endif %}</th>
+          <th>{% if current_lang=='en' %}Role{% else %}{{ _('الدور') }}{% endif %}</th>
+          <th>{% if current_lang=='en' %}Bookings{% else %}{{ _('الحجوزات') }}{% endif %}</th>
+          <th>{% if current_lang=='en' %}Status{% else %}{{ _('الحالة') }}{% endif %}</th>
+          <th class="d-none d-md-table-cell">{% if current_lang=='en' %}Last Login{% else %}{{ _('آخر دخول') }}{% endif %}</th>
+          <th>{% if current_lang=='en' %}Actions{% else %}{{ _('إجراءات') }}{% endif %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td><input type="checkbox" class="form-check-input row-check" value="{{ u.id }}" {% if u.id == current_user.id %}disabled{% endif %} onchange="updateBulk()"></td>
+          <td class="fw-bold">
+            {% if u.role and u.role.name in ('مدير النظام','admin') %}👑{% endif %}
+            {{ u.full_name }}
+            {% if u.email %}<div class="small text-muted fw-normal">{{ u.email }}</div>{% endif %}
+          </td>
+          <td><code>{{ u.username }}</code></td>
+          <td class="d-none d-md-table-cell small">{{ u.department or '—' }}</td>
+          <td class="d-none d-lg-table-cell small text-muted">{{ u.job_title or '—' }}</td>
+          <td>{% if u.role %}{% if current_lang=='en' %}{{ _(u.role.name) }}{% else %}{{ u.role.name }}{% endif %}{% else %}—{% endif %}</td>
+          <td class="text-center">{{ res_counts.get(u.id, 0) }}</td>
+          <td>
+            <span class="badge {{ 'bg-success' if u.is_active else 'bg-secondary' }}">
+              {% if current_lang=='en' %}{{ 'Active' if u.is_active else 'Disabled' }}{% else %}{{ 'نشط' if u.is_active else 'معطّل' }}{% endif %}
+            </span>
+          </td>
+          <td class="d-none d-md-table-cell small text-muted">
+            {{ u.last_login.strftime('%Y-%m-%d') if u.last_login else '—' }}
+          </td>
+          <td>
+            <div class="d-flex gap-1">
+              <a href="{{ url_for('users.edit', user_id=u.id) }}" class="btn btn-xs btn-outline-warning" title="{{ _('تعديل') }}">
+                <i class="bi bi-pencil"></i>
+              </a>
+              {% if u.id != current_user.id %}
+              <form method="POST" action="{{ url_for('users.delete', user_id=u.id) }}"
+                    onsubmit="return confirm('حذف المستخدم: {{ u.username }}؟')">
+                <button type="submit" class="btn btn-xs btn-outline-danger" title="{{ _('حذف') }}">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="11" class="text-center text-muted py-4">{% if current_lang=='en' %}No users found{% else %}{{ _('لا يوجد مستخدمون') }}{% endif %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if total_pages > 1 %}
+  <div class="card-footer d-flex justify-content-center gap-2">
+    {% if page > 1 %}
+    <a href="{{ url_for('users.index', page=page-1, q=search, role_id=role_f) }}" class="btn btn-sm btn-outline-primary">{{ _('« السابق') }}</a>
+    {% endif %}
+    {{ page }} / {{ total_pages }}
+    {% if page < total_pages %}
+    <a href="{{ url_for('users.index', page=page+1, q=search, role_id=role_f) }}" class="btn btn-sm btn-outline-primary">{{ _('التالي »') }}</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<style>.btn-xs{padding:2px 7px;font-size:.75rem}#bulkBar{background:rgba(220,53,69,.15);border-radius:0;padding:6px 12px;}</style>
+
+<script>
+const LANG_IS_EN = document.documentElement.lang === 'en';
+function selectAll(val) {
+  document.querySelectorAll('.row-check:not(:disabled)').forEach(cb => cb.checked = val);
+  document.getElementById('checkAll').checked = val;
+  updateBulk();
+}
+function updateBulk() {
+  const checks = document.querySelectorAll('.row-check:checked');
+  const bar = document.getElementById('bulkBar');
+  const cnt = document.getElementById('selCount');
+  const all = document.getElementById('checkAll');
+  const total = document.querySelectorAll('.row-check:not(:disabled)').length;
+  bar.style.cssText = checks.length > 0 ? 'display:flex!important;align-items:center;gap:8px;background:#1565C0;padding:10px 16px;border-radius:0' : 'display:none!important';
+  if (cnt) cnt.textContent = checks.length + ' / ' + total + ' ' + (LANG_IS_EN ? 'selected' : 'محدد');
+  if (all) { all.indeterminate = checks.length > 0 && checks.length < total; all.checked = checks.length === total && total > 0; }
+  const bulkIds = document.getElementById('bulkIds');
+  if (bulkIds) bulkIds.innerHTML = [...checks].map(c => `<input type="hidden" name="ids" value="${c.value}">`).join('');
+}
+function confirmBulk() {
+  const n = document.querySelectorAll('.row-check:checked').length;
+  return confirm(LANG_IS_EN ? 'Delete ' + n + ' users? Cannot be undone.' : 'حذف ' + n + ' مستخدم؟ لا يمكن التراجع.');
+}
+document.querySelectorAll('.row-check').forEach(cb => cb.addEventListener('change', updateBulk));
+</script>
+{% endblock %}

@@ -1,0 +1,131 @@
+{%- set ar = (current_lang == 'ar') -%}
+{% extends 'interviews/_public_base.html' %}
+{% block title %}{% if ar %}حالة الطلب{% else %}Request Status{% endif %} — {{ booking.request_code }}{% endblock %}
+
+{% block extra_style %}
+.status-card{background:white;border-radius:18px;box-shadow:0 1px 3px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.06);border:1px solid rgba(255,255,255,.8);overflow:hidden}
+.status-header{padding:28px 24px;text-align:center}
+.status-icon{width:68px;height:68px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2rem;margin:0 auto 16px}
+.status-pending .status-icon{background:#fff7ed;color:#f59e0b}
+.status-approved .status-icon{background:#f0fdf4;color:#16a34a}
+.status-rejected .status-icon{background:#fef2f2;color:#dc2626}
+.status-badge{display:inline-block;padding:6px 20px;border-radius:20px;font-weight:700;font-size:.85rem;margin-top:8px}
+.status-pending .status-badge{background:#fff7ed;color:#d97706;border:1.5px solid #fbbf24}
+.status-approved .status-badge{background:#f0fdf4;color:#16a34a;border:1.5px solid #22c55e}
+.status-rejected .status-badge{background:#fef2f2;color:#dc2626;border:1.5px solid #ef4444}
+.status-code{font-family:monospace;font-size:1.4rem;font-weight:800;color:#0f172a;letter-spacing:1px;margin:12px 0}
+.status-details{padding:0 24px 28px}
+.status-details table{width:100%;font-size:.88rem}
+.status-details td{padding:10px 0;border-bottom:1px solid #f1f5f9;vertical-align:top}
+.status-details td:first-child{font-weight:600;color:#475569;width:40%;padding-inline-end:12px}
+.status-details td:last-child{color:#0f172a}
+.status-notes{background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px 16px;font-size:.88rem;color:#1e40af;margin-top:8px}
+.status-actions{padding:0 24px 24px;display:flex;gap:12px;flex-wrap:wrap}
+@media print{
+  body{background:white!important}
+  .pi-nav,.pi-footer,.no-print,.status-actions{display:none!important}
+  .status-card{box-shadow:none!important;border:1px solid #dee2e6!important}
+  .container{max-width:100%!important}
+}
+{% endblock %}
+
+{% block pi_ticker %}{% endblock %}
+{% block nav_action %}
+<a href="{{ url_for('interviews.calendar_public') }}" class="nav-back-btn"><i class="bi bi-arrow-{{ 'right' if ar else 'left' }}"></i></a>
+{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width:580px">
+  <div class="status-card status-{{ booking.status }}">
+    <div class="status-header">
+      {% if booking.status == 'pending' %}
+      <div class="status-icon"><i class="bi bi-hourglass-split"></i></div>
+      <h4 class="fw-800" style="color:#0f172a">{% if ar %}قيد المراجعة{% else %}Under Review{% endif %}</h4>
+      <p style="color:#64748b;font-size:.9rem">{% if ar %}طلبك قيد المراجعة وسيتم إبلاغك بالنتيجة{% else %}Your request is under review. You will be notified of the outcome.{% endif %}</p>
+      <div class="status-badge">{% if ar %}قيد الانتظار{% else %}Pending{% endif %}</div>
+      {% elif booking.status == 'approved' %}
+      <div class="status-icon"><i class="bi bi-check-circle-fill"></i></div>
+      <h4 class="fw-800" style="color:#16a34a">{% if ar %}تمت الموافقة{% else %}Approved{% endif %}</h4>
+      <p style="color:#64748b;font-size:.9rem">{% if ar %}تمت الموافقة على طلبك{% else %}Your appointment request has been approved.{% endif %}</p>
+      <div class="status-badge">{% if ar %}مقبول{% else %}Approved{% endif %}</div>
+      {% elif booking.status == 'rejected' %}
+      <div class="status-icon"><i class="bi bi-x-circle-fill"></i></div>
+      <h4 class="fw-800" style="color:#dc2626">{% if ar %}تم الرفض{% else %}Rejected{% endif %}</h4>
+      <p style="color:#64748b;font-size:.9rem">{% if ar %}نأسف، تم رفض طلبك{% else %}Sorry, your request has been declined.{% endif %}</p>
+      <div class="status-badge">{% if ar %}مرفوض{% else %}Rejected{% endif %}</div>
+      {% endif %}
+
+      <div class="status-code">{{ booking.request_code }}</div>
+    </div>
+
+    <div class="status-details">
+      <table>
+        <tr>
+          <td>{% if ar %}رقم الطلب{% else %}Request Code{% endif %}</td>
+          <td class="font-monospace fw-700">{{ booking.request_code }}</td>
+        </tr>
+        <tr>
+          <td>{% if ar %}الاسم{% else %}Name{% endif %}</td>
+          <td>{{ booking.requester_name }}</td>
+        </tr>
+        <tr>
+          <td>{% if ar %}التاريخ{% else %}Date{% endif %}</td>
+          <td>{{ booking.booking_date or (booking.slot.slot_date if booking.slot else '—') }}</td>
+        </tr>
+        <tr>
+          <td>{% if ar %}الوقت{% else %}Time{% endif %}</td>
+          <td>
+            {% if booking.start_time and booking.end_time %}
+              {{ booking.start_time }} – {{ booking.end_time }}
+            {% elif booking.slot %}
+              {{ booking.slot.start_time }} – {{ booking.slot.end_time }}
+            {% else %}
+              —
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td>{% if ar %}الشخص المطلوب{% else %}Person to Meet{% endif %}</td>
+          <td>{{ booking.person_to_meet }}</td>
+        </tr>
+        <tr>
+          <td>{% if ar %}السبب{% else %}Reason{% endif %}</td>
+          <td>{{ booking.reason }}</td>
+        </tr>
+        {% if booking.requester_email %}
+        <tr>
+          <td>{% if ar %}البريد{% else %}Email{% endif %}</td>
+          <td>{{ booking.requester_email }}</td>
+        </tr>
+        {% endif %}
+        {% if booking.requester_phone %}
+        <tr>
+          <td>{% if ar %}الهاتف{% else %}Phone{% endif %}</td>
+          <td>{{ booking.requester_phone }}</td>
+        </tr>
+        {% endif %}
+        <tr>
+          <td>{% if ar %}تاريخ الطلب{% else %}Submitted{% endif %}</td>
+          <td>{{ booking.created_at.strftime('%Y-%m-%d %H:%M') if booking.created_at else '—' }}</td>
+        </tr>
+      </table>
+
+      {% if booking.admin_notes %}
+      <div class="status-notes">
+        <strong><i class="bi bi-chat-left-text me-1"></i>{% if ar %}ملاحظات الإدارة{% else %}Admin Notes{% endif %}:</strong>
+        <div style="margin-top:6px">{{ booking.admin_notes }}</div>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="status-actions no-print">
+      <button onclick="window.print()" class="btn-pi-outline" style="flex:1;text-align:center;padding:12px">
+        <i class="bi bi-printer me-2"></i>{% if ar %}طباعة{% else %}Print{% endif %}
+      </button>
+      <a href="{{ url_for('interviews.calendar_public') }}" class="btn-pi" style="flex:1;text-align:center;padding:12px;text-decoration:none">
+        <i class="bi bi-plus-lg me-2"></i>{% if ar %}موعد جديد{% else %}New Appointment{% endif %}
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

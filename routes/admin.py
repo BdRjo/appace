@@ -1,0 +1,1202 @@
+"""
+Admin — لوحة التحكم + الصيانة + الإعدادات
+مطابق لـ v54: show_dashboard + MaintenanceWindow + SettingsWindow
+"""
+import os, shutil, json
+from datetime import datetime, timedelta
+from utils.flash_helper import flash_msg
+from flask import (current_app, Blueprint, render_template, request, redirect,
+                   url_for, flash, abort, jsonify, send_file, session)
+from flask_login import login_required, current_user
+from sqlalchemy import func, text
+from models.database import Reservation, User, Venue, Location, SystemLog, LoginLog
+from utils.helpers import get_db, admin_required, syslog, paginate, get_permissions
+
+admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
+
+import os as _os
+# On Render: save email config to persistent /data disk, not app directory
+_data_dir = _os.environ.get('DATA_DIR', '/data')
+_default_email_cfg = _os.path.join(_data_dir, 'email_config.json') \
+    if _os.path.isdir(_data_dir) else \
+    _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), 'email_config.json')
+CONFIG_EMAIL = _os.environ.get('EMAIL_CONFIG_PATH', _default_email_cfg)
+CONFIG_MAINT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'maintenance_config.json')
+
+
+# ── Dashboard — مطابق لـ v54 show_dashboard ───────────────────────────────────
+@admin_bp.route('/')
+@admin_bp.route('/dashboard')
+@login_required
+@admin_required
+def dashboard():
+    db  = get_db()
+    now = datetime.now()
+
+    stats = {
+        'total':      db.query(Reservation).count(),
+        'pending':    db.query(Reservation).filter_by(status='pending').count(),
+        'approved':   db.query(Reservation).filter_by(status='approved').count(),
+        'rejected':   db.query(Reservation).filter_by(status='rejected').count(),
+        'cancelled':  db.query(Reservation).filter_by(status='cancelled').count(),
+        'completed':  db.query(Reservation).filter_by(status='completed').count(),
+        'users':      db.query(User).filter_by(is_active=True).count(),
+        'venues':     db.query(Venue).filter_by(is_active=True).count(),
+        'locations':  db.query(Location).filter_by(is_active=True).count(),
+        'this_month': db.query(Reservation).filter(
+            Reservation.created_at >= now.replace(day=1)).count(),
+        'today': db.query(Reservation).filter(
+            Reservation.start_time >= now.replace(hour=0, minute=0, second=0, microsecond=0),
+            Reservation.start_time <  now.replace(hour=23, minute=59, second=59, microsecond=999999)
+        ).count(),
+        'today_approved': db.query(Reservation).filter(
+            Reservation.start_time >= now.replace(hour=0, minute=0, second=0, microsecond=0),
+            Reservation.start_time <  now.replace(hour=23, minute=59, second=59, microsecond=999999),
+            Reservation.status == 'approved'
+        ).count(),
+    }
+
+    # Trend شهري (12 شهر) — مثل v54 show_bar_chart
+    monthly = []
+    for i in range(11, -1, -1):
+        d   = (now - timedelta(days=30*i)).replace(day=1,hour=0,minute=0,second=0)
+        nd  = (d + timedelta(days=32)).replace(day=1)
+        cnt = db.query(Reservation).filter(
+            Reservation.created_at >= d, Reservation.created_at < nd).count()
+        monthly.append({'month': d.strftime('%m/%Y'), 'count': cnt})
+
+    # حجوزات معلقة — مثل v54 pending list
+    pending_list = (db.query(Reservation).filter_by(status='pending')
+                    .order_by(Reservation.created_at.asc()).limit(8).all())
+
+    # أعلى 5 قاعات
+    top_venues = (db.query(Venue.name, func.count(Reservation.id).label('cnt'))
+                  .join(Reservation, Reservation.venue_id == Venue.id, isouter=True)
+                  .group_by(Venue.id)
+                  .order_by(func.count(Reservation.id).desc())
+                  .limit(5).all())
+
+    # XY — أعلى 8 مستخدمين نشاطاً (الإجمالي vs. الموافقات)
+    from sqlalchemy import case
+    _xy_rows = (db.query(
+                    User.full_name,
+                    func.count(Reservation.id).label('total'),
+                    func.sum(case((Reservation.status == 'approved', 1), else_=0)).label('approved')
+                )
+                .join(Reservation, Reservation.user_id == User.id, isouter=True)
+                .group_by(User.id)
+                .order_by(func.count(Reservation.id).desc())
+                .limit(8).all())
+    top_users_xy = [[r[0], int(r[1] or 0), int(r[2] or 0)] for r in _xy_rows]
+
+    return render_template('admin/dashboard.html',
+        stats=stats, monthly=monthly,
+        pending_list=pending_list, top_venues=top_venues,
+        top_users_xy=top_users_xy)
+
+
+# ── Dashboard PDF Export ───────────────────────────────────────────────────────
+@admin_bp.route('/dashboard/pdf')
+@login_required
+@admin_required
+def dashboard_pdf():
+    import io
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import cm
+    from utils.pdf_helper import arabic_font, ar
+    db  = get_db()
+    now = datetime.now()
+    stats = {
+        'total':     db.query(Reservation).count(),
+        'pending':   db.query(Reservation).filter_by(status='pending').count(),
+        'approved':  db.query(Reservation).filter_by(status='approved').count(),
+        'rejected':  db.query(Reservation).filter_by(status='rejected').count(),
+        'cancelled': db.query(Reservation).filter_by(status='cancelled').count(),
+        'completed': db.query(Reservation).filter_by(status='completed').count(),
+        'users':     db.query(User).filter_by(is_active=True).count(),
+        'venues':    db.query(Venue).filter_by(is_active=True).count(),
+        'locations': db.query(Location).filter_by(is_active=True).count(),
+        'this_month':db.query(Reservation).filter(Reservation.created_at >= now.replace(day=1)).count(),
+    }
+    monthly = []
+    for i in range(11, -1, -1):
+        d   = (now - timedelta(days=30*i)).replace(day=1,hour=0,minute=0,second=0)
+        nd  = (d + timedelta(days=32)).replace(day=1)
+        cnt = db.query(Reservation).filter(Reservation.created_at>=d, Reservation.created_at<nd).count()
+        monthly.append((d.strftime('%m/%Y'), cnt))
+
+    from flask import session
+    is_en = session.get('lang','ar') == 'en'
+    def _t(ar_text, en_text): return en_text if is_en else ar(ar_text)
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=landscape(A4),
+                            rightMargin=1.5*cm, leftMargin=1.5*cm,
+                            topMargin=1.5*cm, bottomMargin=1.5*cm)
+    fn  = arabic_font()
+    elements = []
+    BLUE    = colors.HexColor('#1565C0')
+    LBLUE   = colors.HexColor('#EBF5FB')
+    LBLUE2  = colors.HexColor('#D6EAF8')
+    LBLUE3  = colors.HexColor('#AED6F1')
+    TEAL    = colors.HexColor('#00695C')
+    AMBER   = colors.HexColor('#F57F17')
+
+    title_style = ParagraphStyle('t', fontName=fn, fontSize=16, alignment=1, spaceAfter=12,
+                                  textColor=BLUE)
+    sub_style   = ParagraphStyle('s', fontName=fn, fontSize=11, alignment=1, spaceAfter=8,
+                                  textColor=colors.grey)
+
+    report_title = _t('تقرير لوحة التحكم', 'Dashboard Report')
+    report_date  = _t(f'تاريخ التقرير: {now.strftime("%Y-%m-%d %H:%M")}',
+                      f'Report Date: {now.strftime("%Y-%m-%d %H:%M")}')
+    elements.append(Paragraph(report_title, title_style))
+    elements.append(Paragraph(report_date,  sub_style))
+    elements.append(Spacer(1, 0.4*cm))
+
+    # Stats table — 3-column layout: label | value | label | value | label | value
+    stat_data = [
+        [_t('إجمالي الحجوزات','Total Bookings'), str(stats['total']),
+         _t('معلقة','Pending'),                  str(stats['pending']),
+         _t('موافق عليها','Approved'),            str(stats['approved'])],
+        [_t('مرفوضة','Rejected'),                 str(stats['rejected']),
+         _t('ملغاة','Cancelled'),                 str(stats['cancelled']),
+         _t('هذا الشهر','This Month'),            str(stats['this_month'])],
+        [_t('المستخدمون','Active Users'),         str(stats['users']),
+         _t('القاعات','Active Venues'),           str(stats['venues']),
+         _t('المواقع','Locations'),               str(stats['locations'])],
+    ]
+    LABEL_FILL  = colors.HexColor('#1565C0')  # label cells
+    VALUE_FILL  = colors.HexColor('#E3F2FD')  # value cells
+    st = Table(stat_data, colWidths=[4.5*cm, 2.5*cm, 4.5*cm, 2.5*cm, 4.5*cm, 2.5*cm])
+    st.setStyle(TableStyle([
+        ('FONTNAME',   (0,0),(-1,-1), fn),
+        ('FONTSIZE',   (0,0),(-1,-1), 10),
+        ('ALIGN',      (0,0),(-1,-1), 'CENTER'),
+        ('VALIGN',     (0,0),(-1,-1), 'MIDDLE'),
+        # Label columns (0,2,4) — dark blue with white text
+        ('BACKGROUND', (0,0),(0,-1), LABEL_FILL),
+        ('TEXTCOLOR',  (0,0),(0,-1), colors.white),
+        ('FONTNAME',   (0,0),(0,-1), fn),
+        ('BACKGROUND', (2,0),(2,-1), LABEL_FILL),
+        ('TEXTCOLOR',  (2,0),(2,-1), colors.white),
+        ('BACKGROUND', (4,0),(4,-1), LABEL_FILL),
+        ('TEXTCOLOR',  (4,0),(4,-1), colors.white),
+        # Value columns (1,3,5) — light blue
+        ('BACKGROUND', (1,0),(1,-1), VALUE_FILL),
+        ('BACKGROUND', (3,0),(3,-1), VALUE_FILL),
+        ('BACKGROUND', (5,0),(5,-1), VALUE_FILL),
+        ('FONTSIZE',   (1,0),(1,-1), 14),
+        ('FONTSIZE',   (3,0),(3,-1), 14),
+        ('FONTSIZE',   (5,0),(5,-1), 14),
+        ('GRID',       (0,0),(-1,-1), 0.5, LBLUE3),
+        ('ROWHEIGHT',  (0,0),(-1,-1), 30),
+    ]))
+    elements.append(st)
+    elements.append(Spacer(1, 0.6*cm))
+
+    # Monthly table
+    elements.append(Paragraph(_t('الحجوزات — آخر 12 شهر','Bookings — Last 12 Months'), title_style))
+    mon_label = _t('الشهر','Month')
+    mon_count = _t('عدد الحجوزات','Count')
+    mon_hdr = [[mon_label, mon_count]]
+    mon_rows = [[m[0], str(m[1])] for m in monthly]
+    mt = Table(mon_hdr + mon_rows, colWidths=[6*cm, 6*cm])
+    mt.setStyle(TableStyle([
+        ('FONTNAME', (0,0),(-1,-1), fn),
+        ('FONTSIZE', (0,0),(-1,-1), 10),
+        ('ALIGN',    (0,0),(-1,-1), 'CENTER'),
+        ('BACKGROUND',(0,0),(-1,0), BLUE),
+        ('TEXTCOLOR', (0,0),(-1,0), colors.white),
+        ('ROWBACKGROUNDS',(0,1),(-1,-1),[colors.white, LBLUE]),
+        ('GRID',     (0,0),(-1,-1), 0.5, LBLUE3),
+    ]))
+    elements.append(mt)
+
+    doc.build(elements)
+    buf.seek(0)
+    lang_suffix = 'en' if is_en else 'ar'
+    fname = f'dashboard_{now.strftime("%Y%m%d_%H%M")}_{lang_suffix}.pdf'
+    return send_file(buf, as_attachment=True, download_name=fname, mimetype='application/pdf')
+
+
+# ── Dashboard Excel Export ─────────────────────────────────────────────────────
+@admin_bp.route('/dashboard/excel')
+@login_required
+@admin_required
+def dashboard_excel():
+    import io
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment
+        from openpyxl.utils import get_column_letter
+    except ImportError:
+        return 'openpyxl not installed', 500
+
+    from flask import session as fsession
+    lang = fsession.get('lang', 'ar')
+    is_en = (lang == 'en')
+
+    db  = get_db()
+    now = datetime.now()
+
+    if is_en:
+        stats = {
+            'Total Reservations': db.query(Reservation).count(),
+            'Pending':            db.query(Reservation).filter_by(status='pending').count(),
+            'Approved':           db.query(Reservation).filter_by(status='approved').count(),
+            'Rejected':           db.query(Reservation).filter_by(status='rejected').count(),
+            'Cancelled':          db.query(Reservation).filter_by(status='cancelled').count(),
+            'Completed':          db.query(Reservation).filter_by(status='completed').count(),
+            'Active Users':       db.query(User).filter_by(is_active=True).count(),
+            'Venues':             db.query(Venue).filter_by(is_active=True).count(),
+            'Locations':          db.query(Location).filter_by(is_active=True).count(),
+            'This Month':         db.query(Reservation).filter(Reservation.created_at >= now.replace(day=1)).count(),
+        }
+        sheet_title      = 'Dashboard Report'
+        date_label       = f'Date: {now.strftime("%Y-%m-%d %H:%M")}'
+        col_item         = 'Item'
+        col_value        = 'Value'
+        monthly_sheet    = 'Monthly Bookings'
+        col_month        = 'Month'
+        col_count        = 'Count'
+        lang_suffix      = 'en'
+    else:
+        stats = {
+            'إجمالي الحجوزات': db.query(Reservation).count(),
+            'معلقة':            db.query(Reservation).filter_by(status='pending').count(),
+            'موافق عليها':      db.query(Reservation).filter_by(status='approved').count(),
+            'مرفوضة':           db.query(Reservation).filter_by(status='rejected').count(),
+            'ملغاة':            db.query(Reservation).filter_by(status='cancelled').count(),
+            'مكتملة':           db.query(Reservation).filter_by(status='completed').count(),
+            'المستخدمون':       db.query(User).filter_by(is_active=True).count(),
+            'القاعات':          db.query(Venue).filter_by(is_active=True).count(),
+            'المواقع':          db.query(Location).filter_by(is_active=True).count(),
+            'هذا الشهر':        db.query(Reservation).filter(Reservation.created_at >= now.replace(day=1)).count(),
+        }
+        sheet_title      = 'تقرير لوحة التحكم'
+        date_label       = f'تاريخ: {now.strftime("%Y-%m-%d %H:%M")}'
+        col_item         = 'البيان'
+        col_value        = 'القيمة'
+        monthly_sheet    = 'الحجوزات الشهرية'
+        col_month        = 'الشهر'
+        col_count        = 'العدد'
+        lang_suffix      = 'ar'
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Dashboard'
+    ws.sheet_view.rightToLeft = not is_en
+
+    hdr_fill  = PatternFill('solid', fgColor='0C67EC')
+    hdr_font  = Font(bold=True, color='FFFFFF', name='Calibri', size=12)
+    even_fill = PatternFill('solid', fgColor='EBF5FB')
+    align_data = Alignment(horizontal='right' if not is_en else 'left')
+    align_num  = Alignment(horizontal='center')
+
+    ws['A1'] = sheet_title
+    ws['A2'] = date_label
+    ws['A1'].font = Font(bold=True, size=14, name='Calibri')
+    row = 4
+    ws.cell(row=row, column=1, value=col_item).font  = hdr_font
+    ws.cell(row=row, column=1).fill = hdr_fill
+    ws.cell(row=row, column=2, value=col_value).font = hdr_font
+    ws.cell(row=row, column=2).fill = hdr_fill
+    for i, (k, v) in enumerate(stats.items(), start=row+1):
+        ws.cell(row=i, column=1, value=k)
+        ws.cell(row=i, column=2, value=v)
+        if i % 2 == 0:
+            ws.cell(row=i, column=1).fill = even_fill
+            ws.cell(row=i, column=2).fill = even_fill
+        ws.cell(row=i, column=1).alignment = align_data
+        ws.cell(row=i, column=2).alignment = align_num
+
+    ws2 = wb.create_sheet(monthly_sheet)
+    ws2.sheet_view.rightToLeft = not is_en
+    ws2.cell(1,1,col_month).font  = hdr_font; ws2.cell(1,1).fill = hdr_fill
+    ws2.cell(1,2,col_count).font  = hdr_font; ws2.cell(1,2).fill = hdr_fill
+    for i in range(11, -1, -1):
+        d   = (now - timedelta(days=30*i)).replace(day=1,hour=0,minute=0,second=0)
+        nd  = (d + timedelta(days=32)).replace(day=1)
+        cnt = db.query(Reservation).filter(Reservation.created_at>=d, Reservation.created_at<nd).count()
+        r = 12 - i + 2
+        ws2.cell(row=r, column=1, value=d.strftime('%m/%Y'))
+        ws2.cell(row=r, column=2, value=cnt)
+
+    for ws_ in [ws, ws2]:
+        for col in ws_.columns:
+            ws_.column_dimensions[get_column_letter(col[0].column)].width = 26
+
+    buf = io.BytesIO()
+    wb.save(buf); buf.seek(0)
+    fname = f'dashboard_{now.strftime("%Y%m%d_%H%M")}_{lang_suffix}.xlsx'
+    return send_file(buf, as_attachment=True, download_name=fname,
+                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+
+# ── System log — مطابق لـ v54 SecurityLogWindow ───────────────────────────────
+@admin_bp.route('/system-log')
+@login_required
+@admin_required
+def system_log():
+    db     = get_db()
+    page   = request.args.get('page',1,type=int)
+    level  = request.args.get('level','')
+    action = request.args.get('action','')
+    q      = db.query(SystemLog)
+    if level:  q = q.filter(SystemLog.level == level)
+    if action: q = q.filter(SystemLog.action.ilike(f'%{action}%'))
+    items, total, total_pages = paginate(q.order_by(SystemLog.created_at.desc()), page, 30)
+    return render_template('admin/system_log.html',
+        logs=items, total=total, page=page, total_pages=total_pages,
+        level=level, action=action)
+
+
+# ── Audit Log ──────────────────────────────────────────────────────────────────
+@admin_bp.route('/audit-log')
+@login_required
+@admin_required
+def audit_log():
+    db   = get_db()
+    page = request.args.get('page', 1, type=int)
+    user_filter = request.args.get('user', '')
+    action_filter = request.args.get('action', '')
+    q = db.query(SystemLog)
+    if user_filter:
+        try:
+            uid = int(user_filter)
+            q = q.filter(SystemLog.user_id == uid)
+        except ValueError:
+            pass
+    if action_filter:
+        q = q.filter(SystemLog.action.ilike(f'%{action_filter}%'))
+    items, total, total_pages = paginate(q.order_by(SystemLog.created_at.desc()), page, 50)
+    users = db.query(User).order_by(User.full_name).all()
+    return render_template('admin/audit_log.html',
+        logs=items, total=total, page=page, total_pages=total_pages,
+        users=users, user_filter=user_filter, action_filter=action_filter)
+
+
+# ── Maintenance — مطابق لـ v54 MaintenanceWindow ─────────────────────────────
+CONFIG_TICKER      = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'ticker_config.json')
+CONFIG_AUTH_TICKER = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'auth_ticker_config.json')
+CONFIG_INTERVIEW_TICKER = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'interview_ticker_config.json')
+
+def _load_ticker():
+    try:
+        with open(CONFIG_TICKER, encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        current_app.logger.warning(f"{__name__} error: {e}")
+        return {
+            'feeds_ar': ['مرحباً بكم في نظام ARS لإدارة الحجوزات'],
+            'feeds_en': ['Welcome to ARS Reservation System'],
+            'fg': '#F2C99A', 'bg': '', 'font': 'Tahoma',
+            'size': 15, 'speed': 35, 'opacity': 0
+        }
+
+def _load_auth_ticker():
+    try:
+        with open(CONFIG_AUTH_TICKER, encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        current_app.logger.warning(f"{__name__} error: {e}")
+        return {
+            'feeds_ar': ['مرحباً بكم — سجّل دخولك للمتابعة'],
+            'feeds_en': ['Welcome — Please sign in to continue'],
+            'fg': '#ffffff', 'bg': 'transparent', 'font': 'Tajawal',
+            'size': 14, 'speed': 35
+        }
+
+def _save_ticker(cfg):
+    with open(CONFIG_TICKER, 'w', encoding='utf-8') as f:
+        json.dump(cfg, f, ensure_ascii=False, indent=2)
+
+def _load_interview_ticker():
+    try:
+        with open(CONFIG_INTERVIEW_TICKER, encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        current_app.logger.warning(f"{__name__} error: {e}")
+        return {
+            'feeds_ar': ['مرحباً بكم في بوابة مقابلات أولياء الأمور'],
+            'feeds_en': ['Welcome to the Parent Interview Portal'],
+            'fg': '#ffffff', 'bg': '#2563eb', 'font': 'Tajawal',
+            'size': 13, 'speed': 35, 'opacity': 80,
+            'logo_url': '', 'logo_size': 28, 'logo_pulse': True,
+            'logo_pulse_speed': 3, 'sep_img_url': '', 'mask_fade': 12
+        }
+
+def _save_interview_ticker(cfg):
+    with open(CONFIG_INTERVIEW_TICKER, 'w', encoding='utf-8') as f:
+        json.dump(cfg, f, ensure_ascii=False, indent=2)
+
+def _save_auth_ticker(cfg):
+    with open(CONFIG_AUTH_TICKER, 'w', encoding='utf-8') as f:
+        json.dump(cfg, f, ensure_ascii=False, indent=2)
+
+def _save_maintenance(cfg):
+    with open(CONFIG_MAINT, 'w', encoding='utf-8') as f:
+        json.dump(cfg, f, ensure_ascii=False, indent=2)
+
+@admin_bp.route('/maintenance', methods=['GET','POST'])
+@login_required
+@admin_required
+def maintenance():
+    # قراءة حالة الصيانة
+    try:
+        with open(CONFIG_MAINT) as f:
+            mcfg = json.load(f)
+    except Exception as e:
+        current_app.logger.warning(f"{__name__} error: {e}")
+        mcfg = {'system_suspended': False, 'registration_suspended': False}
+
+    db = get_db()
+    log_count = db.query(SystemLog).count()
+    ticker = _load_ticker()
+
+    if request.method == 'POST':
+        action = request.form.get('ticker_action','')
+        if action == 'add_ar':
+            text = request.form.get('ticker_text_ar','').strip()
+            if text:
+                ticker.setdefault('feeds_ar', []).append(text)
+                _save_ticker(ticker)
+        elif action == 'add_en':
+            text = request.form.get('ticker_text_en','').strip()
+            if text:
+                ticker.setdefault('feeds_en', []).append(text)
+                _save_ticker(ticker)
+        elif action == 'del_ar':
+            idx = int(request.form.get('ticker_idx', 0))
+            feeds = ticker.get('feeds_ar', [])
+            if 0 <= idx < len(feeds): feeds.pop(idx); ticker['feeds_ar'] = feeds; _save_ticker(ticker)
+        elif action == 'del_en':
+            idx = int(request.form.get('ticker_idx', 0))
+            feeds = ticker.get('feeds_en', [])
+            if 0 <= idx < len(feeds): feeds.pop(idx); ticker['feeds_en'] = feeds; _save_ticker(ticker)
+        elif action == 'save_appearance':
+            ticker['fg']       = request.form.get('ticker_fg', '#F2C99A')
+            ticker['bg']       = request.form.get('ticker_bg', '')
+            ticker['font']     = request.form.get('ticker_font', 'Tajawal')
+            ticker['size']     = int(request.form.get('ticker_size', 11))
+            ticker['speed']    = int(request.form.get('ticker_speed', 35))
+            ticker['opacity']     = int(request.form.get('ticker_opacity', 0) or 0)
+            ticker['logo_url']    = request.form.get('ticker_logo_url', '').strip()
+            ticker['logo_size']   = int(request.form.get('ticker_logo_size', 28) or 28)
+            ticker['logo_pulse']  = bool(request.form.get('ticker_logo_pulse'))
+            ticker['logo_pulse_speed'] = float(request.form.get('ticker_logo_pulse_speed', 3) or 3)
+            ticker['sep_img_url'] = request.form.get('ticker_sep_img_url', '').strip()
+            ticker['mask_fade']   = int(request.form.get('ticker_mask_fade', 12) or 12)
+            ticker['interview_mode'] = request.form.get('ticker_interview_mode', 'scroll')
+            _save_ticker(ticker)
+        # ── Interview Ticker Actions ──
+        elif action == 'iticker_add_ar':
+            iticker = _load_interview_ticker()
+            text = request.form.get('iticker_text_ar','').strip()
+            if text:
+                iticker.setdefault('feeds_ar', []).append(text)
+                _save_interview_ticker(iticker)
+        elif action == 'iticker_add_en':
+            iticker = _load_interview_ticker()
+            text = request.form.get('iticker_text_en','').strip()
+            if text:
+                iticker.setdefault('feeds_en', []).append(text)
+                _save_interview_ticker(iticker)
+        elif action == 'iticker_del_ar':
+            iticker = _load_interview_ticker()
+            idx = int(request.form.get('iticker_idx', 0))
+            feeds = iticker.get('feeds_ar', [])
+            if 0 <= idx < len(feeds): feeds.pop(idx); iticker['feeds_ar'] = feeds; _save_interview_ticker(iticker)
+        elif action == 'iticker_del_en':
+            iticker = _load_interview_ticker()
+            idx = int(request.form.get('iticker_idx', 0))
+            feeds = iticker.get('feeds_en', [])
+            if 0 <= idx < len(feeds): feeds.pop(idx); iticker['feeds_en'] = feeds; _save_interview_ticker(iticker)
+        elif action == 'iticker_save_appearance':
+            iticker = _load_interview_ticker()
+            iticker['fg']       = request.form.get('iticker_fg', '#ffffff')
+            iticker['bg']       = request.form.get('iticker_bg', '#2563eb')
+            iticker['font']     = request.form.get('iticker_font', 'Tajawal')
+            iticker['size']     = int(request.form.get('iticker_size', 13))
+            iticker['speed']    = int(request.form.get('iticker_speed', 35))
+            iticker['opacity']  = int(request.form.get('iticker_opacity', 80) or 80)
+            iticker['logo_url'] = request.form.get('iticker_logo_url', '').strip()
+            iticker['logo_size']= int(request.form.get('iticker_logo_size', 28) or 28)
+            iticker['logo_pulse']= bool(request.form.get('iticker_logo_pulse'))
+            iticker['logo_pulse_speed'] = float(request.form.get('iticker_logo_pulse_speed', 3) or 3)
+            iticker['sep_img_url'] = request.form.get('iticker_sep_img_url', '').strip()
+            iticker['mask_fade']= int(request.form.get('iticker_mask_fade', 12) or 12)
+            _save_interview_ticker(iticker)
+        elif action == 'save_logo':
+            import base64
+            logo_file = request.files.get('logo_file')
+            if logo_file and logo_file.filename:
+                data = base64.b64encode(logo_file.read()).decode('utf-8')
+                mt   = logo_file.content_type or 'image/png'
+                mcfg['logo_b64'] = f'data:{mt};base64,{data}'
+                if request.form.get('remove_logo'):
+                    mcfg.pop('logo_b64', None)
+            elif request.form.get('remove_logo'):
+                mcfg.pop('logo_b64', None)
+            # Save header image position (left / center / right)
+            mcfg['header_img_position'] = request.form.get('header_img_position', 'center')
+            # Save optional separate header image for PDF
+            hdr_file = request.files.get('header_img_file')
+            if hdr_file and hdr_file.filename:
+                import base64 as _b64
+                hdata = _b64.b64encode(hdr_file.read()).decode('utf-8')
+                hmt   = hdr_file.content_type or 'image/png'
+                mcfg['header_img_b64'] = f'data:{hmt};base64,{hdata}'
+            if request.form.get('remove_header_img'):
+                mcfg.pop('header_img_b64', None)
+            _save_maintenance(mcfg)
+        elif action == 'save_report_header':
+            mcfg['report_header_title']    = request.form.get('report_header_title','').strip()
+            mcfg['report_header_subtitle'] = request.form.get('report_header_subtitle','').strip()
+            mcfg['report_header_extra']    = request.form.get('report_header_extra','').strip()
+            mcfg['report_header_footer']   = request.form.get('report_header_footer','').strip()
+            _save_maintenance(mcfg)
+        elif action == 'save_colors':
+            mcfg['color_primary']       = request.form.get('color_primary', '#0C67EC')
+            mcfg['color_primary_dark']  = request.form.get('color_primary_dark', '#0847B0')
+            mcfg['color_primary_light'] = request.form.get('color_primary_light', '#3D8EF5')
+            mcfg['color_accent']        = request.form.get('color_accent', '#5C9BDE')
+            mcfg['color_bg']            = request.form.get('color_bg', '#eef6f7')
+            _save_maintenance(mcfg)
+        flash_msg('تم تحديث شريط الأخبار', 'success')
+        # Scroll back to the section that was edited
+        anchor = '#iticker' if action.startswith('iticker_') else '#tickerSection'
+        return redirect(url_for('admin.maintenance') + anchor)
+
+    iticker = _load_interview_ticker()
+    return render_template('admin/maintenance.html',
+        mcfg=mcfg, log_count=log_count,
+        ticker=ticker, ticker_cfg=ticker,
+        ticker_messages_ar=ticker.get('feeds_ar',[]),
+        ticker_messages_en=ticker.get('feeds_en',[]),
+        iticker=iticker,
+        iticker_messages_ar=iticker.get('feeds_ar',[]),
+        iticker_messages_en=iticker.get('feeds_en',[]))
+
+
+# ── Ticker config API ─────────────────────────────────────────────────────────
+@admin_bp.route('/ticker-config')
+def ticker_config_api():
+    """Public endpoint for base.html ticker JS"""
+    from flask import jsonify
+    ticker = _load_ticker()
+    # Default opacity = 0
+    if 'opacity' not in ticker:
+        ticker['opacity'] = 0
+    return jsonify(ticker)
+
+
+# ── Live users + IP/Browser info ──────────────────────────────────────────────
+@admin_bp.route('/live-users')
+@login_required
+@admin_required
+def live_users():
+    from flask import jsonify
+    from datetime import datetime, timedelta
+    from models.database import LoginLog
+    db = get_db()
+    # Consider users active if logged in within last 15 minutes
+    cutoff = datetime.now() - timedelta(minutes=15)
+    try:
+        recent = db.query(LoginLog).filter(
+            LoginLog.created_at >= cutoff,
+            LoginLog.success == True
+        ).order_by(LoginLog.created_at.desc()).all()
+        users = []
+        seen = set()
+        for log in recent:
+            if log.user_id not in seen:
+                seen.add(log.user_id)
+                users.append({
+                    'username': log.user.username if log.user else '?',
+                    'full_name': log.user.full_name if log.user else '?',
+                    'ip': log.ip_address or '—',
+                    'browser': (log.platform or log.hostname or 'Browser')[:40],
+                    'time': log.created_at.strftime('%H:%M') if log.created_at else '—',
+                })
+        return jsonify({'users': users, 'count': len(users)})
+    except Exception as e:
+        return jsonify({'users': [], 'count': 0, 'error': str(e)})
+
+
+# ── Backup — مطابق لـ v54 backup_database ────────────────────────────────────
+@admin_bp.route('/maintenance/backup', methods=['POST'])
+@login_required
+@admin_required
+def backup():
+    db_path = 'acs_venues.db'
+    if not os.path.exists(db_path):
+        flash_msg('لا توجد قاعدة بيانات SQLite (PostgreSQL لا تدعم هذه العملية في Render)', 'warning')
+        return redirect(url_for('admin.maintenance'))
+    os.makedirs('backups', exist_ok=True)
+    ts  = datetime.now().strftime('%Y%m%d_%H%M%S')
+    dst = f'backups/acs_backup_{ts}.db'
+    shutil.copy2(db_path, dst)
+    syslog('BACKUP', f'نسخة احتياطية: {dst}')
+    from utils.i18n import get_lang
+    flash_msg(f'✅ Backup created: {dst}' if get_lang()=='en' else f'✅ تم إنشاء النسخة الاحتياطية: {dst}', 'success')
+    return redirect(url_for('admin.maintenance'))
+
+
+# ── Clean logs — مطابق لـ v54 clean_logs ─────────────────────────────────────
+@admin_bp.route('/maintenance/clean-logs', methods=['POST'])
+@login_required
+@admin_required
+def clean_logs():
+    db      = get_db()
+    cutoff  = datetime.now() - timedelta(days=30)
+    deleted = db.query(SystemLog).filter(SystemLog.created_at < cutoff).delete()
+    db.commit()
+    syslog('CLEAN_LOGS', f'تم حذف {deleted} سجل قديم')
+    from utils.i18n import get_lang
+    flash_msg(f'✅ Deleted {deleted} old records (older than 30 days)' if get_lang()=='en' else f'✅ تم حذف {deleted} سجل قديم (أكثر من 30 يوم)', 'success')
+    return redirect(url_for('admin.maintenance'))
+
+
+# ── Optimize — مطابق لـ v54 optimize_database ────────────────────────────────
+@admin_bp.route('/maintenance/optimize', methods=['POST'])
+@login_required
+@admin_required
+def optimize():
+    db = get_db()
+    try:
+        db.execute(text('VACUUM'))
+        db.commit()
+    except Exception as e:
+        current_app.logger.warning(f"{__name__} error: {e}")
+        pass  # PostgreSQL لا تدعم VACUUM عبر SQLAlchemy
+    syslog('OPTIMIZE', 'تحسين قاعدة البيانات')
+    flash_msg('✅ تم تحسين قاعدة البيانات', 'success')
+    return redirect(url_for('admin.maintenance'))
+
+
+# ── Suspend toggle — مطابق لـ v54 _toggle_sys / _toggle_reg ──────────────────
+@admin_bp.route('/maintenance/toggle', methods=['POST'])
+@login_required
+@admin_required
+def toggle_maintenance():
+    try:
+        with open(CONFIG_MAINT) as f:
+            mcfg = json.load(f)
+    except Exception as e:
+        current_app.logger.warning(f"{__name__} error: {e}")
+        mcfg = {'system_suspended': False, 'registration_suspended': False}
+
+    toggle = request.form.get('toggle','')
+    if toggle == 'system':
+        mcfg['system_suspended'] = not mcfg.get('system_suspended', False)
+    elif toggle == 'registration':
+        mcfg['registration_suspended'] = not mcfg.get('registration_suspended', False)
+
+    with open(CONFIG_MAINT, 'w') as f:
+        json.dump(mcfg, f)
+
+    syslog('TOGGLE_MAINTENANCE', f'{toggle}: {mcfg}')
+    flash_msg('✅ تم تحديث إعدادات الصيانة', 'success')
+    return redirect(url_for('admin.maintenance'))
+
+
+# ── Settings (Email Config) — مطابق لـ v54 EmailConfigWindow ─────────────────
+@admin_bp.route('/settings', methods=['GET','POST'])
+@login_required
+@admin_required
+def settings():
+    from utils.i18n import get_lang as _gl
+    _is_en = _gl() == 'en'
+    PROVIDERS = {
+        'brevo_api':  {'label':'Brevo API',  'smtp':'',                        'port':0,
+                       'help':'الأفضل على Render.com — لا يحتاج SMTP port. اذهب إلى brevo.com → Settings → API Keys → Create API Key' if not _is_en else 'Best for Render.com — no SMTP port needed. Go to brevo.com → Settings → API Keys → Create API Key'},
+        'gmail':     {'label':'Gmail',                   'smtp':'smtp.gmail.com',          'port':587,
+                      'help':'Use App Password from Google Account → Security → App passwords' if _is_en else 'استخدم App Password من Google Account → Security → App passwords'},
+        'office365': {'label':'Microsoft 365 / Outlook', 'smtp':'smtp.office365.com',       'port':587,
+                      'help':'Use Microsoft 365 email and password or App Password' if _is_en else 'استخدم بريد Microsoft 365 وكلمة المرور أو App Password'},
+        'outlook':   {'label':'Outlook.com (Hotmail)',   'smtp':'smtp-mail.outlook.com',    'port':587,
+                      'help':'Use your Outlook.com email and password' if _is_en else 'استخدم بريد Outlook.com وكلمة المرور'},
+        'yahoo':     {'label':'Yahoo Mail',              'smtp':'smtp.mail.yahoo.com',      'port':587,
+                      'help':'Enable "Allow apps that use less secure sign in" or use App password' if _is_en else 'فعّل "Allow apps that use less secure sign in" أو استخدم App password'},
+        'brevo':     {'label':'Brevo SMTP',               'smtp':'smtp-relay.brevo.com',     'port':587,
+                      'help':'SMTP Key from brevo.com → Transactional → SMTP & API' if _is_en else 'SMTP Key من brevo.com → Transactional → SMTP & API'},
+        'custom':    {'label':'Custom Server' if _is_en else 'خادم مخصص', 'smtp':'', 'port':587,
+                      'help':'Enter your server details manually' if _is_en else 'أدخل بيانات خادمك يدوياً'},
+    }
+
+    try:
+        with open(CONFIG_EMAIL, encoding='utf-8') as f:
+            cfg = json.load(f)
+    except Exception as e:
+        current_app.logger.warning(f"{__name__} error: {e}")
+        cfg = {'smtp_server':'smtp.gmail.com','smtp_port':587,
+               'sender_email':'','sender_password':'',
+               'sender_name':'ARS Applied Reservation System',
+               'use_tls':True,'provider_key':'brevo_api',
+               'brevo_api_key':''}
+
+    if request.method == 'POST':
+        action = request.form.get('action','save')
+
+        if action == 'test':
+            from utils.email_helper import test_smtp
+            brevo_api_key = request.form.get('brevo_api_key', '').strip()
+            provider = request.form.get('provider_key', '')
+            smtp_port_raw = request.form.get('smtp_port', '') or '587'
+            try:
+                smtp_port_val = int(smtp_port_raw)
+            except (ValueError, TypeError):
+                smtp_port_val = 587
+            from utils.i18n import get_lang
+            ok, msg = test_smtp(
+                request.form.get('smtp_server', ''),
+                smtp_port_val,
+                request.form.get('sender_email', ''),
+                request.form.get('sender_password', ''),
+                request.form.get('use_tls') == 'on',
+                brevo_api_key=brevo_api_key if provider == 'brevo_api' else None,
+                lang=get_lang(),
+            )
+            flash(('✅ ' if ok else '❌ ') + msg, 'success' if ok else 'danger')
+            return redirect(url_for('admin.settings'))
+
+        # Save config
+        new_cfg = {
+            'provider_key':   request.form.get('provider_key','gmail'),
+            'smtp_server':    request.form.get('smtp_server',''),
+            'smtp_port':      int(request.form.get('smtp_port', 587) or 587),
+            'sender_email':   request.form.get('sender_email',''),
+            'sender_password':request.form.get('sender_password',''),
+            'sender_name':    request.form.get('sender_name','ARS Applied Reservation System'),
+            'use_tls':        request.form.get('use_tls') == 'on',
+            'brevo_api_key':  request.form.get('brevo_api_key','').strip(),
+        }
+        with open(CONFIG_EMAIL,'w',encoding='utf-8') as f:
+            json.dump(new_cfg, f, ensure_ascii=False, indent=2)
+        syslog('SAVE_EMAIL_CONFIG', f"provider: {new_cfg['provider_key']}")
+        flash_msg('✅ تم حفظ إعدادات البريد الإلكتروني', 'success')
+        return redirect(url_for('admin.settings'))
+
+    return render_template('admin/settings.html',
+        cfg=cfg, providers=PROVIDERS)
+
+
+# ── Ticker API — serves full ticker config to frontend ────────────────────────
+@admin_bp.route('/api/ticker')
+def ticker_api():
+    from flask import jsonify
+    ticker = _load_ticker()
+    lang  = request.args.get('lang','ar')
+    if lang == 'ar':
+        msgs = ticker.get('feeds_ar', ['مرحباً بكم في نظام ARS']) or ['مرحباً بكم في نظام ARS']
+    else:
+        msgs = ticker.get('feeds_en', []) or ['Welcome to ARS Reservation Management System']
+    sep_img = ticker.get('sep_img_url', '')
+    if sep_img:
+        sep_html = f' <img src="{sep_img}" style="width:24px;height:24px;object-fit:contain;vertical-align:middle;border-radius:50%;margin:0 8px;opacity:.85"> '
+    else:
+        sep_html = ' ◆ '
+    return jsonify({
+        'messages': msgs,
+        'text':     sep_html.join(msgs),
+        'bg':       ticker.get('bg', ''),
+        'fg':       ticker.get('fg', '#F2C99A'),
+        'font':     ticker.get('font', 'Tahoma'),
+        'size':     ticker.get('size', 15),
+        'speed':    ticker.get('speed', 35),
+        'opacity':  ticker.get('opacity', 0),
+        'sep_img_url': sep_img,
+        'mask_fade':   ticker.get('mask_fade', 12),
+    })
+
+
+@admin_bp.route('/api/auth-ticker')
+def auth_ticker_api():
+    """Public API - no login required - for auth pages"""
+    from flask import jsonify
+    ticker = _load_auth_ticker()
+    lang   = request.args.get('lang', 'ar')
+    if lang == 'ar':
+        msgs = ticker.get('feeds_ar', ['مرحباً بكم — سجّل دخولك للمتابعة']) or ['مرحباً بكم']
+    else:
+        msgs = ticker.get('feeds_en', ['Welcome — Please sign in']) or ['Welcome']
+    sep_img = ticker.get('sep_img_url', '')
+    if sep_img:
+        sep_html = f' <img src="{sep_img}" style="width:24px;height:24px;object-fit:contain;vertical-align:middle;border-radius:50%;margin:0 8px;opacity:.85"> '
+    else:
+        sep_html = ' ◆ '
+    return jsonify({
+        'messages': msgs,
+        'text':     sep_html.join(msgs),
+        'fg':       ticker.get('fg', '#ffffff'),
+        'bg':       ticker.get('bg', 'transparent'),
+        'font':     ticker.get('font', 'Tajawal'),
+        'size':     ticker.get('size', 14),
+        'speed':    ticker.get('speed', 35),
+        'sep_img_url': sep_img,
+        'mask_fade':   ticker.get('mask_fade', 12),
+    })
+
+
+@admin_bp.route('/auth-ticker', methods=['GET', 'POST'])
+@login_required
+def auth_ticker():
+    perms = get_permissions()
+    if not perms.is_admin_or_manager(): abort(403)
+    ticker = _load_auth_ticker()
+    lang   = session.get('lang', 'ar')
+
+    if request.method == 'POST':
+        action = request.form.get('action', '')
+        if action == 'add_ar':
+            txt = request.form.get('text_ar', '').strip()
+            if txt:
+                ticker.setdefault('feeds_ar', []).append(txt)
+        elif action == 'add_en':
+            txt = request.form.get('text_en', '').strip()
+            if txt:
+                ticker.setdefault('feeds_en', []).append(txt)
+        elif action == 'del_ar':
+            idx = int(request.form.get('idx', 0))
+            feeds = ticker.get('feeds_ar', [])
+            if 0 <= idx < len(feeds): feeds.pop(idx)
+            ticker['feeds_ar'] = feeds
+        elif action == 'del_en':
+            idx = int(request.form.get('idx', 0))
+            feeds = ticker.get('feeds_en', [])
+            if 0 <= idx < len(feeds): feeds.pop(idx)
+            ticker['feeds_en'] = feeds
+        elif action == 'style':
+            ticker['fg']          = request.form.get('fg', '#ffffff')
+            ticker['font']        = request.form.get('font', 'Tajawal')
+            ticker['size']        = int(request.form.get('size', 14))
+            ticker['speed']       = int(request.form.get('speed', 35))
+            ticker['sep_img_url'] = request.form.get('sep_img_url', '').strip()
+            ticker['mask_fade']   = int(request.form.get('mask_fade', 12) or 12)
+        _save_auth_ticker(ticker)
+        from utils.flash_helper import flash_msg
+        flash_msg('✅ تم الحفظ', 'success')
+        return redirect(url_for('admin.auth_ticker'))
+
+    return render_template('admin/auth_ticker.html', ticker=ticker)
+
+
+# ── Notifications API ─────────────────────────────────────────────────────────
+@admin_bp.route('/notifications')
+@login_required
+def get_notifications():
+    from models.database import Notification
+    db = get_db()
+    notifs = db.query(Notification).filter_by(
+        user_id=current_user.id, is_read=False
+    ).order_by(Notification.created_at.desc()).limit(15).all()
+    return jsonify({'count': len(notifs), 'items': [
+        {'id': n.id, 'title': n.title, 'body': n.body,
+         'link': n.link, 'time': n.created_at.strftime('%H:%M')}
+        for n in notifs
+    ]})
+
+@admin_bp.route('/notifications/read/<int:nid>', methods=['POST'])
+@login_required
+def read_notification(nid):
+    from models.database import Notification
+    db = get_db()
+    n = db.query(Notification).filter_by(id=nid, user_id=current_user.id).first()
+    if n: n.is_read = True; db.commit()
+    return jsonify({'ok': True})
+
+@admin_bp.route('/notifications/read-all', methods=['POST'])
+@login_required
+def read_all_notifications():
+    from models.database import Notification
+    from sqlalchemy import update
+    db = get_db()
+    db.query(Notification).filter_by(user_id=current_user.id, is_read=False).update({'is_read': True})
+    db.commit()
+    return jsonify({'ok': True})
+
+
+# ── Email Logs — سجل الرسائل المرسلة ─────────────────────────────────────────
+@admin_bp.route('/email-logs')
+@login_required
+@admin_required
+def email_logs():
+    from models.database import EmailLog, User as _User
+    db   = get_db()
+    page = request.args.get('page', 1, type=int)
+    q    = request.args.get('q', '').strip()
+    status_f = request.args.get('status', '')
+    type_f   = request.args.get('type', '')
+
+    query = db.query(EmailLog).order_by(EmailLog.sent_at.desc())
+    if q:
+        query = query.filter(
+            (EmailLog.recipient.ilike(f'%{q}%')) |
+            (EmailLog.subject.ilike(f'%{q}%'))
+        )
+    if status_f:
+        query = query.filter(EmailLog.status == status_f)
+    if type_f:
+        query = query.filter(EmailLog.type == type_f)
+
+    total  = query.count()
+    logs   = query.offset((page-1)*20).limit(20).all()
+    pages  = (total + 19) // 20
+
+    # stats
+    from sqlalchemy import func as _func
+    sent_count   = db.query(EmailLog).filter(EmailLog.status=='sent').count()
+    failed_count = db.query(EmailLog).filter(EmailLog.status=='failed').count()
+    bulk_count   = db.query(EmailLog).filter(EmailLog.type=='bulk').count()
+
+    return render_template('admin/email_logs.html',
+        logs=logs, page=page, pages=pages, total=total,
+        q=q, status_f=status_f, type_f=type_f,
+        sent_count=sent_count, failed_count=failed_count, bulk_count=bulk_count)
+
+
+@admin_bp.route('/email-logs/resend/<int:log_id>', methods=['POST'])
+@login_required
+@admin_required
+def email_resend(log_id):
+    from models.database import EmailLog
+    from utils.email_helper import _html_wrapper, _send
+    db  = get_db()
+    log = db.query(EmailLog).get(log_id)
+    if not log:
+        flash_msg('السجل غير موجود', 'danger')
+        return redirect(url_for('admin.email_logs'))
+
+    # Resend — use stored original body if available, otherwise rebuild minimal HTML
+    from utils.i18n import get_lang
+    _en = get_lang() == 'en'
+    lang = 'en' if _en else 'ar'
+    if log.html_body:
+        resend_html = log.html_body
+    else:
+        if _en:
+            content = f"""
+<h2 style="color:#0C67EC;margin:0 0 12px">Resend</h2>
+<p style="color:#4a5568">This is a resent message from the ARS email log.</p>
+<p style="color:#888;font-size:12px">Original subject: {log.subject}<br>Original recipient: {log.recipient}</p>"""
+        else:
+            content = f"""
+<h2 style="color:#0C67EC;margin:0 0 12px">إعادة إرسال</h2>
+<p style="color:#4a5568">هذه رسالة مُعاد إرسالها من سجل البريد الإلكتروني لنظام ARS.</p>
+<p style="color:#888;font-size:12px">الموضوع الأصلي: {log.subject}<br>المرسَل إليه الأصلي: {log.recipient}</p>"""
+        resend_html = _html_wrapper(content, log.subject, lang)
+    ok = _send(log.recipient, '', log.subject,
+               resend_html,
+               log.subject,
+               sync=True, email_type='resend',
+               user_id=log.user_id)
+    if ok:
+        syslog('EMAIL_RESEND', f'إعادة إرسال #{log_id} إلى {log.recipient}')
+        flash_msg(f'✅ Resent to {log.recipient}' if _en else f'✅ تم إعادة الإرسال إلى {log.recipient}', 'success')
+    else:
+        flash_msg('❌ فشلت إعادة الإرسال — تحقق من إعدادات البريد', 'danger')
+    return redirect(url_for('admin.email_logs'))
+
+
+@admin_bp.route('/email-logs/stats-json')
+@login_required
+@admin_required
+def email_logs_stats():
+    from models.database import EmailLog
+    from sqlalchemy import func as _func
+    db = get_db()
+    # Daily stats last 30 days
+    rows = (db.query(
+                EmailLog.status,
+                _func.count(EmailLog.id).label('cnt')
+            )
+            .group_by(EmailLog.status).all())
+    return jsonify({r.status: r.cnt for r in rows})
+
+
+@admin_bp.route('/email-logs/delete/<int:log_id>', methods=['POST'])
+@login_required
+@admin_required
+def email_log_delete(log_id):
+    from models.database import EmailLog
+    db  = get_db()
+    log = db.query(EmailLog).get(log_id)
+    if log:
+        db.delete(log)
+        db.commit()
+        flash_msg('🗑️ تم حذف السجل', 'success')
+    return redirect(url_for('admin.email_logs'))
+
+
+@admin_bp.route('/email-logs/forward/<int:log_id>', methods=['POST'])
+@login_required
+@admin_required
+def email_log_forward(log_id):
+    from models.database import EmailLog
+    from utils.email_helper import _send, _html_wrapper
+    db         = get_db()
+    log        = db.query(EmailLog).get(log_id)
+    forward_to = request.form.get('forward_to', '').strip()
+    if not log or not forward_to:
+        flash_msg('بيانات غير صحيحة', 'danger')
+        return redirect(url_for('admin.email_logs'))
+    from utils.i18n import get_lang
+    _en = get_lang() == 'en'
+    lang = 'en' if _en else 'ar'
+    if log.html_body:
+        fwd_html = log.html_body
+    else:
+        if _en:
+            content = f"""
+<h2 style="color:#0C67EC;margin:0 0 12px">Forwarded Email</h2>
+<p style="color:#4a5568">This is a forwarded message from the ARS email log.</p>
+<table style="border-radius:10px;overflow:hidden;border:1px solid #E0E8F5;width:100%;margin:12px 0">
+  <tr><td style="padding:8px 14px;background:#f8fbff;color:#888;width:35%">Original Subject</td><td style="padding:8px 14px;font-weight:600">{log.subject}</td></tr>
+  <tr><td style="padding:8px 14px;background:#f0f6ff;color:#888">Original Recipient</td><td style="padding:8px 14px;font-weight:600">{log.recipient}</td></tr>
+</table>"""
+        else:
+            content = f"""
+<h2 style="color:#0C67EC;margin:0 0 12px">إعادة توجيه</h2>
+<p style="color:#4a5568">هذه رسالة مُعاد توجيهها من سجل البريد الإلكتروني لنظام ARS.</p>
+<table style="border-radius:10px;overflow:hidden;border:1px solid #E0E8F5;width:100%;margin:12px 0">
+  <tr><td style="padding:8px 14px;background:#f8fbff;color:#888;width:35%">الموضوع الأصلي</td><td style="padding:8px 14px;font-weight:600">{log.subject}</td></tr>
+  <tr><td style="padding:8px 14px;background:#f0f6ff;color:#888">المرسَل إليه الأصلي</td><td style="padding:8px 14px;font-weight:600">{log.recipient}</td></tr>
+</table>"""
+        fwd_html = _html_wrapper(content, f'FWD: {log.subject}', lang)
+    ok = _send(forward_to, '', f'FWD: {log.subject}',
+               fwd_html,
+               f'FWD: {log.subject}',
+               sync=True, email_type='resend')
+    if ok:
+        syslog('EMAIL_FORWARD', f'توجيه #{log_id} إلى {forward_to}')
+        flash_msg(f'✅ Forwarded to {forward_to}' if _en else f'✅ تم التوجيه إلى {forward_to}', 'success')
+    else:
+        flash_msg('❌ فشل التوجيه — تحقق من إعدادات البريد', 'danger')
+    return redirect(url_for('admin.email_logs'))
+
+
+# ── Email Templates — قوالب البريد ────────────────────────────────────────────
+@admin_bp.route('/email-templates')
+@login_required
+@admin_required
+def email_templates():
+    from models.database import EmailTemplate
+    from utils.email_helper import TEMPLATE_REGISTRY
+    db = get_db()
+    saved = {}
+    try:
+        saved = {t.key: t for t in db.query(EmailTemplate).all()}
+    except Exception:
+        pass
+    templates = []
+    for key, meta in TEMPLATE_REGISTRY.items():
+        tpl = saved.get(key)
+        templates.append({
+            'key': key,
+            'name_ar': meta['name_ar'],
+            'name_en': meta['name_en'],
+            'variables': meta['variables'],
+            'is_customized': tpl is not None and tpl.is_active,
+            'updated_at': tpl.updated_at if tpl else None,
+        })
+    return render_template('admin/email_templates.html', templates=templates)
+
+
+@admin_bp.route('/email-templates/<key>', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def email_template_edit(key):
+    from models.database import EmailTemplate
+    from utils.email_helper import TEMPLATE_REGISTRY
+    db = get_db()
+    meta = TEMPLATE_REGISTRY.get(key)
+    if not meta:
+        abort(404)
+
+    tpl = None
+    try:
+        tpl = db.query(EmailTemplate).filter_by(key=key).first()
+    except Exception:
+        pass
+
+    if request.method == 'POST':
+        if not tpl:
+            tpl = EmailTemplate(key=key)
+            db.add(tpl)
+        tpl.subject_ar = request.form.get('subject_ar', '').strip()
+        tpl.subject_en = request.form.get('subject_en', '').strip()
+        tpl.body_ar    = request.form.get('body_ar', '').strip()
+        tpl.body_en    = request.form.get('body_en', '').strip()
+        tpl.is_active  = True
+        tpl.updated_by = current_user.id
+        tpl.updated_at = datetime.now()
+        db.commit()
+        syslog('EDIT_EMAIL_TEMPLATE', f'Template: {key}')
+        from utils.i18n import get_lang
+        _en = get_lang() == 'en'
+        flash_msg('✅ Template saved successfully' if _en else '✅ تم حفظ القالب بنجاح', 'success')
+        return redirect(url_for('admin.email_templates'))
+
+    return render_template('admin/email_template_edit.html',
+        key=key, meta=meta, tpl=tpl,
+        default_subject_ar=meta.get('default_subject_ar', ''),
+        default_subject_en=meta.get('default_subject_en', ''),
+        default_body_ar=meta.get('default_body_ar', ''),
+        default_body_en=meta.get('default_body_en', ''))
+
+
+@admin_bp.route('/email-templates/<key>/reset', methods=['POST'])
+@login_required
+@admin_required
+def email_template_reset(key):
+    from models.database import EmailTemplate
+    db = get_db()
+    tpl = db.query(EmailTemplate).filter_by(key=key).first()
+    if tpl:
+        tpl.is_active = False
+        db.commit()
+    syslog('RESET_EMAIL_TEMPLATE', f'Template: {key}')
+    from utils.i18n import get_lang
+    _en = get_lang() == 'en'
+    flash_msg('✅ Template reset to default' if _en else '✅ تم إعادة القالب للافتراضي', 'success')
+    return redirect(url_for('admin.email_template_edit', key=key))
+
+
+@admin_bp.route('/email-templates/<key>/preview', methods=['POST'])
+@login_required
+@admin_required
+def email_template_preview(key):
+    from utils.email_helper import TEMPLATE_REGISTRY, _html_wrapper
+    meta = TEMPLATE_REGISTRY.get(key)
+    if not meta:
+        return jsonify({'error': 'Not found'}), 404
+
+    lang = request.form.get('lang', 'ar')
+    body = request.form.get('body', '')
+    subject = request.form.get('subject', '')
+
+    sample_data = {
+        'name': 'Ahmed / أحمد',
+        'booking_number': 'BK-2026-0042',
+        'title': 'Weekly Meeting / اجتماع أسبوعي',
+        'venue': 'Main Hall / القاعة الرئيسية',
+        'start_time': '2026-04-15  10:00',
+        'reason': 'Schedule conflict / تعارض في المواعيد',
+        'username': 'ahmed.m',
+        'password': '••••••••',
+        'login_url': 'https://example.com/login',
+        'code': '482913',
+        'requester_name': 'Sara / سارة',
+        'message_body': 'Looking forward to seeing you! / نتطلع لرؤيتك!',
+    }
+    for k, v in sample_data.items():
+        body = body.replace('{{' + k + '}}', v)
+        subject = subject.replace('{{' + k + '}}', v)
+
+    html = _html_wrapper(body, subject, lang)
+    return jsonify({'html': html, 'subject': subject})

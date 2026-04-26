@@ -1,0 +1,342 @@
+{% extends "sas/_sas_base.html" %}
+{%- set ar = (current_lang == 'ar') -%}
+
+{% block print_title %}{% if ar %}الإجازات{% else %}Holidays{% endif %}{% endblock %}
+
+{% block content %}
+<style>
+  .sas-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: .85rem;
+    color: #6b7280;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .sas-breadcrumb a { color: var(--sas-primary); text-decoration: none; font-weight: 600; }
+  .sas-breadcrumb a:hover { text-decoration: underline; }
+  .sas-breadcrumb .sep { color: #d1d5db; }
+  .sas-add-holiday-card {
+    border: 2px solid var(--sas-primary-light);
+    border-radius: 14px;
+    background: #f0f9ff;
+    margin-bottom: 24px;
+    overflow: hidden;
+  }
+  .sas-add-holiday-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 22px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: .95rem;
+    color: var(--sas-primary-dark);
+    background: transparent;
+    border: none;
+    width: 100%;
+    text-align: inherit;
+  }
+  .sas-add-holiday-toggle:hover { background: rgba(8,145,178,.05); }
+  .sas-add-holiday-body { padding: 0 22px 22px; }
+  .sas-holiday-card {
+    border: 1.5px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 18px 20px;
+    background: #fff;
+    transition: all .2s;
+    margin-bottom: 12px;
+  }
+  .sas-holiday-card:hover {
+    border-color: var(--sas-primary-light);
+    box-shadow: 0 4px 12px rgba(8,145,178,.1);
+  }
+  .sas-holiday-card h6 { font-weight: 700; color: #1f2937; font-size: .95rem; margin-bottom: 8px; }
+  .sas-holiday-card .date-range {
+    font-size: .82rem;
+    color: #6b7280;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .sas-scope-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: .75rem;
+    font-weight: 700;
+  }
+  .sas-scope-badge.all { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+  .sas-scope-badge.partial { background: #fef3cd; color: #7a5900; border: 1px solid #f0b429; }
+  .sas-stages-group { margin-top: 12px; }
+  .sas-stages-group label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    font-size: .82rem;
+    margin: 0 4px 6px 0;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .sas-stages-group label:has(input:checked) {
+    background: #f0f9ff;
+    border-color: var(--sas-primary);
+    color: var(--sas-primary-dark);
+    font-weight: 600;
+  }
+</style>
+
+<!-- Breadcrumb -->
+<div class="sas-breadcrumb">
+  <a href="{{ url_for('sas.portal_home', code=staff.staff_code) }}">
+    <i class="bi bi-house-fill"></i> {% if ar %}الرئيسية{% else %}Home{% endif %}
+  </a>
+  <span class="sep"><i class="bi bi-chevron-{{ 'left' if ar else 'right' }}"></i></span>
+  <span class="fw-bold" style="color:#1f2937">{% if ar %}الإجازات{% else %}Holidays{% endif %}</span>
+</div>
+
+<!-- Page Header -->
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h5 class="fw-bold mb-0" style="color:var(--sas-primary-dark)">
+    <i class="bi bi-calendar-event me-1"></i>
+    {% if ar %}الإجازات والعطل{% else %}Holidays{% endif %}
+  </h5>
+  <span class="badge" style="background:var(--sas-primary);color:#fff;border-radius:20px;padding:5px 14px;font-size:.82rem">
+    {{ holidays|length }} {% if ar %}إجازة{% else %}holidays{% endif %}
+  </span>
+</div>
+
+<!-- Add Holiday (Collapsible) -->
+<div class="sas-add-holiday-card">
+  <button class="sas-add-holiday-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#addHolidayForm" aria-expanded="false">
+    <span>
+      <i class="bi bi-plus-circle me-2"></i>
+      {% if ar %}إضافة إجازة جديدة{% else %}Add New Holiday{% endif %}
+    </span>
+    <i class="bi bi-chevron-down" id="addHolidayIcon" style="transition:transform .2s"></i>
+  </button>
+  <div class="collapse" id="addHolidayForm">
+    <div class="sas-add-holiday-body">
+      <form method="POST" action="{{ url_for('sas.holiday_add', code=staff.staff_code) }}">
+        <!-- no CSRF -->
+        <div class="row g-3">
+          <!-- Title AR -->
+          <div class="col-md-6">
+            <label class="form-label fw-bold" style="font-size:.84rem">
+              <i class="bi bi-type me-1"></i>{% if ar %}العنوان (عربي){% else %}Title (Arabic){% endif %}
+            </label>
+            <input type="text" name="title" class="form-control" required
+                   placeholder="{% if ar %}مثال: عيد الفطر{% else %}e.g. Eid Al-Fitr{% endif %}">
+          </div>
+          <!-- Title EN -->
+          <div class="col-md-6">
+            <label class="form-label fw-bold" style="font-size:.84rem">
+              <i class="bi bi-type me-1"></i>{% if ar %}العنوان (إنجليزي){% else %}Title (English){% endif %}
+            </label>
+            <input type="text" name="title_en" class="form-control"
+                   placeholder="{% if ar %}اختياري{% else %}Optional{% endif %}">
+          </div>
+          <!-- Start Date -->
+          <div class="col-md-6">
+            <label class="form-label fw-bold" style="font-size:.84rem">
+              <i class="bi bi-calendar3 me-1"></i>{% if ar %}تاريخ البداية{% else %}Start Date{% endif %}
+            </label>
+            <input type="date" name="start_date" class="form-control" required>
+          </div>
+          <!-- End Date -->
+          <div class="col-md-6">
+            <label class="form-label fw-bold" style="font-size:.84rem">
+              <i class="bi bi-calendar3 me-1"></i>{% if ar %}تاريخ النهاية{% else %}End Date{% endif %}
+            </label>
+            <input type="date" name="end_date" class="form-control" required>
+          </div>
+          <!-- Scope Type -->
+          <div class="col-12">
+            <label class="form-label fw-bold" style="font-size:.84rem">
+              <i class="bi bi-people me-1"></i>{% if ar %}نطاق الإجازة{% else %}Holiday Scope{% endif %}
+            </label>
+            <div class="mb-2 d-flex flex-wrap gap-2">
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="scope_type" id="scopeSchool" value="school" checked onchange="updateScope(this.value)">
+                <label class="form-check-label fw-bold" for="scopeSchool" style="font-size:.84rem">{% if ar %}المدرسة بالكامل{% else %}Whole School{% endif %}</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="scope_type" id="scopeStages" value="stages" onchange="updateScope(this.value)">
+                <label class="form-check-label fw-bold" for="scopeStages" style="font-size:.84rem">{% if ar %}مراحل محددة{% else %}Select Stages{% endif %}</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="scope_type" id="scopeClasses" value="classes" onchange="updateScope(this.value)">
+                <label class="form-check-label fw-bold" for="scopeClasses" style="font-size:.84rem">{% if ar %}فصول محددة{% else %}Select Classes{% endif %}</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="scope_type" id="scopeSections" value="sections" onchange="updateScope(this.value)">
+                <label class="form-check-label fw-bold" for="scopeSections" style="font-size:.84rem">{% if ar %}شعب محددة{% else %}Select Sections{% endif %}</label>
+              </div>
+            </div>
+            <!-- Cascading scope selection -->
+            <div id="scopeStagesGroup" class="sas-stages-group" style="display:none">
+              <div class="fw-bold mb-1" style="font-size:.8rem;color:#6b7280">{% if ar %}اختر المراحل{% else %}Select stages{% endif %}:</div>
+              {% for stage in stages|default([]) %}
+              <label><input type="checkbox" class="scope-stage-cb" name="scope_ids" value="{{ stage.id }}" onchange="onStageScopeChange()"> {{ stage.name }}</label>
+              {% endfor %}
+            </div>
+            <div id="scopeClassesGroup" class="sas-stages-group" style="display:none">
+              <div class="fw-bold mb-1" style="font-size:.8rem;color:#6b7280">{% if ar %}اختر الصفوف{% else %}Select classes{% endif %}:</div>
+              <div id="scopeClassesList"></div>
+            </div>
+            <div id="scopeSectionsGroup" class="sas-stages-group" style="display:none">
+              <div class="fw-bold mb-1" style="font-size:.8rem;color:#6b7280">{% if ar %}اختر الشعب{% else %}Select sections{% endif %}:</div>
+              <div id="scopeSectionsList"></div>
+            </div>
+          </div>
+          <!-- Submit -->
+          <div class="col-12">
+            <button type="submit" class="btn"
+                    style="background:var(--sas-primary);color:#fff;border:none;border-radius:10px;font-weight:700;padding:10px 28px;font-size:.9rem">
+              <i class="bi bi-check-lg me-1"></i>
+              {% if ar %}إضافة الإجازة{% else %}Add Holiday{% endif %}
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Holiday List -->
+{% if holidays %}
+<div class="row g-3">
+  {% for holiday in holidays %}
+  <div class="col-md-6">
+    <div class="sas-holiday-card">
+      <div class="d-flex align-items-start justify-content-between">
+        <div>
+          <h6>
+            <i class="bi bi-calendar-event me-1" style="color:var(--sas-primary)"></i>
+            {% if ar %}{{ holiday.title }}{% else %}{{ holiday.title_en or holiday.title }}{% endif %}
+          </h6>
+          {% if holiday.title_en and ar %}
+          <div style="font-size:.78rem;color:#9ca3af;margin-bottom:6px">{{ holiday.title_en }}</div>
+          {% elif holiday.title and not ar and holiday.title != holiday.title_en %}
+          <div style="font-size:.78rem;color:#9ca3af;margin-bottom:6px;direction:rtl">{{ holiday.title }}</div>
+          {% endif %}
+          <div class="date-range">
+            <i class="bi bi-calendar3"></i>
+            <span>{{ holiday.start_date.strftime('%Y-%m-%d') }}</span>
+            <i class="bi bi-arrow-{{ 'left' if ar else 'right' }}"></i>
+            <span>{{ holiday.end_date.strftime('%Y-%m-%d') }}</span>
+          </div>
+          <div class="mt-2 d-flex align-items-center gap-2 flex-wrap">
+            <!-- Scope badge -->
+            {% set st = holiday.scope_type|default('school') %}
+            {% if st == 'school' %}
+            <span class="sas-scope-badge all"><i class="bi bi-globe me-1"></i>{% if ar %}المدرسة بالكامل{% else %}Whole School{% endif %}</span>
+            {% elif st == 'stages' %}
+            <span class="sas-scope-badge partial"><i class="bi bi-layers me-1"></i>{% if ar %}مراحل محددة{% else %}Specific Stages{% endif %}</span>
+            {% elif st == 'classes' %}
+            <span class="sas-scope-badge partial"><i class="bi bi-grid me-1"></i>{% if ar %}فصول محددة{% else %}Specific Classes{% endif %}</span>
+            {% elif st == 'sections' %}
+            <span class="sas-scope-badge partial"><i class="bi bi-diagram-3 me-1"></i>{% if ar %}شعب محددة{% else %}Specific Sections{% endif %}</span>
+            {% endif %}
+            <!-- Approval status -->
+            {% set hs = holiday.status|default('pending') %}
+            <span class="sas-scope-badge {% if hs == 'approved' %}all{% elif hs == 'rejected' %}partial{% else %}partial{% endif %}"
+                  style="{% if hs == 'approved' %}background:#cffafe;color:#164e63;border-color:#22d3ee{% elif hs == 'rejected' %}background:#fecaca;color:#991b1b;border-color:#f87171{% else %}background:#fef3c7;color:#92400e;border-color:#f59e0b{% endif %}">
+              {% if hs == 'approved' %}<i class="bi bi-check-circle me-1"></i>{% if ar %}معتمد{% else %}Approved{% endif %}
+              {% elif hs == 'rejected' %}<i class="bi bi-x-circle me-1"></i>{% if ar %}مرفوض{% else %}Rejected{% endif %}
+              {% else %}<i class="bi bi-clock me-1"></i>{% if ar %}معلق{% else %}Pending{% endif %}{% endif %}
+            </span>
+          </div>
+        </div>
+        <div class="d-flex align-items-center gap-1">
+          {% if staff.role == 'manager' and holiday.status|default('pending') == 'pending' %}
+          <form method="POST" action="{{ url_for('sas.holiday_approve', code=staff.staff_code, holiday_id=holiday.id) }}" class="d-inline">
+            <input type="hidden" name="action" value="approve">
+            <button type="submit" class="btn btn-sm" style="background:#cffafe;color:#164e63;border:1px solid #22d3ee;border-radius:8px;font-size:.75rem;font-weight:600;padding:4px 10px">
+              <i class="bi bi-check-lg"></i>
+            </button>
+          </form>
+          <form method="POST" action="{{ url_for('sas.holiday_approve', code=staff.staff_code, holiday_id=holiday.id) }}" class="d-inline">
+            <input type="hidden" name="action" value="reject">
+            <button type="submit" class="btn btn-sm" style="background:#fecaca;color:#991b1b;border:1px solid #f87171;border-radius:8px;font-size:.75rem;font-weight:600;padding:4px 10px">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </form>
+          {% endif %}
+          {% if staff.role == 'manager' %}
+          <form method="POST" action="{{ url_for('sas.holiday_delete', code=staff.staff_code, holiday_id=holiday.id) }}"
+                onsubmit="return confirm('{% if ar %}حذف هذه الإجازة؟{% else %}Delete this holiday?{% endif %}')" class="d-inline">
+            <button type="submit" class="btn btn-sm btn-outline-danger" style="border-radius:8px;font-size:.75rem;padding:4px 10px">
+              <i class="bi bi-trash"></i>
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-5" style="color:#9ca3af">
+  <i class="bi bi-calendar-x" style="font-size:2.5rem;display:block;margin-bottom:8px"></i>
+  <span style="font-size:.9rem">{% if ar %}لا توجد إجازات مسجلة{% else %}No holidays registered{% endif %}</span>
+</div>
+{% endif %}
+
+<script>
+// Rotate chevron icon on collapse toggle
+const addForm = document.getElementById('addHolidayForm');
+const icon = document.getElementById('addHolidayIcon');
+if (addForm && icon) {
+  addForm.addEventListener('show.bs.collapse', () => { icon.style.transform = 'rotate(180deg)'; });
+  addForm.addEventListener('hide.bs.collapse', () => { icon.style.transform = 'rotate(0)'; });
+}
+
+// Cascading scope selection
+var _stagesData = {{ stages_json|default([])|tojson }};
+
+function updateScope(type) {
+  document.getElementById('scopeStagesGroup').style.display = (type === 'stages') ? 'block' : 'none';
+  document.getElementById('scopeClassesGroup').style.display = (type === 'classes') ? 'block' : 'none';
+  document.getElementById('scopeSectionsGroup').style.display = (type === 'sections') ? 'block' : 'none';
+  // Clear old selections
+  document.querySelectorAll('.scope-stage-cb').forEach(function(cb){ cb.checked = false; });
+  document.getElementById('scopeClassesList').innerHTML = '';
+  document.getElementById('scopeSectionsList').innerHTML = '';
+  // Populate classes/sections from stages data
+  if (type === 'classes') { populateClasses(); }
+  if (type === 'sections') { populateSections(); }
+}
+
+function populateClasses() {
+  var box = document.getElementById('scopeClassesList');
+  var html = '';
+  _stagesData.forEach(function(stg){
+    stg.classes.forEach(function(cls){
+      html += '<label><input type="checkbox" name="scope_ids" value="' + cls.id + '"> ' + stg.name + ' - ' + cls.name + '</label>';
+    });
+  });
+  box.innerHTML = html || '<span style="color:#9ca3af;font-size:.82rem">{{ "لا توجد فصول" if ar else "No classes" }}</span>';
+}
+
+function populateSections() {
+  var box = document.getElementById('scopeSectionsList');
+  var html = '';
+  _stagesData.forEach(function(stg){
+    stg.classes.forEach(function(cls){
+      cls.sections.forEach(function(sec){
+        html += '<label><input type="checkbox" name="scope_ids" value="' + sec.id + '"> ' + stg.name + ' - ' + cls.name + ' - ' + sec.name + '</label>';
+      });
+    });
+  });
+  box.innerHTML = html || '<span style="color:#9ca3af;font-size:.82rem">{{ "لا توجد شعب" if ar else "No sections" }}</span>';
+}
+
+function onStageScopeChange() { /* no-op for stages — checkboxes directly submit */ }
+</script>
+{% endblock %}

@@ -1,0 +1,384 @@
+{% extends 'base.html' %}
+{% block content %}
+{%- set ar = (current_lang == 'ar') -%}
+{%- set edit = (ev is not none and ev is defined) -%}
+<style>
+.pi-form-card{background:white;border-radius:16px;border:1.5px solid #f1f5f9;padding:28px}
+.pi-form-section{margin-bottom:32px}
+.pi-form-section h6{font-weight:700;color:#0f172a;font-size:.95rem;margin-bottom:16px;
+  padding-bottom:10px;border-bottom:2px solid #f1f5f9;
+  display:flex;align-items:center;gap:8px}
+.fi-label{font-size:.82rem;font-weight:600;color:#475569;margin-bottom:6px;display:block}
+.fi-input{border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 14px;
+  width:100%;font-size:.9rem;transition:all .2s;outline:none;background:white}
+.fi-input:focus{border-color:#6366f1;box-shadow:0 0 0 4px rgba(99,102,241,.1)}
+.date-chip{display:inline-flex;align-items:center;gap:6px;background:#f0f0ff;
+  color:#6366f1;border-radius:100px;padding:5px 12px;font-size:.8rem;font-weight:600;margin:3px}
+.date-chip button{background:none;border:none;color:#6366f1;cursor:pointer;padding:0;font-size:.85rem;line-height:1}
+.color-swatch{width:40px;height:40px;border-radius:10px;cursor:pointer;
+  border:3px solid transparent;transition:all .15s;flex-shrink:0}
+.color-swatch.active{border-color:#0f172a;transform:scale(1.1)}
+</style>
+
+<div class="container-fluid py-4" style="max-width:860px">
+  <div class="d-flex align-items-center gap-3 mb-4">
+    <a href="{{ url_for('interviews.admin_index') }}"
+       class="btn btn-sm rounded-3" style="background:#f1f5f9;color:#475569;border:none">
+      <i class="bi bi-arrow-{{ 'right' if ar else 'left' }} me-1"></i>{% if ar %}رجوع{% else %}Back{% endif %}
+    </a>
+    <h5 class="fw-800 mb-0" style="color:#0f172a">
+      {% if edit %}{% if ar %}تعديل الفعالية{% else %}Edit Event{% endif %}
+      {% else %}<i class="bi bi-calendar-plus me-2" style="color:#6366f1"></i>{% if ar %}فعالية جديدة{% else %}New Event{% endif %}{% endif %}
+    </h5>
+  </div>
+
+  <form method="post">
+    <div class="row g-4">
+      <div class="col-12 col-lg-8">
+
+        {# Basic info #}
+        <div class="pi-form-card pi-form-section">
+          <h6><i class="bi bi-info-circle" style="color:#6366f1"></i>{% if ar %}معلومات الفعالية{% else %}Event Information{% endif %}</h6>
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="fi-label">{% if ar %}اسم الفعالية *{% else %}Event Name *{% endif %}</label>
+              <input type="text" name="name" class="fi-input"
+                     value="{{ ev.name if edit else '' }}"
+                     placeholder="{% if ar %}مثال: مقابلات أولياء الأمور - الفصل الأول{% else %}e.g. Term 1 Parent-Teacher Interviews{% endif %}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="fi-label">{% if ar %}رمز الفعالية *{% else %}Event Code *{% endif %}</label>
+              <div class="d-flex gap-2">
+                <input type="text" name="event_code" id="code-inp" class="fi-input"
+                       style="font-family:monospace;text-transform:uppercase;letter-spacing:3px;font-weight:700"
+                       value="{{ ev.event_code if edit else gen_code }}"
+                       placeholder="ABC123" maxlength="10" oninput="this.value=this.value.toUpperCase()" required>
+                {% if not edit %}
+                <button type="button" onclick="document.getElementById('code-inp').value=genCode()"
+                        class="btn rounded-3 flex-shrink-0" style="background:#f1f5f9;color:#475569;border:none;padding:10px 12px">
+                  <i class="bi bi-arrow-repeat"></i>
+                </button>
+                {% endif %}
+              </div>
+              <div style="font-size:.75rem;color:#94a3b8;margin-top:5px">
+                {% if ar %}الرمز الذي يدخله أولياء الأمور{% else %}The code parents will enter{% endif %}
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="fi-label">{% if ar %}مدة كل مقابلة (دقائق){% else %}Slot Duration (minutes){% endif %}</label>
+              <input type="number" name="slot_duration" class="fi-input"
+                     value="{{ ev.slot_duration if edit else 5 }}" min="1" max="60" required>
+            </div>
+            <div class="col-12">
+              <label class="fi-label">{% if ar %}وصف الفعالية (اختياري){% else %}Event Description (optional){% endif %}</label>
+              <textarea name="description" class="fi-input" rows="2"
+                placeholder="{% if ar %}معلومات إضافية لأولياء الأمور...{% else %}Additional information for parents...{% endif %}">{{ ev.description if edit else '' }}</textarea>
+            </div>
+          </div>
+        </div>
+
+        {# School branding #}
+        <div class="pi-form-card pi-form-section">
+          <h6><i class="bi bi-building" style="color:#0284c7"></i>{% if ar %}معلومات المدرسة{% else %}School Branding{% endif %}</h6>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="fi-label">{% if ar %}اسم المدرسة{% else %}School Name{% endif %}</label>
+              <input type="text" name="school_name" class="fi-input"
+                     value="{{ ev.school_name if edit else '' }}"
+                     placeholder="{% if ar %}اسم مدرستك{% else %}Your school name{% endif %}">
+            </div>
+            <div class="col-md-6">
+              <label class="fi-label">{% if ar %}رابط شعار المدرسة{% else %}School Logo URL{% endif %}</label>
+              <input type="url" name="school_logo_url" class="fi-input"
+                     value="{{ ev.school_logo_url if edit else '' }}"
+                     placeholder="https://...">
+            </div>
+            <div class="col-12">
+              <label class="fi-label">{% if ar %}لون العلامة التجارية{% else %}Brand Color{% endif %}</label>
+              <div class="d-flex align-items-center gap-3 flex-wrap">
+                {% for c in ['#2563eb','#6366f1','#7c3aed','#059669','#d97706','#dc2626','#0891b2','#475569'] %}
+                <div class="color-swatch {{ 'active' if (edit and ev.brand_color==c) else '' }}"
+                     style="background:{{ c }}"
+                     onclick="pickColor('{{ c }}',this)"></div>
+                {% endfor %}
+                <input type="color" id="custom-color" class="fi-input" style="width:50px;height:40px;padding:4px"
+                       value="{{ ev.brand_color if edit else '#6366f1' }}"
+                       oninput="document.getElementById('brand_color_val').value=this.value">
+              </div>
+              <input type="hidden" name="brand_color" id="brand_color_val"
+                     value="{{ ev.brand_color if edit else '#6366f1' }}">
+            </div>
+          </div>
+        </div>
+
+        {# Dates #}
+        <div class="pi-form-card pi-form-section">
+          <h6><i class="bi bi-calendar3" style="color:#d97706"></i>{% if ar %}تواريخ الفعالية{% else %}Event Dates{% endif %}</h6>
+          <div class="d-flex gap-2 mb-3">
+            <input type="date" id="date-pick" class="fi-input" style="flex:1;max-width:220px">
+            <button type="button" onclick="addDate()"
+                    class="btn rounded-3 fw-600" style="background:#6366f1;color:white;border:none;padding:10px 18px">
+              <i class="bi bi-plus-lg me-1"></i>{% if ar %}أضف{% else %}Add{% endif %}
+            </button>
+          </div>
+          <div id="date-chips">
+            {% set dates = (ev.event_date | tojson | safe) if edit and ev.event_date else '[]' %}
+          </div>
+          <input type="hidden" name="event_dates" id="event_dates_val"
+                 value="{{ ev.event_date if edit else '[]' }}">
+        </div>
+
+      </div>
+
+      {# ═══ Hierarchy Builder — Stage / Class / Section / Teacher / Course ═══ #}
+      {% if edit %}
+      <div class="col-12">
+        <div class="pi-form-card pi-form-section" id="hierarchy-section">
+          <h6><i class="bi bi-diagram-3" style="color:#7c3aed"></i>{% if ar %}الهيكل التنظيمي{% else %}School Hierarchy{% endif %}
+            <span style="font-size:.72rem;font-weight:500;color:#94a3b8;margin-inline-start:auto">{% if ar %}مرحلة → صف → شعبة → معلم → مادة{% else %}Stage → Class → Section → Teacher → Course{% endif %}</span>
+          </h6>
+
+          {# Add Stage #}
+          <div class="d-flex gap-2 mb-3">
+            <input type="text" id="new-stage" class="fi-input" style="max-width:280px"
+                   placeholder="{% if ar %}اسم المرحلة (مثال: ابتدائي){% else %}Stage name (e.g. Primary){% endif %}">
+            <button type="button" onclick="addStage()" class="btn rounded-3 fw-600" style="background:#7c3aed;color:white;border:none;padding:8px 16px;white-space:nowrap">
+              <i class="bi bi-plus-lg me-1"></i>{% if ar %}أضف مرحلة{% else %}Add Stage{% endif %}
+            </button>
+          </div>
+
+          {# Tree container — loads dynamically #}
+          <div id="hierarchy-tree">
+            <p class="text-muted text-center py-3" style="font-size:.85rem"><i class="bi bi-hourglass-split"></i> {% if ar %}جاري التحميل...{% else %}Loading...{% endif %}</p>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <div class="col-12 col-lg-4">
+        {# Settings #}
+        <div class="pi-form-card pi-form-section">
+          <h6><i class="bi bi-gear" style="color:#64748b"></i>{% if ar %}الإعدادات{% else %}Settings{% endif %}</h6>
+
+          <label class="d-flex align-items-center gap-2 mb-3" style="cursor:pointer">
+            <input type="checkbox" name="is_open" class="form-check-input" style="width:18px;height:18px;border-radius:5px"
+                   {{ 'checked' if not edit or ev.is_open }}>
+            <div>
+              <div class="fw-600" style="font-size:.88rem">{% if ar %}الحجز مفتوح{% else %}Bookings Open{% endif %}</div>
+              <div style="font-size:.75rem;color:#94a3b8">{% if ar %}السماح لأولياء الأمور بالحجز{% else %}Allow parents to book{% endif %}</div>
+            </div>
+          </label>
+
+          <label class="d-flex align-items-center gap-2 mb-3" style="cursor:pointer">
+            <input type="checkbox" name="allow_comments" class="form-check-input" style="width:18px;height:18px;border-radius:5px"
+                   {{ 'checked' if not edit or ev.allow_comments }}>
+            <div>
+              <div class="fw-600" style="font-size:.88rem">{% if ar %}السماح بالملاحظات{% else %}Allow Comments{% endif %}</div>
+              <div style="font-size:.75rem;color:#94a3b8">{% if ar %}يكتب الأهالي ما يريدون مناقشته{% else %}Parents can add discussion topics{% endif %}</div>
+            </div>
+          </label>
+
+          <label class="d-flex align-items-center gap-2 mb-3" style="cursor:pointer">
+            <input type="checkbox" name="send_reminders" class="form-check-input" style="width:18px;height:18px;border-radius:5px"
+                   {{ 'checked' if not edit or ev.send_reminders }}>
+            <div>
+              <div class="fw-600" style="font-size:.88rem">{% if ar %}إرسال تذكيرات{% else %}Send Reminders{% endif %}</div>
+              <div style="font-size:.75rem;color:#94a3b8">{% if ar %}بريد تذكيري قبل الموعد{% else %}Email reminder before appointment{% endif %}</div>
+            </div>
+          </label>
+
+          <label class="d-flex align-items-center gap-2 mb-3" style="cursor:pointer">
+            <input type="checkbox" name="use_hierarchy" class="form-check-input" style="width:18px;height:18px;border-radius:5px"
+                   {{ 'checked' if not edit or ev.use_hierarchy }}>
+            <div>
+              <div class="fw-600" style="font-size:.88rem">{% if ar %}الوضع الهرمي{% else %}Hierarchy Mode{% endif %}</div>
+              <div style="font-size:.75rem;color:#94a3b8">{% if ar %}مرحلة ← صف ← شعبة ← معلم ← مادة{% else %}Stage → Class → Section → Teacher → Course{% endif %}</div>
+            </div>
+          </label>
+
+          <div>
+            <label class="fi-label">{% if ar %}التذكير قبل (ساعات){% else %}Remind Before (hours){% endif %}</label>
+            <input type="number" name="reminder_hours" class="fi-input"
+                   value="{{ ev.reminder_hours if edit else 24 }}" min="1" max="168">
+          </div>
+        </div>
+
+        {# Submit #}
+        <button type="submit"
+                class="btn w-100 text-white fw-700 rounded-3 py-3"
+                style="background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;font-size:1rem">
+          <i class="bi bi-{{ 'check-circle' if edit else 'calendar-plus' }} me-2"></i>
+          {% if edit %}{% if ar %}حفظ التعديلات{% else %}Save Changes{% endif %}
+          {% else %}{% if ar %}إنشاء الفعالية{% else %}Create Event{% endif %}{% endif %}
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<script>
+let dates=[];
+try{dates=JSON.parse(document.getElementById('event_dates_val').value)||[];}catch(e){}
+renderDates();
+
+function addDate(){
+  const d=document.getElementById('date-pick').value;
+  if(!d||dates.includes(d))return;
+  dates.push(d);dates.sort();renderDates();
+}
+function removeDate(d){dates=dates.filter(x=>x!==d);renderDates();}
+function renderDates(){
+  const ar={{ 'true' if ar else 'false' }};
+  document.getElementById('date-chips').innerHTML=dates.length
+    ? dates.map(d=>`<span class="date-chip">${d}<button type="button" onclick="removeDate('${d}')"><i class="bi bi-x"></i></button></span>`).join('')
+    : `<span style="font-size:.82rem;color:#94a3b8">${ar?'لم تُضف أي تواريخ بعد':'No dates added yet'}</span>`;
+  document.getElementById('event_dates_val').value=JSON.stringify(dates);
+}
+function genCode(){return Math.random().toString(36).substr(2,6).toUpperCase();}
+function pickColor(c,el){
+  document.querySelectorAll('.color-swatch').forEach(s=>s.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('brand_color_val').value=c;
+  document.getElementById('custom-color').value=c;
+}
+
+{% if edit %}
+/* ═══ Hierarchy Builder JS ═══ */
+var EID = {{ ev.id }};
+var AR = {{ 'true' if ar else 'false' }};
+var API = '/interviews/api/events/' + EID;
+var ADM = '/interviews/admin';
+
+function post(url, data, cb) {
+  var form = new FormData();
+  for (var k in data) form.append(k, data[k]);
+  fetch(url, {method:'POST', body:form, headers:{'X-Requested-With':'XMLHttpRequest'}}).then(function(r){
+    if(r.redirected || r.ok) { if(cb) cb(); else loadTree(); }
+  });
+}
+
+function addStage() {
+  var inp = document.getElementById('new-stage');
+  var name = inp.value.trim();
+  if (!name) return;
+  post(ADM + '/events/' + EID + '/stages/add', {name: name}, function(){ inp.value=''; loadTree(); });
+}
+
+function addClass(stageId) {
+  var inp = document.getElementById('add-class-' + stageId);
+  var name = inp.value.trim();
+  if (!name) return;
+  post(ADM + '/events/' + EID + '/classes/add', {stage_id: stageId, name: name}, function(){ inp.value=''; loadTree(); });
+}
+
+function addSection(classId) {
+  var inp = document.getElementById('add-sec-' + classId);
+  var name = inp.value.trim();
+  if (!name) return;
+  post(ADM + '/events/' + EID + '/sections/add', {class_id: classId, name: name}, function(){ inp.value=''; loadTree(); });
+}
+
+function addAssignment(sectionId) {
+  var teacherSel = document.getElementById('asgn-teacher-' + sectionId);
+  var courseInp = document.getElementById('asgn-course-' + sectionId);
+  var roomInp = document.getElementById('asgn-room-' + sectionId);
+  if (!teacherSel.value || !courseInp.value.trim()) return;
+  post(ADM + '/events/' + EID + '/assignments/add', {
+    section_id: sectionId,
+    teacher_id: teacherSel.value,
+    course_name: courseInp.value.trim(),
+    room: roomInp.value.trim()
+  }, function(){ courseInp.value=''; roomInp.value=''; loadTree(); });
+}
+
+function deleteStage(id) { if(confirm(AR?'حذف هذه المرحلة؟':'Delete this stage?')) post(ADM+'/stages/'+id+'/delete',{}); }
+function deleteClass(id) { if(confirm(AR?'حذف هذا الصف؟':'Delete this class?')) post(ADM+'/classes/'+id+'/delete',{}); }
+function deleteSection(id){ if(confirm(AR?'حذف هذه الشعبة؟':'Delete this section?')) post(ADM+'/sections/'+id+'/delete',{}); }
+function deleteAssignment(id){ if(confirm(AR?'حذف هذا التعيين؟':'Delete this assignment?')) post(ADM+'/assignments/'+id+'/delete',{}); }
+
+function loadTree() {
+  fetch(ADM + '/events/' + EID + '/hierarchy?json=1')
+    .then(function(r){ return r.json(); })
+    .then(function(data){ renderTree(data); })
+    .catch(function(){ document.getElementById('hierarchy-tree').innerHTML = '<p class="text-muted text-center py-3">' + (AR?'فشل تحميل البيانات':'Failed to load data') + '</p>'; });
+}
+
+function renderTree(data) {
+  var stages = data.stages || [];
+  var teachers = data.teachers || [];
+  var tree = document.getElementById('hierarchy-tree');
+  if (!stages.length) {
+    tree.innerHTML = '<div class="text-center py-4" style="color:#94a3b8;font-size:.85rem"><i class="bi bi-info-circle me-1"></i>' +
+      (AR ? 'لم تُضف أي مراحل بعد. أضف المرحلة الأولى أعلاه' : 'No stages yet. Add your first stage above') + '</div>';
+    return;
+  }
+  var html = '';
+  stages.forEach(function(st) {
+    html += '<div class="mb-3" style="background:#faf5ff;border-radius:12px;border:1.5px solid #e9d5ff;padding:12px 16px">';
+    html += '<div class="d-flex align-items-center gap-2 mb-2">';
+    html += '<span style="font-weight:700;color:#7c3aed;font-size:.9rem"><i class="bi bi-building me-1"></i>' + st.name + '</span>';
+    html += '<button type="button" onclick="deleteStage('+st.id+')" class="btn btn-sm p-0 ms-auto" style="color:#dc2626;font-size:.75rem"><i class="bi bi-trash3"></i></button>';
+    html += '</div>';
+
+    // Add class row
+    html += '<div class="d-flex gap-2 mb-2 ms-3">';
+    html += '<input id="add-class-'+st.id+'" class="fi-input" style="max-width:200px;font-size:.82rem;padding:6px 10px" placeholder="'+(AR?'اسم الصف':'Class name')+'">';
+    html += '<button type="button" onclick="addClass('+st.id+')" class="btn btn-sm rounded-2" style="background:#7c3aed;color:white;border:none;font-size:.78rem;padding:4px 12px"><i class="bi bi-plus"></i> '+(AR?'صف':'Class')+'</button>';
+    html += '</div>';
+
+    (st.classes || []).forEach(function(cl) {
+      html += '<div class="ms-3 mb-2" style="background:#f5f3ff;border-radius:10px;padding:10px 14px;border:1px solid #ede9fe">';
+      html += '<div class="d-flex align-items-center gap-2 mb-2">';
+      html += '<span style="font-weight:600;color:#6366f1;font-size:.85rem"><i class="bi bi-journal-text me-1"></i>' + cl.name + '</span>';
+      html += '<button type="button" onclick="deleteClass('+cl.id+')" class="btn btn-sm p-0 ms-auto" style="color:#dc2626;font-size:.72rem"><i class="bi bi-trash3"></i></button>';
+      html += '</div>';
+
+      // Add section row
+      html += '<div class="d-flex gap-2 mb-2 ms-3">';
+      html += '<input id="add-sec-'+cl.id+'" class="fi-input" style="max-width:100px;font-size:.82rem;padding:6px 10px" placeholder="'+(AR?'شعبة':'Section')+'" maxlength="5">';
+      html += '<button type="button" onclick="addSection('+cl.id+')" class="btn btn-sm rounded-2" style="background:#6366f1;color:white;border:none;font-size:.78rem;padding:4px 12px"><i class="bi bi-plus"></i> '+(AR?'شعبة':'Section')+'</button>';
+      html += '</div>';
+
+      // Sections
+      (cl.sections || []).forEach(function(sec) {
+        html += '<div class="ms-3 mb-2" style="background:white;border-radius:8px;padding:8px 12px;border:1px solid #e2e8f0">';
+        html += '<div class="d-flex align-items-center gap-2 mb-2">';
+        html += '<span class="fw-600" style="color:#0f172a;font-size:.84rem"><i class="bi bi-people me-1"></i>' + (AR?'شعبة ':'Section ') + sec.name + '</span>';
+        html += '<button type="button" onclick="deleteSection('+sec.id+')" class="btn btn-sm p-0 ms-auto" style="color:#dc2626;font-size:.72rem"><i class="bi bi-trash3"></i></button>';
+        html += '</div>';
+
+        // Existing assignments
+        (sec.assignments || []).forEach(function(a) {
+          html += '<div class="d-flex align-items-center gap-2 mb-1 ms-2" style="font-size:.8rem;background:#f8fafc;border-radius:6px;padding:6px 10px">';
+          html += '<span style="color:#475569"><i class="bi bi-person-fill me-1"></i>' + a.teacher_name + '</span>';
+          html += '<span style="color:#0f172a;font-weight:600">' + (a.course || a.course_name || '') + '</span>';
+          if(a.room) html += '<span style="color:#64748b"><i class="bi bi-door-open me-1"></i>' + a.room + '</span>';
+          html += '<code style="font-size:.72rem;background:#f0f0ff;color:#6366f1;padding:2px 6px;border-radius:4px">' + (a.code || a.assignment_code || '') + '</code>';
+          html += '<button type="button" onclick="deleteAssignment('+a.id+')" class="btn btn-sm p-0 ms-auto" style="color:#dc2626;font-size:.7rem"><i class="bi bi-x-lg"></i></button>';
+          html += '</div>';
+        });
+
+        // Add assignment row
+        var teacherOpts = '<option value="">'+(AR?'— معلم —':'— Teacher —')+'</option>';
+        teachers.forEach(function(t){ teacherOpts += '<option value="'+t.id+'">'+t.name+'</option>'; });
+        html += '<div class="d-flex gap-2 ms-2 mt-2 flex-wrap">';
+        html += '<select id="asgn-teacher-'+sec.id+'" class="fi-input" style="max-width:150px;font-size:.78rem;padding:5px 8px">' + teacherOpts + '</select>';
+        html += '<input id="asgn-course-'+sec.id+'" class="fi-input" style="max-width:140px;font-size:.78rem;padding:5px 8px" placeholder="'+(AR?'المادة':'Course')+'">';
+        html += '<input id="asgn-room-'+sec.id+'" class="fi-input" style="max-width:100px;font-size:.78rem;padding:5px 8px" placeholder="'+(AR?'الغرفة':'Room')+'">';
+        html += '<button type="button" onclick="addAssignment('+sec.id+')" class="btn btn-sm rounded-2" style="background:#059669;color:white;border:none;font-size:.76rem;padding:4px 10px"><i class="bi bi-plus"></i> '+(AR?'تعيين':'Assign')+'</button>';
+        html += '</div>';
+
+        html += '</div>';
+      });
+      html += '</div>';
+    });
+    html += '</div>';
+  });
+  tree.innerHTML = html;
+}
+
+// Load on page ready
+loadTree();
+{% endif %}
+</script>
+{% endblock %}
