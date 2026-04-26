@@ -33,7 +33,24 @@
         </select>
         <div id="venueInfo" class="form-text text-info mt-1"></div>
       </div>
-      <div class="row">
+
+      {# ── Full Day Toggle ── #}
+      <div class="mb-3">
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" id="fullDayCheck" onchange="toggleFullDay(this)">
+          <label class="form-check-label fw-bold" for="fullDayCheck">
+            <i class="bi bi-sun me-1"></i>
+            {% if current_lang == 'en' %}Full Day Booking{% else %}حجز يوم كامل{% endif %}
+          </label>
+        </div>
+      </div>
+      <div id="fullDayRow" class="mb-3 d-none">
+        <label class="form-label fw-bold">{% if current_lang == 'en' %}Date{% else %}التاريخ{% endif %}*</label>
+        <input type="date" id="fullDayDate" class="form-control"
+               min="{{ now.strftime('%Y-%m-%d') }}" onchange="applyFullDay(this.value)">
+      </div>
+
+      <div class="row" id="timeRow">
         <div class="col-md-6 mb-3">
           <label class="form-label fw-bold">{{ _('وقت البداية') }}*</label>
           <input type="datetime-local" name="start_time" class="form-control"
@@ -206,5 +223,30 @@ document.getElementById('startTime')?.addEventListener('change', function(){
   const et = document.getElementById('endTime');
   if(et) et.min = this.value;
 });
+
+// ── Full Day ──────────────────────────────────────────────────────────────
+function toggleFullDay(cb){
+  const fullRow = document.getElementById('fullDayRow');
+  const timeRow = document.getElementById('timeRow');
+  const st = document.getElementById('startTime');
+  const et = document.getElementById('endTime');
+  if(cb.checked){
+    fullRow.classList.remove('d-none');
+    timeRow.classList.add('d-none');
+    st.removeAttribute('required'); et.removeAttribute('required');
+    const d = document.getElementById('fullDayDate').value;
+    if(d) applyFullDay(d);
+  } else {
+    fullRow.classList.add('d-none');
+    timeRow.classList.remove('d-none');
+    st.setAttribute('required',''); et.setAttribute('required','');
+    st.value = ''; et.value = '';
+  }
+}
+function applyFullDay(d){
+  if(!d) return;
+  document.getElementById('startTime').value = d + 'T00:00';
+  document.getElementById('endTime').value   = d + 'T23:59';
+}
 </script>
 {% endblock %}

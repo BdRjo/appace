@@ -44,6 +44,20 @@ def create_app():
     except Exception as e:
         current_app.logger.warning(f"⚠️ Seed: {e}")
 
+    # ── Migration: إضافة الأعمدة المفقودة ─────────────────────────────────────
+    try:
+        from sqlalchemy import text
+        engine = get_engine()
+        with engine.connect() as conn:
+            # requested_employee_email
+            conn.execute(text("""
+                ALTER TABLE reservations
+                ADD COLUMN IF NOT EXISTS requested_employee_email VARCHAR(200)
+            """))
+            conn.commit()
+    except Exception as e:
+        current_app.logger.warning(f"⚠️ Column migration: {e}")
+
     # ── DB session per request ────────────────────────────────────────────────
     @app.before_request
     def open_db():

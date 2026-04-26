@@ -6,7 +6,7 @@ import re
 import base64
 import io
 from flask import Blueprint, render_template, jsonify, request, current_app, send_file
-from models.database import Reservation, Venue, Location, Attachment
+from models.database import Reservation, Venue, Location, Attachment, User
 from utils.helpers import get_db
 from datetime import datetime
 
@@ -76,8 +76,19 @@ def booking_detail(res_id):
         on_behalf   = on_behalf_m.group(1) if on_behalf_m else ''
         clean_notes = re.sub(r'\[on_behalf:[^\]]+\]', '', notes_raw).strip()
 
-        atts     = db.query(Attachment).filter_by(reservation_id=res_id).all()
-        att_list = [{'id': a.id, 'name': a.filename} for a in atts]
+        requester = db.query(User).filter_by(id=res.user_id).first() if res.user_id else None
+
+        atts = db.query(Attachment).filter_by(reservation_id=res_id).all()
+        att_list = []
+        for a in atts:
+            mime = a.mimetype or ''
+            att_list.append({
+                'id':     a.id,
+                'name':   a.filename,
+                'mime':   mime,
+                'is_img': mime.startswith('image/'),
+                'url':    f'/public-calendar/attachment/{a.id}',
+            })
 
         return jsonify({
             'booking_number':     res.booking_number or '',
@@ -88,6 +99,7 @@ def booking_detail(res_id):
             'end_time':           res.end_time.strftime('%Y-%m-%d %H:%M')   if res.end_time   else '',
             'notes':              clean_notes,
             'on_behalf':          on_behalf,
+            'requester_name':     (requester.full_name or requester.username) if requester else '',
             'expected_attendees': str(getattr(res, 'expected_attendees', '') or ''),
             'venue_name':         venue.name           if venue    else '',
             'venue_capacity':     str(venue.capacity)  if venue and getattr(venue, 'capacity', None) else '',
