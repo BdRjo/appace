@@ -39,7 +39,7 @@ def events():
     result = []
     for r in q.all():
         try:
-            venue = db.query(Venue).get(r.venue_id) if r.venue_id else None
+            venue = db.query(Venue).filter_by(id=r.venue_id).first() if r.venue_id else None
             result.append({
                 'id':    r.id,
                 'title': (r.title or '') + (' — ' + venue.name if venue else ''),
@@ -47,7 +47,8 @@ def events():
                 'end':   r.end_time.isoformat()   if r.end_time   else '',
                 'color': '#3D8EF5',
             })
-        except Exception:
+        except Exception as e:
+            current_app.logger.error(f"event error: {e}")
             continue
     return jsonify(result)
 
