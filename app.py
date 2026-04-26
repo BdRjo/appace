@@ -340,9 +340,15 @@ def create_app():
         if lang not in ('ar', 'en'):
             lang = 'ar'
         set_lang(lang)
-        # Validate referrer to prevent open redirect
-        referrer = req.referrer or '/'
         from urllib.parse import urlparse
+        # Priority: ?next= param
+        next_url = req.args.get('next', '')
+        if next_url:
+            parsed = urlparse(next_url)
+            if not parsed.netloc or parsed.netloc == req.host:
+                return redirect(next_url)
+        # Fallback: referrer
+        referrer = req.referrer or '/'
         parsed = urlparse(referrer)
         if parsed.netloc and parsed.netloc != req.host:
             referrer = '/'
