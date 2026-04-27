@@ -392,6 +392,33 @@ def approve(res_id):
     try:
         from utils.email_helper import send_booking_approved, push_notification
         send_booking_approved(res)
+        # إرسال للضيف الخارجي إذا كان الحجز عاماً
+        import re as _re
+        notes_raw = getattr(res, 'requester_notes', '') or ''
+        guest_email_m = _re.search(r'\[guest_email:([^\]]+)\]', notes_raw)
+        guest_name_m  = _re.search(r'\[guest_name:([^\]]+)\]', notes_raw)
+        if guest_email_m and not res.user_id:
+            from utils.email_helper import _send, _html_wrapper, _info_row
+            ge = guest_email_m.group(1)
+            gn = guest_name_m.group(1) if guest_name_m else ge
+            venue = db.query(Venue).filter_by(id=res.venue_id).first() if res.venue_id else None
+            subj = f'✅ تمت الموافقة على طلب الحجز — {res.booking_number}'
+            content = f"""
+<div style="padding:16px;background:#f0f9f0;border-radius:10px;margin-bottom:16px;text-align:center">
+  <div style="font-size:32px">✅</div>
+  <h3 style="color:#1B5E20;margin:8px 0">تمت الموافقة على طلب الحجز</h3>
+</div>
+<p>مرحباً {gn}،<br>يسعدنا إبلاغك بأنه تمت الموافقة على طلب الحجز.</p>
+<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #C8E6C9;border-radius:10px;overflow:hidden">
+  {_info_row('📋 رقم الطلب', f'<strong style="color:#0C67EC">{res.booking_number}</strong>', '#F1F8E9')}
+  {_info_row('📌 العنوان', res.title or '', '#FAFFFE')}
+  {_info_row('🏢 القاعة', venue.name if venue else '', '#F1F8E9')}
+  {_info_row('🕐 البداية', res.start_time.strftime('%Y-%m-%d %H:%M') if res.start_time else '', '#FAFFFE')}
+  {_info_row('🕐 الانتهاء', res.end_time.strftime('%Y-%m-%d %H:%M') if res.end_time else '', '#F1F8E9')}
+  {_info_row('💬 ملاحظة', request.form.get('note',''), '#FAFFFE') if request.form.get('note') else ''}
+</table>"""
+            _send(ge, gn, subj, _html_wrapper(content, subj, 'ar'),
+                  f'تمت الموافقة على الحجز {res.booking_number}', sync=False, email_type='notification')
         # Local notification
         try:
             from models.database import Notification
@@ -437,6 +464,26 @@ def reject(res_id):
     try:
         from utils.email_helper import send_booking_rejected, push_notification
         send_booking_rejected(res, reason)
+        # إرسال للضيف الخارجي إذا كان الحجز عاماً
+        import re as _re
+        notes_raw = getattr(res, 'requester_notes', '') or ''
+        guest_email_m = _re.search(r'\[guest_email:([^\]]+)\]', notes_raw)
+        guest_name_m  = _re.search(r'\[guest_name:([^\]]+)\]', notes_raw)
+        if guest_email_m and not res.user_id:
+            from utils.email_helper import _send, _html_wrapper, _info_row
+            ge = guest_email_m.group(1)
+            gn = guest_name_m.group(1) if guest_name_m else ge
+            subj = f'❌ اعتذار — طلب الحجز {res.booking_number}'
+            content = f"""
+<div style="padding:16px;background:#fef2f2;border-radius:10px;margin-bottom:16px;text-align:center">
+  <div style="font-size:32px">❌</div>
+  <h3 style="color:#991B1B;margin:8px 0">اعتذار — لم تتم الموافقة على الطلب</h3>
+</div>
+<p>مرحباً {gn}،<br>نأسف لإبلاغك بأنه لم تتم الموافقة على طلب الحجز رقم <strong>{res.booking_number}</strong>.</p>
+{f'<div style="background:#fef3c7;border-radius:8px;padding:12px 16px;margin-top:12px;color:#92400e"><strong>السبب:</strong> {reason}</div>' if reason else ''}
+<p style="margin-top:16px;color:#64748b;font-size:14px">يمكنك التواصل معنا لمزيد من المعلومات.</p>"""
+            _send(ge, gn, subj, _html_wrapper(content, subj, 'ar'),
+                  f'اعتذار — طلب الحجز {res.booking_number}', sync=False, email_type='notification')
         # Local notification
         try:
             lang = getattr(res.user, 'language', 'ar') if res.user else 'ar'

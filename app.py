@@ -54,6 +54,11 @@ def create_app():
                 ALTER TABLE reservations
                 ADD COLUMN IF NOT EXISTS requested_employee_email VARCHAR(200)
             """))
+            # Allow null user_id for public/guest bookings
+            conn.execute(text("""
+                ALTER TABLE reservations
+                ALTER COLUMN user_id DROP NOT NULL
+            """))
             conn.commit()
     except Exception as e:
         current_app.logger.warning(f"⚠️ Column migration: {e}")
