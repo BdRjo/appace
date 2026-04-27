@@ -97,6 +97,10 @@ def booking_detail(res_id):
             'status_en':          'Approved',
             'start_time':         res.start_time.strftime('%Y-%m-%d %H:%M') if res.start_time else '',
             'end_time':           res.end_time.strftime('%Y-%m-%d %H:%M')   if res.end_time   else '',
+            'full_day':           bool(res.start_time and res.end_time and
+                                       res.start_time.hour == 0 and res.start_time.minute == 0 and
+                                       res.end_time.hour == 23 and res.end_time.minute >= 59),
+            'date_only':          res.start_time.strftime('%Y-%m-%d') if res.start_time else '',
             'notes':              clean_notes,
             'on_behalf':          on_behalf,
             'requester_name':     (requester.full_name or requester.username) if requester else '',

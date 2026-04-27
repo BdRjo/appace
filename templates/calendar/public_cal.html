@@ -52,7 +52,7 @@ body{background:#f0f4f8;font-family:'Segoe UI',Tahoma,sans-serif;margin:0}
 .mclosebtn{background:rgba(255,255,255,.2);border:none;color:white;border-radius:7px;width:30px;height:30px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center}
 .loading{text-align:center;padding:40px;color:#64748b}
 .empty{text-align:center;padding:40px;color:#94a3b8;font-size:.85rem}
-@media(max-width:575px){.pcal-brand span,}
+@media(max-width:575px){.pcal-brand span{display:none}}
 </style>
 </head>
 <body>
@@ -93,7 +93,10 @@ body{background:#f0f4f8;font-family:'Segoe UI',Tahoma,sans-serif;margin:0}
   <div class="pcal-modal">
     <div class="pcal-mhead">
       <h6 id="modalTitle"></h6>
-      <button class="mclosebtn" onclick="closeModal()">✕</button>
+      <div class="d-flex gap-2 align-items-center">
+        <button class="mclosebtn" onclick="printBooking()" title="Print">🖨</button>
+        <button class="mclosebtn" onclick="closeModal()">✕</button>
+      </div>
     </div>
     <div class="pcal-mbody" id="modalBody"></div>
   </div>
@@ -201,8 +204,28 @@ function toggleDetail(id){
   el.style.display='block';
   fetch(`/public-calendar/booking/${id}`)
     .then(r=>r.json())
-    .then(d=>{ el.innerHTML = buildRows(d); })
+    .then(d=>{
+      el.innerHTML = buildRows(d) +
+        `<div style="margin-top:10px;text-align:center">
+          <button onclick="printDetail(${id})" style="background:#0C67EC;color:white;border:none;border-radius:8px;padding:6px 16px;font-size:.78rem;cursor:pointer">
+            🖨 ${AR?'طباعة':'Print'}
+          </button>
+        </div>`;
+    })
     .catch(()=>{ el.innerHTML=`<div class="text-danger" style="font-size:.8rem">${T.failLoad}</div>`; });
+}
+
+function printDetail(id){
+  const el = document.getElementById('detail_'+id);
+  if(!el) return;
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <style>body{font-family:Arial,sans-serif;padding:20px;direction:${AR?'rtl':'ltr'}}
+    .dp-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eee;font-size:14px}
+    .dp-label{color:#666;font-weight:600}.dp-value{color:#111}
+    button{display:none}img{max-width:200px;border-radius:8px;margin:4px}a{color:#0C67EC}</style></head>
+    <body>${el.innerHTML}</body></html>`);
+  win.document.close(); win.print();
 }
 
 function buildRows(d){
@@ -230,8 +253,7 @@ function buildRows(d){
     + r('hash',T.bookNo,d.booking_number,true)
     + r('card-text',T.titleL,title)
     + r('tag',AR?'نوع الحجز':'Type',AR?d.booking_type_ar:d.booking_type_en)
-    + r('calendar3',T.start,d.start_time)
-    + r('calendar3-range',T.end,d.end_time)
+    + (d.full_day ? r('sun', AR?'يوم كامل':'Full Day', d.date_only) : r('calendar3',T.start,d.start_time) + r('calendar3-range',T.end,d.end_time))
     + r('people',T.attendees,d.expected_attendees)
     + r('person',AR?'مقدم الطلب':'Requested By',d.requester_name)
     + r('person-plus',AR?'نيابةً عن':'On Behalf Of',d.on_behalf)
@@ -288,8 +310,7 @@ function openModal(id){
         ${r('card-text',T.titleL,title)}
         ${r('tag',AR?'نوع الحجز':'Type',AR?d.booking_type_ar:d.booking_type_en)}
         <div class="mrow"><span class="mlabel"><i class="bi bi-check-circle"></i>${T.status}</span><span class="mstatus">${AR?d.status_ar:d.status_en}</span></div>
-        ${r('calendar3',T.start,d.start_time)}
-        ${r('calendar3-range',T.end,d.end_time)}
+        ${d.full_day ? r('sun',AR?'يوم كامل':'Full Day',d.date_only) : r('calendar3',T.start,d.start_time)+r('calendar3-range',T.end,d.end_time)}
         ${r('people',T.attendees,d.expected_attendees)}
         ${r('person',AR?'مقدم الطلب':'Requested By',d.requester_name)}
         ${r('person-plus',AR?'نيابةً عن':'On Behalf Of',d.on_behalf)}
@@ -307,6 +328,20 @@ function openModal(id){
 
 function closeModal(){document.getElementById('pcalOverlay').classList.remove('open');}
 function overlayClick(e){if(e.target===document.getElementById('pcalOverlay'))closeModal();}
+function printBooking(){
+  const body = document.getElementById('modalBody').innerHTML;
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <style>body{font-family:Arial,sans-serif;padding:20px;direction:${AR?'rtl':'ltr'}}
+    .dp-row,.mrow{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eee;font-size:14px}
+    .dp-label,.mlabel{color:#666;font-weight:600}.dp-value,.mvalue{color:#111}
+    .msec-title{font-weight:700;color:#0C67EC;margin:12px 0 4px;font-size:13px}
+    img{max-width:200px;max-height:150px;border-radius:8px;margin:4px}
+    a{color:#0C67EC}</style></head>
+    <body>${body}</body></html>`);
+  win.document.close();
+  win.print();
+}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
 
 /* ══ Init ══ */

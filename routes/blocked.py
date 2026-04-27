@@ -40,7 +40,7 @@ def index():
 @blocked_bp.route('/new', methods=['GET', 'POST'])
 @login_required
 def new():
-    _admin_required()
+    # المستخدم العادي يستطيع الإضافة — الأدمن والمدير يستطيعون التعديل والحذف
     db      = get_db()
     venues  = db.query(Venue).filter_by(is_active=True).order_by(Venue.name).all()
     locations= db.query(Location).filter_by(is_active=True).order_by(Location.name).all()

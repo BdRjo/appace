@@ -442,9 +442,11 @@ html[dir="rtl"] .ticker-overflow {
   <div class="sidebar-scroll" hx-boost="true" hx-target="#contentArea" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#pageLoader" hx-select="#contentArea">
   {% if current_user.is_authenticated %}
   <div class="section-label">{{ _('الرئيسية') }}</div>
+  {% if perms.is_admin_or_manager() %}
   <a href="{{ url_for('admin.dashboard') }}" class="nav-link {% if request.endpoint=='admin.dashboard' %}active{% endif %}">
     <i class="bi bi-speedometer2"></i>{{ _('لوحة التحكم') }}
   </a>
+  {% endif %}
   {% if cp_enabled('calendar') %}
   <a href="{{ url_for('calendar_view.index') }}" class="nav-link {% if request.blueprint=='calendar_view' %}active{% endif %}">
     <i class="bi bi-calendar3"></i>{{ _('التقويم') }}
@@ -503,6 +505,10 @@ html[dir="rtl"] .ticker-overflow {
   {% if cp_enabled('blocked') %}
   <a href="{{ url_for('blocked.index') }}" class="nav-link {% if request.blueprint=='blocked' %}active{% endif %}">
     <i class="bi bi-slash-circle"></i><span>{{ _('حظر فترة') }}
+  </a>
+  {% else %}
+  <a href="{{ url_for('blocked.new') }}" class="nav-link {% if request.endpoint=='blocked.new' %}active{% endif %}">
+    <i class="bi bi-slash-circle"></i><span>{% if current_lang=='en' %}Block Period{% else %}إضافة فترة حظر{% endif %}
   </a>
   {% endif %}
   <!-- ✉️ Email Section -->
