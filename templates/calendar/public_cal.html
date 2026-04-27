@@ -7,7 +7,12 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.0/font/bootstrap-icons.min.css">
 <style>
-body{background:#f0f4f8;font-family:'Segoe UI',Tahoma,sans-serif;margin:0}
+body{background:#f0f4f8;font-family:'Segoe UI',Tahoma,sans-serif;margin:0;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+#mainContent{flex:1;overflow:hidden;display:flex;flex-direction:column;padding:8px 12px}
+#calendarContainer{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.pcal-card{flex:1;overflow:hidden;display:flex;flex-direction:column;border-radius:14px;padding:10px;box-shadow:0 2px 10px rgba(0,0,0,.07);background:white}
+#calendar{flex:1}
+#mobileList{flex:1;overflow-y:auto;padding-bottom:4px}
 .pcal-nav{background:#0C67EC;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px;position:sticky;top:0;z-index:200}
 .pcal-brand{color:white;font-weight:800;font-size:.92rem;display:flex;align-items:center;gap:7px}
 .pcal-clock{color:rgba(255,255,255,.9);font-size:.7rem;flex:1;text-align:center}
@@ -59,11 +64,7 @@ body{background:#f0f4f8;font-family:'Segoe UI',Tahoma,sans-serif;margin:0}
 
 <nav class="pcal-nav">
   <div class="pcal-brand">
-    {% if mc and mc.get('logo_b64') %}
-    <img src="{{ mc.logo_b64 }}" style="height:28px;border-radius:6px" alt="logo">
-    {% else %}
-    <i class="bi bi-calendar3"></i>
-    {% endif %}
+    <img src="https://i.postimg.cc/FR6j033B/acs.png" style="height:32px;border-radius:6px" alt="logo" onerror="this.style.display='none'">
     <span id="brandText"></span>
   </div>
   <div class="pcal-clock" id="clockEl"></div>
@@ -76,7 +77,7 @@ body{background:#f0f4f8;font-family:'Segoe UI',Tahoma,sans-serif;margin:0}
   </div>
 </nav>
 
-<div class="container-fluid py-3 px-3" style="max-width:1100px;margin:auto">
+<div id="mainContent" class="container-fluid" style="max-width:1100px;margin:0 auto">
   <div class="d-flex flex-wrap align-items-center gap-1 mb-3">
     <span id="filterLabel" style="color:#64748b;font-weight:600;font-size:.78rem;margin-inline-end:4px"></span>
     <span class="vbadge active" id="v_all" onclick="filterVenue('')"></span>
@@ -86,13 +87,13 @@ body{background:#f0f4f8;font-family:'Segoe UI',Tahoma,sans-serif;margin:0}
   </div>
 
   <!-- Mobile: cards list -->
-  <div id="mobileView" class="d-block d-md-none">
-    <div id="bookingsList"><div class="loading"><div class="spinner-border text-primary" style="width:1.8rem;height:1.8rem"></div></div></div>
+  <div id="mobileView" class="d-flex d-md-none flex-column" style="flex:1;overflow:hidden">
+    <div id="bookingsList" id="mobileList"><div class="loading"><div class="spinner-border text-primary" style="width:1.8rem;height:1.8rem"></div></div></div>
   </div>
 
   <!-- Desktop: FullCalendar -->
-  <div id="desktopView" class="d-none d-md-block">
-    <div class="pcal-card"><div id="calendar"></div></div>
+  <div id="desktopView" class="d-none d-md-flex" style="flex:1;flex-direction:column;overflow:hidden">
+    <div class="pcal-card"><div id="calendar" style="height:100%"></div></div>
   </div>
 
   <div class="d-flex flex-wrap justify-content-center gap-3 mt-2 mb-1" style="font-size:.72rem;color:#64748b">
@@ -130,7 +131,7 @@ document.getElementById('pubHtml').lang = AR ? 'ar' : 'en';
 document.getElementById('pubHtml').dir  = AR ? 'rtl' : 'ltr';
 
 const T = {
-  brand:    AR?'الروزنامة العامة':'Public Calendar',
+  brand:    AR?'الجمعية الثقافية العربية':'Arab Cultural Society',
   all:      AR?'الكل':'All',
   filter:   AR?'فلترة:':'Filter:',
   foot:     AR?'يعرض الحجوزات المعتمدة والمعلقة':'Showing approved and pending reservations',
@@ -301,7 +302,7 @@ function initDesktopCalendar(){
       fetch(`/public-calendar/events?start=${info.startStr}&end=${info.endStr}&venue_id=${currentVenue}`)
         .then(r=>r.json()).then(ok).catch(fail);
     },
-    height:'auto',
+    height:'100%',
     noEventsText:T.empty,
     eventClick:function(info){ info.jsEvent.preventDefault(); openModal(info.event.id); }
   });
@@ -351,11 +352,11 @@ function closeModal(){document.getElementById('pcalOverlay').classList.remove('o
 function overlayClick(e){if(e.target===document.getElementById('pcalOverlay'))closeModal();}
 function printBooking(){
   const body = document.getElementById('modalBody').innerHTML;
-  const logoSrc = '{{ mc.logo_b64 if mc and mc.get("logo_b64") else "" }}';
-  const orgName = '{{ mc.get("report_header_title","ARS") if mc else "ARS" }}';
-  const printTitle = AR ? `${orgName} — نظام حجز القاعات والمرافق` : `${orgName} — Venue Booking System`;
+  const logoSrc = 'https://i.postimg.cc/FR6j033B/acs.png';
+  const orgName = AR ? 'الجمعية الثقافية العربية' : 'Arab Cultural Society';
+  const printTitle = AR ? `${orgName} — نظام حجز القاعات والمرافق` : `${orgName} — Venue & Facility Booking System`;
   const header = `<div style="text-align:center;padding-bottom:16px;margin-bottom:16px;border-bottom:2px solid #0C67EC">
-    ${logoSrc ? `<img src="${logoSrc}" style="height:60px;margin-bottom:8px"><br>` : ''}
+    <img src="${logoSrc}" style="height:70px;margin-bottom:8px"><br>
     <strong style="font-size:16px;color:#0C67EC">${printTitle}</strong>
   </div>`;
   const win = window.open('','_blank');
