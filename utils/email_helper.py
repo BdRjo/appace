@@ -557,6 +557,32 @@ def send_booking_approved(res):
 
     _send(res.user.email or '', name, subj, _html_wrapper(content, subj, lang), txt, sync=True, email_type='notification')
 
+    # ── إرسال للإيميلات الخارجية (cc_emails) ──────────────────────────────
+    import re as _re
+    notes_raw = getattr(res, 'requester_notes', '') or ''
+    cc_match  = _re.search(r'\[cc_emails:([^\]]+)\]', notes_raw)
+    if cc_match:
+        cc_list = [e.strip() for e in cc_match.group(1).split(';') if e.strip()]
+        cc_subj = f'✅ Booking Approved — {bn}' if lang == 'en' else f'✅ تمت الموافقة على الحجز — {bn}'
+        cc_body = f"""
+<div style="padding:16px;background:#f0f9f0;border-radius:10px;margin-bottom:16px;text-align:center">
+  <div style="font-size:32px">✅</div>
+  <h3 style="color:#1B5E20;margin:8px 0">{'Booking Approved' if lang=='en' else 'تمت الموافقة على الحجز'}</h3>
+</div>
+<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #C8E6C9;border-radius:10px;overflow:hidden">
+  {_info_row('📋 ' + ('Booking No.' if lang=='en' else 'رقم الحجز'), f'<strong style="color:#0C67EC">{bn}</strong>', '#F1F8E9')}
+  {_info_row('📌 ' + ('Title' if lang=='en' else 'العنوان'), title, '#FAFFFE')}
+  {_info_row('🏢 ' + ('Venue' if lang=='en' else 'القاعة'), venue, '#F1F8E9')}
+  {_info_row('🕐 ' + ('Time' if lang=='en' else 'الوقت'), start, '#FAFFFE')}
+</table>"""
+        for cc_email in cc_list:
+            try:
+                _send(cc_email, cc_email, cc_subj, _html_wrapper(cc_body, cc_subj, lang),
+                      f"Booking {bn} approved — {title} at {venue} on {start}",
+                      sync=False, email_type='notification')
+            except Exception:
+                pass
+
 
 def send_booking_rejected(res, reason=''):
     """Notify user their booking was rejected"""

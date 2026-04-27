@@ -174,9 +174,12 @@ def new():
         req_emp_id = request.form.get('requested_employee_id', '').strip()
         req_emp_id = int(req_emp_id) if req_emp_id and req_emp_id.isdigit() else None
         req_by_email = request.form.get('requested_by_email', '').strip()
+        cc_emails    = request.form.get('cc_emails', '').strip()
         full_notes = notes
         if req_by_email:
-            full_notes = (notes + '\n' if notes else '') + f'[on_behalf:{req_by_email}]'
+            full_notes = (full_notes + '\n' if full_notes else '') + f'[on_behalf:{req_by_email}]'
+        if cc_emails:
+            full_notes = (full_notes + '\n' if full_notes else '') + f'[cc_emails:{cc_emails}]'
         res   = Reservation(
             booking_number       = _book_num(db),
             title                = title,

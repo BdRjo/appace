@@ -129,38 +129,35 @@
         <div class="form-text">{{ _('يمكن إرفاق صور أو مستندات (PDF, Word, Excel, صور)') }}</div>
       </div>
 
-      {# ── Requested By Email ── #}
+      {# ── نيابةً عن ── #}
       <div class="mb-3">
         <label class="form-label fw-bold">
-          <i class="bi bi-person-plus me-1"></i>
-          {% if current_lang == 'en' %}Requested On Behalf Of (Email){% else %}الحجز نيابةً عن (البريد الإلكتروني){% endif %}
-          <span class="text-muted fw-normal" style="font-size:.8rem">
-            — {% if current_lang == 'en' %}optional{% else %}اختياري{% endif %}
-          </span>
-        </label>
-        <input type="email" name="requested_by_email"
-               class="form-control"
-               placeholder="{% if current_lang == 'en' %}email@example.com{% else %}example@domain.com{% endif %}"
-               value="{{ form.get('requested_by_email','') }}">
-        <div class="form-text">
-          {% if current_lang == 'en' %}If you are booking on behalf of someone else, enter their email here.
-          {% else %}إذا كنت تحجز نيابةً عن شخص آخر، أدخل بريده الإلكتروني هنا.{% endif %}
-        </div>
-      </div>
-
-      {# ── على نيابة عن ── #}
-      <div class="mb-3">
-        <label class="form-label fw-bold">
-          <i class="bi bi-person-plus me-1"></i>
-          {% if current_lang == 'en' %}On Behalf Of (Email){% else %}الحجز نيابةً عن (البريد الإلكتروني){% endif %}
+          <i class="bi bi-person-badge me-1"></i>
+          {% if current_lang == 'en' %}On Behalf Of (Email){% else %}الحجز نيابةً عن (بريد إلكتروني){% endif %}
           <span class="text-muted fw-normal ms-1" style="font-size:.8rem">— {% if current_lang == 'en' %}optional{% else %}اختياري{% endif %}</span>
         </label>
         <input type="email" name="requested_by_email" class="form-control"
-               placeholder="example@domain.com"
+               placeholder="person@domain.com"
                value="{{ form.get('requested_by_email','') }}">
         <div class="form-text">
-          {% if current_lang == 'en' %}If booking on behalf of someone else, enter their email.
-          {% else %}إذا كنت تحجز نيابةً عن شخص آخر، أدخل بريده الإلكتروني.{% endif %}
+          {% if current_lang == 'en' %}Enter the email of the person you are booking on behalf of.
+          {% else %}أدخل بريد الشخص الذي تحجز نيابةً عنه.{% endif %}
+        </div>
+      </div>
+
+      {# ── إرسال إشعار لإيميلات خارجية ── #}
+      <div class="mb-3">
+        <label class="form-label fw-bold">
+          <i class="bi bi-envelope-plus me-1"></i>
+          {% if current_lang == 'en' %}Notify External Emails{% else %}إرسال إشعار لإيميلات خارجية{% endif %}
+          <span class="text-muted fw-normal ms-1" style="font-size:.8rem">— {% if current_lang == 'en' %}optional{% else %}اختياري{% endif %}</span>
+        </label>
+        <input type="text" name="cc_emails" class="form-control"
+               placeholder="email1@domain.com;email2@domain.com"
+               value="{{ form.get('cc_emails','') }}">
+        <div class="form-text">
+          {% if current_lang == 'en' %}Enter one or more emails separated by <strong>;</strong> — they will receive a notification when the booking is approved.
+          {% else %}أدخل إيميلاً واحداً أو أكثر مفصولة بـ <strong>;</strong> — سيصلهم إشعار عند اعتماد الحجز.{% endif %}
         </div>
       </div>
 
