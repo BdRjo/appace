@@ -111,6 +111,7 @@
         {% if ar %}تأكيد الحجز{% else %}Confirm Booking{% endif %}
       </h6>
       <form method="post" action="{{ url_for('interviews.book_confirm', event_id=ev.id) }}" id="confirm-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="slot_ids" id="selected-slot-id">
         <div class="row g-3 mb-3">
           <div class="col-12 col-sm-6">

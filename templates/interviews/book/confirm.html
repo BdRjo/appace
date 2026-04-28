@@ -57,6 +57,7 @@
           {% if ar %}معلوماتك{% else %}Your Details{% endif %}
         </h5>
         <form method="post" id="cf">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           {% for sid in slot_ids %}<input type="hidden" name="slot_ids" value="{{ sid }}">{% endfor %}
 
           <div class="mb-4">
