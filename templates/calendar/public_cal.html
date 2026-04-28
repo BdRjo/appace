@@ -403,7 +403,7 @@ function printBooking(){
   pf.setAttribute('dir', dir);
   pf.innerHTML = `
     <div class="pf-head">
-      <img src="${logoSrc}" onload="window.print()" onerror="window.print()" style="height:52px;border-radius:8px;background:white;padding:3px">
+      <img src="${logoSrc}" style="height:52px;border-radius:8px;background:white;padding:3px">
       <div>
         <div class="pf-org">${orgName}</div>
         <div class="pf-sys">${AR?'نظام حجز القاعات والمرافق':'Venue & Facility Booking System'}</div>
@@ -416,9 +416,12 @@ function printBooking(){
       <table>${venueRows}</table>
       <div class="pf-foot">ARS · ${AR?'طُبع بتاريخ':'Printed on'} ${printDate}</div>
     </div>`;
-  /* fallback: if image already cached, onload won't fire */
+  /* print once only — guard against onload + complete both firing */
   const img = pf.querySelector('img');
-  if(img && img.complete) window.print();
+  let printed = false;
+  function doPrint(){ if(!printed){ printed=true; window.print(); } }
+  if(img){ img.onload = doPrint; img.onerror = doPrint; if(img.complete) setTimeout(doPrint, 100); }
+  else doPrint();
 }
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
 
