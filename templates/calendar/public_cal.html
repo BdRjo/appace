@@ -7,7 +7,12 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.0/font/bootstrap-icons.min.css">
 <style>
-body{background:#f0f4f8;font-family:'Segoe UI',Tahoma,sans-serif;margin:0}
+body{background:#f0f4f8;font-family:'Segoe UI',Tahoma,sans-serif;margin:0;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+#mainContent{flex:1;overflow:hidden;display:flex;flex-direction:column;padding:8px 12px}
+#calendarContainer{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.pcal-card{flex:1;overflow:hidden;display:flex;flex-direction:column;border-radius:14px;padding:10px;box-shadow:0 2px 10px rgba(0,0,0,.07);background:white}
+#calendar{flex:1}
+#mobileList{flex:1;overflow-y:auto;padding-bottom:4px}
 .pcal-nav{background:#0C67EC;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px;position:sticky;top:0;z-index:200}
 .pcal-brand{color:white;font-weight:800;font-size:.92rem;display:flex;align-items:center;gap:7px}
 .pcal-clock{color:rgba(255,255,255,.9);font-size:.7rem;flex:1;text-align:center}
@@ -52,21 +57,27 @@ body{background:#f0f4f8;font-family:'Segoe UI',Tahoma,sans-serif;margin:0}
 .mclosebtn{background:rgba(255,255,255,.2);border:none;color:white;border-radius:7px;width:30px;height:30px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center}
 .loading{text-align:center;padding:40px;color:#64748b}
 .empty{text-align:center;padding:40px;color:#94a3b8;font-size:.85rem}
-@media(max-width:575px){.pcal-brand span,.pcal-clock{display:none}}
+@media(max-width:575px){.pcal-brand span{display:none}}
 </style>
 </head>
 <body>
 
 <nav class="pcal-nav">
   <div class="pcal-brand">
-    <i class="bi bi-calendar3"></i>
+    <img src="https://i.postimg.cc/FR6j033B/acs.png" style="height:32px;border-radius:6px" alt="logo" onerror="this.style.display='none'">
     <span id="brandText"></span>
   </div>
   <div class="pcal-clock" id="clockEl"></div>
-  <a id="langBtn" href="#" class="pcal-lang"></a>
+  <div class="d-flex gap-2 align-items-center">
+    <a href="{{ url_for('public_cal.book') }}"
+       style="background:white;color:#0C67EC;border-radius:8px;padding:4px 12px;font-size:.78rem;font-weight:700;text-decoration:none;white-space:nowrap">
+      <i class="bi bi-plus-circle me-1"></i><span id="bookBtnText"></span>
+    </a>
+    <a id="langBtn" href="#" class="pcal-lang"></a>
+  </div>
 </nav>
 
-<div class="container-fluid py-3 px-3" style="max-width:1100px;margin:auto">
+<div id="mainContent" class="container-fluid" style="max-width:1100px;margin:0 auto">
   <div class="d-flex flex-wrap align-items-center gap-1 mb-3">
     <span id="filterLabel" style="color:#64748b;font-weight:600;font-size:.78rem;margin-inline-end:4px"></span>
     <span class="vbadge active" id="v_all" onclick="filterVenue('')"></span>
@@ -76,16 +87,21 @@ body{background:#f0f4f8;font-family:'Segoe UI',Tahoma,sans-serif;margin:0}
   </div>
 
   <!-- Mobile: cards list -->
-  <div id="mobileView" class="d-block d-md-none">
-    <div id="bookingsList"><div class="loading"><div class="spinner-border text-primary" style="width:1.8rem;height:1.8rem"></div></div></div>
+  <div id="mobileView" class="d-flex d-md-none flex-column" style="flex:1;overflow:hidden">
+    <div id="bookingsList" id="mobileList"><div class="loading"><div class="spinner-border text-primary" style="width:1.8rem;height:1.8rem"></div></div></div>
   </div>
 
   <!-- Desktop: FullCalendar -->
-  <div id="desktopView" class="d-none d-md-block">
-    <div class="pcal-card"><div id="calendar"></div></div>
+  <div id="desktopView" class="d-none d-md-flex" style="flex:1;flex-direction:column;overflow:hidden">
+    <div class="pcal-card"><div id="calendar" style="height:100%"></div></div>
   </div>
 
-  <div class="text-center mt-2" id="footNote" style="font-size:.7rem;color:#94a3b8"></div>
+  <div class="d-flex flex-wrap justify-content-center gap-3 mt-2 mb-1" style="font-size:.72rem;color:#64748b">
+    <span><span style="display:inline-block;width:12px;height:12px;background:#3D8EF5;border-radius:3px;margin-inline-end:4px"></span>{% if ar %}معتمد{% else %}Approved{% endif %}</span>
+    <span><span style="display:inline-block;width:12px;height:12px;background:#F59E0B;border-radius:3px;margin-inline-end:4px"></span>{% if ar %}قيد المراجعة{% else %}Pending{% endif %}</span>
+    <span><span style="display:inline-block;width:12px;height:12px;background:#EF4444;border-radius:3px;margin-inline-end:4px"></span>{% if ar %}محظور{% else %}Blocked{% endif %}</span>
+  </div>
+  <div class="text-center mt-1" id="footNote" style="font-size:.7rem;color:#94a3b8"></div>
 </div>
 
 <!-- Modal for desktop -->
@@ -93,16 +109,21 @@ body{background:#f0f4f8;font-family:'Segoe UI',Tahoma,sans-serif;margin:0}
   <div class="pcal-modal">
     <div class="pcal-mhead">
       <h6 id="modalTitle"></h6>
-      <button class="mclosebtn" onclick="closeModal()">✕</button>
+      <div class="d-flex gap-2 align-items-center">
+        <button onclick="printBooking()" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.4);color:white;border-radius:8px;padding:4px 12px;font-size:.8rem;cursor:pointer;display:flex;align-items:center;gap:5px">
+          <i class="bi bi-printer"></i> {{ 'Print' if current_lang == 'en' else 'طباعة' }}
+        </button>
+        <button class="mclosebtn" onclick="closeModal()">✕</button>
+      </div>
     </div>
     <div class="pcal-mbody" id="modalBody"></div>
   </div>
 </div>
 
 <script>
-const urlLang    = new URLSearchParams(window.location.search).get('lang');
-const cookieLang = (document.cookie.match(/(?:^|;\s*)lang=([^;]+)/)||[])[1];
-const LANG = urlLang || cookieLang || 'ar';
+const LANG = '{{ current_lang }}';
+
+
 const AR   = LANG === 'ar';
 const MOBILE = window.innerWidth < 768;
 
@@ -110,10 +131,10 @@ document.getElementById('pubHtml').lang = AR ? 'ar' : 'en';
 document.getElementById('pubHtml').dir  = AR ? 'rtl' : 'ltr';
 
 const T = {
-  brand:    AR?'الروزنامة العامة':'Public Calendar',
+  brand:    AR?'الجمعية الثقافية العربية':'Arab Cultural Society',
   all:      AR?'الكل':'All',
   filter:   AR?'فلترة:':'Filter:',
-  foot:     AR?'يعرض الحجوزات المعتمدة فقط':'Showing approved reservations only',
+  foot:     AR?'يعرض الحجوزات المعتمدة والمعلقة':'Showing approved and pending reservations',
   empty:    AR?'لا توجد حجوزات':'No reservations',
   lang:     AR?'EN':'ع',
   bookNo:   AR?'رقم الحجز':'Booking No.',
@@ -141,6 +162,7 @@ document.getElementById('v_all').textContent        = T.all;
 document.getElementById('footNote').textContent     = T.foot;
 document.getElementById('langBtn').textContent      = T.lang;
 document.getElementById('langBtn').href = `/set-lang/${AR?'en':'ar'}?next=/public-calendar/`;
+document.getElementById('bookBtnText').textContent  = AR ? 'احجز الآن' : 'Book Now';
 document.getElementById('modalTitle').innerHTML = `<i class="bi bi-calendar-check me-2"></i>${T.details}`;
 
 function tick(){
@@ -150,6 +172,9 @@ function tick(){
     n.toLocaleTimeString(AR?'ar-SA':'en-US',{hour:'2-digit',minute:'2-digit'});
 }
 tick(); setInterval(tick,1000);
+
+// Auto-refresh every 30 minutes
+setTimeout(function(){ window.location.reload(); }, 30 * 60 * 1000);
 
 let currentVenue = '';
 
@@ -201,8 +226,28 @@ function toggleDetail(id){
   el.style.display='block';
   fetch(`/public-calendar/booking/${id}`)
     .then(r=>r.json())
-    .then(d=>{ el.innerHTML = buildRows(d); })
+    .then(d=>{
+      el.innerHTML = buildRows(d) +
+        `<div style="margin-top:10px;text-align:center">
+          <button onclick="printDetail(${id})" style="background:#0C67EC;color:white;border:none;border-radius:8px;padding:6px 16px;font-size:.78rem;cursor:pointer">
+            🖨 ${AR?'طباعة':'Print'}
+          </button>
+        </div>`;
+    })
     .catch(()=>{ el.innerHTML=`<div class="text-danger" style="font-size:.8rem">${T.failLoad}</div>`; });
+}
+
+function printDetail(id){
+  const el = document.getElementById('detail_'+id);
+  if(!el) return;
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <style>body{font-family:Arial,sans-serif;padding:20px;direction:${AR?'rtl':'ltr'}}
+    .dp-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eee;font-size:14px}
+    .dp-label{color:#666;font-weight:600}.dp-value{color:#111}
+    button{display:none}img{max-width:200px;border-radius:8px;margin:4px}a{color:#0C67EC}</style></head>
+    <body>${el.innerHTML}</body></html>`);
+  win.document.close(); win.print();
 }
 
 function buildRows(d){
@@ -230,8 +275,7 @@ function buildRows(d){
     + r('hash',T.bookNo,d.booking_number,true)
     + r('card-text',T.titleL,title)
     + r('tag',AR?'نوع الحجز':'Type',AR?d.booking_type_ar:d.booking_type_en)
-    + r('calendar3',T.start,d.start_time)
-    + r('calendar3-range',T.end,d.end_time)
+    + (d.full_day ? r('sun', AR?'يوم كامل':'Full Day', d.date_only) : r('calendar3',T.start,d.start_time) + r('calendar3-range',T.end,d.end_time))
     + r('people',T.attendees,d.expected_attendees)
     + r('person',AR?'مقدم الطلب':'Requested By',d.requester_name)
     + r('person-plus',AR?'نيابةً عن':'On Behalf Of',d.on_behalf)
@@ -258,7 +302,7 @@ function initDesktopCalendar(){
       fetch(`/public-calendar/events?start=${info.startStr}&end=${info.endStr}&venue_id=${currentVenue}`)
         .then(r=>r.json()).then(ok).catch(fail);
     },
-    height:'auto',
+    height:'100%',
     noEventsText:T.empty,
     eventClick:function(info){ info.jsEvent.preventDefault(); openModal(info.event.id); }
   });
@@ -272,6 +316,7 @@ function openModal(id){
   fetch(`/public-calendar/booking/${id}`)
     .then(r=>r.json())
     .then(d=>{
+      window._printData = d;
       const r=(ic,lb,val,blue)=>val?`<div class="mrow"><span class="mlabel"><i class="bi bi-${ic}"></i>${lb}</span><span class="mvalue" ${blue?'style="color:#0C67EC;font-weight:800"':''}>${val}</span></div>`:'';
       const title = AR ? d.title : (d.title_en || d.title);
       const vname = AR ? d.venue_name : (d.venue_name_en || d.venue_name);
@@ -287,9 +332,8 @@ function openModal(id){
         ${r('hash',T.bookNo,d.booking_number,true)}
         ${r('card-text',T.titleL,title)}
         ${r('tag',AR?'نوع الحجز':'Type',AR?d.booking_type_ar:d.booking_type_en)}
-        <div class="mrow"><span class="mlabel"><i class="bi bi-check-circle"></i>${T.status}</span><span class="mstatus">${AR?d.status_ar:d.status_en}</span></div>
-        ${r('calendar3',T.start,d.start_time)}
-        ${r('calendar3-range',T.end,d.end_time)}
+        <div class="mrow"><span class="mlabel"><i class="bi bi-check-circle"></i>${T.status}</span><span class="mstatus" style="background:${d.status_color}22;color:${d.status_color}">${AR?d.status_ar:d.status_en}</span></div>
+        ${d.full_day ? r('sun',AR?'يوم كامل':'Full Day',d.date_only) : r('calendar3',T.start,d.start_time)+r('calendar3-range',T.end,d.end_time)}
         ${r('people',T.attendees,d.expected_attendees)}
         ${r('person',AR?'مقدم الطلب':'Requested By',d.requester_name)}
         ${r('person-plus',AR?'نيابةً عن':'On Behalf Of',d.on_behalf)}
@@ -307,6 +351,86 @@ function openModal(id){
 
 function closeModal(){document.getElementById('pcalOverlay').classList.remove('open');}
 function overlayClick(e){if(e.target===document.getElementById('pcalOverlay'))closeModal();}
+function printBooking(){
+  const d = window._printData;
+  if(!d){ alert(AR?'يرجى الانتظار...':' Please wait...'); return; }
+  const dir = AR?'rtl':'ltr';
+  const orgName = AR ? 'الجمعية الثقافية العربية' : 'Arab Cultural Society';
+  const logoSrc = 'https://i.postimg.cc/FR6j033B/acs.png';
+  const title = AR ? d.title : (d.title_en || d.title);
+  const vname = AR ? d.venue_name : (d.venue_name_en || d.venue_name);
+  const printDate = new Date().toLocaleDateString(AR?'ar-SA':'en-US',{year:'numeric',month:'long',day:'numeric'});
+
+  function row(label, value, isBlue){
+    if(!value) return '';
+    return `<tr><td class="lbl">${label}</td><td class="val${isBlue?' blue':''}">${value}</td></tr>`;
+  }
+
+  const bookRows =
+    row(AR?'رقم الحجز':'Booking No.', d.booking_number, true)
+    + row(AR?'العنوان':'Title', title)
+    + row(AR?'نوع الحجز':'Type', AR?d.booking_type_ar:d.booking_type_en)
+    + row(AR?'الحالة':'Status', AR?d.status_ar:d.status_en)
+    + (d.full_day
+        ? row(AR?'اليوم':'Date', d.date_only)
+        : row(AR?'البداية':'Start', d.start_time) + row(AR?'النهاية':'End', d.end_time))
+    + row(AR?'عدد الحضور':'Attendees', d.expected_attendees)
+    + row(AR?'مقدم الطلب':'Requested By', d.requester_name)
+    + row(AR?'نيابةً عن':'On Behalf Of', d.on_behalf)
+    + row(AR?'ملاحظات':'Notes', d.notes)
+    + (d.approver_notes ? row(AR?'ملاحظات الاعتماد':'Approval Notes', d.approver_notes) : '');
+
+  const venueRows =
+    row(AR?'القاعة':'Venue', vname)
+    + row(AR?'الطاقة الاستيعابية':'Capacity', d.venue_capacity)
+    + row(AR?'الموقع':'Location', d.location_name)
+    + (d.venue_equipment ? row(AR?'التجهيزات':'Equipment', d.venue_equipment) : '');
+
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html>
+<html lang="${AR?'ar':'en'}" dir="${dir}">
+<head><meta charset="UTF-8">
+<title>${orgName} — ${AR?'تفاصيل الحجز':'Booking Details'}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:${AR?'Tajawal,Cairo':'Segoe UI,Arial'},sans-serif;direction:${dir};color:#1e293b;background:white}
+.ph{background:linear-gradient(135deg,#0C67EC,#3D8EF5);color:white;padding:18px 24px;display:flex;align-items:center;gap:14px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ph img{height:56px;border-radius:8px;background:white;padding:3px}
+.ph .porg{font-size:17px;font-weight:800}
+.ph .psys{font-size:11px;opacity:.85;margin-top:3px}
+.pb{padding:20px 24px}
+.sec{font-size:11px;font-weight:700;color:#0C67EC;text-transform:uppercase;letter-spacing:.5px;padding:8px 0 6px;border-bottom:2px solid #dbeafe;margin:16px 0 8px;display:flex;align-items:center;gap:5px}
+table{width:100%;border-collapse:collapse}
+tr{border-bottom:1px solid #f1f5f9}
+tr:last-child{border-bottom:none}
+td{padding:9px 6px;font-size:13px;vertical-align:top}
+.lbl{color:#64748b;font-weight:600;width:38%;white-space:nowrap}
+.val{color:#1e293b;font-weight:500}
+.blue{color:#0C67EC!important;font-weight:800!important;font-size:14px}
+.pf{margin-top:20px;padding-top:10px;border-top:1px solid #e2e8f0;text-align:center;font-size:11px;color:#94a3b8}
+@media print{.ph{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style></head>
+<body>
+<div class="ph">
+  <img src="${logoSrc}" id="plogo" onerror="this.style.display='none'">
+  <div><div class="porg">${orgName}</div><div class="psys">${AR?'نظام حجز القاعات والمرافق':'Venue & Facility Booking System'}</div></div>
+</div>
+<div class="pb">
+  <div class="sec">📅 ${AR?'معلومات الحجز':'Booking Info'}</div>
+  <table>${bookRows}</table>
+  <div class="sec">🏢 ${AR?'معلومات القاعة':'Venue Info'}</div>
+  <table>${venueRows}</table>
+  <div class="pf">ARS · ${AR?'طُبع بتاريخ':'Printed on'} ${printDate}</div>
+</div>
+<script>
+var lg=document.getElementById('plogo');
+function go(){window.print();}
+if(!lg||lg.complete){setTimeout(go,400);}
+else{lg.onload=function(){setTimeout(go,300);};lg.onerror=function(){setTimeout(go,200);};setTimeout(go,2500);}
+<\/script>
+</body></html>`);
+  win.document.close();
+}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
 
 /* ══ Init ══ */
