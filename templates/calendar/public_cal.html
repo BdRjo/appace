@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html id="pubHtml">
 <head>
@@ -60,21 +61,36 @@ body{background:#f0f4f8;font-family:'Segoe UI',Tahoma,sans-serif;margin:0;height
 @media(max-width:575px){.pcal-brand span{display:none}}
 #printFrame{display:none}
 @media print{
-  body > *{display:none!important}
-  #printFrame{display:block!important;position:fixed;top:0;left:0;width:100%;background:white;z-index:99999;padding:0;margin:0}
-  #printFrame .pf-head{background:#0C67EC!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;color:white!important;display:flex!important;align-items:center;gap:14px;padding:16px 20px}
-  #printFrame .pf-head img{height:52px;border-radius:8px;background:white;padding:3px}
-  #printFrame .pf-org{font-size:16px;font-weight:800}
-  #printFrame .pf-sys{font-size:11px;opacity:.85;margin-top:2px}
-  #printFrame .pf-body{padding:16px 20px}
-  #printFrame .pf-sec{font-weight:700;color:#0C67EC!important;font-size:12px;padding:6px 0 5px;border-bottom:2px solid #dbeafe;margin:14px 0 7px}
-  #printFrame table{width:100%;border-collapse:collapse}
-  #printFrame tr{border-bottom:1px solid #f1f5f9}
-  #printFrame td{padding:8px 5px;font-size:13px;vertical-align:top}
-  #printFrame .pf-lbl{color:#64748b;font-weight:600;width:38%}
-  #printFrame .pf-val{color:#1e293b;font-weight:500}
-  #printFrame .pf-blue{color:#0C67EC!important;font-weight:800!important;font-size:14px!important}
-  #printFrame .pf-foot{margin-top:16px;padding-top:8px;border-top:1px solid #e2e8f0;text-align:center;font-size:11px;color:#94a3b8}
+  body > *:not(#printFrame) { display: none !important; }
+  #printFrame {
+    display: block !important;
+    position: relative;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100%;
+  }
+  /* منع تكسر الصفحة داخل العناصر وتجنب الصفحات الفارغة */
+  .pf-body, .pf-head, .pf-foot, table, tr, td, div, img {
+    page-break-inside: avoid;
+    page-break-after: avoid;
+    page-break-before: avoid;
+  }
+  /* هوامش طباعة معقولة */
+  @page {
+    margin: 0.8cm;
+    size: auto;
+  }
+  body, html, #printFrame {
+    height: auto;
+    overflow: visible;
+  }
+  img {
+    max-height: 80px;
+    object-fit: contain;
+  }
+  .pcal-overlay, .pcal-modal, .modal-backdrop {
+    display: none !important;
+  }
 }
 </style>
 </head>
@@ -141,8 +157,6 @@ body{background:#f0f4f8;font-family:'Segoe UI',Tahoma,sans-serif;margin:0;height
 
 <script>
 const LANG = '{{ current_lang }}';
-
-
 const AR   = LANG === 'ar';
 const MOBILE = window.innerWidth < 768;
 
@@ -171,7 +185,6 @@ const T = {
   month:    AR?'شهر':'Month',
   list:     AR?'قائمة':'List',
   details:  AR?'تفاصيل الحجز':'Booking Details',
-  titleL:   AR?'العنوان':'Title',
   attendees:AR?'الحضور':'Attendees',
 };
 
@@ -196,6 +209,7 @@ tick(); setInterval(tick,1000);
 setTimeout(function(){ window.location.reload(); }, 30 * 60 * 1000);
 
 let currentVenue = '';
+let isPrinting = false;   // منع التكرار
 
 function filterVenue(vid){
   currentVenue = vid;
@@ -256,11 +270,16 @@ function toggleDetail(id){
     .catch(()=>{ el.innerHTML=`<div class="text-danger" style="font-size:.8rem">${T.failLoad}</div>`; });
 }
 
-function printDetail(id){
-  fetch(`/public-calendar/booking/${id}`)
-    .then(r=>r.json())
-    .then(d=>{ window._printData = d; printBooking(); })
-    .catch(()=>alert(AR?'تعذّر تحميل البيانات':'Failed to load data'));
+async function printDetail(id){
+  if(isPrinting) return;
+  try {
+    const res = await fetch(`/public-calendar/booking/${id}`);
+    const data = await res.json();
+    window._printData = data;
+    await printBooking();
+  } catch(e) {
+    alert(AR?'تعذّر تحميل البيانات':'Failed to load data');
+  }
 }
 
 function buildRows(d){
@@ -364,60 +383,90 @@ function openModal(id){
 
 function closeModal(){document.getElementById('pcalOverlay').classList.remove('open');}
 function overlayClick(e){if(e.target===document.getElementById('pcalOverlay'))closeModal();}
-function printBooking(){
+
+// ========== دالة الطباعة المعدلة (تمنع التكرار) ==========
+async function printBooking() {
+  if (isPrinting) return;
+  isPrinting = true;
+
   const d = window._printData;
-  if(!d){ alert(AR?'يرجى الانتظار...':'Please wait...'); return; }
-  const dir = AR?'rtl':'ltr';
+  if (!d) {
+    alert(AR ? 'يرجى الانتظار...' : 'Please wait...');
+    isPrinting = false;
+    return;
+  }
+
+  const dir = AR ? 'rtl' : 'ltr';
   const orgName = AR ? 'الجمعية الثقافية العربية' : 'Arab Cultural Society';
   const logoSrc = 'https://i.postimg.cc/FR6j033B/acs.png';
   const title = AR ? d.title : (d.title_en || d.title);
   const vname = AR ? d.venue_name : (d.venue_name_en || d.venue_name);
-  const printDate = new Date().toLocaleDateString(AR?'ar-SA':'en-US',{year:'numeric',month:'long',day:'numeric'});
+  const printDate = new Date().toLocaleDateString(AR ? 'ar-SA' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
-  function row(label, value, blue){
-    if(!value && value!==0) return '';
-    return `<tr><td class="pf-lbl">${label}</td><td class="pf-val${blue?' pf-blue':''}">${value}</td></tr>`;
+  function row(label, value, blue) {
+    if (!value && value !== 0) return '';
+    return `<tr><td class="pf-lbl">${label}</td><td class="pf-val${blue ? ' pf-blue' : ''}">${value}</td></tr>`;
   }
 
   const bookRows =
-    row(AR?'رقم الحجز':'Booking No.', d.booking_number, true)
-    + row(AR?'العنوان':'Title', title)
-    + row(AR?'نوع الحجز':'Type', AR?d.booking_type_ar:d.booking_type_en)
-    + row(AR?'الحالة':'Status', AR?d.status_ar:d.status_en)
-    + (d.full_day
-        ? row(AR?'اليوم':'Date', d.date_only)
-        : row(AR?'البداية':'Start', d.start_time) + row(AR?'النهاية':'End', d.end_time))
-    + row(AR?'عدد الحضور':'Attendees', d.expected_attendees)
-    + row(AR?'مقدم الطلب':'Requested By', d.requester_name)
-    + row(AR?'نيابةً عن':'On Behalf Of', d.on_behalf)
-    + row(AR?'ملاحظات':'Notes', d.notes)
-    + (d.approver_notes ? row(AR?'ملاحظات الاعتماد':'Approval Notes', d.approver_notes) : '');
+    row(AR ? 'رقم الحجز' : 'Booking No.', d.booking_number, true) +
+    row(AR ? 'العنوان' : 'Title', title) +
+    row(AR ? 'نوع الحجز' : 'Type', AR ? d.booking_type_ar : d.booking_type_en) +
+    row(AR ? 'الحالة' : 'Status', AR ? d.status_ar : d.status_en) +
+    (d.full_day
+      ? row(AR ? 'اليوم' : 'Date', d.date_only)
+      : row(AR ? 'البداية' : 'Start', d.start_time) + row(AR ? 'النهاية' : 'End', d.end_time)) +
+    row(AR ? 'عدد الحضور' : 'Attendees', d.expected_attendees) +
+    row(AR ? 'مقدم الطلب' : 'Requested By', d.requester_name) +
+    row(AR ? 'نيابةً عن' : 'On Behalf Of', d.on_behalf) +
+    row(AR ? 'ملاحظات' : 'Notes', d.notes) +
+    (d.approver_notes ? row(AR ? 'ملاحظات الاعتماد' : 'Approval Notes', d.approver_notes) : '');
 
   const venueRows =
-    row(AR?'القاعة':'Venue', vname)
-    + row(AR?'الطاقة الاستيعابية':'Capacity', d.venue_capacity)
-    + row(AR?'الموقع':'Location', d.location_name)
-    + (d.venue_equipment ? row(AR?'التجهيزات':'Equipment', d.venue_equipment) : '');
+    row(AR ? 'القاعة' : 'Venue', vname) +
+    row(AR ? 'الطاقة الاستيعابية' : 'Capacity', d.venue_capacity) +
+    row(AR ? 'الموقع' : 'Location', d.location_name) +
+    (d.venue_equipment ? row(AR ? 'التجهيزات' : 'Equipment', d.venue_equipment) : '');
 
   const pf = document.getElementById('printFrame');
+  // مسح المحتوى القديم تماماً
+  pf.innerHTML = '';
   pf.setAttribute('dir', dir);
   pf.innerHTML = `
     <div class="pf-head">
       <img src="${logoSrc}" style="height:52px;border-radius:8px;background:white;padding:3px">
       <div>
         <div class="pf-org">${orgName}</div>
-        <div class="pf-sys">${AR?'نظام حجز القاعات والمرافق':'Venue & Facility Booking System'}</div>
+        <div class="pf-sys">${AR ? 'نظام حجز القاعات والمرافق' : 'Venue & Facility Booking System'}</div>
       </div>
     </div>
     <div class="pf-body">
-      <div class="pf-sec">📅 ${AR?'معلومات الحجز':'Booking Info'}</div>
-      <table>${bookRows}</table>
-      <div class="pf-sec">🏢 ${AR?'معلومات القاعة':'Venue Info'}</div>
+      <div class="pf-sec">📅 ${AR ? 'معلومات الحجز' : 'Booking Info'}</div>
+      <table>${bookRows}</tr>
+      <div class="pf-sec">🏢 ${AR ? 'معلومات القاعة' : 'Venue Info'}</div>
       <table>${venueRows}</table>
-      <div class="pf-foot">ARS · ${AR?'طُبع بتاريخ':'Printed on'} ${printDate}</div>
+      <div class="pf-foot">ARS · ${AR ? 'طُبع بتاريخ' : 'Printed on'} ${printDate}</div>
     </div>`;
-  setTimeout(function(){ window.print(); }, 600);
+
+  // انتظار تحميل الصور داخل إطار الطباعة
+  const images = pf.querySelectorAll('img');
+  await Promise.all([...images].map(img => {
+    if (img.complete) return Promise.resolve();
+    return new Promise(resolve => { img.onload = resolve; img.onerror = resolve; });
+  }));
+
+  // تأخير صغير ثم الطباعة
+  setTimeout(() => {
+    window.print();
+    // بعد انتهاء الطباعة (أو إغلاقها) حرر القفل وامسح المحتوى
+    setTimeout(() => {
+      isPrinting = false;
+      pf.innerHTML = '';   // تنظيف لتجنب التكرار في المرة القادمة
+    }, 500);
+  }, 100);
 }
+// ================================================
+
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
 
 /* ══ Init ══ */
@@ -432,4 +481,4 @@ if(MOBILE){
 </script>
 </body>
 </html>
-
+```
