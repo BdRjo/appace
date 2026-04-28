@@ -510,11 +510,10 @@ def bulk_cancel():
             res = db.query(Reservation).get(int(rid))
             if not res: continue
             if res.user_id != current_user.id and not perms.is_admin_or_manager(): continue
-            if res.status not in ('cancelled', 'rejected', 'completed'):
-                res.status = 'cancelled'; count += 1
+            db.delete(res); count += 1
         except: pass
     db.commit()
-    flash_msg(f'✅ تم إلغاء {count} حجز', 'success' if count else 'warning')
+    flash_msg(f'✅ تم حذف {count} حجز', 'success' if count else 'warning')
     return redirect(url_for('reservations.index'))
 
 
