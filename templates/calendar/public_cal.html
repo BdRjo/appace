@@ -416,12 +416,7 @@ function printBooking(){
       <table>${venueRows}</table>
       <div class="pf-foot">ARS · ${AR?'طُبع بتاريخ':'Printed on'} ${printDate}</div>
     </div>`;
-  /* print once only — guard against onload + complete both firing */
-  const img = pf.querySelector('img');
-  let printed = false;
-  function doPrint(){ if(!printed){ printed=true; window.print(); } }
-  if(img){ img.onload = doPrint; img.onerror = doPrint; if(img.complete) setTimeout(doPrint, 100); }
-  else doPrint();
+  setTimeout(function(){ window.print(); }, 600);
 }
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
 
