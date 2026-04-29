@@ -61,7 +61,7 @@ def create_app():
             """))
             conn.commit()
     except Exception as e:
-        current_app.logger.warning(f"⚠️ Column migration: {e}")
+        print(f"⚠️ Column migration: {e}")
 
     # ── DB session per request ────────────────────────────────────────────────
     @app.before_request
