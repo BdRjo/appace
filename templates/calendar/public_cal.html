@@ -1,4 +1,3 @@
-```html
 <!DOCTYPE html>
 <html id="pubHtml">
 <head>
@@ -8,6 +7,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.0/font/bootstrap-icons.min.css">
 <style>
+/* الأنماط الأساسية للواجهة (لم تتغير كثيراً) */
 body{background:#f0f4f8;font-family:'Segoe UI',Tahoma,sans-serif;margin:0;height:100vh;display:flex;flex-direction:column;overflow:hidden}
 #mainContent{flex:1;overflow:hidden;display:flex;flex-direction:column;padding:8px 12px}
 #calendarContainer{flex:1;overflow:hidden;display:flex;flex-direction:column}
@@ -21,7 +21,6 @@ body{background:#f0f4f8;font-family:'Segoe UI',Tahoma,sans-serif;margin:0;height
 .pcal-lang:hover{background:rgba(255,255,255,.3);color:white}
 .vbadge{display:inline-block;padding:3px 11px;border-radius:20px;font-size:.74rem;font-weight:600;background:#e8f0ff;color:#0C67EC;border:1px solid #b8d0ff;cursor:pointer;transition:.15s;white-space:nowrap;margin:2px}
 .vbadge.active,.vbadge:hover{background:#0C67EC;color:white;border-color:#0C67EC}
-/* Mobile cards */
 .bcard{background:white;border-radius:14px;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,.07);margin-bottom:10px;cursor:pointer;border:2px solid transparent;transition:.15s}
 .bcard:hover{border-color:#0C67EC}
 .bcard-title{font-weight:700;color:#1e293b;font-size:.9rem}
@@ -31,7 +30,6 @@ body{background:#f0f4f8;font-family:'Segoe UI',Tahoma,sans-serif;margin:0;height
 .dp-row:last-child{border-bottom:none}
 .dp-label{color:#64748b;font-weight:600}
 .dp-value{color:#1e293b;font-weight:500;text-align:end}
-/* Desktop calendar */
 .pcal-card{background:white;border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.07)}
 .fc{font-size:.82rem}
 .fc-col-header-cell{background:#0C67EC!important;padding:7px 0!important}
@@ -41,7 +39,6 @@ body{background:#f0f4f8;font-family:'Segoe UI',Tahoma,sans-serif;margin:0;height
 .fc-button-primary:hover{background:#0847B0!important;border-color:#0847B0!important}
 .fc-day-today{background:rgba(92,155,222,.1)!important}
 .fc-event{border-radius:5px!important;font-size:.71rem!important;cursor:pointer!important}
-/* Modal for desktop */
 .pcal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;align-items:center;justify-content:center;padding:12px}
 .pcal-overlay.open{display:flex}
 .pcal-modal{background:white;border-radius:18px;width:100%;max-width:520px;max-height:88vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)}
@@ -59,44 +56,11 @@ body{background:#f0f4f8;font-family:'Segoe UI',Tahoma,sans-serif;margin:0;height
 .loading{text-align:center;padding:40px;color:#64748b}
 .empty{text-align:center;padding:40px;color:#94a3b8;font-size:.85rem}
 @media(max-width:575px){.pcal-brand span{display:none}}
-#printFrame{display:none}
-@media print{
-  body > *:not(#printFrame) { display: none !important; }
-  #printFrame {
-    display: block !important;
-    position: relative;
-    margin: 0 !important;
-    padding: 0 !important;
-    width: 100%;
-  }
-  /* منع تكسر الصفحة داخل العناصر وتجنب الصفحات الفارغة */
-  .pf-body, .pf-head, .pf-foot, table, tr, td, div, img {
-    page-break-inside: avoid;
-    page-break-after: avoid;
-    page-break-before: avoid;
-  }
-  /* هوامش طباعة معقولة */
-  @page {
-    margin: 0.8cm;
-    size: auto;
-  }
-  body, html, #printFrame {
-    height: auto;
-    overflow: visible;
-  }
-  img {
-    max-height: 80px;
-    object-fit: contain;
-  }
-  .pcal-overlay, .pcal-modal, .modal-backdrop {
-    display: none !important;
-  }
 }
 </style>
 </head>
 <body>
 
-<div id="printFrame"></div>
 <nav class="pcal-nav">
   <div class="pcal-brand">
     <img src="https://i.postimg.cc/FR6j033B/acs.png" style="height:32px;border-radius:6px" alt="logo" onerror="this.style.display='none'">
@@ -104,8 +68,7 @@ body{background:#f0f4f8;font-family:'Segoe UI',Tahoma,sans-serif;margin:0;height
   </div>
   <div class="pcal-clock" id="clockEl"></div>
   <div class="d-flex gap-2 align-items-center">
-    <a href="{{ url_for('public_cal.book') }}"
-       style="background:white;color:#0C67EC;border-radius:8px;padding:4px 12px;font-size:.78rem;font-weight:700;text-decoration:none;white-space:nowrap">
+    <a href="{{ url_for('public_cal.book') }}" style="background:white;color:#0C67EC;border-radius:8px;padding:4px 12px;font-size:.78rem;font-weight:700;text-decoration:none;white-space:nowrap">
       <i class="bi bi-plus-circle me-1"></i><span id="bookBtnText"></span>
     </a>
     <a id="langBtn" href="#" class="pcal-lang"></a>
@@ -121,12 +84,10 @@ body{background:#f0f4f8;font-family:'Segoe UI',Tahoma,sans-serif;margin:0;height
     {% endfor %}
   </div>
 
-  <!-- Mobile: cards list -->
   <div id="mobileView" class="d-flex d-md-none flex-column" style="flex:1;overflow:hidden">
-    <div id="bookingsList" id="mobileList"><div class="loading"><div class="spinner-border text-primary" style="width:1.8rem;height:1.8rem"></div></div></div>
+    <div id="bookingsList" class="mobileList"><div class="loading"><div class="spinner-border text-primary"></div></div></div>
   </div>
 
-  <!-- Desktop: FullCalendar -->
   <div id="desktopView" class="d-none d-md-flex" style="flex:1;flex-direction:column;overflow:hidden">
     <div class="pcal-card"><div id="calendar" style="height:100%"></div></div>
   </div>
@@ -139,7 +100,6 @@ body{background:#f0f4f8;font-family:'Segoe UI',Tahoma,sans-serif;margin:0;height
   <div class="text-center mt-1" id="footNote" style="font-size:.7rem;color:#94a3b8"></div>
 </div>
 
-<!-- Modal for desktop -->
 <div class="pcal-overlay" id="pcalOverlay" onclick="overlayClick(event)">
   <div class="pcal-modal">
     <div class="pcal-mhead">
@@ -204,12 +164,9 @@ function tick(){
     n.toLocaleTimeString(AR?'ar-SA':'en-US',{hour:'2-digit',minute:'2-digit'});
 }
 tick(); setInterval(tick,1000);
-
-// Auto-refresh every 30 minutes
-setTimeout(function(){ window.location.reload(); }, 30 * 60 * 1000);
+setTimeout(()=> window.location.reload(), 30 * 60 * 1000);
 
 let currentVenue = '';
-let isPrinting = false;   // منع التكرار
 
 function filterVenue(vid){
   currentVenue = vid;
@@ -219,37 +176,32 @@ function filterVenue(vid){
   else if(window._cal) window._cal.refetchEvents();
 }
 
-/* ══ MOBILE: Cards ══ */
 function loadCards(){
-  document.getElementById('bookingsList').innerHTML =
-    '<div class="loading"><div class="spinner-border text-primary" style="width:1.8rem;height:1.8rem"></div></div>';
-  const now   = new Date();
+  const listDiv = document.getElementById('bookingsList');
+  if(!listDiv) return;
+  listDiv.innerHTML = '<div class="loading"><div class="spinner-border text-primary"></div></div>';
+  const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth()-1, 1).toISOString().slice(0,10);
   const end   = new Date(now.getFullYear(), now.getMonth()+3, 0).toISOString().slice(0,10);
   fetch(`/public-calendar/events?start=${start}&end=${end}&venue_id=${currentVenue}`)
     .then(r=>r.json())
     .then(data=>{
-      if(!data.length){
-        document.getElementById('bookingsList').innerHTML = `<div class="empty">${T.empty}</div>`;
-        return;
-      }
-      document.getElementById('bookingsList').innerHTML = data.map(b=>`
+      if(!data.length){ listDiv.innerHTML = `<div class="empty">${T.empty}</div>`; return; }
+      listDiv.innerHTML = data.map(b=>`
         <div class="bcard" id="card_${b.id}" onclick="toggleDetail(${b.id})">
           <div class="d-flex justify-content-between align-items-start">
-            <div class="bcard-title">${b.title||'—'}</div>
+            <div class="bcard-title">${escapeHtml(b.title||'—')}</div>
             <span class="status-pill">${T.approved}</span>
           </div>
           <div class="bcard-meta"><i class="bi bi-calendar3 me-1"></i>${(b.start||'').slice(0,10)}</div>
           <div id="detail_${b.id}" style="display:none;margin-top:10px;border-top:1px solid #f1f5f9;padding-top:10px"></div>
         </div>`).join('');
     })
-    .catch(()=>{
-      document.getElementById('bookingsList').innerHTML = `<div class="empty">${T.failLoad}</div>`;
-    });
+    .catch(()=>{ listDiv.innerHTML = `<div class="empty">${T.failLoad}</div>`; });
 }
 
 function toggleDetail(id){
-  const el   = document.getElementById('detail_'+id);
+  const el = document.getElementById('detail_'+id);
   const card = document.getElementById('card_'+id);
   if(el.style.display!=='none'){ el.style.display='none'; card.style.borderColor='transparent'; return; }
   document.querySelectorAll('[id^="detail_"]').forEach(e=>e.style.display='none');
@@ -260,217 +212,113 @@ function toggleDetail(id){
   fetch(`/public-calendar/booking/${id}`)
     .then(r=>r.json())
     .then(d=>{
-      el.innerHTML = buildRows(d) +
-        `<div style="margin-top:10px;text-align:center">
-          <button onclick="printDetail(${id})" style="background:#0C67EC;color:white;border:none;border-radius:8px;padding:6px 16px;font-size:.78rem;cursor:pointer">
-            🖨 ${AR?'طباعة':'Print'}
-          </button>
-        </div>`;
+      el.innerHTML = buildRows(d) + `<div style="margin-top:10px;text-align:center"><button onclick="printDetail(${id})" style="background:#0C67EC;color:white;border:none;border-radius:8px;padding:6px 16px;font-size:.78rem;cursor:pointer">🖨 ${AR?'طباعة':'Print'}</button></div>`;
     })
     .catch(()=>{ el.innerHTML=`<div class="text-danger" style="font-size:.8rem">${T.failLoad}</div>`; });
 }
 
+function _buildPrintWindow(d) {
+  const dir      = AR ? 'rtl' : 'ltr';
+  const orgName  = AR ? 'الجمعية الثقافية العربية' : 'Arab Cultural Society';
+  const sysName  = AR ? 'نظام حجز القاعات والمرافق' : 'Venue & Facility Booking System';
+  const logoSrc  = 'https://i.postimg.cc/FR6j033B/acs.png';
+  const titleTxt = AR ? d.title : (d.title_en || d.title);
+  const venueTxt = AR ? d.venue_name : (d.venue_name_en || d.venue_name);
+  const printDate = new Date().toLocaleDateString(AR ? 'ar-SA' : 'en-US', {year:'numeric',month:'long',day:'numeric'});
+
+  function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function row(lbl,val,bold){
+    if(!val && val!==0) return '';
+    return '<tr><td class="lb">'+lbl+'</td><td class="vl'+(bold?' bd':'')+'">'+esc(val)+'</td></tr>';
+  }
+
+  let bRows = row(AR?'رقم الحجز':'Booking No.', d.booking_number, true)
+    + row(AR?'العنوان':'Title', titleTxt)
+    + row(AR?'نوع الحجز':'Type', AR?d.booking_type_ar:d.booking_type_en)
+    + row(AR?'الحالة':'Status', AR?d.status_ar:d.status_en);
+  if(d.full_day) bRows += row(AR?'اليوم':'Date', d.date_only);
+  else bRows += row(AR?'البداية':'Start',d.start_time)+row(AR?'النهاية':'End',d.end_time);
+  bRows += row(AR?'عدد الحضور':'Attendees',d.expected_attendees)
+    + row(AR?'مقدم الطلب':'Requested By',d.requester_name)
+    + row(AR?'نيابةً عن':'On Behalf Of',d.on_behalf)
+    + row(AR?'ملاحظات':'Notes',d.notes)
+    + (d.approver_notes ? row(AR?'ملاحظات الاعتماد':'Approval Notes',d.approver_notes) : '');
+
+  let vRows = row(AR?'القاعة':'Venue',venueTxt)
+    + row(AR?'الطاقة الاستيعابية':'Capacity',d.venue_capacity)
+    + row(AR?'الموقع':'Location',d.location_name)
+    + (d.venue_equipment ? row(AR?'التجهيزات':'Equipment',d.venue_equipment) : '');
+
+  return '<!DOCTYPE html><html lang="'+(AR?'ar':'en')+'" dir="'+dir+'">'
+    +'<head><meta charset="UTF-8">'
+    +'<title>'+orgName+'</title>'
+    +'<style>'
+    +'*{box-sizing:border-box;margin:0;padding:0}'
+    +'body{font-family:'+(AR?'Tahoma,Arial':'Segoe UI,Arial')+',sans-serif;direction:'+dir+';color:#1e293b;background:white}'
+    +'.ph{background:#0C67EC;color:white;display:flex;align-items:center;gap:12px;padding:14px 20px}'
+    +'.ph img{height:50px;border-radius:7px;background:white;padding:2px}'
+    +'.ph .on{font-size:16px;font-weight:800}'
+    +'.ph .sn{font-size:11px;opacity:.85;margin-top:2px}'
+    +'.pb{padding:18px 20px}'
+    +'.sc{font-weight:700;color:#0C67EC;font-size:12px;padding:6px 0 4px;border-bottom:2px solid #dbeafe;margin:14px 0 7px}'
+    +'table{width:100%;border-collapse:collapse}'
+    +'tr{border-bottom:1px solid #f1f5f9}'
+    +'td{padding:8px 6px;font-size:13px;vertical-align:top}'
+    +'.lb{color:#64748b;font-weight:600;width:38%}'
+    +'.vl{color:#1e293b}'
+    +'.bd{color:#0C67EC;font-weight:800;font-size:14px}'
+    +'.ft{margin-top:18px;padding-top:8px;border-top:1px solid #e2e8f0;text-align:center;font-size:11px;color:#94a3b8}'
+    +'@media print{.ph{-webkit-print-color-adjust:exact;print-color-adjust:exact}}'
+    +'</style></head>'
+    +'<body>'
+    +'<div class="ph"><img src="'+logoSrc+'" id="lg"><div><div class="on">'+orgName+'</div><div class="sn">'+sysName+'</div></div></div>'
+    +'<div class="pb">'
+    +'<div class="sc">📅 '+(AR?'معلومات الحجز':'Booking Info')+'</div>'
+    +'<table>'+bRows+'</table>'
+    +'<div class="sc">🏢 '+(AR?'معلومات القاعة':'Venue Info')+'</div>'
+    +'<table>'+vRows+'</table>'
+    +'<div class="ft">ARS · '+(AR?'طُبع بتاريخ':'Printed on')+' '+printDate+'</div>'
+    +'</div>'
+    +'<script>'
+    +'var i=document.getElementById("lg"),p=false;'
+    +'function go(){if(!p){p=true;window.print();}}'
+    +'if(i.complete){setTimeout(go,400);}else{i.onload=go;i.onerror=go;setTimeout(go,3000);}'
+    +'<\/script>'
+    +'</body></html>';
+}
+
 async function printDetail(id){
-  if(isPrinting) return;
+  if(window._isPrinting) return;
+  window._isPrinting = true;
   try {
-    const res = await fetch(`/public-calendar/booking/${id}`);
+    const res  = await fetch('/public-calendar/booking/'+id);
     const data = await res.json();
-    window._printData = data;
-    await printBooking();
-  } catch(e) {
+    const win  = window.open('','_blank');
+    if(!win){ alert(AR?'يرجى السماح بالنوافذ المنبثقة':'Please allow popups'); window._isPrinting=false; return; }
+    win.document.write(_buildPrintWindow(data));
+    win.document.close();
+  } catch(e){
     alert(AR?'تعذّر تحميل البيانات':'Failed to load data');
   }
+  window._isPrinting = false;
 }
 
-function buildRows(d){
-  const r=(ic,lb,val,blue)=> val?`<div class="dp-row"><span class="dp-label"><i class="bi bi-${ic} me-1"></i>${lb}</span><span class="dp-value" ${blue?'style="color:#0C67EC;font-weight:800"':''}>${val}</span></div>`:'';
-  const title = AR ? d.title : (d.title_en || d.title);
-  const venueName = AR ? d.venue_name : (d.venue_name_en || d.venue_name);
-
-  // المرفقات مع صور
-  let attsHtml = '';
-  if(d.attachments && d.attachments.length){
-    const imgs = d.attachments.filter(a=>a.is_img);
-    const files = d.attachments.filter(a=>!a.is_img);
-    if(imgs.length){
-      attsHtml += `<div style="margin-top:10px"><div style="font-size:.72rem;font-weight:700;color:#0C67EC;margin-bottom:6px"><i class="bi bi-images me-1"></i>${AR?'صور مرفقة':'Attached Images'}</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px">${
-          imgs.map(a=>`<a href="${a.url}" target="_blank"><img src="${a.url}" style="width:80px;height:60px;object-fit:cover;border-radius:8px;border:2px solid #e8f0ff" onerror="this.style.display='none'"></a>`).join('')
-        }</div></div>`;
-    }
-    if(files.length){
-      attsHtml += `<div style="margin-top:8px">${files.map(a=>`<a href="${a.url}" target="_blank" download class="d-flex align-items-center gap-2" style="font-size:.78rem;color:#0C67EC;padding:4px 0;text-decoration:none"><i class="bi bi-file-earmark-arrow-down"></i>${a.name}</a>`).join('')}</div>`;
-    }
-  }
-
-  return `<div style="font-size:.7rem;font-weight:700;color:#0C67EC;text-transform:uppercase;letter-spacing:.5px;padding-bottom:4px;border-bottom:2px solid #e8f0ff;margin-bottom:6px"><i class="bi bi-calendar-check me-1"></i>${AR?'معلومات الحجز':'Booking Info'}</div>`
-    + r('hash',T.bookNo,d.booking_number,true)
-    + r('card-text',T.titleL,title)
-    + r('tag',AR?'نوع الحجز':'Type',AR?d.booking_type_ar:d.booking_type_en)
-    + (d.full_day ? r('sun', AR?'يوم كامل':'Full Day', d.date_only) : r('calendar3',T.start,d.start_time) + r('calendar3-range',T.end,d.end_time))
-    + r('people',T.attendees,d.expected_attendees)
-    + r('person',AR?'مقدم الطلب':'Requested By',d.requester_name)
-    + r('person-plus',AR?'نيابةً عن':'On Behalf Of',d.on_behalf)
-    + r('chat-text',AR?'ملاحظات':'Notes',d.notes)
-    + (d.approver_notes ? r('check-circle',AR?'ملاحظات الاعتماد':'Approval Notes',d.approver_notes) : '')
-    + `<div style="font-size:.7rem;font-weight:700;color:#0C67EC;text-transform:uppercase;letter-spacing:.5px;padding-bottom:4px;border-bottom:2px solid #e8f0ff;margin:10px 0 6px"><i class="bi bi-building me-1"></i>${AR?'معلومات القاعة':'Venue Info'}</div>`
-    + r('building',T.venue,venueName)
-    + r('people-fill',T.capacity,d.venue_capacity)
-    + r('geo-alt',T.location,d.location_name)
-    + (d.venue_equipment ? r('tools',AR?'التجهيزات':'Equipment',d.venue_equipment) : '')
-    + attsHtml;
-}
-
-/* ══ DESKTOP: FullCalendar ══ */
-function initDesktopCalendar(){
-  if(typeof FullCalendar === 'undefined'){ setTimeout(initDesktopCalendar,300); return; }
-  const cal = new FullCalendar.Calendar(document.getElementById('calendar'),{
-    initialView:'dayGridMonth',
-    direction: AR?'rtl':'ltr',
-    locale:    AR?'ar':'en',
-    headerToolbar:{start:AR?'next,prev':'prev,next',center:'title',end:'dayGridMonth,listMonth'},
-    buttonText:{dayGridMonth:T.month,listMonth:T.list},
-    events: function(info,ok,fail){
-      fetch(`/public-calendar/events?start=${info.startStr}&end=${info.endStr}&venue_id=${currentVenue}`)
-        .then(r=>r.json()).then(ok).catch(fail);
-    },
-    height:'100%',
-    noEventsText:T.empty,
-    eventClick:function(info){ info.jsEvent.preventDefault(); openModal(info.event.id); }
-  });
-  cal.render();
-  window._cal = cal;
-}
-
-function openModal(id){
-  document.getElementById('pcalOverlay').classList.add('open');
-  document.getElementById('modalBody').innerHTML='<div class="text-center py-3"><div class="spinner-border text-primary" style="width:1.8rem;height:1.8rem"></div></div>';
-  fetch(`/public-calendar/booking/${id}`)
-    .then(r=>r.json())
-    .then(d=>{
-      window._printData = d;
-      const r=(ic,lb,val,blue)=>val?`<div class="mrow"><span class="mlabel"><i class="bi bi-${ic}"></i>${lb}</span><span class="mvalue" ${blue?'style="color:#0C67EC;font-weight:800"':''}>${val}</span></div>`:'';
-      const title = AR ? d.title : (d.title_en || d.title);
-      const vname = AR ? d.venue_name : (d.venue_name_en || d.venue_name);
-      let imgHtml = '';
-      if(d.attachments && d.attachments.length){
-        const imgs = d.attachments.filter(a=>a.is_img);
-        const files = d.attachments.filter(a=>!a.is_img);
-        if(imgs.length) imgHtml += `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${imgs.map(a=>`<a href="${a.url}" target="_blank"><img src="${a.url}" style="width:90px;height:70px;object-fit:cover;border-radius:8px;border:2px solid #e8f0ff"></a>`).join('')}</div>`;
-        if(files.length) imgHtml += `<div style="margin-top:6px">${files.map(a=>`<a href="${a.url}" download target="_blank" style="display:flex;align-items:center;gap:6px;font-size:.8rem;color:#0C67EC;padding:3px 0;text-decoration:none"><i class="bi bi-file-earmark-arrow-down"></i>${a.name}</a>`).join('')}</div>`;
-      }
-      document.getElementById('modalBody').innerHTML=`
-        <div class="msec-title"><i class="bi bi-calendar-check me-1"></i>${T.bookInfo}</div>
-        ${r('hash',T.bookNo,d.booking_number,true)}
-        ${r('card-text',T.titleL,title)}
-        ${r('tag',AR?'نوع الحجز':'Type',AR?d.booking_type_ar:d.booking_type_en)}
-        <div class="mrow"><span class="mlabel"><i class="bi bi-check-circle"></i>${T.status}</span><span class="mstatus" style="background:${d.status_color}22;color:${d.status_color}">${AR?d.status_ar:d.status_en}</span></div>
-        ${d.full_day ? r('sun',AR?'يوم كامل':'Full Day',d.date_only) : r('calendar3',T.start,d.start_time)+r('calendar3-range',T.end,d.end_time)}
-        ${r('people',T.attendees,d.expected_attendees)}
-        ${r('person',AR?'مقدم الطلب':'Requested By',d.requester_name)}
-        ${r('person-plus',AR?'نيابةً عن':'On Behalf Of',d.on_behalf)}
-        ${r('chat-text',AR?'ملاحظات':'Notes',d.notes)}
-        ${d.approver_notes ? r('check-circle',AR?'ملاحظات الاعتماد':'Approval Notes',d.approver_notes) : ''}
-        <div class="msec-title"><i class="bi bi-building me-1"></i>${T.venueInfo}</div>
-        ${r('building',T.venue,vname)}
-        ${r('people-fill',T.capacity,d.venue_capacity)}
-        ${r('geo-alt',T.location,d.location_name)}
-        ${d.venue_equipment ? r('tools',AR?'التجهيزات':'Equipment',d.venue_equipment) : ''}
-        ${imgHtml ? `<div class="msec-title"><i class="bi bi-paperclip me-1"></i>${AR?'المرفقات':'Attachments'}</div>${imgHtml}` : ''}`;
-    })
-    .catch(()=>{document.getElementById('modalBody').innerHTML=`<div class="alert alert-danger">${T.failLoad}</div>`;});
-}
-
-function closeModal(){document.getElementById('pcalOverlay').classList.remove('open');}
-function overlayClick(e){if(e.target===document.getElementById('pcalOverlay'))closeModal();}
-
-// ========== دالة الطباعة المعدلة (تمنع التكرار) ==========
-async function printBooking() {
-  if (isPrinting) return;
-  isPrinting = true;
-
+function printBooking(){
   const d = window._printData;
-  if (!d) {
-    alert(AR ? 'يرجى الانتظار...' : 'Please wait...');
-    isPrinting = false;
-    return;
-  }
-
-  const dir = AR ? 'rtl' : 'ltr';
-  const orgName = AR ? 'الجمعية الثقافية العربية' : 'Arab Cultural Society';
-  const logoSrc = 'https://i.postimg.cc/FR6j033B/acs.png';
-  const title = AR ? d.title : (d.title_en || d.title);
-  const vname = AR ? d.venue_name : (d.venue_name_en || d.venue_name);
-  const printDate = new Date().toLocaleDateString(AR ? 'ar-SA' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-
-  function row(label, value, blue) {
-    if (!value && value !== 0) return '';
-    return `<tr><td class="pf-lbl">${label}</td><td class="pf-val${blue ? ' pf-blue' : ''}">${value}</td></tr>`;
-  }
-
-  const bookRows =
-    row(AR ? 'رقم الحجز' : 'Booking No.', d.booking_number, true) +
-    row(AR ? 'العنوان' : 'Title', title) +
-    row(AR ? 'نوع الحجز' : 'Type', AR ? d.booking_type_ar : d.booking_type_en) +
-    row(AR ? 'الحالة' : 'Status', AR ? d.status_ar : d.status_en) +
-    (d.full_day
-      ? row(AR ? 'اليوم' : 'Date', d.date_only)
-      : row(AR ? 'البداية' : 'Start', d.start_time) + row(AR ? 'النهاية' : 'End', d.end_time)) +
-    row(AR ? 'عدد الحضور' : 'Attendees', d.expected_attendees) +
-    row(AR ? 'مقدم الطلب' : 'Requested By', d.requester_name) +
-    row(AR ? 'نيابةً عن' : 'On Behalf Of', d.on_behalf) +
-    row(AR ? 'ملاحظات' : 'Notes', d.notes) +
-    (d.approver_notes ? row(AR ? 'ملاحظات الاعتماد' : 'Approval Notes', d.approver_notes) : '');
-
-  const venueRows =
-    row(AR ? 'القاعة' : 'Venue', vname) +
-    row(AR ? 'الطاقة الاستيعابية' : 'Capacity', d.venue_capacity) +
-    row(AR ? 'الموقع' : 'Location', d.location_name) +
-    (d.venue_equipment ? row(AR ? 'التجهيزات' : 'Equipment', d.venue_equipment) : '');
-
-  const pf = document.getElementById('printFrame');
-  // مسح المحتوى القديم تماماً
-  pf.innerHTML = '';
-  pf.setAttribute('dir', dir);
-  pf.innerHTML = `
-    <div class="pf-head">
-      <img src="${logoSrc}" style="height:52px;border-radius:8px;background:white;padding:3px">
-      <div>
-        <div class="pf-org">${orgName}</div>
-        <div class="pf-sys">${AR ? 'نظام حجز القاعات والمرافق' : 'Venue & Facility Booking System'}</div>
-      </div>
-    </div>
-    <div class="pf-body">
-      <div class="pf-sec">📅 ${AR ? 'معلومات الحجز' : 'Booking Info'}</div>
-      <table>${bookRows}</tr>
-      <div class="pf-sec">🏢 ${AR ? 'معلومات القاعة' : 'Venue Info'}</div>
-      <table>${venueRows}</table>
-      <div class="pf-foot">ARS · ${AR ? 'طُبع بتاريخ' : 'Printed on'} ${printDate}</div>
-    </div>`;
-
-  // انتظار تحميل الصور داخل إطار الطباعة
-  const images = pf.querySelectorAll('img');
-  await Promise.all([...images].map(img => {
-    if (img.complete) return Promise.resolve();
-    return new Promise(resolve => { img.onload = resolve; img.onerror = resolve; });
-  }));
-
-  // تأخير صغير ثم الطباعة
-  setTimeout(() => {
-    window.print();
-    // بعد انتهاء الطباعة (أو إغلاقها) حرر القفل وامسح المحتوى
-    setTimeout(() => {
-      isPrinting = false;
-      pf.innerHTML = '';   // تنظيف لتجنب التكرار في المرة القادمة
-    }, 500);
-  }, 100);
+  if(!d){ alert(AR?'لا توجد بيانات':'No data'); return; }
+  if(window._isPrinting) return;
+  window._isPrinting = true;
+  const win = window.open('','_blank');
+  if(!win){ alert(AR?'يرجى السماح بالنوافذ المنبثقة':'Please allow popups'); window._isPrinting=false; return; }
+  win.document.write(_buildPrintWindow(d));
+  win.document.close();
+  window._isPrinting = false;
 }
-// ================================================
 
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
 
-/* ══ Init ══ */
-if(MOBILE){
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+if (MOBILE) {
   loadCards();
 } else {
   const s = document.createElement('script');
@@ -481,5 +329,3 @@ if(MOBILE){
 </script>
 </body>
 </html>
-```
-
