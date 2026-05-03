@@ -45,11 +45,9 @@ body{background:#f0f4f8;font-family:'Segoe UI',Tahoma,sans-serif;margin:0}
 .close-modal-btn{background:rgba(255,255,255,.2);border:none;color:white;border-radius:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1.1rem}
 .close-modal-btn:hover{background:rgba(255,255,255,.3)}
 @media print{
-  .pub-nav,.pub-modal-overlay,.lang-btn,.venue-badge{display:none!important}
-  .print-header{display:block!important}
-  body{background:white}
-  .cal-card{box-shadow:none;border:1px solid #ddd}
-  .fc-button-group,.fc-today-button{display:none!important}
+  body > *:not(#printHeader){ display:none!important }
+  #printHeader{ display:block!important }
+  @page{ margin:1.5cm }
 }
 @media(max-width:575px){.pub-nav-brand span{display:none}.pub-nav-center{display:none!important}.cal-card{padding:10px}.fc-toolbar-title{font-size:.85rem!important}}
 </style>
@@ -57,12 +55,8 @@ body{background:#f0f4f8;font-family:'Segoe UI',Tahoma,sans-serif;margin:0}
 <body>
 <nav class="pub-nav">
   <div class="pub-nav-brand">
-    {% if mc.get('logo_b64') %}
-    <img src="{{ mc.logo_b64 }}" style="height:32px;border-radius:6px;object-fit:contain" alt="logo">
-    {% else %}
-    <i class="bi bi-calendar3"></i>
-    {% endif %}
-    <span>{{ mc.get('report_header_title') or ('الروزنامة العامة' if ar else 'Public Calendar') }}</span>
+    <img src="https://i.postimg.cc/S2W2hXZ6/acs.png" style="height:36px;object-fit:contain" alt="ACS">
+    <span>{{ 'الجمعية الثقافية العربية' if ar else 'Arab Cultural Society' }}</span>
   </div>
   <div class="pub-nav-center">
     <i class="bi bi-clock" style="font-size:.7rem"></i>
@@ -77,20 +71,17 @@ body{background:#f0f4f8;font-family:'Segoe UI',Tahoma,sans-serif;margin:0}
   </div>
 </nav>
 
-<!-- Print Header (hidden on screen) -->
-<div class="print-header" style="display:none">
-  <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:2px solid #0C67EC;margin-bottom:12px">
-    {% if mc.get('logo_b64') %}
-    <img src="{{ mc.logo_b64 }}" style="height:52px;object-fit:contain" alt="logo">
-    {% endif %}
+<!-- Print Header (hidden on screen, shown when printing booking) -->
+<div class="print-header" id="printHeader" style="display:none">
+  <div style="display:flex;align-items:center;gap:14px;padding:14px 0 10px;border-bottom:3px solid #0C67EC;margin-bottom:16px;direction:rtl">
+    <img src="https://i.postimg.cc/S2W2hXZ6/acs.png" style="height:60px;object-fit:contain" alt="ACS">
     <div>
-      <div style="font-size:1.1rem;font-weight:800;color:#0C67EC">{{ mc.get('report_header_title') or ('الروزنامة العامة' if ar else 'Public Calendar') }}</div>
-      {% if mc.get('report_header_subtitle') %}
-      <div style="font-size:.8rem;color:#64748b">{{ mc.report_header_subtitle }}</div>
-      {% endif %}
-      <div style="font-size:.75rem;color:#94a3b8">{{ 'تاريخ الطباعة:' if ar else 'Printed:' }} <span id="printDate"></span></div>
+      <div style="font-size:1.2rem;font-weight:900;color:#0C67EC">الجمعية الثقافية العربية</div>
+      <div style="font-size:.82rem;color:#64748b">Arab Cultural Society</div>
+      <div style="font-size:.75rem;color:#94a3b8;margin-top:2px">تاريخ الطباعة: <span id="printDate"></span></div>
     </div>
   </div>
+  <div id="printBookingContent" style="direction:rtl;font-family:Tahoma,sans-serif"></div>
 </div>
 
 <div class="container-fluid py-3 px-3 px-md-4" style="max-width:1100px;margin:auto">
@@ -111,7 +102,10 @@ body{background:#f0f4f8;font-family:'Segoe UI',Tahoma,sans-serif;margin:0}
   <div class="pub-modal">
     <div class="pub-modal-header">
       <h6><i class="bi bi-calendar-check me-2"></i>{{ 'تفاصيل الحجز' if ar else 'Booking Details' }}</h6>
-      <button class="close-modal-btn" onclick="closeModalDirect()">✕</button>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="close-modal-btn" onclick="printBooking()" title="{{ 'طباعة' if ar else 'Print' }}"><i class="bi bi-printer"></i></button>
+        <button class="close-modal-btn" onclick="closeModalDirect()">✕</button>
+      </div>
     </div>
     <div class="pub-modal-body" id="modalBody">
       <div class="text-center py-4"><div class="spinner-border text-primary" style="width:2rem;height:2rem"></div></div>
@@ -160,12 +154,43 @@ function filterVenue(vid){
   if(cal)cal.refetchEvents();
 }
 
+let lastBookingData = null;
+
 function openModal(id){
   document.getElementById('bookingModal').classList.add('show');
   document.getElementById('modalBody').innerHTML='<div class="text-center py-4"><div class="spinner-border text-primary" style="width:2rem;height:2rem"></div></div>';
   fetch(`/public-calendar/booking/${id}`)
-    .then(r=>r.json()).then(renderModal)
+    .then(r=>r.json()).then(d=>{lastBookingData=d;renderModal(d);})
     .catch(()=>{document.getElementById('modalBody').innerHTML=`<div class="alert alert-danger">${IS_AR?'تعذر تحميل البيانات':'Failed to load'}</div>`;});
+}
+
+function printBooking(){
+  if(!lastBookingData) return;
+  const d = lastBookingData;
+  const NA='—';
+  const rows = [
+    ['📋 رقم الحجز', d.booking_number||NA],
+    ['📌 العنوان', d.title||NA],
+    ['✅ الحالة', IS_AR?d.status_ar:d.status_en],
+    ['🏢 القاعة', d.venue_name||NA],
+    ['📍 الموقع', d.location_name||NA],
+    ['🕐 البداية', d.start_time||NA],
+    ['🕑 الانتهاء', d.end_time||NA],
+    d.expected_attendees?['👥 الحضور المتوقع', d.expected_attendees]:null,
+    d.notes?['📝 ملاحظات', d.notes]:null,
+  ].filter(Boolean);
+  const tableRows = rows.map(([label,val])=>`
+    <tr>
+      <td style="padding:8px 12px;font-weight:700;color:#0C67EC;border:1px solid #e2e8f0;white-space:nowrap;background:#f8faff">${label}</td>
+      <td style="padding:8px 12px;border:1px solid #e2e8f0">${val}</td>
+    </tr>`).join('');
+  document.getElementById('printBookingContent').innerHTML=`
+    <h3 style="color:#0C67EC;margin:0 0 14px;font-size:1rem;font-weight:800">تفاصيل الحجز</h3>
+    <table style="width:100%;border-collapse:collapse;font-size:.9rem">${tableRows}</table>
+    <div style="margin-top:20px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:.75rem;color:#94a3b8;text-align:center">
+      الجمعية الثقافية العربية — نظام إدارة الحجوزات
+    </div>`;
+  window.print();
 }
 
 function renderModal(d){
