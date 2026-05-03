@@ -435,8 +435,8 @@ html[dir="rtl"] .ticker-overflow {
     <i class="bi bi-calendar-check" style="font-size:1.4rem;color:#5C9BDE;filter:drop-shadow(0 0 6px rgba(92,155,222,.7))"></i>
     {% endif %}
     <div class="brand-text">
-      <div class="brand-title">{% if current_lang=='en' %}ARS{% else %}نظام ARS{% endif %}</div>
-      <div class="brand-sub">{% if current_lang=='en' %}Applied Event System{% else %}نظام إدارة الفعاليات{% endif %}</div>
+      <div class="brand-title">{% if current_lang=='en' %}{{ _mcfg.get('brand_name_en','ARS') }}{% else %}{{ _mcfg.get('brand_name','نظام ARS') }}{% endif %}</div>
+      <div class="brand-sub">{% if current_lang=='en' %}{{ _mcfg.get('brand_tagline_en','Event & Booking System') }}{% else %}{{ _mcfg.get('brand_tagline','نظام إدارة الفعاليات') }}{% endif %}</div>
     </div>
   </div>
   <div class="sidebar-scroll" hx-boost="true" hx-target="#contentArea" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#pageLoader" hx-select="#contentArea">

@@ -554,6 +554,15 @@ def maintenance():
             if request.form.get('remove_header_img'):
                 mcfg.pop('header_img_b64', None)
             _save_maintenance(mcfg)
+        elif action == 'save_brand':
+            mcfg['brand_name']       = request.form.get('brand_name','').strip()
+            mcfg['brand_name_en']    = request.form.get('brand_name_en','').strip()
+            mcfg['brand_tagline']    = request.form.get('brand_tagline','').strip()
+            mcfg['brand_tagline_en'] = request.form.get('brand_tagline_en','').strip()
+            mcfg['brand_short']      = request.form.get('brand_short','').strip()
+            mcfg['brand_short_en']   = request.form.get('brand_short_en','').strip()
+            _save_maintenance(mcfg)
+            flash_msg('✅ تم تحديث هوية النظام', 'success')
         elif action == 'save_report_header':
             mcfg['report_header_title']    = request.form.get('report_header_title','').strip()
             mcfg['report_header_subtitle'] = request.form.get('report_header_subtitle','').strip()

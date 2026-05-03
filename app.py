@@ -141,8 +141,20 @@ def create_app():
         def get_maintenance_config():
             try:
                 p = os.path.join(os.path.dirname(__file__), 'maintenance_config.json')
-                return json.loads(open(p).read()) if os.path.exists(p) else {}
-            except: return {}
+                cfg = json.loads(open(p).read()) if os.path.exists(p) else {}
+                # Brand defaults — قابلة للتخصيص لكل عميل
+                cfg.setdefault('brand_name',    'نظام ARS')
+                cfg.setdefault('brand_name_en', 'ARS System')
+                cfg.setdefault('brand_tagline',    'نظام إدارة الفعاليات والحجوزات')
+                cfg.setdefault('brand_tagline_en', 'Event & Booking Management System')
+                cfg.setdefault('brand_short',    'ARS')
+                cfg.setdefault('brand_short_en', 'ARS')
+                return cfg
+            except: return {
+                'brand_name': 'نظام ARS', 'brand_name_en': 'ARS System',
+                'brand_tagline': 'نظام إدارة الفعاليات', 'brand_tagline_en': 'Event Management',
+                'brand_short': 'ARS', 'brand_short_en': 'ARS',
+            }
         def get_system_colors():
             try:
                 p = os.path.join(os.path.dirname(__file__), 'maintenance_config.json')

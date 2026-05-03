@@ -117,6 +117,41 @@
       <div class="card-body">
         <div class="row g-4">
           <div class="col-md-6">
+            <h6 class="fw-bold" style="color:#0C67EC">🏷 {% if current_lang=='en' %}Brand Identity{% else %}هوية النظام (White Label){% endif %}</h6>
+            <p class="small text-muted">{% if current_lang=='en' %}Customize the system name and tagline for each client{% else %}خصص اسم النظام والوصف لكل عميل{% endif %}</p>
+            <form method="POST" action="{{ url_for('admin.maintenance') }}">
+              <input type="hidden" name="ticker_action" value="save_brand">
+              <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                  <label class="form-label fw-600">{% if current_lang=='en' %}System Name (Arabic){% else %}اسم النظام (عربي){% endif %}</label>
+                  <input type="text" name="brand_name" class="form-control" value="{{ mcfg.get('brand_name','نظام ARS') }}">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-600">System Name (English)</label>
+                  <input type="text" name="brand_name_en" class="form-control" value="{{ mcfg.get('brand_name_en','ARS System') }}">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-600">{% if current_lang=='en' %}Tagline (Arabic){% else %}الوصف المختصر (عربي){% endif %}</label>
+                  <input type="text" name="brand_tagline" class="form-control" value="{{ mcfg.get('brand_tagline','نظام إدارة الفعاليات') }}">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-600">Tagline (English)</label>
+                  <input type="text" name="brand_tagline_en" class="form-control" value="{{ mcfg.get('brand_tagline_en','Event Management System') }}">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-600">{% if current_lang=='en' %}Short Name (AR){% else %}الاسم المختصر (ع){% endif %}</label>
+                  <input type="text" name="brand_short" class="form-control" value="{{ mcfg.get('brand_short','ARS') }}" maxlength="10">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-600">Short Name (EN)</label>
+                  <input type="text" name="brand_short_en" class="form-control" value="{{ mcfg.get('brand_short_en','ARS') }}" maxlength="10">
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary-ars btn-sm">
+                <i class="bi bi-save me-1"></i>{% if current_lang=='en' %}Save Brand{% else %}حفظ الهوية{% endif %}
+              </button>
+            </form>
+            <hr class="my-4">
             <h6 class="fw-bold" style="color:#0C67EC">{{ _('🖼 شعار النظام (Sidebar)') }}</h6>
             <p class="small text-muted">{{ _('يظهر بجانب اسم النظام في الشريط الجانبي') }}</p>
             <form method="POST" action="{{ url_for('admin.maintenance') }}" enctype="multipart/form-data">
