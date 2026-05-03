@@ -98,7 +98,11 @@ body{background:#f0f4f8;font-family:Tahoma,'Segoe UI',sans-serif;min-height:100v
 
 <div class="cal-wrap">
   <div class="cal-card">
-    <div id="calendar"></div>
+    <div id="calLoading" style="text-align:center;padding:60px 20px;color:#64748b">
+      <div class="spinner"></div>
+      <p style="margin-top:12px;font-size:.85rem">{{ 'جارٍ تحميل التقويم...' if ar else 'Loading calendar...' }}</p>
+    </div>
+    <div id="calendar" style="display:none"></div>
   </div>
 </div>
 
@@ -119,13 +123,25 @@ body{background:#f0f4f8;font-family:Tahoma,'Segoe UI',sans-serif;min-height:100v
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.8/index.global.min.js"></script>
+<script>
+// تحميل FullCalendar مبكراً
+(function(){
+  var s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.8/index.global.min.js';
+  s.onload = function(){ initCalendar(); };
+  s.onerror = function(){
+    document.getElementById('calLoading').innerHTML =
+      '<p style="color:#ef4444;padding:40px">⚠️ ' + (document.documentElement.lang==='ar' ? 'تعذر تحميل التقويم، تحقق من الاتصال' : 'Failed to load calendar, check connection') + '</p>';
+  };
+  document.head.appendChild(s);
+})();
+</script>
 <script>
 var IS_AR = {{ 'true' if ar else 'false' }};
 var currentVenue = '';
 var lastBooking = null;
 
-document.addEventListener('DOMContentLoaded', function() {
+function initCalendar() {
   try {
     var cal = new FullCalendar.Calendar(document.getElementById('calendar'), {
       initialView: window.innerWidth < 600 ? 'listMonth' : 'dayGridMonth',
@@ -150,13 +166,17 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
     cal.render();
+    document.getElementById('calLoading').style.display = 'none';
+    document.getElementById('calendar').style.display = 'block';
     window._cal = cal;
   } catch(e) {
+    document.getElementById('calLoading').style.display = 'none';
+    document.getElementById('calendar').style.display = 'block';
     document.getElementById('calendar').innerHTML =
       '<p style="text-align:center;padding:40px;color:#ef4444">⚠️ ' + (IS_AR?'تعذر تحميل التقويم':'Calendar failed to load') + '</p>';
     console.error(e);
   }
-});
+}
 
 function filterVenue(vid) {
   currentVenue = vid;
