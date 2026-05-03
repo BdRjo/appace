@@ -4,266 +4,270 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{{ 'الجمعية الثقافية العربية' if ar else 'Arab Cultural Society' }} — ARS</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+<title>{{ 'الجمعية الثقافية العربية' if ar else 'Arab Cultural Society' }}</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.0/font/bootstrap-icons.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.8/index.global.min.js"></script>
 <style>
-:root{--bc:#0C67EC}
-body{background:#f0f4f8;font-family:'Segoe UI',Tahoma,sans-serif;margin:0}
-.pub-nav{background:linear-gradient(135deg,#0C67EC,#3D8EF5);color:white;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;box-shadow:0 2px 12px rgba(12,103,236,.3);position:sticky;top:0;z-index:200}
-.pub-nav-brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:.95rem;white-space:nowrap}
-.pub-nav-center{flex:1;text-align:center;font-size:.75rem;opacity:.9;display:flex;align-items:center;justify-content:center;gap:5px}
-.pub-nav-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
-.lang-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:white;border-radius:8px;padding:4px 10px;font-size:.78rem;font-weight:600;cursor:pointer;transition:.2s;text-decoration:none}
-.lang-btn:hover{background:rgba(255,255,255,.25);color:white}
-.venue-badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:.75rem;font-weight:600;background:#e8f0ff;color:#0C67EC;border:1px solid #b8d0ff;cursor:pointer;transition:.2s;white-space:nowrap}
-.venue-badge.active{background:#0C67EC;color:white;border-color:#0C67EC}
-.venue-badge:hover{background:#0C67EC;color:white}
-.cal-card{background:white;border-radius:16px;padding:16px;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#f0f4f8;font-family:Tahoma,'Segoe UI',sans-serif;min-height:100vh}
+.nav{background:linear-gradient(135deg,#0C67EC,#1a78f5);color:#fff;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px;box-shadow:0 2px 10px rgba(12,103,236,.3);position:sticky;top:0;z-index:100}
+.nav-brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:.9rem;min-width:0}
+.nav-brand img{height:34px;object-fit:contain;flex-shrink:0}
+.nav-brand span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nav-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.btn-nav{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:5px 11px;font-size:.78rem;font-weight:600;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:4px;transition:background .15s;white-space:nowrap}
+.btn-nav:hover{background:rgba(255,255,255,.3);color:#fff}
+.btn-book{background:rgba(255,255,255,.28);font-weight:700}
+.filters{padding:10px 14px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.badge-venue{display:inline-block;padding:4px 12px;border-radius:20px;font-size:.75rem;font-weight:600;background:#e8f0ff;color:#0C67EC;border:1px solid #c3d7ff;cursor:pointer;transition:.15s;user-select:none}
+.badge-venue.active,.badge-venue:hover{background:#0C67EC;color:#fff;border-color:#0C67EC}
+.cal-wrap{padding:0 14px 16px;max-width:1080px;margin:auto}
+.cal-card{background:#fff;border-radius:14px;padding:12px;box-shadow:0 2px 10px rgba(0,0,0,.07)}
 .fc{font-size:.82rem}
-.fc-col-header-cell{background:linear-gradient(180deg,#0C67EC,#3D8EF5)!important;padding:7px 0!important}
+.fc-col-header-cell{background:linear-gradient(180deg,#0C67EC,#3D8EF5)!important;padding:6px 0!important}
 .fc-col-header-cell-cushion{color:#fff!important;font-weight:700!important;text-decoration:none!important}
-.fc-toolbar-title{color:#0C67EC!important;font-weight:800!important;font-size:1rem!important}
-.fc-button-primary{background:#0C67EC!important;border-color:#0C67EC!important;font-size:.8rem!important}
+.fc-toolbar-title{color:#0C67EC!important;font-weight:800!important;font-size:.98rem!important}
+.fc-button-primary{background:#0C67EC!important;border-color:#0C67EC!important;font-size:.78rem!important;padding:4px 8px!important}
 .fc-button-primary:hover{background:#0847B0!important;border-color:#0847B0!important}
-.fc-day-today{background:rgba(92,155,222,.12)!important}
-.fc-event{border-radius:6px!important;padding:2px 5px!important;font-size:.72rem!important;cursor:pointer!important;background:#3D8EF5!important;border-color:#0C67EC!important}
-.pub-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;align-items:center;justify-content:center;padding:16px}
-.pub-modal-overlay.show{display:flex}
-.pub-modal{background:white;border-radius:20px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)}
-.pub-modal-header{background:linear-gradient(135deg,#0C67EC,#3D8EF5);color:white;padding:16px 20px;border-radius:20px 20px 0 0;display:flex;align-items:center;justify-content:space-between}
-.pub-modal-header h6{margin:0;font-weight:800;font-size:.95rem}
-.pub-modal-body{padding:20px}
-.info-section{margin-bottom:16px}
-.info-section-title{font-size:.72rem;font-weight:700;color:#0C67EC;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;padding-bottom:6px;border-bottom:2px solid #e8f0ff}
-.info-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f8fafc;font-size:.85rem}
+.fc-day-today{background:rgba(92,155,222,.1)!important}
+.fc-event{border-radius:5px!important;padding:2px 5px!important;font-size:.72rem!important;cursor:pointer!important;color:#fff!important}
+.fc-event-title,.fc-event-time,.fc-list-event-title{color:#fff!important}
+.foot-note{text-align:center;padding:8px 14px 20px;font-size:.72rem;color:#94a3b8}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:flex-end;justify-content:center}
+.overlay.show{display:flex}
+@media(min-width:600px){.overlay{align-items:center;padding:16px}}
+.modal-box{background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 -4px 24px rgba(0,0,0,.15);animation:slideUp .25s ease}
+@media(min-width:600px){.modal-box{border-radius:20px;animation:fadeIn .2s ease}}
+@keyframes slideUp{from{transform:translateY(60px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes fadeIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
+.modal-head{background:linear-gradient(135deg,#0C67EC,#3D8EF5);color:#fff;padding:14px 18px;border-radius:20px 20px 0 0;display:flex;align-items:center;justify-content:space-between}
+.modal-head h6{margin:0;font-weight:800;font-size:.92rem}
+.modal-head-actions{display:flex;gap:5px}
+.btn-icon{background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1rem;transition:background .15s}
+.btn-icon:hover{background:rgba(255,255,255,.35)}
+.modal-body{padding:18px}
+.info-block{margin-bottom:14px}
+.info-block-title{font-size:.7rem;font-weight:700;color:#0C67EC;letter-spacing:.4px;text-transform:uppercase;margin-bottom:8px;padding-bottom:5px;border-bottom:2px solid #e8f0ff}
+.info-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f8fafc;font-size:.84rem;gap:8px}
 .info-row:last-child{border-bottom:none}
-.info-label{color:#64748b;font-weight:600;display:flex;align-items:center;gap:6px}
-.info-value{color:#1e293b;font-weight:500;text-align:end}
-.status-pill{padding:4px 12px;border-radius:20px;font-size:.75rem;font-weight:700;background:#d1fae5;color:#065f46}
-.close-modal-btn{background:rgba(255,255,255,.2);border:none;color:white;border-radius:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1.1rem}
-.close-modal-btn:hover{background:rgba(255,255,255,.3)}
+.info-label{color:#64748b;font-weight:600;display:flex;align-items:center;gap:5px;white-space:nowrap}
+.info-val{color:#1e293b;font-weight:500;text-align:end;word-break:break-word}
+.status-pill{padding:3px 11px;border-radius:20px;font-size:.73rem;font-weight:700}
+.s-approved{background:#d1fae5;color:#065f46}
+.s-pending{background:#fef3c7;color:#92400e}
+.spinner{width:36px;height:36px;border:3px solid #e2e8f0;border-top-color:#0C67EC;border-radius:50%;animation:spin .7s linear infinite;margin:32px auto}
+@keyframes spin{to{transform:rotate(360deg)}}
 @media print{
-  .pub-nav .pub-nav-actions,.pub-modal-overlay{display:none!important}
-  .pub-nav{position:relative!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  body{background:white!important}
-  .cal-card{box-shadow:none!important;border:1px solid #ddd}
+  .nav-actions,.filters,.overlay{display:none!important}
+  .nav{position:relative!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .cal-card{box-shadow:none;border:1px solid #ddd}
   .fc-button-group,.fc-today-button{display:none!important}
-  #printHeader{display:none!important}
   @page{margin:1cm}
 }
-@media(max-width:575px){.pub-nav-brand span{display:none}.pub-nav-center{display:none!important}.cal-card{padding:10px}.fc-toolbar-title{font-size:.85rem!important}}
 </style>
 </head>
 <body>
-<nav class="pub-nav">
-  <div class="pub-nav-brand">
-    <img src="https://i.postimg.cc/S2W2hXZ6/acs.png" style="height:36px;object-fit:contain" alt="ACS">
+
+<nav class="nav">
+  <div class="nav-brand">
+    <img src="https://i.postimg.cc/S2W2hXZ6/acs.png" alt="ACS" onerror="this.style.display='none'">
     <span>{{ 'الجمعية الثقافية العربية' if ar else 'Arab Cultural Society' }}</span>
   </div>
-  <div class="pub-nav-center">
-    <i class="bi bi-clock" style="font-size:.7rem"></i>
-    <span id="pubClock"></span>
-  </div>
-  <div class="pub-nav-actions">
-    <button class="lang-btn" onclick="window.print()" title="{{ 'طباعة' if ar else 'Print' }}"><i class="bi bi-printer"></i></button>
-    <a href="/public-calendar/book" class="lang-btn" style="background:rgba(255,255,255,.25);font-weight:700">
-      <i class="bi bi-calendar-plus me-1"></i>{{ 'احجز الآن' if ar else 'Book Now' }}
+  <div class="nav-actions">
+    <button class="btn-nav" onclick="window.print()" title="{{ 'طباعة' if ar else 'Print' }}">
+      <i class="bi bi-printer"></i>
+    </button>
+    <a href="/public-calendar/book" class="btn-nav btn-book">
+      <i class="bi bi-calendar-plus"></i>
+      <span>{{ 'احجز الآن' if ar else 'Book Now' }}</span>
     </a>
-    <a href="/set-lang/{{ 'en' if ar else 'ar' }}?next=/public-calendar" class="lang-btn">{{ 'EN' if ar else 'ع' }}</a>
+    <a href="/set-lang/{{ 'en' if ar else 'ar' }}?next=/public-calendar" class="btn-nav">
+      {{ 'EN' if ar else 'ع' }}
+    </a>
   </div>
 </nav>
 
-<!-- Print Header (hidden on screen, shown when printing booking) -->
-<div class="print-header" id="printHeader" style="display:none">
-  <div style="display:flex;align-items:center;gap:14px;padding:14px 0 10px;border-bottom:3px solid #0C67EC;margin-bottom:16px;direction:rtl">
-    <img src="https://i.postimg.cc/S2W2hXZ6/acs.png" style="height:60px;object-fit:contain" alt="ACS">
-    <div>
-      <div style="font-size:1.2rem;font-weight:900;color:#0C67EC">الجمعية الثقافية العربية</div>
-      <div style="font-size:.82rem;color:#64748b">Arab Cultural Society</div>
-      <div style="font-size:.75rem;color:#94a3b8;margin-top:2px">تاريخ الطباعة: <span id="printDate"></span></div>
-    </div>
+{% if venues %}
+<div class="filters">
+  <span style="font-size:.75rem;font-weight:600;color:#64748b">{{ 'القاعة:' if ar else 'Venue:' }}</span>
+  <span class="badge-venue active" onclick="filterVenue('')" id="v_all">{{ 'الكل' if ar else 'All' }}</span>
+  {% for v in venues %}
+  <span class="badge-venue" onclick="filterVenue('{{ v.id }}')" id="v_{{ v.id }}">{{ v.name }}</span>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="cal-wrap">
+  <div class="cal-card">
+    <div id="calendar"></div>
   </div>
-  <div id="printBookingContent" style="direction:rtl;font-family:Tahoma,sans-serif"></div>
 </div>
 
-<div class="container-fluid py-3 px-3 px-md-4" style="max-width:1100px;margin:auto">
-  {% if venues %}
-  <div class="mb-3 d-flex flex-wrap gap-2 align-items-center">
-    <span style="font-size:.78rem;font-weight:600;color:#64748b">{{ 'فلترة حسب القاعة:' if ar else 'Filter by venue:' }}</span>
-    <span class="venue-badge active" onclick="filterVenue('')" id="v_all">{{ 'الكل' if ar else 'All' }}</span>
-    {% for v in venues %}
-    <span class="venue-badge" onclick="filterVenue('{{ v.id }}')" id="v_{{ v.id }}">{{ v.name }}</span>
-    {% endfor %}
-  </div>
-  {% endif %}
-  <div class="cal-card"><div id="calendar"></div></div>
-  <div class="text-center mt-3" style="font-size:.72rem;color:#94a3b8">{{ 'يعرض الحجوزات المعتمدة فقط' if ar else 'Showing approved reservations only' }}</div>
-</div>
+<p class="foot-note">{{ 'يعرض الحجوزات المعتمدة والمعلقة' if ar else 'Showing approved and pending reservations' }}</p>
 
-<div class="pub-modal-overlay" id="bookingModal" onclick="closeModal(event)">
-  <div class="pub-modal">
-    <div class="pub-modal-header">
+<div class="overlay" id="overlay" onclick="onOverlayClick(event)">
+  <div class="modal-box" id="modalBox">
+    <div class="modal-head">
       <h6><i class="bi bi-calendar-check me-2"></i>{{ 'تفاصيل الحجز' if ar else 'Booking Details' }}</h6>
-      <div style="display:flex;gap:6px;align-items:center">
-        <button class="close-modal-btn" onclick="printBooking()" title="{{ 'طباعة' if ar else 'Print' }}"><i class="bi bi-printer"></i></button>
-        <button class="close-modal-btn" onclick="closeModalDirect()">✕</button>
+      <div class="modal-head-actions">
+        <button class="btn-icon" onclick="printBooking()" title="{{ 'تنزيل PDF' if ar else 'Download PDF' }}">
+          <i class="bi bi-file-earmark-pdf"></i>
+        </button>
+        <button class="btn-icon" onclick="closeModal()">✕</button>
       </div>
     </div>
-    <div class="pub-modal-body" id="modalBody">
-      <div class="text-center py-4"><div class="spinner-border text-primary" style="width:2rem;height:2rem"></div></div>
-    </div>
+    <div class="modal-body" id="modalBody"><div class="spinner"></div></div>
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.8/index.global.min.js"></script>
 <script>
-const IS_AR = {{ 'true' if ar else 'false' }};
-let currentVenue = '', cal;
+var IS_AR = {{ 'true' if ar else 'false' }};
+var currentVenue = '';
+var lastBooking = null;
 
-function updateClock(){
-  const now = new Date();
-  const time = now.toLocaleTimeString(IS_AR?'ar-SA':'en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  const date = now.toLocaleDateString(IS_AR?'ar-SA':'en-US',{weekday:'short',day:'numeric',month:'short'});
-  document.getElementById('pubClock').textContent = date + ' — ' + time;
-}
-updateClock(); setInterval(updateClock,1000);
-document.getElementById('printDate').textContent = new Date().toLocaleDateString(IS_AR?'ar-SA':'en-US',{year:'numeric',month:'long',day:'numeric'});
-
-document.addEventListener('DOMContentLoaded',function(){
-  cal = new FullCalendar.Calendar(document.getElementById('calendar'),{
-    initialView: window.innerWidth<600?'listMonth':'dayGridMonth',
-    direction: IS_AR?'rtl':'ltr',
-    locale: IS_AR?'ar':'en',
-    headerToolbar:{start:IS_AR?'next,prev':'prev,next',center:'title',end:'dayGridMonth,listMonth'},
-    buttonText:{dayGridMonth:IS_AR?'شهر':'Month',listMonth:IS_AR?'قائمة':'List'},
-    events:fetchEvents,
-    eventColor:'#3D8EF5',
-    height:'auto',
-    noEventsText:IS_AR?'لا توجد حجوزات':'No reservations',
-    eventClick:function(info){info.jsEvent.preventDefault();openModal(info.event.id);}
-  });
-  cal.render();
+document.addEventListener('DOMContentLoaded', function() {
+  try {
+    var cal = new FullCalendar.Calendar(document.getElementById('calendar'), {
+      initialView: window.innerWidth < 600 ? 'listMonth' : 'dayGridMonth',
+      direction: IS_AR ? 'rtl' : 'ltr',
+      headerToolbar: {
+        start: IS_AR ? 'next,prev' : 'prev,next',
+        center: 'title',
+        end: 'dayGridMonth,listMonth'
+      },
+      buttonText: { dayGridMonth: IS_AR?'شهر':'Month', listMonth: IS_AR?'قائمة':'List' },
+      height: 'auto',
+      noEventsText: IS_AR ? 'لا توجد حجوزات' : 'No reservations',
+      events: function(info, success, failure) {
+        fetch('/public-calendar/events?start=' + info.startStr + '&end=' + info.endStr + '&venue_id=' + currentVenue)
+          .then(function(r){ return r.json(); })
+          .then(success)
+          .catch(failure);
+      },
+      eventClick: function(info) {
+        info.jsEvent.preventDefault();
+        openModal(info.event.id);
+      }
+    });
+    cal.render();
+    window._cal = cal;
+  } catch(e) {
+    document.getElementById('calendar').innerHTML =
+      '<p style="text-align:center;padding:40px;color:#ef4444">⚠️ ' + (IS_AR?'تعذر تحميل التقويم':'Calendar failed to load') + '</p>';
+    console.error(e);
+  }
 });
 
-function fetchEvents(info,successCb,failureCb){
-  fetch(`/public-calendar/events?start=${info.startStr}&end=${info.endStr}&venue_id=${currentVenue}`)
-    .then(r=>r.json()).then(successCb).catch(failureCb);
+function filterVenue(vid) {
+  currentVenue = vid;
+  document.querySelectorAll('.badge-venue').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById(vid ? 'v_' + vid : 'v_all').classList.add('active');
+  if (window._cal) window._cal.refetchEvents();
 }
 
-function filterVenue(vid){
-  currentVenue=vid;
-  document.querySelectorAll('.venue-badge').forEach(b=>b.classList.remove('active'));
-  document.getElementById(vid?'v_'+vid:'v_all').classList.add('active');
-  if(cal)cal.refetchEvents();
+function openModal(id) {
+  lastBooking = null;
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('modalBody').innerHTML = '<div class="spinner"></div>';
+  fetch('/public-calendar/booking/' + id)
+    .then(function(r){ return r.json(); })
+    .then(function(d){ lastBooking = d; renderModal(d); })
+    .catch(function(){
+      document.getElementById('modalBody').innerHTML =
+        '<p style="text-align:center;padding:24px;color:#ef4444">' + (IS_AR?'تعذر تحميل البيانات':'Failed to load') + '</p>';
+    });
 }
 
-let lastBookingData = null;
-
-function openModal(id){
-  document.getElementById('bookingModal').classList.add('show');
-  document.getElementById('modalBody').innerHTML='<div class="text-center py-4"><div class="spinner-border text-primary" style="width:2rem;height:2rem"></div></div>';
-  fetch(`/public-calendar/booking/${id}`)
-    .then(r=>r.json()).then(d=>{lastBookingData=d;renderModal(d);})
-    .catch(()=>{document.getElementById('modalBody').innerHTML=`<div class="alert alert-danger">${IS_AR?'تعذر تحميل البيانات':'Failed to load'}</div>`;});
+function row(icon, label, val) {
+  return '<div class="info-row"><span class="info-label"><i class="bi ' + icon + '"></i>' + label + '</span><span class="info-val">' + val + '</span></div>';
 }
 
-function loadScript(src){
-  return new Promise((resolve,reject)=>{
-    if(document.querySelector(`script[src="${src}"]`)){resolve();return;}
-    const s=document.createElement('script');
-    s.src=src; s.onload=resolve; s.onerror=reject;
+function renderModal(d) {
+  var NA = '—';
+  var sc = d.status === 'approved' ? 's-approved' : 's-pending';
+  var sl = IS_AR ? d.status_ar : d.status_en;
+  var html = '<div class="info-block">' +
+    '<div class="info-block-title"><i class="bi bi-calendar-check me-1"></i>' + (IS_AR?'معلومات الحجز':'Booking Info') + '</div>' +
+    row('bi-hash', IS_AR?'رقم الحجز':'Booking No.', '<strong style="color:#0C67EC">' + (d.booking_number||NA) + '</strong>') +
+    row('bi-card-text', IS_AR?'العنوان':'Title', d.title||NA) +
+    row('bi-tag', IS_AR?'الحالة':'Status', '<span class="status-pill ' + sc + '">' + sl + '</span>') +
+    row('bi-calendar3', IS_AR?'البداية':'Start', d.start_time||NA) +
+    row('bi-calendar3-range', IS_AR?'الانتهاء':'End', d.end_time||NA) +
+    (d.expected_attendees ? row('bi-people', IS_AR?'الحضور':'Attendees', d.expected_attendees) : '') +
+    (d.notes ? row('bi-chat-text', IS_AR?'ملاحظات':'Notes', d.notes) : '') +
+    '</div><div class="info-block">' +
+    '<div class="info-block-title"><i class="bi bi-building me-1"></i>' + (IS_AR?'معلومات القاعة':'Venue Info') + '</div>' +
+    row('bi-building', IS_AR?'القاعة':'Venue', d.venue_name||NA) +
+    (d.venue_capacity ? row('bi-people-fill', IS_AR?'السعة':'Capacity', d.venue_capacity) : '') +
+    (d.location_name ? row('bi-geo-alt', IS_AR?'الموقع':'Location', d.location_name) : '') +
+    '</div>';
+  document.getElementById('modalBody').innerHTML = html;
+}
+
+function onOverlayClick(e) { if (e.target === document.getElementById('overlay')) closeModal(); }
+function closeModal() { document.getElementById('overlay').classList.remove('show'); }
+document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeModal(); });
+
+function loadScript(src) {
+  return new Promise(function(resolve, reject) {
+    if (document.querySelector('script[src="' + src + '"]')) { resolve(); return; }
+    var s = document.createElement('script');
+    s.src = src; s.onload = resolve; s.onerror = reject;
     document.head.appendChild(s);
   });
 }
 
-function printBooking(){
-  if(!lastBookingData) return;
-  const d = lastBookingData;
-  const NA='—';
-  const rows = [
-    ['📋 رقم الحجز', d.booking_number||NA],
-    ['📌 العنوان', d.title||NA],
-    ['✅ الحالة', IS_AR?d.status_ar:d.status_en],
-    ['🏢 القاعة', d.venue_name||NA],
-    ['📍 الموقع', d.location_name||NA],
-    ['🕐 البداية', d.start_time||NA],
-    ['🕑 الانتهاء', d.end_time||NA],
-    d.expected_attendees?['👥 الحضور المتوقع', d.expected_attendees]:null,
-    d.notes?['📝 ملاحظات', d.notes]:null,
-  ].filter(Boolean);
+function printBooking() {
+  if (!lastBooking) return;
+  var d = lastBooking;
+  var NA = '—';
+  var rows = [
+    ['رقم الحجز', d.booking_number||NA],
+    ['العنوان', d.title||NA],
+    ['الحالة', IS_AR ? d.status_ar : d.status_en],
+    ['القاعة', d.venue_name||NA],
+    ['الموقع', d.location_name||NA],
+    ['البداية', d.start_time||NA],
+    ['الانتهاء', d.end_time||NA]
+  ];
+  if (d.expected_attendees) rows.push(['الحضور المتوقع', d.expected_attendees]);
+  if (d.notes) rows.push(['ملاحظات', d.notes]);
 
-  const tableRows = rows.map(([label,val])=>`
-    <tr>
-      <td style="padding:8px 12px;font-weight:700;color:#0C67EC;border:1px solid #e2e8f0;white-space:nowrap;background:#f8faff;font-family:Tahoma,sans-serif">${label}</td>
-      <td style="padding:8px 12px;border:1px solid #e2e8f0;font-family:Tahoma,sans-serif">${val}</td>
-    </tr>`).join('');
+  var tRows = rows.map(function(r){
+    return '<tr><td style="padding:8px 12px;font-weight:700;color:#0C67EC;border:1px solid #e2e8f0;background:#f8faff;white-space:nowrap">' + r[0] + '</td>' +
+           '<td style="padding:8px 12px;border:1px solid #e2e8f0">' + r[1] + '</td></tr>';
+  }).join('');
 
-  const printDiv = document.createElement('div');
-  printDiv.style.cssText='position:fixed;top:-9999px;left:-9999px;width:794px;padding:40px;background:white;direction:rtl;font-family:Tahoma,sans-serif;font-size:13px';
-  printDiv.innerHTML=`
-    <div style="display:flex;align-items:center;gap:14px;padding-bottom:14px;border-bottom:3px solid #0C67EC;margin-bottom:20px">
-      <img src="https://i.postimg.cc/S2W2hXZ6/acs.png" style="height:60px;object-fit:contain" crossorigin="anonymous">
-      <div>
-        <div style="font-size:18px;font-weight:900;color:#0C67EC">الجمعية الثقافية العربية</div>
-        <div style="font-size:12px;color:#64748b">Arab Cultural Society</div>
-        <div style="font-size:11px;color:#94a3b8;margin-top:2px">تاريخ الطباعة: ${new Date().toLocaleDateString('ar-SA',{year:'numeric',month:'long',day:'numeric'})}</div>
-      </div>
-    </div>
-    <h3 style="color:#0C67EC;margin:0 0 14px;font-size:15px;font-weight:800">تفاصيل الحجز</h3>
-    <table style="width:100%;border-collapse:collapse;font-size:13px">${tableRows}</table>
-    <div style="margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;text-align:center">
-      الجمعية الثقافية العربية — نظام إدارة الحجوزات
-    </div>`;
-  document.body.appendChild(printDiv);
+  var pDiv = document.createElement('div');
+  pDiv.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:760px;padding:40px;background:#fff;direction:rtl;font-family:Tahoma,sans-serif;font-size:13px;color:#1e293b';
+  pDiv.innerHTML =
+    '<div style="display:flex;align-items:center;gap:14px;padding-bottom:14px;border-bottom:3px solid #0C67EC;margin-bottom:20px">' +
+    '<img src="https://i.postimg.cc/S2W2hXZ6/acs.png" style="height:56px;object-fit:contain" crossorigin="anonymous">' +
+    '<div><div style="font-size:17px;font-weight:900;color:#0C67EC">الجمعية الثقافية العربية</div>' +
+    '<div style="font-size:12px;color:#64748b">Arab Cultural Society</div>' +
+    '<div style="font-size:11px;color:#94a3b8;margin-top:2px">تاريخ الطباعة: ' + new Date().toLocaleDateString('ar-SA',{year:'numeric',month:'long',day:'numeric'}) + '</div></div></div>' +
+    '<h3 style="color:#0C67EC;margin:0 0 14px;font-size:15px;font-weight:800">تفاصيل الحجز</h3>' +
+    '<table style="width:100%;border-collapse:collapse;font-size:13px">' + tRows + '</table>' +
+    '<div style="margin-top:24px;padding-top:10px;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;text-align:center">الجمعية الثقافية العربية — نظام إدارة الحجوزات</div>';
+  document.body.appendChild(pDiv);
 
-  const filename = (d.booking_number || 'booking') + '.pdf';
-
+  var filename = (d.booking_number || 'booking') + '.pdf';
   Promise.all([
     loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'),
     loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js')
-  ]).then(()=>{
-    return html2canvas(printDiv, {scale:2, useCORS:true, backgroundColor:'#ffffff'});
-  }).then(canvas=>{
-    document.body.removeChild(printDiv);
-    const {jsPDF} = window.jspdf;
-    const pdf = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
-    const imgW = 210;
-    const imgH = canvas.height * imgW / canvas.width;
-    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, imgW, imgH);
+  ]).then(function(){
+    return html2canvas(pDiv, {scale:2, useCORS:true, backgroundColor:'#ffffff'});
+  }).then(function(canvas){
+    if (document.body.contains(pDiv)) document.body.removeChild(pDiv);
+    var pdf = new window.jspdf.jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+    var imgH = canvas.height * 210 / canvas.width;
+    pdf.addImage(canvas.toDataURL('image/png'),'PNG',0,0,210,imgH);
     pdf.save(filename);
-  }).catch(err=>{
-    if(document.body.contains(printDiv)) document.body.removeChild(printDiv);
+  }).catch(function(err){
+    if (document.body.contains(pDiv)) document.body.removeChild(pDiv);
     console.error(err);
-    alert(IS_AR?'تعذر إنشاء PDF':'Could not generate PDF');
   });
 }
-
-function renderModal(d){
-  const NA='—';
-  document.getElementById('modalBody').innerHTML=`
-    <div class="info-section">
-      <div class="info-section-title"><i class="bi bi-calendar-check me-1"></i>${IS_AR?'معلومات الحجز':'Booking Info'}</div>
-      <div class="info-row"><span class="info-label"><i class="bi bi-hash"></i>${IS_AR?'رقم الحجز':'Booking No.'}</span><span class="info-value" style="color:#0C67EC;font-weight:800">${d.booking_number||NA}</span></div>
-      <div class="info-row"><span class="info-label"><i class="bi bi-card-text"></i>${IS_AR?'العنوان':'Title'}</span><span class="info-value">${d.title||NA}</span></div>
-      <div class="info-row"><span class="info-label"><i class="bi bi-tag"></i>${IS_AR?'الحالة':'Status'}</span><span class="status-pill">${IS_AR?d.status_ar:d.status_en}</span></div>
-      <div class="info-row"><span class="info-label"><i class="bi bi-calendar3"></i>${IS_AR?'البداية':'Start'}</span><span class="info-value">${d.start_time||NA}</span></div>
-      <div class="info-row"><span class="info-label"><i class="bi bi-calendar3-range"></i>${IS_AR?'الانتهاء':'End'}</span><span class="info-value">${d.end_time||NA}</span></div>
-      ${d.purpose?`<div class="info-row"><span class="info-label"><i class="bi bi-info-circle"></i>${IS_AR?'الغرض':'Purpose'}</span><span class="info-value">${d.purpose}</span></div>`:''}
-      ${d.expected_attendees?`<div class="info-row"><span class="info-label"><i class="bi bi-people"></i>${IS_AR?'الحضور':'Attendees'}</span><span class="info-value">${d.expected_attendees}</span></div>`:''}
-    </div>
-    <div class="info-section">
-      <div class="info-section-title"><i class="bi bi-building me-1"></i>${IS_AR?'معلومات القاعة':'Venue Info'}</div>
-      <div class="info-row"><span class="info-label"><i class="bi bi-building"></i>${IS_AR?'اسم القاعة':'Venue'}</span><span class="info-value">${d.venue_name||NA}</span></div>
-      ${d.venue_code?`<div class="info-row"><span class="info-label"><i class="bi bi-upc"></i>${IS_AR?'الرمز':'Code'}</span><span class="info-value">${d.venue_code}</span></div>`:''}
-      ${d.venue_capacity?`<div class="info-row"><span class="info-label"><i class="bi bi-people-fill"></i>${IS_AR?'السعة':'Capacity'}</span><span class="info-value">${d.venue_capacity}</span></div>`:''}
-      ${d.location_name?`<div class="info-row"><span class="info-label"><i class="bi bi-geo-alt"></i>${IS_AR?'الموقع':'Location'}</span><span class="info-value">${d.location_name}</span></div>`:''}
-    </div>`;
-}
-
-function closeModal(e){if(e.target===document.getElementById('bookingModal'))closeModalDirect();}
-function closeModalDirect(){document.getElementById('bookingModal').classList.remove('show');}
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModalDirect();});
 </script>
 </body>
 </html>
