@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>{{ 'الجمعية الثقافية العربية' if ar else 'Arab Cultural Society' }}</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.0/font/bootstrap-icons.min.css">
-<link rel="stylesheet" href="/static/fullcalendar.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#f0f4f8;font-family:Tahoma,'Segoe UI',sans-serif;min-height:100vh;min-height:-webkit-fill-available;overflow-x:hidden}
@@ -131,7 +131,7 @@ html{min-height:-webkit-fill-available}
 // تحميل FullCalendar مبكراً
 (function(){
   var s = document.createElement('script');
-  s.src = '/static/js/fullcalendar.min.js';
+  s.src = 'https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js';
   s.onload = function(){ initCalendar(); };
   s.onerror = function(){
     document.getElementById('calLoading').innerHTML =
