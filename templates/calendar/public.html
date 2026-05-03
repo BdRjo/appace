@@ -8,8 +8,6 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.0/font/bootstrap-icons.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.8/index.global.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 :root{--bc:#0C67EC}
 body{background:#f0f4f8;font-family:'Segoe UI',Tahoma,sans-serif;margin:0}
@@ -170,6 +168,15 @@ function openModal(id){
     .catch(()=>{document.getElementById('modalBody').innerHTML=`<div class="alert alert-danger">${IS_AR?'تعذر تحميل البيانات':'Failed to load'}</div>`;});
 }
 
+function loadScript(src){
+  return new Promise((resolve,reject)=>{
+    if(document.querySelector(`script[src="${src}"]`)){resolve();return;}
+    const s=document.createElement('script');
+    s.src=src; s.onload=resolve; s.onerror=reject;
+    document.head.appendChild(s);
+  });
+}
+
 function printBooking(){
   if(!lastBookingData) return;
   const d = lastBookingData;
@@ -192,7 +199,6 @@ function printBooking(){
       <td style="padding:8px 12px;border:1px solid #e2e8f0;font-family:Tahoma,sans-serif">${val}</td>
     </tr>`).join('');
 
-  // بناء HTML مؤقت للطباعة
   const printDiv = document.createElement('div');
   printDiv.style.cssText='position:fixed;top:-9999px;left:-9999px;width:794px;padding:40px;background:white;direction:rtl;font-family:Tahoma,sans-serif;font-size:13px';
   printDiv.innerHTML=`
@@ -209,21 +215,25 @@ function printBooking(){
     <div style="margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;text-align:center">
       الجمعية الثقافية العربية — نظام إدارة الحجوزات
     </div>`;
-
   document.body.appendChild(printDiv);
 
   const filename = (d.booking_number || 'booking') + '.pdf';
 
-  html2canvas(printDiv, {scale:2, useCORS:true, backgroundColor:'#ffffff'}).then(canvas=>{
+  Promise.all([
+    loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'),
+    loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js')
+  ]).then(()=>{
+    return html2canvas(printDiv, {scale:2, useCORS:true, backgroundColor:'#ffffff'});
+  }).then(canvas=>{
     document.body.removeChild(printDiv);
     const {jsPDF} = window.jspdf;
     const pdf = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
-    const imgW = 210; // A4 width mm
+    const imgW = 210;
     const imgH = canvas.height * imgW / canvas.width;
     pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, imgW, imgH);
     pdf.save(filename);
   }).catch(err=>{
-    document.body.removeChild(printDiv);
+    if(document.body.contains(printDiv)) document.body.removeChild(printDiv);
     console.error(err);
     alert(IS_AR?'تعذر إنشاء PDF':'Could not generate PDF');
   });
