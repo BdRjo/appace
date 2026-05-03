@@ -44,23 +44,54 @@ body{background:#f0f4f8;font-family:'Segoe UI',Tahoma,sans-serif;margin:0}
 .status-pill{padding:4px 12px;border-radius:20px;font-size:.75rem;font-weight:700;background:#d1fae5;color:#065f46}
 .close-modal-btn{background:rgba(255,255,255,.2);border:none;color:white;border-radius:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1.1rem}
 .close-modal-btn:hover{background:rgba(255,255,255,.3)}
+@media print{
+  .pub-nav,.pub-modal-overlay,.lang-btn,.venue-badge{display:none!important}
+  .print-header{display:block!important}
+  body{background:white}
+  .cal-card{box-shadow:none;border:1px solid #ddd}
+  .fc-button-group,.fc-today-button{display:none!important}
+}
 @media(max-width:575px){.pub-nav-brand span{display:none}.pub-nav-center{display:none!important}.cal-card{padding:10px}.fc-toolbar-title{font-size:.85rem!important}}
 </style>
 </head>
 <body>
 <nav class="pub-nav">
   <div class="pub-nav-brand">
+    {% if mc.get('logo_b64') %}
+    <img src="{{ mc.logo_b64 }}" style="height:32px;border-radius:6px;object-fit:contain" alt="logo">
+    {% else %}
     <i class="bi bi-calendar3"></i>
-    <span>{{ 'الروزنامة العامة' if ar else 'Public Calendar' }}</span>
+    {% endif %}
+    <span>{{ mc.get('report_header_title') or ('الروزنامة العامة' if ar else 'Public Calendar') }}</span>
   </div>
   <div class="pub-nav-center">
     <i class="bi bi-clock" style="font-size:.7rem"></i>
     <span id="pubClock"></span>
   </div>
   <div class="pub-nav-actions">
-    <a href="/set-lang/{{ 'en' if ar else 'ar' }}?next=/calendar/public" class="lang-btn">{{ 'EN' if ar else 'ع' }}</a>
+    <button class="lang-btn" onclick="window.print()" title="{{ 'طباعة' if ar else 'Print' }}"><i class="bi bi-printer"></i></button>
+    <a href="/public-calendar/book" class="lang-btn" style="background:rgba(255,255,255,.25);font-weight:700">
+      <i class="bi bi-calendar-plus me-1"></i>{{ 'احجز الآن' if ar else 'Book Now' }}
+    </a>
+    <a href="/set-lang/{{ 'en' if ar else 'ar' }}?next=/public-calendar" class="lang-btn">{{ 'EN' if ar else 'ع' }}</a>
   </div>
 </nav>
+
+<!-- Print Header (hidden on screen) -->
+<div class="print-header" style="display:none">
+  <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:2px solid #0C67EC;margin-bottom:12px">
+    {% if mc.get('logo_b64') %}
+    <img src="{{ mc.logo_b64 }}" style="height:52px;object-fit:contain" alt="logo">
+    {% endif %}
+    <div>
+      <div style="font-size:1.1rem;font-weight:800;color:#0C67EC">{{ mc.get('report_header_title') or ('الروزنامة العامة' if ar else 'Public Calendar') }}</div>
+      {% if mc.get('report_header_subtitle') %}
+      <div style="font-size:.8rem;color:#64748b">{{ mc.report_header_subtitle }}</div>
+      {% endif %}
+      <div style="font-size:.75rem;color:#94a3b8">{{ 'تاريخ الطباعة:' if ar else 'Printed:' }} <span id="printDate"></span></div>
+    </div>
+  </div>
+</div>
 
 <div class="container-fluid py-3 px-3 px-md-4" style="max-width:1100px;margin:auto">
   {% if venues %}
@@ -99,6 +130,7 @@ function updateClock(){
   document.getElementById('pubClock').textContent = date + ' — ' + time;
 }
 updateClock(); setInterval(updateClock,1000);
+document.getElementById('printDate').textContent = new Date().toLocaleDateString(IS_AR?'ar-SA':'en-US',{year:'numeric',month:'long',day:'numeric'});
 
 document.addEventListener('DOMContentLoaded',function(){
   cal = new FullCalendar.Calendar(document.getElementById('calendar'),{
@@ -117,7 +149,7 @@ document.addEventListener('DOMContentLoaded',function(){
 });
 
 function fetchEvents(info,successCb,failureCb){
-  fetch(`/calendar/public/events?start=${info.startStr}&end=${info.endStr}&venue_id=${currentVenue}`)
+  fetch(`/public-calendar/events?start=${info.startStr}&end=${info.endStr}&venue_id=${currentVenue}`)
     .then(r=>r.json()).then(successCb).catch(failureCb);
 }
 
@@ -131,7 +163,7 @@ function filterVenue(vid){
 function openModal(id){
   document.getElementById('bookingModal').classList.add('show');
   document.getElementById('modalBody').innerHTML='<div class="text-center py-4"><div class="spinner-border text-primary" style="width:2rem;height:2rem"></div></div>';
-  fetch(`/calendar/public/booking/${id}`)
+  fetch(`/public-calendar/booking/${id}`)
     .then(r=>r.json()).then(renderModal)
     .catch(()=>{document.getElementById('modalBody').innerHTML=`<div class="alert alert-danger">${IS_AR?'تعذر تحميل البيانات':'Failed to load'}</div>`;});
 }
