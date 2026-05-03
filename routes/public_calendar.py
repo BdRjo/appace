@@ -29,7 +29,7 @@ def _get_mc():
         return {}
 
 
-@public_cal_bp.route('/')
+@public_cal_bp.route('/', strict_slashes=False)
 def index():
     db     = get_db()
     venues = db.query(Venue).filter_by(is_active=True).order_by(Venue.name).all()
