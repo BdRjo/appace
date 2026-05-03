@@ -8,6 +8,8 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.0/font/bootstrap-icons.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.8/index.global.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 :root{--bc:#0C67EC}
 body{background:#f0f4f8;font-family:'Segoe UI',Tahoma,sans-serif;margin:0}
@@ -179,18 +181,48 @@ function printBooking(){
     d.expected_attendees?['👥 الحضور المتوقع', d.expected_attendees]:null,
     d.notes?['📝 ملاحظات', d.notes]:null,
   ].filter(Boolean);
+
   const tableRows = rows.map(([label,val])=>`
     <tr>
-      <td style="padding:8px 12px;font-weight:700;color:#0C67EC;border:1px solid #e2e8f0;white-space:nowrap;background:#f8faff">${label}</td>
-      <td style="padding:8px 12px;border:1px solid #e2e8f0">${val}</td>
+      <td style="padding:8px 12px;font-weight:700;color:#0C67EC;border:1px solid #e2e8f0;white-space:nowrap;background:#f8faff;font-family:Tahoma,sans-serif">${label}</td>
+      <td style="padding:8px 12px;border:1px solid #e2e8f0;font-family:Tahoma,sans-serif">${val}</td>
     </tr>`).join('');
-  document.getElementById('printBookingContent').innerHTML=`
-    <h3 style="color:#0C67EC;margin:0 0 14px;font-size:1rem;font-weight:800">تفاصيل الحجز</h3>
-    <table style="width:100%;border-collapse:collapse;font-size:.9rem">${tableRows}</table>
-    <div style="margin-top:20px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:.75rem;color:#94a3b8;text-align:center">
+
+  // بناء HTML مؤقت للطباعة
+  const printDiv = document.createElement('div');
+  printDiv.style.cssText='position:fixed;top:-9999px;left:-9999px;width:794px;padding:40px;background:white;direction:rtl;font-family:Tahoma,sans-serif;font-size:13px';
+  printDiv.innerHTML=`
+    <div style="display:flex;align-items:center;gap:14px;padding-bottom:14px;border-bottom:3px solid #0C67EC;margin-bottom:20px">
+      <img src="https://i.postimg.cc/S2W2hXZ6/acs.png" style="height:60px;object-fit:contain" crossorigin="anonymous">
+      <div>
+        <div style="font-size:18px;font-weight:900;color:#0C67EC">الجمعية الثقافية العربية</div>
+        <div style="font-size:12px;color:#64748b">Arab Cultural Society</div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:2px">تاريخ الطباعة: ${new Date().toLocaleDateString('ar-SA',{year:'numeric',month:'long',day:'numeric'})}</div>
+      </div>
+    </div>
+    <h3 style="color:#0C67EC;margin:0 0 14px;font-size:15px;font-weight:800">تفاصيل الحجز</h3>
+    <table style="width:100%;border-collapse:collapse;font-size:13px">${tableRows}</table>
+    <div style="margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;text-align:center">
       الجمعية الثقافية العربية — نظام إدارة الحجوزات
     </div>`;
-  window.print();
+
+  document.body.appendChild(printDiv);
+
+  const filename = (d.booking_number || 'booking') + '.pdf';
+
+  html2canvas(printDiv, {scale:2, useCORS:true, backgroundColor:'#ffffff'}).then(canvas=>{
+    document.body.removeChild(printDiv);
+    const {jsPDF} = window.jspdf;
+    const pdf = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
+    const imgW = 210; // A4 width mm
+    const imgH = canvas.height * imgW / canvas.width;
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, imgW, imgH);
+    pdf.save(filename);
+  }).catch(err=>{
+    document.body.removeChild(printDiv);
+    console.error(err);
+    alert(IS_AR?'تعذر إنشاء PDF':'Could not generate PDF');
+  });
 }
 
 function renderModal(d){
