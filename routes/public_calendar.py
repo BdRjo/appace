@@ -34,7 +34,7 @@ def index():
     db     = get_db()
     venues = db.query(Venue).filter_by(is_active=True).order_by(Venue.name).all()
     mc     = _get_mc()
-    return render_template('calendar/public_cal.html', venues=venues, mc=mc)
+    return render_template('calendar/public.html', venues=venues, mc=mc)
 
 
 @public_cal_bp.route('/book', methods=['GET', 'POST'])
