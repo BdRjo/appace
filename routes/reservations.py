@@ -210,15 +210,37 @@ def new():
                 except: pass
         db.commit()
 
-        # Save selected contacts
+        # Save selected contacts & send them invitation emails
         contact_ids = request.form.getlist('contact_ids')
         if contact_ids:
-            from models.database import BookingContact
+            from models.database import BookingContact, Contact as _BkCt
+            from utils.email_helper import send_invitation
+            personal_msg = request.form.get('personal_message', '').strip()
             for cid in contact_ids:
                 if cid.isdigit():
                     bc = BookingContact(booking_id=res.id, contact_id=int(cid))
                     db.add(bc)
+                    # إرسال دعوة لكل جهة اتصال محددة
+                    try:
+                        ct = db.query(_BkCt).get(int(cid))
+                        if ct and ct.email:
+                            send_invitation(ct, res, personal_msg)
+                    except Exception as _e:
+                        print(f'Contact invite error: {_e}')
             db.commit()
+
+        # Send notification to selected users (notify_user_ids)
+        notify_user_ids = request.form.getlist('notify_user_ids')
+        if notify_user_ids:
+            from utils.email_helper import send_employee_reservation_notice
+            for uid in notify_user_ids:
+                if uid.isdigit():
+                    try:
+                        nu = db.query(User).get(int(uid))
+                        if nu and nu.email:
+                            send_employee_reservation_notice(nu, res, current_user)
+                    except Exception as _e:
+                        print(f'User notify error: {_e}')
 
         # إرسال بريد إشعار — مثل NewReservationWindow.save
         try:
