@@ -55,8 +55,9 @@ body{background:#f0f4f8;font-family:Tahoma,'Segoe UI',sans-serif;min-height:100v
 .booking-meta span{display:flex;align-items:center;gap:3px}
 .booking-arrow{color:#c7d5e8;font-size:1rem;flex-shrink:0}
 .pill{padding:2px 9px;border-radius:20px;font-size:.68rem;font-weight:700}
-.pill-approved{background:#dcfce7;color:#15803d}
-.pill-pending{background:#fef9c3;color:#a16207}
+.multi-card{border-right:3px solid #7c3aed;background:linear-gradient(to left,#faf5ff,#fff)}
+.multi-badge{background:#ede9fe;color:#7c3aed;padding:2px 8px;border-radius:20px;font-size:.68rem;font-weight:700;display:inline-flex;align-items:center;gap:3px}
+.multi-header{color:#7c3aed!important;border-color:#ede9fe!important}
 .empty-state{text-align:center;padding:50px 20px;color:#94a3b8}
 .empty-state i{font-size:2.5rem;opacity:.4;display:block;margin-bottom:10px}
 .empty-state p{font-size:.88rem}
@@ -207,23 +208,79 @@ function loadEvents() {
     });
 }
 
+function daysBetween(s, e) {
+  var d1 = new Date(s.substring(0,10));
+  var d2 = new Date(e.substring(0,10));
+  return Math.round((d2-d1)/(1000*60*60*24))+1;
+}
+
+function formatDate(dateStr) {
+  var p = dateStr.substring(0,10).split('-');
+  return IS_AR
+    ? (parseInt(p[2]) + ' ' + MONTHS[parseInt(p[1])-1])
+    : (MONTHS[parseInt(p[1])-1] + ' ' + parseInt(p[2]));
+}
+
+function buildCard(e, isMulti) {
+  var dot = e.status==='pending' ? '#F59E0B' : '#0C67EC';
+  var pillCls = e.status==='pending' ? 'pill-pending' : 'pill-approved';
+  var pillLbl = IS_AR ? (e.status==='pending'?'معلق':'معتمد') : (e.status==='pending'?'Pending':'Approved');
+  var meta = '';
+  if (isMulti) {
+    var days = daysBetween(e.start, e.end);
+    var range = IS_AR
+      ? (formatDate(e.start) + ' ← ' + formatDate(e.end) + ' (' + days + ' أيام)')
+      : (formatDate(e.start) + ' → ' + formatDate(e.end) + ' (' + days + ' days)');
+    meta += '<span style="color:#0C67EC;font-weight:600"><i class="bi bi-calendar-range"></i> ' + range + '</span>';
+    if (e.venue_name) meta += '<span><i class="bi bi-building"></i>'+e.venue_name+'</span>';
+    meta += '<span class="pill '+pillCls+'">'+pillLbl+'</span>';
+    meta += '<span class="multi-badge"><i class="bi bi-layers"></i>'+(IS_AR?'حجز ممتد':'Extended')+'</span>';
+  } else {
+    var st = e.start && e.start.length>10 ? e.start.substring(11,16) : '';
+    var et = e.end && e.end.length>10 ? e.end.substring(11,16) : '';
+    if (st) meta += '<span><i class="bi bi-clock"></i>'+st+(et?' — '+et:'')+'</span>';
+    if (e.venue_name) meta += '<span><i class="bi bi-building"></i>'+e.venue_name+'</span>';
+    meta += '<span class="pill '+pillCls+'">'+pillLbl+'</span>';
+  }
+  return '<div class="booking-card'+(isMulti?' multi-card':'')+'" onclick="openModal(\''+e.id+'\')">'+
+    '<div class="booking-dot" style="background:'+dot+'"></div>'+
+    '<div class="booking-info">'+
+      '<div class="booking-title">'+(e.title||'—')+'</div>'+
+      '<div class="booking-meta">'+meta+'</div>'+
+    '</div>'+
+    '<i class="bi bi-chevron-'+(IS_AR?'left':'right')+' booking-arrow"></i>'+
+  '</div>';
+}
+
 function renderList() {
   if (!allEvents.length) {
     document.getElementById('listWrap').innerHTML = '<div class="empty-state"><i class="bi bi-calendar-x"></i><p>'+(IS_AR?'لا توجد حجوزات هذا الشهر':'No bookings this month')+'</p></div>';
     return;
   }
 
-  // Group by date
-  var groups = {};
+  var multiDay = [];
+  var byDate = {};
   var order = [];
+
   allEvents.forEach(function(e) {
-    var dateKey = (e.start||'').substring(0,10);
-    if (!groups[dateKey]) { groups[dateKey]=[]; order.push(dateKey); }
-    groups[dateKey].push(e);
+    var startDate = (e.start||'').substring(0,10);
+    var endDate = (e.end||'').substring(0,10);
+    if (endDate && endDate !== startDate) {
+      multiDay.push(e);
+    } else {
+      if (!byDate[startDate]) { byDate[startDate]=[]; order.push(startDate); }
+      byDate[startDate].push(e);
+    }
   });
   order.sort();
 
   var html = '';
+
+  if (multiDay.length) {
+    html += '<div class="section-date" style="color:#7c3aed;border-color:#ede9fe"><i class="bi bi-calendar-range" style="margin-left:5px;margin-right:5px"></i>'+(IS_AR?'حجوزات ممتدة':'Extended Bookings')+'</div>';
+    multiDay.forEach(function(e){ html += buildCard(e, true); });
+  }
+
   order.forEach(function(dateKey) {
     var parts = dateKey.split('-');
     var d = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
@@ -231,30 +288,10 @@ function renderList() {
     var dateLabel = IS_AR
       ? (parseInt(parts[2]) + ' ' + MONTHS[parseInt(parts[1])-1])
       : (MONTHS[parseInt(parts[1])-1] + ' ' + parseInt(parts[2]));
-    html += '<div class="section-date"><i class="bi bi-calendar3" style="margin-left:5px;margin-right:5px"></i>' + dayName + ' — ' + dateLabel + '</div>';
-    groups[dateKey].forEach(function(e) {
-      var dot = e.status==='pending' ? '#F59E0B' : '#0C67EC';
-      var pillCls = e.status==='pending' ? 'pill-pending' : 'pill-approved';
-      var pillLbl = IS_AR ? (e.status==='pending'?'معلق':'معتمد') : (e.status==='pending'?'Pending':'Approved');
-      var timeStr = '';
-      if (e.start && e.start.length > 10) {
-        timeStr = e.start.substring(11,16);
-        if (e.end && e.end.length > 10) timeStr += ' — ' + e.end.substring(11,16);
-      }
-      html += '<div class="booking-card" onclick="openModal(\''+e.id+'\')">'+
-        '<div class="booking-dot" style="background:'+dot+'"></div>'+
-        '<div class="booking-info">'+
-          '<div class="booking-title">'+(e.title||'—')+'</div>'+
-          '<div class="booking-meta">'+
-            (timeStr?'<span><i class="bi bi-clock"></i>'+timeStr+'</span>':'')+
-            (e.venue_name?'<span><i class="bi bi-building"></i>'+e.venue_name+'</span>':'')+
-            '<span class="pill '+pillCls+'">'+pillLbl+'</span>'+
-          '</div>'+
-        '</div>'+
-        '<i class="bi bi-chevron-'+(IS_AR?'left':'right')+' booking-arrow"></i>'+
-      '</div>';
-    });
+    html += '<div class="section-date"><i class="bi bi-calendar3" style="margin-left:5px;margin-right:5px"></i>'+dayName+' — '+dateLabel+'</div>';
+    byDate[dateKey].forEach(function(e){ html += buildCard(e, false); });
   });
+
   document.getElementById('listWrap').innerHTML = html;
 }
 
