@@ -148,6 +148,7 @@
 
         <div class="sas-code-form" id="form-supervisor">
           <form action="{{ url_for('sas.login') }}" method="POST" onclick="event.stopPropagation()">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="role" value="supervisor">
             <input type="text"
                    class="sas-code-input"
@@ -175,6 +176,7 @@
 
         <div class="sas-code-form" id="form-secretary">
           <form action="{{ url_for('sas.login') }}" method="POST" onclick="event.stopPropagation()">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="role" value="secretary">
             <input type="text"
                    class="sas-code-input"
@@ -202,6 +204,7 @@
 
         <div class="sas-code-form" id="form-manager">
           <form action="{{ url_for('sas.login') }}" method="POST" onclick="event.stopPropagation()">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="role" value="manager">
             <input type="text"
                    class="sas-code-input"
