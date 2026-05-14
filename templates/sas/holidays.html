@@ -122,7 +122,6 @@
   <div class="collapse" id="addHolidayForm">
     <div class="sas-add-holiday-body">
       <form method="POST" action="{{ url_for('sas.holiday_add', code=staff.staff_code) }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <!-- no CSRF -->
         <div class="row g-3">
           <!-- Title AR -->

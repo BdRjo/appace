@@ -382,6 +382,7 @@ function sasTickerLogoFallback(img){
   var t = '{{ csrf_token() }}';
   document.addEventListener('submit',function(e){
     var f=e.target;
+    if(!f.querySelector('[name=csrf_token]')){
       var i=document.createElement('input');
       i.type='hidden';i.name='csrf_token';i.value=t;
       f.appendChild(i);
