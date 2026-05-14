@@ -216,7 +216,7 @@ def welcome():
 
 
 # 2. Staff login via code
-@sas_bp.route('/login', methods=['POST'])
+@sas_bp.route('/login', methods=['GET','POST'])
 def login():
     staff_code = (request.form.get('code') or request.form.get('staff_code') or '').strip()
     if not staff_code:
