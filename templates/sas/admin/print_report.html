@@ -169,7 +169,7 @@
           {% if r.class_name %} / {{ r.class_name }}{% endif %}
           {% if r.section_name %} / {{ r.section_name }}{% endif %}
         </td>
-        <td style="font-size:.82rem;direction:ltr">{{ r.record_date if r.record_date is string else r.record_date.strftime('%Y-%m-%d') if r.record_date else '-' }}</td>
+        <td style="font-size:.82rem;direction:ltr">{{ r.record_date if r.record_date is string else r.record_date| fmt_date if r.record_date else '-' }}</td>
         <td>
           {% if r.record_type == 'absent' %}<span class="type-absent">{{ 'غياب' if ar else 'Absent' }}</span>
           {% elif r.record_type == 'late' %}<span class="type-late">{{ 'تأخر' if ar else 'Late' }}</span>

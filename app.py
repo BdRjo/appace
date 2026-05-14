@@ -26,7 +26,8 @@ def create_app():
     from flask_wtf.csrf import CSRFProtect
     csrf = CSRFProtect(app)
     # Exempt mobile API from CSRF (uses JWT instead)
-    from routes.mobile_api import mobile_api_bp as _mapi
+    from routes.mobile_api import mobile_api_bp
+    from routes.download_data import dl_bp as _mapi
     csrf.exempt(_mapi)
     # ── Rate Limiter ──────────────────────────────────────────────────────────
     from utils.limiter import limiter
@@ -118,17 +119,23 @@ def create_app():
     from routes.interviews    import interviews_bp
     from routes.sas           import sas_bp
     from routes.mobile_api import mobile_api_bp
+    from routes.download_data import dl_bp
 
     for bp in [auth_bp, reservations_bp, venues_bp, admin_bp, api_bp,
                locations_bp, venues_mgmt_bp, users_bp, reports_bp,
                contacts_bp, checklists_bp, blocked_bp, ratings_bp,
                calendar_bp, settings_bp, cp_bp, bo_bp, groups_bp,
                public_cal_bp,
-               announcements_bp, interviews_bp, sas_bp, mobile_api_bp]:
+               announcements_bp, interviews_bp, sas_bp, mobile_api_bp, dl_bp]:
         app.register_blueprint(bp)        
 
     # Jinja filters
     from utils.helpers import status_label, status_class
+    def fmt_date(val, fmt='%Y-%m-%d'):
+        if val is None: return ''
+        if isinstance(val, str): return val[:10]
+        return val.strftime(fmt)
+    app.jinja_env.filters['fmt_date'] = fmt_date
     app.jinja_env.filters['status_label'] = status_label
     app.jinja_env.filters['status_class'] = status_class
 

@@ -226,9 +226,9 @@
           {% endif %}
           <div class="date-range">
             <i class="bi bi-calendar3"></i>
-            <span>{{ holiday.start_date.strftime('%Y-%m-%d') if holiday.start_date is not string else holiday.start_date }}</span>
+            <span>{{ holiday.start_date| fmt_date if holiday.start_date is not string else holiday.start_date }}</span>
             <i class="bi bi-arrow-{{ 'left' if ar else 'right' }}"></i>
-            <span>{{ holiday.end_date.strftime('%Y-%m-%d') if holiday.end_date is not string else holiday.end_date }}</span>
+            <span>{{ holiday.end_date| fmt_date if holiday.end_date is not string else holiday.end_date }}</span>
           </div>
           <div class="mt-2 d-flex align-items-center gap-2 flex-wrap">
             <!-- Scope badge -->
