@@ -8,7 +8,7 @@ try:
 except ImportError:
     def _h(pw): return hashlib.sha256(pw.encode()).hexdigest()
 from datetime import datetime
-from sqlalchemy import (create_engine, Column, Integer, String, DateTime,
+from sqlalchemy import (create_engine, Column, Integer, String, DateTime, Date,
                         Boolean, ForeignKey, Text, Table, text, UniqueConstraint)
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -1190,8 +1190,8 @@ class SASHoliday(Base):
     config_id   = Column(Integer, ForeignKey('sas_configs.id'), nullable=False)
     title       = Column(String(200), nullable=False)
     title_en    = Column(String(200))
-    start_date  = Column(String(20), nullable=False)
-    end_date    = Column(String(20), nullable=False)
+    start_date  = Column(Date, nullable=False)
+    end_date    = Column(Date, nullable=False)
     applies_to  = Column(Text)          # JSON — legacy compat
     scope_type  = Column(String(20), default='school')  # school / stages / classes / sections
     scope_ids   = Column(Text)          # JSON list of selected IDs (empty = whole school)
