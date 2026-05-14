@@ -713,6 +713,14 @@ def holiday_add(code):
     else:
         applies_to = json.dumps('all')
 
+    from datetime import date as _date
+    try:
+        start_date = _date.fromisoformat(start_date)
+        end_date = _date.fromisoformat(end_date)
+    except ValueError:
+        flash(_t('تنسيق التاريخ غير صحيح', 'Invalid date format'), 'danger')
+        return redirect(url_for('sas.holidays', code=code))
+
     holiday = SASHoliday(
         config_id=cfg.id,
         title=title,
