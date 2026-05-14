@@ -377,4 +377,16 @@ function sasTickerLogoFallback(img){
 }catch(e){console.warn('SAS ticker error:',e)}})();
 </script>
 {% endif %}
+<script>
+(function(){
+  var t = '{{ csrf_token() }}';
+  document.addEventListener('submit',function(e){
+    var f=e.target;
+      var i=document.createElement('input');
+      i.type='hidden';i.name='csrf_token';i.value=t;
+      f.appendChild(i);
+    }
+  },true);
+})();
+</script>
 </body></html>
