@@ -415,6 +415,10 @@ def student_detail(code, student_id):
         .all()
     )
 
+    section = student.section
+    sas_class = section.sas_class if section else None
+    stage = sas_class.stage if sas_class else None
+
     return render_template(
         'sas/student_detail.html',
         config=cfg,
@@ -423,6 +427,9 @@ def student_detail(code, student_id):
         records=records,
         class_leaves=class_leaves,
         leave_types=CLASS_LEAVE_TYPES,
+        section=section,
+        sas_class=sas_class,
+        stage=stage,
     )
 
 
