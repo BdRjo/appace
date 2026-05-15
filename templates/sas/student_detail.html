@@ -155,6 +155,22 @@
   </div>
 </div>
 
+<!-- Email Actions Bar -->
+{% if student.guardian_email %}
+<div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+  <button class="btn btn-sm"
+          style="background:#ecfdf5;color:#059669;border:1px solid #6ee7b7;border-radius:8px;font-size:.82rem;font-weight:600;padding:6px 14px"
+          onclick="sendEmail('single', getSelectedRecordIds() || [])"
+          title="{% if ar %}إرسال إيميل لولي الأمر{% else %}Send email to guardian{% endif %}">
+    <i class="bi bi-envelope me-1"></i>
+    {% if ar %}إرسال إيميل لولي الأمر{% else %}Send Email to Guardian{% endif %}
+  </button>
+  <span style="font-size:.78rem;color:#9ca3af">
+    {% if ar %}{{ student.guardian_email }}{% else %}{{ student.guardian_email }}{% endif %}
+  </span>
+</div>
+{% endif %}
+
 <!-- Add Record Form -->
 <div class="sas-add-record-card">
   <h5><i class="bi bi-plus-circle me-2"></i>{% if ar %}إضافة سجل جديد{% else %}Add New Record{% endif %}</h5>
@@ -162,12 +178,35 @@
     <!-- no CSRF -->
     <input type="hidden" name="student_id" value="{{ student.id }}">
     <div class="row g-3">
-      <!-- Date -->
-      <div class="col-md-3">
-        <label class="form-label fw-bold" style="font-size:.84rem">
-          <i class="bi bi-calendar3 me-1"></i>{% if ar %}التاريخ{% else %}Date{% endif %}
-        </label>
-        <input type="date" name="record_date" class="form-control" value="{{ today_date|default('') }}" required>
+      <!-- Date + Time Toggle -->
+      <div class="col-md-12">
+        <div class="d-flex flex-wrap align-items-end gap-3">
+          <div>
+            <label class="form-label fw-bold" style="font-size:.84rem">
+              <i class="bi bi-calendar3 me-1"></i>{% if ar %}التاريخ{% else %}Date{% endif %}
+            </label>
+            <input type="date" name="record_date" class="form-control" value="{{ today_date|default('') }}" required style="max-width:160px">
+          </div>
+          <!-- All Day Toggle -->
+          <div class="d-flex align-items-center gap-2" style="padding-bottom:4px">
+            <span style="font-size:.82rem;font-weight:600;color:#6b7280">{% if ar %}يوم كامل{% else %}All Day{% endif %}</span>
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" id="allDayToggle" name="all_day" value="1" checked
+                     onchange="document.getElementById('timeRangeFields').style.display=this.checked?'none':'flex'">
+            </div>
+          </div>
+          <!-- Time Range (hidden by default) -->
+          <div id="timeRangeFields" class="d-flex align-items-end gap-2" style="display:none!important">
+            <div>
+              <label class="form-label fw-bold" style="font-size:.82rem">{% if ar %}من{% else %}From{% endif %}</label>
+              <input type="time" name="time_from" class="form-control form-control-sm" style="max-width:110px">
+            </div>
+            <div>
+              <label class="form-label fw-bold" style="font-size:.82rem">{% if ar %}إلى{% else %}To{% endif %}</label>
+              <input type="time" name="time_to" class="form-control form-control-sm" style="max-width:110px">
+            </div>
+          </div>
+        </div>
       </div>
       <!-- Type -->
       <div class="col-md-5">
@@ -255,6 +294,7 @@
         <thead>
           <tr>
             <th>{% if ar %}التاريخ{% else %}Date{% endif %}</th>
+            <th>{% if ar %}الوقت{% else %}Time{% endif %}</th>
             <th>{% if ar %}النوع{% else %}Type{% endif %}</th>
             <th>{% if ar %}الحالة{% else %}Status{% endif %}</th>
             <th>{% if ar %}ملاحظات / تعليق{% else %}Notes / Comment{% endif %}</th>
@@ -267,6 +307,13 @@
           {% for record in records %}
           <tr>
             <td style="white-space:nowrap;font-weight:600">{{ record.record_date| fmt_date }}</td>
+            <td style="font-size:.8rem;color:#6b7280;white-space:nowrap">
+              {% if record.all_day == 0 and (record.time_from or record.time_to) %}
+                {{ record.time_from or '?' }} – {{ record.time_to or '?' }}
+              {% else %}
+                <span style="color:#9ca3af">{% if ar %}يوم كامل{% else %}All Day{% endif %}</span>
+              {% endif %}
+            </td>
             <td>
               <span class="sas-badge-type {{ record.record_type }}">
                 {% if record.record_type == 'absent' %}{% if ar %}غياب{% else %}Absent{% endif %}
@@ -310,6 +357,24 @@
                         data-bs-target="#editModal{{ record.id }}"
                         title="{% if ar %}تعديل{% else %}Edit{% endif %}">
                   <i class="bi bi-pencil"></i>
+                </button>
+                <!-- Send Email Button -->
+                {% if student.guardian_email %}
+                <button type="button"
+                        class="btn btn-sm btn-outline-success"
+                        style="border-radius:8px;font-size:.72rem;padding:3px 8px"
+                        onclick="sendEmail('single', [{{ record.id }}])"
+                        title="{% if ar %}إرسال إيميل لولي الأمر{% else %}Send email to guardian{% endif %}">
+                  <i class="bi bi-envelope"></i>
+                </button>
+                {% endif %}
+                <!-- Duplicate to other students -->
+                <button type="button"
+                        class="btn btn-sm"
+                        style="background:#f5f3ff;color:#7c3aed;border:1px solid #c4b5fd;border-radius:8px;font-size:.72rem;padding:3px 8px"
+                        onclick="openDuplicateModal({{ record.id }})"
+                        title="{% if ar %}نسخ لطلاب آخرين{% else %}Duplicate to other students{% endif %}">
+                  <i class="bi bi-files"></i>
                 </button>
                 {% if staff.role == 'manager' %}
                 <!-- Delete Button -->
@@ -499,5 +564,158 @@
   </div>
 </div>
 {% endfor %}
+
+
+<!-- Duplicate Record Modal -->
+<div class="modal fade" id="duplicateModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content" style="border-radius:16px;overflow:hidden">
+      <div class="modal-header" style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;padding:14px 20px">
+        <h6 class="modal-title fw-bold mb-0">
+          <i class="bi bi-files me-1"></i>
+          {% if ar %}نسخ السجل لطلاب آخرين{% else %}Duplicate Record to Other Students{% endif %}
+        </h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <p style="font-size:.85rem;color:#6b7280;margin-bottom:16px">
+          {% if ar %}ابحث عن الطلاب وحددهم لنسخ نفس السجل{% else %}Search and select students to copy the same record{% endif %}
+        </p>
+        <div class="input-group mb-3">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="text" id="dupSearchInput" class="form-control"
+                 placeholder="{% if ar %}ابحث بالاسم...{% else %}Search by name...{% endif %}"
+                 oninput="dupSearch(this.value)">
+        </div>
+        <div id="dupStudentList" style="max-height:280px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:10px;padding:8px">
+          <div style="text-align:center;color:#9ca3af;padding:20px;font-size:.85rem">
+            {% if ar %}اكتب للبحث...{% else %}Type to search...{% endif %}
+          </div>
+        </div>
+        <div id="dupSelected" class="mt-3" style="font-size:.82rem;color:#374151;font-weight:600">
+          {% if ar %}لم يتم تحديد طلاب{% else %}No students selected{% endif %}
+        </div>
+      </div>
+      <div class="modal-footer" style="border-top:1px solid #e5e7eb;padding:12px 20px">
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal" style="border-radius:8px">
+          {% if ar %}إلغاء{% else %}Cancel{% endif %}
+        </button>
+        <button type="button" class="btn btn-sm"
+                style="background:#7c3aed;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:.84rem;padding:7px 20px"
+                onclick="submitDuplicate()">
+          <i class="bi bi-files me-1"></i>{% if ar %}نسخ للمحددين{% else %}Duplicate to Selected{% endif %}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="sasToast" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:9999;display:none;min-width:260px;background:#1f2937;color:#fff;border-radius:12px;padding:12px 20px;font-size:.85rem;font-weight:600;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.3)"></div>
+
+<script>
+const _AR = {{ 'true' if ar else 'false' }};
+const _STAFF_CODE = '{{ staff.staff_code }}';
+let _DUP_RECORD_ID = null;
+let _dupSelectedIds = new Set();
+
+function showToast(msg, ok) {
+  var t = document.getElementById('sasToast');
+  t.style.background = ok ? '#059669' : '#dc2626';
+  t.textContent = msg;
+  t.style.display = 'block';
+  setTimeout(function(){ t.style.display='none'; }, 3500);
+}
+
+function sendEmail(mode, recordIds) {
+  showToast(_AR ? 'جاري الإرسال...' : 'Sending...', true);
+  fetch('/sas/portal/' + _STAFF_CODE + '/send-absence-email', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({mode: mode, record_ids: recordIds})
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    if(d.ok) showToast(_AR ? ('تم الإرسال: ' + d.sent + ' | تخطي: ' + d.skipped) : ('Sent: ' + d.sent + ' | Skipped: ' + d.skipped), true);
+    else showToast(d.error || (_AR ? 'خطأ' : 'Error'), false);
+  })
+  .catch(function(){ showToast(_AR ? 'خطأ في الاتصال' : 'Connection error', false); });
+}
+
+function openDuplicateModal(rid) {
+  _DUP_RECORD_ID = rid;
+  _dupSelectedIds = new Set();
+  document.getElementById('dupStudentList').innerHTML = '<div style="text-align:center;color:#9ca3af;padding:20px">' + (_AR ? 'اكتب للبحث...' : 'Type to search...') + '</div>';
+  document.getElementById('dupSearchInput').value = '';
+  updateDupSelected();
+  new bootstrap.Modal(document.getElementById('duplicateModal')).show();
+}
+
+var _dupTimer;
+function dupSearch(q) {
+  clearTimeout(_dupTimer);
+  if(q.length < 2) {
+    document.getElementById('dupStudentList').innerHTML = '<div style="text-align:center;color:#9ca3af;padding:20px">' + (_AR ? 'اكتب للبحث...' : 'Type to search...') + '</div>';
+    return;
+  }
+  _dupTimer = setTimeout(function(){
+    fetch('/sas/api/students?q=' + encodeURIComponent(q))
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var list = d.students || [];
+      if(!list.length){
+        document.getElementById('dupStudentList').innerHTML = '<div style="text-align:center;color:#9ca3af;padding:20px">' + (_AR ? 'لا نتائج' : 'No results') + '</div>';
+        return;
+      }
+      document.getElementById('dupStudentList').innerHTML = list.map(function(s){
+        var checked = _dupSelectedIds.has(s.id) ? 'checked' : '';
+        return '<div class="d-flex align-items-center gap-2 p-2" style="border-bottom:1px solid #f3f4f6;cursor:pointer" onclick="toggleDupStudent(' + s.id + ', this)">' +
+          '<input type="checkbox" class="form-check-input dup-chk" value="' + s.id + '" ' + checked + ' style="margin:0" onclick="event.stopPropagation()">' +
+          '<div><div style="font-weight:600;font-size:.85rem">' + s.name + '</div>' +
+          '<div style="font-size:.75rem;color:#9ca3af">' + s.stage + ' › ' + s.class + ' › ' + s.section + (s.student_number ? ' · #'+s.student_number : '') + '</div></div>' +
+          '</div>';
+      }).join('');
+      // restore checks
+      document.querySelectorAll('.dup-chk').forEach(function(chk){
+        if(_dupSelectedIds.has(parseInt(chk.value))) chk.checked = true;
+      });
+    });
+  }, 300);
+}
+
+function toggleDupStudent(id, row) {
+  var chk = row.querySelector('.dup-chk');
+  if(_dupSelectedIds.has(id)){ _dupSelectedIds.delete(id); chk.checked = false; }
+  else { _dupSelectedIds.add(id); chk.checked = true; }
+  updateDupSelected();
+}
+
+function updateDupSelected() {
+  var count = _dupSelectedIds.size;
+  document.getElementById('dupSelected').textContent = count
+    ? (_AR ? ('محدد: ' + count + ' طالب') : ('Selected: ' + count + ' student(s)'))
+    : (_AR ? 'لم يتم تحديد طلاب' : 'No students selected');
+}
+
+function submitDuplicate() {
+  if(!_DUP_RECORD_ID || !_dupSelectedIds.size){
+    showToast(_AR ? 'حدد طالباً على الأقل' : 'Select at least one student', false);
+    return;
+  }
+  fetch('/sas/portal/' + _STAFF_CODE + '/record/' + _DUP_RECORD_ID + '/duplicate', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({student_ids: Array.from(_dupSelectedIds)})
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    var modal = bootstrap.Modal.getInstance(document.getElementById('duplicateModal'));
+    if(modal) modal.hide();
+    if(d.ok) showToast(_AR ? ('تم النسخ: ' + d.created + ' | مكرر: ' + d.skipped) : ('Duplicated: ' + d.created + ' | Skipped: ' + d.skipped), true);
+    else showToast(d.error || (_AR ? 'خطأ' : 'Error'), false);
+  })
+  .catch(function(){ showToast(_AR ? 'خطأ في الاتصال' : 'Connection error', false); });
+}
+</script>
 
 {% endblock %}

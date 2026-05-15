@@ -1171,6 +1171,9 @@ class SASRecord(Base):
     record_date     = Column(String(20), nullable=False, index=True)        # YYYY-MM-DD
     record_type     = Column(String(20), nullable=False, index=True)        # absent / late / leave / other
     status          = Column(String(20), default='pending', index=True)     # pending / approved / rejected
+    all_day         = Column(Integer, default=1)                            # 1=all day, 0=partial
+    time_from       = Column(String(10), nullable=True)                     # HH:MM
+    time_to         = Column(String(10), nullable=True)                     # HH:MM
     approved_by     = Column(Integer, ForeignKey('sas_staff.id'), nullable=True)
     approved_at     = Column(DateTime)
     notes           = Column(Text)

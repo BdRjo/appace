@@ -459,6 +459,10 @@ def record_add(code):
         attachment_name = file.filename
         attachment_b64 = base64.b64encode(file.read()).decode('utf-8')
 
+    all_day_val = request.form.get('all_day', '1')
+    time_from = request.form.get('time_from', '').strip() or None
+    time_to = request.form.get('time_to', '').strip() or None
+
     record = SASRecord(
         student_id=student_id,
         staff_id=staff.id,
@@ -466,6 +470,9 @@ def record_add(code):
         record_type=record_type,
         status='pending',
         notes=notes,
+        all_day=1 if all_day_val == '1' else 0,
+        time_from=None if all_day_val == '1' else time_from,
+        time_to=None if all_day_val == '1' else time_to,
         attachment_b64=attachment_b64,
         attachment_name=attachment_name,
     )
@@ -474,14 +481,7 @@ def record_add(code):
     try:
         db.commit()
         flash(_t('تم إضافة السجل بنجاح', 'Record added successfully'), 'success')
-        # إرسال إشعار لولي الأمر
-        try:
-            from utils.email_helper import send_absence_notification
-            from utils.i18n import get_lang
-            if student.guardian_email and record_type in ('absent', 'late', 'excused'):
-                send_absence_notification(student, record, lang=get_lang())
-        except Exception:
-            pass
+        # لا يتم إرسال الإيميل تلقائياً — يتم الإرسال يدوياً عبر /send-email-notification
     except Exception:
         db.rollback()
         flash(_t('حدث خطأ أثناء الحفظ', 'Error saving record'), 'danger')
@@ -1362,9 +1362,11 @@ def admin_students_bulk_delete():
 
 
 # 22. CSV import students
-@sas_bp.route('/admin/students/import', methods=['POST'])
+@sas_bp.route('/admin/students/import', methods=['GET', 'POST'])
 @admin_required
 def admin_students_import():
+    if request.method == 'GET':
+        return redirect(url_for('sas.admin_students'))
     db = get_db()
     cfg = _get_config()
 
@@ -2704,6 +2706,96 @@ def api_staff():
          'role': s.role, 'email': s.email or ''}
         for s in staff
     ]})
+
+# ── Manual email notification (individual / multi / all) ─────────
+@sas_bp.route('/portal/<code>/send-absence-email', methods=['POST'])
+def send_absence_email(code):
+    staff = _get_staff_or_404(code)
+    db = get_db()
+
+    mode = request.json.get('mode', 'single')       # single | selected | all_today
+    record_ids = request.json.get('record_ids', [])
+    date_str = request.json.get('date', _today_str())
+
+    records = []
+    if mode == 'single' and record_ids:
+        r = db.get(SASRecord, int(record_ids[0]))
+        if r:
+            records = [r]
+    elif mode == 'selected' and record_ids:
+        records = db.query(SASRecord).filter(SASRecord.id.in_([int(x) for x in record_ids])).all()
+    elif mode == 'all_today':
+        records = db.query(SASRecord).filter(
+            SASRecord.record_date == date_str,
+            SASRecord.record_type.in_(['absent', 'late', 'excused']),
+        ).all()
+
+    from utils.email_helper import send_absence_notification
+    sent = 0
+    skipped = 0
+    for rec in records:
+        student = db.get(SASStudent, rec.student_id)
+        if student and student.guardian_email:
+            try:
+                send_absence_notification(student, rec, lang=get_lang())
+                sent += 1
+            except Exception:
+                skipped += 1
+        else:
+            skipped += 1
+
+    return jsonify({'ok': True, 'sent': sent, 'skipped': skipped})
+
+
+# ── Duplicate record for multiple students ────────────────────────
+@sas_bp.route('/portal/<code>/record/<int:rid>/duplicate', methods=['POST'])
+def record_duplicate(code, rid):
+    staff = _get_staff_or_404(code)
+    db = get_db()
+
+    source = db.get(SASRecord, rid)
+    if not source:
+        abort(404)
+
+    target_ids = request.json.get('student_ids', [])
+    if not target_ids:
+        return jsonify({'ok': False, 'error': 'No student IDs provided'}), 400
+
+    created = 0
+    skipped = 0
+    for sid in target_ids:
+        sid = int(sid)
+        if sid == source.student_id:
+            skipped += 1
+            continue
+        existing = db.query(SASRecord).filter(
+            SASRecord.student_id == sid,
+            SASRecord.record_date == source.record_date,
+            SASRecord.record_type == source.record_type,
+        ).first()
+        if existing:
+            skipped += 1
+            continue
+        new_rec = SASRecord(
+            student_id=sid,
+            staff_id=staff.id,
+            record_date=source.record_date,
+            record_type=source.record_type,
+            status='pending',
+            notes=source.notes,
+            all_day=source.all_day if hasattr(source, 'all_day') else 1,
+            time_from=source.time_from if hasattr(source, 'time_from') else None,
+            time_to=source.time_to if hasattr(source, 'time_to') else None,
+        )
+        db.add(new_rec)
+        created += 1
+
+    try:
+        db.commit()
+        return jsonify({'ok': True, 'created': created, 'skipped': skipped})
+    except Exception as e:
+        db.rollback()
+        return jsonify({'ok': False, 'error': str(e)}), 500
 
 
 # 40. Class leave export CSV
