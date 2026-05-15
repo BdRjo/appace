@@ -15,7 +15,7 @@ def load_settings():
             return json.load(open(SETTINGS_FILE))
     except: pass
     return {
-        'system_name': 'ARS — نظام إدارة الحجوزات',
+        'system_name': 'STAP — نظام الحضور والمقابلات',
         'provider_key': 'gmail', 'smtp_server': 'smtp.gmail.com',
         'smtp_port': 587, 'sender_email': '', 'sender_password': '',
         'sender_name': 'ARS System', 'use_tls': True,
@@ -35,7 +35,7 @@ def save_settings(data):
 def index():
     cfg = load_settings()
     if request.method == 'POST':
-        cfg['system_name']       = request.form.get('system_name', cfg.get('system_name','ARS'))
+        cfg['system_name']       = request.form.get('system_name', cfg.get('system_name','STAP'))
         cfg['provider_key']      = request.form.get('provider_key', 'gmail')
         cfg['smtp_server']       = request.form.get('smtp_server','').strip()
         cfg['smtp_port']         = int(request.form.get('smtp_port', 587) or 587)

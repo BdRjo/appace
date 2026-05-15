@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}{% if current_lang=="en" %}{% if venue %}Edit Venue — ARS{% else %}Add Venue — ARS{% endif %}{% else %}{% if venue %}تعديل قاعة — ARS{% else %}إضافة قاعة — ARS{% endif %}{% endif %}{% endblock %}
+{% block title %}{% if current_lang=="en" %}{% if venue %}Edit Venue — STAP{% else %}Add Venue — STAP{% endif %}{% else %}{% if venue %}تعديل قاعة — STAP{% else %}إضافة قاعة — STAP{% endif %}{% endif %}{% endblock %}
 {% block content %}
 <div class="page-header">
   <h1><i class="bi bi-building me-2"></i>{% if venue %}{% if current_lang=='en' %}Edit: {{ venue.name }}{% else %}تعديل: {{ venue.name }}{% endif %}{% else %}{% if current_lang=='en' %}Add New Venue{% else %}إضافة قاعة جديدة{% endif %}{% endif %}</h1>

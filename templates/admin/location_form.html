@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}{% if current_lang=="en" %}{% if loc %}Edit Location — ARS{% else %}Add Location — ARS{% endif %}{% else %}{% if loc %}تعديل موقع — ARS{% else %}إضافة موقع — ARS{% endif %}{% endif %}{% endblock %}
+{% block title %}{% if current_lang=="en" %}{% if loc %}Edit Location — STAP{% else %}Add Location — STAP{% endif %}{% else %}{% if loc %}تعديل موقع — STAP{% else %}إضافة موقع — STAP{% endif %}{% endif %}{% endblock %}
 {% block content %}
 <div class="page-header">
   <h1><i class="bi bi-geo-alt me-2"></i>{% if loc %}{% if current_lang=='en' %}Edit: {{ loc.name }}{% else %}تعديل: {{ loc.name }}{% endif %}{% else %}{% if current_lang=='en' %}Add New Location{% else %}إضافة موقع جديد{% endif %}{% endif %}</h1>

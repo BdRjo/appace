@@ -1,5 +1,5 @@
 """
-ARS — Back-Office (Admin Panel)
+STAP — Back-Office (Admin Panel)
 واجهة إدارة كاملة لكل جداول قاعدة البيانات
 """
 import json

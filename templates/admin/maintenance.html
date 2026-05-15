@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}{% if current_lang=="en" %}Maintenance — ARS{% else %}الصيانة — ARS{% endif %}{% endblock %}
+{% block title %}{% if current_lang=="en" %}Maintenance — STAP{% else %}الصيانة — STAP{% endif %}{% endblock %}
 {% block content %}
 <div class="page-header d-flex justify-content-between align-items-center">
   <h1><i class="bi bi-tools me-2"></i>{{ _('الصيانة') }}</h1>
@@ -140,11 +140,11 @@
                 </div>
                 <div class="col-md-3">
                   <label class="form-label fw-600">{% if current_lang=='en' %}Short Name (AR){% else %}الاسم المختصر (ع){% endif %}</label>
-                  <input type="text" name="brand_short" class="form-control" value="{{ mcfg.get('brand_short','ARS') }}" maxlength="10">
+                  <input type="text" name="brand_short" class="form-control" value="{{ mcfg.get('brand_short','STAP') }}" maxlength="10">
                 </div>
                 <div class="col-md-3">
                   <label class="form-label fw-600">Short Name (EN)</label>
-                  <input type="text" name="brand_short_en" class="form-control" value="{{ mcfg.get('brand_short_en','ARS') }}" maxlength="10">
+                  <input type="text" name="brand_short_en" class="form-control" value="{{ mcfg.get('brand_short_en','STAP') }}" maxlength="10">
                 </div>
               </div>
               <button type="submit" class="btn btn-primary-ars btn-sm">
@@ -691,7 +691,7 @@
             <div class="d-flex align-items-center gap-3">
               <div style="width:36px;height:36px;border-radius:10px;background:{{ mcfg.get('color_accent','#5C9BDE') }};display:flex;align-items:center;justify-content:center;font-size:1.1rem" id="accentPreview">📅</div>
               <div>
-                <div style="color:#fff;font-weight:700;font-size:.9rem">ARS — Applied Event System</div>
+                <div style="color:#fff;font-weight:700;font-size:.9rem">STAP — Applied Event System</div>
                 <div style="color:rgba(255,255,255,.6);font-size:.72rem">{% if current_lang=='en' %}Live Preview of System Colors{% else %}معاينة مباشرة لألوان النظام{% endif %}</div>
               </div>
               <div class="ms-auto d-flex gap-2">

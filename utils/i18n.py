@@ -1,5 +1,5 @@
 """
-ARS — Server-side translation system
+STAP — Server-side translation system
 Language stored in Flask session → works across ALL page navigations
 Usage in templates: {{ _('نص عربي') }}  →  shows Arabic or English based on session lang
 """
@@ -30,8 +30,8 @@ TRANSLATIONS = {
     'ملفي الشخصي': 'My Profile',
     'تسجيل الخروج': 'Sign Out',
     'أخبار': 'News',
-    'ARS — نظام إدارة الحجوزات': 'ARS — Reservation System',
-    'نظام إدارة الحجوزات': 'Reservation Management System',
+    'STAP — نظام الحضور والمقابلات': 'STAP — Reservation System',
+    'نظام الحضور والمقابلات': 'Reservation Management System',
 
     # ── Actions ────────────────────────────────────────────────────────────
     'إضافة': 'Add',
@@ -1002,12 +1002,12 @@ TRANSLATIONS = {
     'إعادة إرسال الكود': 'Resend Code',
     'أدخل بريدك الإلكتروني وسنرسل لك كود التحقق': 'Enter your email and we will send you a verification code',
     'تم إرسال كود التحقق إلى': 'Verification code sent to',
-    'إعادة تعيين كلمة المرور — ARS': 'Reset Password — ARS',
+    'إعادة تعيين كلمة المرور — STAP': 'Reset Password — STAP',
     '✅ تم الحفظ': '✅ Saved',
     '✅ نجاح': '✅ Success',
     '❌ فشل': '❌ Failed',
     'مرحباً 👋': 'Hello 👋',
-    'مرحباً بكم في نظام ARS لإدارة الحجوزات — Applied Reservation System': 'Welcome to ARS Reservation Management System',
+    'مرحباً بكم في نظام ARS لإدارة الحجوزات — Student Tracking & Appointments': 'Welcome to ARS Reservation Management System',
     '0 عنصر': '0 items',
     'أضف رسالة جديدة...': 'Add new message...',
     '🔄 تحديث المكررات': '🔄 Update Duplicates',

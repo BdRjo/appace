@@ -682,7 +682,7 @@ def settings():
         current_app.logger.warning(f"{__name__} error: {e}")
         cfg = {'smtp_server':'smtp.gmail.com','smtp_port':587,
                'sender_email':'','sender_password':'',
-               'sender_name':'ARS Applied Reservation System',
+               'sender_name':'ARS Student Tracking & Appointments',
                'use_tls':True,'provider_key':'brevo_api',
                'brevo_api_key':''}
 
@@ -718,7 +718,7 @@ def settings():
             'smtp_port':      int(request.form.get('smtp_port', 587) or 587),
             'sender_email':   request.form.get('sender_email',''),
             'sender_password':request.form.get('sender_password',''),
-            'sender_name':    request.form.get('sender_name','ARS Applied Reservation System'),
+            'sender_name':    request.form.get('sender_name','ARS Student Tracking & Appointments'),
             'use_tls':        request.form.get('use_tls') == 'on',
             'brevo_api_key':  request.form.get('brevo_api_key','').strip(),
         }

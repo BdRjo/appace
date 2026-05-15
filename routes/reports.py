@@ -1096,7 +1096,7 @@ def export_pdf():
 
         title_style = ParagraphStyle('title', fontName=arabic_font, fontSize=13,
                                      textColor=colors.HexColor('#0C67EC'), spaceAfter=6)
-        story.append(Paragraph(f'ARS — {title_txt}', title_style))
+        story.append(Paragraph(f'STAP — {title_txt}', title_style))
         from datetime import date
         date_style = ParagraphStyle('date', fontName=arabic_font, fontSize=9,
                                     textColor=colors.grey, spaceAfter=12)

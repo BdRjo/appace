@@ -435,7 +435,7 @@ html[dir="rtl"] .ticker-overflow {
     <i class="bi bi-calendar-check" style="font-size:1.4rem;color:#5C9BDE;filter:drop-shadow(0 0 6px rgba(92,155,222,.7))"></i>
     {% endif %}
     <div class="brand-text">
-      <div class="brand-title">{% if current_lang=='en' %}{{ _mcfg.get('brand_name_en','ARS') }}{% else %}{{ _mcfg.get('brand_name','نظام ARS') }}{% endif %}</div>
+      <div class="brand-title">{% if current_lang=='en' %}{{ _mcfg.get('brand_name_en','STAP') }}{% else %}{{ _mcfg.get('brand_name','نظام ARS') }}{% endif %}</div>
       <div class="brand-sub">{% if current_lang=='en' %}{{ _mcfg.get('brand_tagline_en','Event & Booking System') }}{% else %}{{ _mcfg.get('brand_tagline','نظام إدارة الفعاليات') }}{% endif %}</div>
     </div>
   </div>
@@ -449,12 +449,10 @@ html[dir="rtl"] .ticker-overflow {
   {% endif %}
   {% if cp_enabled('calendar') %}
   {% endif %}
-  <div class="section-label">{{ _('الحجوزات') }}</div>
   {% if cp_enabled('reservations') %}
   {% endif %}
   {% if cp_enabled('venues') %}
   {% endif %}
-  <div class="section-label">{{ _('إضافيات') }}</div>
   {% if cp_enabled('checklists') %}
   {% endif %}
   {% if cp_enabled('contacts') %}
@@ -662,7 +660,7 @@ html[dir="rtl"] .ticker-overflow {
   <footer class="app-footer">
     <div class="footer-brand">
       <i class="bi bi-calendar-check"></i>
-      <strong>ARS</strong>
+      <strong>STAP</strong>
       <span class="footer-sep">|</span>
       <span>{% if current_lang=='en' %}Applied Event System{% else %}نظام إدارة الفعاليات{% endif %}</span>
       <span class="footer-sep">|</span>
@@ -696,7 +694,7 @@ html[dir="rtl"] .ticker-overflow {
               <div style="width:64px;height:64px;background:linear-gradient(135deg,var(--primary),var(--primary-light));border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;box-shadow:0 4px 16px rgba(12,103,236,.3)">
                 <i class="bi bi-calendar-check" style="font-size:1.8rem;color:#fff"></i>
               </div>
-              <h4 style="color:var(--primary);font-weight:800;margin-bottom:4px">ARS</h4>
+              <h4 style="color:var(--primary);font-weight:800;margin-bottom:4px">STAP</h4>
               <p style="color:#666;font-size:.88rem;margin:0">{% if current_lang=='en' %}Applied Event System{% else %}نظام إدارة الفعاليات التطبيقي{% endif %}</p>
             </div>
             {% if current_lang=='en' %}
@@ -804,7 +802,7 @@ html[dir="rtl"] .ticker-overflow {
             <p>All data is stored securely using encryption standards. Access is restricted to authorized users only, and all system activities are logged for security purposes.</p>
 
             <h6 class="fw-bold text-primary mb-2"><i class="bi bi-4-circle me-1"></i>Intellectual Property</h6>
-            <p>ARS — Applied Event System and all its components, interfaces, code, and content are the exclusive intellectual property of the system owner. Reproduction, copying, or redistribution of any part of this system is strictly prohibited without prior written permission.</p>
+            <p>STAP — Applied Event System and all its components, interfaces, code, and content are the exclusive intellectual property of the system owner. Reproduction, copying, or redistribution of any part of this system is strictly prohibited without prior written permission.</p>
 
             <h6 class="fw-bold text-primary mb-2"><i class="bi bi-5-circle me-1"></i>User Responsibilities</h6>
             <p>Users are responsible for maintaining the confidentiality of their login credentials. Any misuse of the system, unauthorized access attempts, or violation of these terms may result in immediate account suspension and potential legal action.</p>
@@ -831,7 +829,7 @@ html[dir="rtl"] .ticker-overflow {
             <p>تُحفظ جميع البيانات بشكل آمن باستخدام معايير التشفير المعتمدة. لا يمكن الوصول إليها إلا للمستخدمين المخولين، وتُسجَّل جميع أنشطة النظام لأغراض أمنية.</p>
 
             <h6 class="fw-bold text-primary mb-2"><i class="bi bi-4-circle me-1"></i>الملكية الفكرية</h6>
-            <p>نظام ARS — Applied Event System وجميع مكوناته وواجهاته وكوده ومحتواه هي الملكية الفكرية الحصرية لمالك النظام. يُحظر تمامًا إعادة إنتاج أي جزء من هذا النظام أو نسخه أو توزيعه دون إذن كتابي مسبق.</p>
+            <p>نظام STAP — Applied Event System وجميع مكوناته وواجهاته وكوده ومحتواه هي الملكية الفكرية الحصرية لمالك النظام. يُحظر تمامًا إعادة إنتاج أي جزء من هذا النظام أو نسخه أو توزيعه دون إذن كتابي مسبق.</p>
 
             <h6 class="fw-bold text-primary mb-2"><i class="bi bi-5-circle me-1"></i>مسؤوليات المستخدم</h6>
             <p>يتحمل المستخدم مسؤولية الحفاظ على سرية بيانات تسجيل الدخول الخاصة به. قد يؤدي أي إساءة في استخدام النظام أو محاولات وصول غير مصرح بها أو انتهاك هذه الشروط إلى تعليق الحساب فورًا واتخاذ الإجراءات القانونية اللازمة.</p>
@@ -867,7 +865,7 @@ html[dir="rtl"] .ticker-overflow {
               <div style="color:#fff;font-weight:700;font-size:.95rem;margin-top:4px">
                 {% if current_lang=='en' %}We're here to help!{% else %}نحن هنا لمساعدتك!{% endif %}
               </div>
-              <div style="color:rgba(255,255,255,.75);font-size:.78rem">ARS — Applied Event System</div>
+              <div style="color:rgba(255,255,255,.75);font-size:.78rem">STAP — Applied Event System</div>
             </div>
             <div class="p-4 d-flex flex-column gap-3">
               <!-- Email -->

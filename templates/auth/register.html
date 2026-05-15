@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% if current_lang == 'en' %}Create Account — ARS{% else %}إنشاء حساب — ARS{% endif %}</title>
+  <title>{% if current_lang == 'en' %}Create Account — STAP{% else %}إنشاء حساب — STAP{% endif %}</title>
   {% if current_lang == 'en' %}
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
   {% else %}
@@ -71,7 +71,7 @@
   <a href="/set-lang/{{ 'ar' if current_lang == 'en' else 'en' }}" class="lang-btn">{{ 'ع' if current_lang == 'en' else 'EN' }}</a>
   <div class="text-center mb-2">
     <div class="logo-circle"><i class="bi bi-person-plus"></i></div>
-    <div class="brand-title">ARS</div>
+    <div class="brand-title">STAP</div>
     <div class="brand-sub">{% if current_lang=='en' %}Create New Account{% else %}إنشاء حساب جديد{% endif %}</div>
   </div>
   {% with messages = get_flashed_messages(with_categories=true) %}
@@ -119,7 +119,7 @@
 </div>
 </div>
 <footer style="position:relative;z-index:1;flex-shrink:0;padding:6px 16px;text-align:center;font-size:.7rem;color:#ffffff;background:transparent;">
-  <strong>ARS</strong> · © {{ now.year if now is defined else 2026 }} {% if current_lang=='en' %}All rights reserved{% else %}جميع الحقوق محفوظة{% endif %}
+  <strong>STAP</strong> · © {{ now.year if now is defined else 2026 }} {% if current_lang=='en' %}All rights reserved{% else %}جميع الحقوق محفوظة{% endif %}
 </footer>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>

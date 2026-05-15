@@ -671,7 +671,7 @@ def export_pdf():
                                 rightMargin=1.5*cm, leftMargin=1.5*cm,
                                 topMargin=2*cm, bottomMargin=2*cm)
         styles = getSampleStyleSheet()
-        story  = [Paragraph('ARS — Users Report', styles['Heading1']), Spacer(1, 0.5*cm)]
+        story  = [Paragraph('STAP — Users Report', styles['Heading1']), Spacer(1, 0.5*cm)]
         headers = ['Full Name','Username','Email','Role','Logins','Status']
         data = [headers] + [[
             u.full_name, u.username, u.email or '',

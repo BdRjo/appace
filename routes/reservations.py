@@ -807,7 +807,7 @@ def export_single_pdf(res_id):
         story.append(Spacer(1, 0.5*cm))
 
         # ── Footer ──
-        footer_text = mcfg.get('report_header_footer') or mcfg.get('report_header_title', 'ARS — Applied Reservation System')
+        footer_text = mcfg.get('report_header_footer') or mcfg.get('report_header_title', 'STAP — Student Tracking & Appointments')
         story.append(HRFlowable(width='100%', thickness=0.5,
                                 color=colors.HexColor('#9ab3b8'), spaceAfter=4))
         story.append(Paragraph(ar(footer_text),
@@ -991,7 +991,7 @@ def export_pdf():
         if mcfg.get('report_header_title') or mcfg.get('report_header_subtitle'):
             story.append(HRFlowable(width='100%', thickness=1, color=colors.HexColor('#0C67EC'), spaceAfter=6))
 
-        report_title = f'Reservations Report — ARS  |  {dt_date.today()}' if is_en else f'تقرير الحجوزات — ARS  |  {dt_date.today()}'
+        report_title = f'Reservations Report — STAP  |  {dt_date.today()}' if is_en else f'تقرير الحجوزات — STAP  |  {dt_date.today()}'
         story.append(Paragraph(ar(report_title),
             ParagraphStyle('t', fontName=AFB, fontSize=12, textColor=colors.HexColor('#0C67EC'), spaceAfter=10, alignment=TA_CENTER)))
 

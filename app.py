@@ -1,4 +1,4 @@
-"""ARS Applied Reservation System — Web v4"""
+"""ARS Student Tracking & Appointments — Web v4"""
 import os
 from flask import Flask, g
 from flask_cors import CORS
@@ -141,13 +141,13 @@ def create_app():
                 cfg.setdefault('brand_name_en', 'ARS System')
                 cfg.setdefault('brand_tagline',    'نظام إدارة الفعاليات والحجوزات')
                 cfg.setdefault('brand_tagline_en', 'Event & Booking Management System')
-                cfg.setdefault('brand_short',    'ARS')
-                cfg.setdefault('brand_short_en', 'ARS')
+                cfg.setdefault('brand_short',    'STAP')
+                cfg.setdefault('brand_short_en', 'STAP')
                 return cfg
             except: return {
                 'brand_name': 'نظام ARS', 'brand_name_en': 'ARS System',
                 'brand_tagline': 'نظام إدارة الفعاليات', 'brand_tagline_en': 'Event Management',
-                'brand_short': 'ARS', 'brand_short_en': 'ARS',
+                'brand_short': 'STAP', 'brand_short_en': 'STAP',
             }
         def get_system_colors():
             try:
@@ -340,7 +340,7 @@ def create_app():
         except Exception:
             _sas_cfg = None
         return {
-            'app_name': 'ARS — نظام إدارة الحجوزات',
+            'app_name': 'STAP — نظام الحضور والمقابلات',
             '_': t,
             'current_lang': get_lang(),
             'current_user': current_user,
@@ -431,7 +431,7 @@ def create_app():
     @app.route('/health')
     def health_check():
         from flask import jsonify
-        return jsonify({'status': 'ok', 'app': 'ARS'}), 200
+        return jsonify({'status': 'ok', 'app': 'STAP'}), 200
 
     return app
 

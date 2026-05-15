@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{% if current_lang=="en" %}Dashboard — ARS{% else %}لوحة التحكم — ARS{% endif %}{% endblock %}
+{% block title %}{% if current_lang=="en" %}Dashboard — STAP{% else %}لوحة التحكم — STAP{% endif %}{% endblock %}
 {% block extra_css %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -303,10 +303,10 @@ new Chart(document.getElementById('xyChart'), {
 
 // ── Print report function ─────────────────────────────────────────────────────
 function printDashboardReport() {
-  document.title = '{% if current_lang=="en" %}Dashboard Report — ARS{% else %}تقرير لوحة التحكم — ARS{% endif %}';
+  document.title = '{% if current_lang=="en" %}Dashboard Report — STAP{% else %}تقرير لوحة التحكم — STAP{% endif %}';
   window.print();
   setTimeout(function(){
-    document.title = '{% if current_lang=="en" %}Dashboard — ARS{% else %}لوحة التحكم — ARS{% endif %}';
+    document.title = '{% if current_lang=="en" %}Dashboard — STAP{% else %}لوحة التحكم — STAP{% endif %}';
   }, 2000);
 }
 </script>

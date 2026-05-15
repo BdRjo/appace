@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}{% if current_lang=="en" %}Advanced Comparison — ARS{% else %}المقارنة المتقدمة — ARS{% endif %}{% endblock %}
+{% block title %}{% if current_lang=="en" %}Advanced Comparison — STAP{% else %}المقارنة المتقدمة — STAP{% endif %}{% endblock %}
 {% block extra_css %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -695,7 +695,7 @@ function printReport() {
 </style></head>
 <body>
 <h1>📊 ${title}</h1>
-<div class="sub">ARS — Applied Event System &nbsp;·&nbsp; ${today}</div>
+<div class="sub">STAP — Applied Event System &nbsp;·&nbsp; ${today}</div>
 ${chart?`<img src="${chart}" />`:''}
 ${table}
 <script>window.onload=function(){window.print();setTimeout(()=>window.close(),1000);}<\/script>

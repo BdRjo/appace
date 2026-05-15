@@ -48,7 +48,7 @@ def _get_cfg():
         'api_key':       os.environ.get('BREVO_API_KEY', ''),
         'brevo_api_key': os.environ.get('BREVO_API_KEY', ''),
         'sender_email':  os.environ.get('SENDER_EMAIL', ''),
-        'sender_name':   os.environ.get('SENDER_NAME', 'ARS Applied Reservation System'),
+        'sender_name':   os.environ.get('SENDER_NAME', 'ARS Student Tracking & Appointments'),
     }
 
 def _user_lang(user):
@@ -69,14 +69,14 @@ def _t(user_or_lang, ar, en):
 # ── HTML wrapper ──────────────────────────────────────────────────────────────
 def _html_wrapper(content, title='', lang='ar'):
     direction = 'ltr' if lang == 'en' else 'rtl'
-    sys_title = 'ARS — Applied Reservation System' if lang == 'en' else 'ARS — نظام إدارة الحجوزات'
+    sys_title = 'STAP — Student Tracking & Appointments' if lang == 'en' else 'STAP — نظام الحضور والمقابلات'
     logo_url = os.environ.get('APP_URL', 'https://appace.onrender.com') + '/static/images/logo.png'
     return f"""<!DOCTYPE html>
 <html dir="{direction}" lang="{lang}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ARS — {title}</title>
+<title>STAP — {title}</title>
 </head>
 <body style="margin:0;padding:0;background:#EEF4FD;font-family:'Segoe UI',Tahoma,Arial,sans-serif;direction:{direction}">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#EEF4FD;padding:30px 0">
@@ -84,7 +84,7 @@ def _html_wrapper(content, title='', lang='ar'):
     <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(12,103,236,.12)">
       <tr>
         <td style="background:linear-gradient(135deg,#0C67EC 0%,#0847B0 100%);padding:24px 32px;text-align:center">
-          <img src="{logo_url}" alt="ARS" width="140" style="display:block;margin:0 auto 8px;border-radius:8px;max-width:140px" /><br>
+          <img src="{logo_url}" alt="STAP" width="140" style="display:block;margin:0 auto 8px;border-radius:8px;max-width:140px" /><br>
           <span style="color:rgba(255,255,255,.8);font-size:12px">{sys_title}</span>
         </td>
       </tr>
@@ -96,7 +96,7 @@ def _html_wrapper(content, title='', lang='ar'):
       </tr>
       <tr>
         <td style="background:#f7f9fc;padding:16px 32px;text-align:center;border-top:1px solid #e8edf5">
-          <p style="color:#6b7c99;font-size:11px;margin:0">© 2026 ARS — Applied Reservation System</p>
+          <p style="color:#6b7c99;font-size:11px;margin:0">© 2026 STAP — Student Tracking & Appointments</p>
         </td>
       </tr>
     </table>
@@ -111,8 +111,8 @@ TEMPLATE_REGISTRY = {
         'name_ar': 'طلب حجز جديد',
         'name_en': 'Booking Request Received',
         'variables': ['name', 'booking_number', 'title'],
-        'default_subject_ar': '📋 طلب حجز جديد — ARS',
-        'default_subject_en': '📋 New Booking Request — ARS',
+        'default_subject_ar': '📋 طلب حجز جديد — STAP',
+        'default_subject_en': '📋 New Booking Request — STAP',
         'default_body_ar': '''<h2 style="color:#0C67EC;margin:0 0 6px;font-size:20px">مرحباً {{name}}،</h2>
 <p style="color:#4a5568;margin:0 0 20px">تم استلام طلب الحجز الخاص بك بنجاح، وسيتم مراجعته من قِبل المختصين.</p>
 <table width="100%" cellpadding="0" cellspacing="0" style="border-radius:10px;overflow:hidden;border:1px solid #E0E8F5;margin-bottom:20px">
@@ -136,8 +136,8 @@ TEMPLATE_REGISTRY = {
         'name_ar': 'تمت الموافقة على الحجز',
         'name_en': 'Booking Approved',
         'variables': ['name', 'booking_number', 'title', 'venue', 'start_time'],
-        'default_subject_ar': '✅ تمت الموافقة على حجزك — ARS',
-        'default_subject_en': '✅ Booking Approved — ARS',
+        'default_subject_ar': '✅ تمت الموافقة على حجزك — STAP',
+        'default_subject_en': '✅ Booking Approved — STAP',
         'default_body_ar': '''<div style="background:linear-gradient(135deg,#E8F5E9,#F1F8E9);border-radius:10px;padding:16px 20px;text-align:center;margin-bottom:20px">
   <div style="font-size:36px;margin-bottom:6px">✅</div>
   <h2 style="color:#1B5E20;margin:0;font-size:18px">تهانينا {{name}}! تمت الموافقة على حجزك</h2>
@@ -169,8 +169,8 @@ TEMPLATE_REGISTRY = {
         'name_ar': 'تم رفض الحجز',
         'name_en': 'Booking Rejected',
         'variables': ['name', 'booking_number', 'title', 'reason'],
-        'default_subject_ar': '❌ تم رفض طلب الحجز — ARS',
-        'default_subject_en': '❌ Booking Not Approved — ARS',
+        'default_subject_ar': '❌ تم رفض طلب الحجز — STAP',
+        'default_subject_en': '❌ Booking Not Approved — STAP',
         'default_body_ar': '''<div style="background:linear-gradient(135deg,#FFEBEE,#FCE4EC);border-radius:10px;padding:16px 20px;text-align:center;margin-bottom:20px">
   <div style="font-size:36px;margin-bottom:6px">❌</div>
   <h2 style="color:#B71C1C;margin:0;font-size:18px">عذراً {{name}}، تم رفض طلب الحجز</h2>
@@ -200,8 +200,8 @@ TEMPLATE_REGISTRY = {
         'name_ar': 'إلغاء الحجز',
         'name_en': 'Booking Cancelled',
         'variables': ['name', 'booking_number', 'title'],
-        'default_subject_ar': '🚫 تم إلغاء الحجز — ARS',
-        'default_subject_en': '🚫 Booking Cancelled — ARS',
+        'default_subject_ar': '🚫 تم إلغاء الحجز — STAP',
+        'default_subject_en': '🚫 Booking Cancelled — STAP',
         'default_body_ar': '''<h2 style="color:#546E7A;margin:0 0 12px">مرحباً {{name}}،</h2>
 <p style="color:#4a5568">تم <strong style="color:#c0392b">إلغاء</strong> الحجز رقم <strong style="color:#0C67EC">{{booking_number}}</strong> — "{{title}}".</p>
 <div style="background:#f5f5f5;border-right:4px solid #546E7A;border-radius:8px;padding:12px 16px;color:#546E7A;font-size:14px;margin-top:16px">
@@ -240,8 +240,8 @@ TEMPLATE_REGISTRY = {
         'name_ar': 'ترحيب بمستخدم جديد',
         'name_en': 'New User Welcome',
         'variables': ['name', 'username', 'password', 'login_url'],
-        'default_subject_ar': 'مرحباً بك في ARS — نظام إدارة الحجوزات',
-        'default_subject_en': 'Welcome to ARS — Applied Reservation System',
+        'default_subject_ar': 'مرحباً بك في STAP — نظام الحضور والمقابلات',
+        'default_subject_en': 'Welcome to STAP — Student Tracking & Appointments',
         'default_body_ar': '''<h2 style="color:#0C67EC;margin:0 0 12px">مرحباً بك في ARS، {{name}}! 🎉</h2>
 <p style="color:#4a5568;margin:0 0 16px">تم إنشاء حسابك بنجاح. بيانات الدخول الخاصة بك:</p>
 <table width="100%" cellpadding="0" cellspacing="0" style="border-radius:10px;overflow:hidden;border:1px solid #E0E8F5;margin-bottom:20px">
@@ -261,8 +261,8 @@ TEMPLATE_REGISTRY = {
         'name_ar': 'رمز إعادة تعيين كلمة المرور',
         'name_en': 'Password Reset Code',
         'variables': ['code'],
-        'default_subject_ar': 'ARS — رمز إعادة تعيين كلمة المرور',
-        'default_subject_en': 'ARS — Password Reset Code',
+        'default_subject_ar': 'STAP — رمز إعادة تعيين كلمة المرور',
+        'default_subject_en': 'STAP — Password Reset Code',
         'default_body_ar': '''<p style="color:#4a5568;margin:0 0 20px">استخدم الرمز أدناه لإعادة تعيين كلمة مرورك:</p>
 <div style="background:#f4f9ff;border:2px dashed #0C67EC;border-radius:12px;padding:20px;text-align:center;margin-bottom:20px">
   <div style="font-size:36px;font-weight:900;letter-spacing:12px;color:#0C67EC">{{code}}</div>
@@ -278,8 +278,8 @@ TEMPLATE_REGISTRY = {
         'name_ar': 'رمز التحقق من البريد',
         'name_en': 'Email Verification Code',
         'variables': ['name', 'code'],
-        'default_subject_ar': 'ARS — رمز التحقق من البريد الإلكتروني',
-        'default_subject_en': 'ARS — Email Verification Code',
+        'default_subject_ar': 'STAP — رمز التحقق من البريد الإلكتروني',
+        'default_subject_en': 'STAP — Email Verification Code',
         'default_body_ar': '''<p style="color:#4a5568;margin:0 0 20px">شكراً لتسجيلك في نظام ARS. أدخل الرمز أدناه لتفعيل حسابك:</p>
 <div style="background:#f4f9ff;border:2px dashed #0C67EC;border-radius:12px;padding:20px;text-align:center;margin-bottom:20px">
   <div style="font-size:36px;font-weight:900;letter-spacing:12px;color:#0C67EC">{{code}}</div>
@@ -385,7 +385,7 @@ def _send(to_email, to_name, subject, html, text='', sync=False,
             cfg = _get_cfg()
             api_key      = cfg.get('api_key') or cfg.get('brevo_api_key', '')
             sender_email = cfg.get('sender_email', '')
-            sender_name  = cfg.get('sender_name', 'ARS')
+            sender_name  = cfg.get('sender_name', 'STAP')
             if not api_key:
                 print('Email error: API key is missing — configure it in Admin → Email Settings')
                 _log_result('failed', 'API key missing')
@@ -483,8 +483,8 @@ def send_booking_request(user, res):
 <div style="background:linear-gradient(135deg,#EEF4FD,#E8F0FE);border-left:4px solid #0C67EC;border-radius:8px;padding:12px 16px;color:#4a5568;font-size:14px">
   ⏳ You will be notified once a decision is made.
 </div>"""
-        subj = '📋 New Booking Request — ARS'
-        txt  = f"ARS — Booking Request\n\nHello {name},\nRef: {bn}\nTitle: {title}\n\nYou will be notified soon."
+        subj = '📋 New Booking Request — STAP'
+        txt  = f"STAP — Booking Request\n\nHello {name},\nRef: {bn}\nTitle: {title}\n\nYou will be notified soon."
     else:
         content = f"""
 <h2 style="color:#0C67EC;margin:0 0 6px;font-size:20px">مرحباً {name}،</h2>
@@ -495,8 +495,8 @@ def send_booking_request(user, res):
 <div style="background:linear-gradient(135deg,#EEF4FD,#E8F0FE);border-right:4px solid #0C67EC;border-radius:8px;padding:12px 16px;color:#4a5568;font-size:14px">
   ⏳ سيتم إعلامك بقرار الموافقة في أقرب وقت.
 </div>"""
-        subj = '📋 طلب حجز جديد — ARS'
-        txt  = f"ARS — طلب حجز جديد\n\nمرحباً {name}،\nالرقم: {bn}\nالعنوان: {title}\n\nسيتم إعلامك قريباً."
+        subj = '📋 طلب حجز جديد — STAP'
+        txt  = f"STAP — طلب حجز جديد\n\nمرحباً {name}،\nالرقم: {bn}\nالعنوان: {title}\n\nسيتم إعلامك قريباً."
 
     _send(user.email or '', name, subj, _html_wrapper(content, subj, lang), txt, sync=True, email_type='notification')
 
@@ -535,8 +535,8 @@ def send_booking_approved(res):
 <div style="background:#E8F5E9;border-left:4px solid #43A047;border-radius:8px;padding:12px 16px;color:#2E7D32;font-size:14px">
   ✅ Your booking is confirmed. We hope you have a great experience!
 </div>"""
-        subj = '✅ Booking Approved — ARS'
-        txt  = f"ARS — Booking Approved\n\nHello {name},\nYour booking has been approved.\nRef: {bn}\nTitle: {title}\nVenue: {venue}\nTime: {start}"
+        subj = '✅ Booking Approved — STAP'
+        txt  = f"STAP — Booking Approved\n\nHello {name},\nYour booking has been approved.\nRef: {bn}\nTitle: {title}\nVenue: {venue}\nTime: {start}"
     else:
         content = f"""
 <div style="background:linear-gradient(135deg,#E8F5E9,#F1F8E9);border-radius:10px;padding:16px 20px;text-align:center;margin-bottom:20px">
@@ -552,8 +552,8 @@ def send_booking_approved(res):
 <div style="background:#E8F5E9;border-right:4px solid #43A047;border-radius:8px;padding:12px 16px;color:#2E7D32;font-size:14px">
   ✅ حجزك معتمد ومؤكد. نتمنى لك تجربة رائعة!
 </div>"""
-        subj = '✅ تمت الموافقة على حجزك — ARS'
-        txt  = f"ARS — تمت الموافقة\n\nمرحباً {name}،\nتمت الموافقة على حجزك.\nالرقم: {bn}\nالعنوان: {title}\nالقاعة: {venue}\nالوقت: {start}"
+        subj = '✅ تمت الموافقة على حجزك — STAP'
+        txt  = f"STAP — تمت الموافقة\n\nمرحباً {name}،\nتمت الموافقة على حجزك.\nالرقم: {bn}\nالعنوان: {title}\nالقاعة: {venue}\nالوقت: {start}"
 
     _send(res.user.email or '', name, subj, _html_wrapper(content, subj, lang), txt, sync=True, email_type='notification')
 
@@ -615,8 +615,8 @@ def send_booking_rejected(res, reason=''):
 <div style="background:#FFF3E0;border-left:4px solid #FB8C00;border-radius:8px;padding:12px 16px;color:#E65100;font-size:14px">
   💡 You may contact the administration or submit a new request.
 </div>"""
-        subj = '❌ Booking Not Approved — ARS'
-        txt  = f"ARS — Booking Rejected\n\nHello {name},\nYour booking was not approved.\nRef: {bn}\nTitle: {title}\nReason: {reason or '—'}"
+        subj = '❌ Booking Not Approved — STAP'
+        txt  = f"STAP — Booking Rejected\n\nHello {name},\nYour booking was not approved.\nRef: {bn}\nTitle: {title}\nReason: {reason or '—'}"
     else:
         content = f"""
 <div style="background:linear-gradient(135deg,#FFEBEE,#FCE4EC);border-radius:10px;padding:16px 20px;text-align:center;margin-bottom:20px">
@@ -631,8 +631,8 @@ def send_booking_rejected(res, reason=''):
 <div style="background:#FFF3E0;border-right:4px solid #FB8C00;border-radius:8px;padding:12px 16px;color:#E65100;font-size:14px">
   💡 يمكنك التواصل مع الإدارة أو تقديم طلب جديد.
 </div>"""
-        subj = '❌ تم رفض طلب الحجز — ARS'
-        txt  = f"ARS — رفض الحجز\n\nمرحباً {name}،\nتم رفض حجزك.\nالرقم: {bn}\nالعنوان: {title}\nالسبب: {reason or '—'}"
+        subj = '❌ تم رفض طلب الحجز — STAP'
+        txt  = f"STAP — رفض الحجز\n\nمرحباً {name}،\nتم رفض حجزك.\nالرقم: {bn}\nالعنوان: {title}\nالسبب: {reason or '—'}"
 
     _send(res.user.email or '', name, subj, _html_wrapper(content, subj, lang), txt, sync=True, email_type='notification')
 
@@ -660,8 +660,8 @@ def send_booking_cancelled(res, cancelled_by=None):
 <div style="background:#f5f5f5;border-left:4px solid #546E7A;border-radius:8px;padding:12px 16px;color:#546E7A;font-size:14px;margin-top:16px">
   If you believe this is an error, please contact the administration.
 </div>"""
-        subj = '🚫 Booking Cancelled — ARS'
-        txt  = f"ARS — Booking Cancelled\n\nHello {name},\nBooking {bn} has been cancelled."
+        subj = '🚫 Booking Cancelled — STAP'
+        txt  = f"STAP — Booking Cancelled\n\nHello {name},\nBooking {bn} has been cancelled."
     else:
         content = f"""
 <h2 style="color:#546E7A;margin:0 0 12px">مرحباً {name}،</h2>
@@ -669,8 +669,8 @@ def send_booking_cancelled(res, cancelled_by=None):
 <div style="background:#f5f5f5;border-right:4px solid #546E7A;border-radius:8px;padding:12px 16px;color:#546E7A;font-size:14px;margin-top:16px">
   إذا كان هذا خطأ، يرجى التواصل مع الإدارة.
 </div>"""
-        subj = '🚫 تم إلغاء الحجز — ARS'
-        txt  = f"ARS — إلغاء الحجز\n\nمرحباً {name}،\nتم إلغاء الحجز رقم {bn}."
+        subj = '🚫 تم إلغاء الحجز — STAP'
+        txt  = f"STAP — إلغاء الحجز\n\nمرحباً {name}،\nتم إلغاء الحجز رقم {bn}."
 
     _send(res.user.email or '', name, subj, _html_wrapper(content, subj, lang), txt, sync=True, email_type='notification')
 
@@ -759,7 +759,7 @@ def send_welcome(user, password, login_url=''):
 </table>
 {f'<a href="{login_url}" style="background:#0C67EC;color:#fff;padding:10px 24px;border-radius:8px;text-decoration:none;display:inline-block;font-weight:700;margin-top:8px">Login Now</a>' if login_url else ''}
 <p style="color:#999;font-size:12px;margin-top:16px">Please change your password after first login.</p>"""
-        subj = 'Welcome to ARS — Applied Reservation System'
+        subj = 'Welcome to STAP — Student Tracking & Appointments'
         txt  = f"Welcome {name}!\nUsername: {uname}\nPassword: {password}\nLogin: {login_url}"
     else:
         content = f"""
@@ -771,7 +771,7 @@ def send_welcome(user, password, login_url=''):
 </table>
 {f'<a href="{login_url}" style="background:#0C67EC;color:#fff;padding:10px 24px;border-radius:8px;text-decoration:none;display:inline-block;font-weight:700;margin-top:8px">تسجيل الدخول</a>' if login_url else ''}
 <p style="color:#999;font-size:12px;margin-top:16px">يُرجى تغيير كلمة المرور بعد أول دخول.</p>"""
-        subj = 'مرحباً بك في ARS — نظام إدارة الحجوزات'
+        subj = 'مرحباً بك في STAP — نظام الحضور والمقابلات'
         txt  = f"مرحباً {name}!\nاسم المستخدم: {uname}\nكلمة المرور: {password}\nرابط الدخول: {login_url}"
 
     _send(user.email or '', name, subj, _html_wrapper(content, subj, lang), txt, sync=True, email_type='notification')
@@ -790,7 +790,7 @@ def send_reset_code(email: str, code: str, lang: str = 'ar') -> bool:
   <div style="font-size:36px;font-weight:900;letter-spacing:12px;color:#0C67EC">{code}</div>
 </div>
 <p style="color:#999;font-size:12px">This code expires in 15 minutes. Do not share it with anyone.</p>"""
-        subj = 'ARS — Password Reset Code'
+        subj = 'STAP — Password Reset Code'
         txt  = f'Reset code: {code}'
     else:
         content = f"""
@@ -799,7 +799,7 @@ def send_reset_code(email: str, code: str, lang: str = 'ar') -> bool:
   <div style="font-size:36px;font-weight:900;letter-spacing:12px;color:#0C67EC">{code}</div>
 </div>
 <p style="color:#999;font-size:12px">صالح لمدة 15 دقيقة. لا تشاركه مع أحد.</p>"""
-        subj = 'ARS — رمز إعادة تعيين كلمة المرور'
+        subj = 'STAP — رمز إعادة تعيين كلمة المرور'
         txt  = f'Reset code: {code}'
 
     return _send(email, '', subj, _html_wrapper(content, subj, lang), txt, sync=True)
@@ -819,7 +819,7 @@ def send_verification_code(email: str, code: str, full_name: str = '', lang: str
 <div style="background:#f4f9ff;border:2px dashed #0C67EC;border-radius:12px;padding:20px;text-align:center;margin-bottom:20px">
   <div style="font-size:36px;font-weight:900;letter-spacing:12px;color:#0C67EC">{code}</div>
 </div>"""
-        subj = 'ARS — Email Verification Code'
+        subj = 'STAP — Email Verification Code'
         txt  = f'Verification code: {code}'
     else:
         content = f"""
@@ -827,7 +827,7 @@ def send_verification_code(email: str, code: str, full_name: str = '', lang: str
 <div style="background:#f4f9ff;border:2px dashed #0C67EC;border-radius:12px;padding:20px;text-align:center;margin-bottom:20px">
   <div style="font-size:36px;font-weight:900;letter-spacing:12px;color:#0C67EC">{code}</div>
 </div>"""
-        subj = 'ARS — رمز التحقق من البريد الإلكتروني'
+        subj = 'STAP — رمز التحقق من البريد الإلكتروني'
         txt  = f'Verification code: {code}'
 
     return _send(email, name, subj, _html_wrapper(content, subj, lang), txt, sync=True)
@@ -975,7 +975,7 @@ def test_smtp(smtp_host='', smtp_port=587, sender_email='', sender_password='',
         payload = json.dumps({
             'sender':      {'name': 'ARS Test', 'email': from_email},
             'to':          [{'email': test_to, 'name': 'ARS Test'}],
-            'subject':     'ARS — Email Test ✅',
+            'subject':     'STAP — Email Test ✅',
             'htmlContent': _html_wrapper(
                 '<p style="color:#4a5568;text-align:center;font-size:16px">'
                 '✅ Email configuration is working correctly!</p>'

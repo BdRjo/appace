@@ -1,5 +1,5 @@
 """
-ARS — Control Panel (CP)
+STAP — Control Panel (CP)
 لوحة تحكم بالصفحات — مثل cPanel
 """
 import json, os
