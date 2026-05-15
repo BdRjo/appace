@@ -66,6 +66,17 @@ def create_app():
     except Exception as e:
         print(f"⚠️ Column migration: {e}")
 
+    # ── Migration v86: SAS time fields ───────────────────────────────────────
+    try:
+        from sqlalchemy import text
+        with get_engine().connect() as conn:
+            conn.execute(text("ALTER TABLE sas_records ADD COLUMN IF NOT EXISTS all_day INTEGER DEFAULT 1"))
+            conn.execute(text("ALTER TABLE sas_records ADD COLUMN IF NOT EXISTS time_from VARCHAR(10)"))
+            conn.execute(text("ALTER TABLE sas_records ADD COLUMN IF NOT EXISTS time_to VARCHAR(10)"))
+            conn.commit()
+    except Exception as e:
+        print(f"⚠️ SAS v86 migration: {e}")
+
     # ── DB session per request ────────────────────────────────────────────────
     @app.before_request
     def open_db():
