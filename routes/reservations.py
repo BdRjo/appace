@@ -39,7 +39,7 @@ STATUS_CLS = {
 
 def _book_num(db):
     c = db.query(Reservation).count() + 1
-    return f"ARS-{datetime.now().strftime('%Y%m%d%H%M%S')}-{c:04d}"
+    return f"STAP-{datetime.now().strftime('%Y%m%d%H%M%S')}-{c:04d}"
 
 def _conflict(db, venue_id, start, end, exclude_id=None):
     q = db.query(Reservation).filter(
@@ -1135,7 +1135,7 @@ We are pleased to invite you to attend "{res.title}" at:
 ⏰ Time: {start_time}
 
 We look forward to seeing you,
-ARS Team"""
+STAP Team"""
     else:
         default_msg = f"""عزيزي/عزيزتي [NAME]،
 
@@ -1145,7 +1145,7 @@ ARS Team"""
 ⏰ الوقت: {start_time}
 
 نتطلع لرؤيتكم،
-فريق ARS"""
+فريق STAP"""
 
     return render_template('reservations/invite.html',
         res=res, contacts=contacts, groups=groups, default_msg=default_msg)

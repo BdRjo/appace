@@ -1,5 +1,5 @@
 """
-Mobile API — JWT-based endpoints for ARS Mobile App
+Mobile API — JWT-based endpoints for STAP Mobile App
 Prefix: /mobile-api
 """
 import os

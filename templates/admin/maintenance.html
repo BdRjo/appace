@@ -124,11 +124,11 @@
               <div class="row g-3 mb-3">
                 <div class="col-md-6">
                   <label class="form-label fw-600">{% if current_lang=='en' %}System Name (Arabic){% else %}اسم النظام (عربي){% endif %}</label>
-                  <input type="text" name="brand_name" class="form-control" value="{{ mcfg.get('brand_name','نظام ARS') }}">
+                  <input type="text" name="brand_name" class="form-control" value="{{ mcfg.get('brand_name','نظام STAP') }}">
                 </div>
                 <div class="col-md-6">
                   <label class="form-label fw-600">System Name (English)</label>
-                  <input type="text" name="brand_name_en" class="form-control" value="{{ mcfg.get('brand_name_en','ARS System') }}">
+                  <input type="text" name="brand_name_en" class="form-control" value="{{ mcfg.get('brand_name_en','STAP System') }}">
                 </div>
                 <div class="col-md-6">
                   <label class="form-label fw-600">{% if current_lang=='en' %}Tagline (Arabic){% else %}الوصف المختصر (عربي){% endif %}</label>
@@ -223,7 +223,7 @@
                        value="{{ mcfg.get('report_header_title','') }}" oninput="previewHeader()">
                 <label class="form-label small fw-bold">{{ _('العنوان الفرعي') }}</label>
                 <input type="text" id="hSubtitle" name="report_header_subtitle" class="form-control form-control-sm mb-2"
-                       placeholder="{{ _('مثال: إدارة الحجوزات') }}"
+                       placeholder="{{ _('مثال: الحضور والمقابلات') }}"
                        value="{{ mcfg.get('report_header_subtitle','') }}" oninput="previewHeader()">
                 <label class="form-label small fw-bold">{{ _('footer / تذييل') }}</label>
                 <input type="text" id="hFooter" name="report_header_footer" class="form-control form-control-sm mb-2"

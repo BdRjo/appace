@@ -393,7 +393,7 @@ def admin_teacher_add(event_id):
             portal_url = request.host_url.rstrip('/') + url_for('interviews.teacher_timetable', teacher_code=t.teacher_code)
             subject = f"رابط بوابة المقابلات — {ev.name if ev else ''}" if ar else f"Your Interview Portal Access — {ev.name if ev else ''}"
             greeting = f"عزيزي {t.name}،" if ar else f"Dear {t.name},"
-            msg = "تمت إضافتك إلى فعالية مقابلات. استخدم الرابط أدناه لعرض جدولك وإدارة الحجوزات:" if ar else "You have been added to an interview event. Use the link below to view your schedule and manage bookings:"
+            msg = "تمت إضافتك إلى فعالية مقابلات. استخدم الرابط أدناه لعرض جدولك والحضور والمقابلات:" if ar else "You have been added to an interview event. Use the link below to view your schedule and manage bookings:"
             lbl_code = "رمز الدخول الخاص بك" if ar else "Your Access Code"
             lbl_btn = "فتح البوابة" if ar else "Open My Portal"
             lbl_private = "هذا رابط خاص. يرجى عدم مشاركته." if ar else "This is a private link. Please do not share it publicly."

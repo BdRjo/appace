@@ -1065,7 +1065,7 @@ def export_pdf():
                                 rightMargin=1.5*cm, leftMargin=1.5*cm,
                                 topMargin=2*cm, bottomMargin=2*cm)
 
-        # Use ARS Arabic font helper
+        # Use STAP Arabic font helper
         from utils.pdf_helper import register_arabic_font, ar, arabic_font as _af
         register_arabic_font()
         arabic_font = _af(bold=False)
@@ -1133,7 +1133,7 @@ def export_pdf():
         doc.build(story)
         buf.seek(0)
         return Response(buf.read(), mimetype='application/pdf',
-                        headers={'Content-Disposition': f'attachment;filename=ARS_Report_{date.today()}.pdf'})
+                        headers={'Content-Disposition': f'attachment;filename=STAP_Report_{date.today()}.pdf'})
     except ImportError:
         flash_msg('يرجى تثبيت reportlab: pip install reportlab', 'danger')
         return redirect(url_for('reports.index'))
@@ -1197,7 +1197,7 @@ def export_excel():
         wb.save(buf); buf.seek(0)
         return Response(buf.read(),
                         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                        headers={'Content-Disposition': 'attachment;filename=ARS_Report.xlsx'})
+                        headers={'Content-Disposition': 'attachment;filename=STAP_Report.xlsx'})
     except ImportError:
         flash_msg('يرجى تثبيت openpyxl: pip install openpyxl', 'danger')
         return redirect(url_for('reports.index'))

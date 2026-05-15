@@ -1,5 +1,5 @@
 """
-ARS Email Helper — Bilingual (Arabic/English)
+STAP Email Helper — Bilingual (Arabic/English)
 Sends notifications in the recipient's preferred language
 """
 import os, json, time, urllib.request, urllib.error
@@ -48,7 +48,7 @@ def _get_cfg():
         'api_key':       os.environ.get('BREVO_API_KEY', ''),
         'brevo_api_key': os.environ.get('BREVO_API_KEY', ''),
         'sender_email':  os.environ.get('SENDER_EMAIL', ''),
-        'sender_name':   os.environ.get('SENDER_NAME', 'ARS Student Tracking & Appointments'),
+        'sender_name':   os.environ.get('SENDER_NAME', 'STAP Student Tracking & Appointments'),
     }
 
 def _user_lang(user):
@@ -242,14 +242,14 @@ TEMPLATE_REGISTRY = {
         'variables': ['name', 'username', 'password', 'login_url'],
         'default_subject_ar': 'مرحباً بك في STAP — نظام الحضور والمقابلات',
         'default_subject_en': 'Welcome to STAP — Student Tracking & Appointments',
-        'default_body_ar': '''<h2 style="color:#0C67EC;margin:0 0 12px">مرحباً بك في ARS، {{name}}! 🎉</h2>
+        'default_body_ar': '''<h2 style="color:#0C67EC;margin:0 0 12px">مرحباً بك في STAP، {{name}}! 🎉</h2>
 <p style="color:#4a5568;margin:0 0 16px">تم إنشاء حسابك بنجاح. بيانات الدخول الخاصة بك:</p>
 <table width="100%" cellpadding="0" cellspacing="0" style="border-radius:10px;overflow:hidden;border:1px solid #E0E8F5;margin-bottom:20px">
   <tr><td style="padding:10px 14px;background:#FAFFFE;font-size:13px;color:#6b7c99;width:35%">👤 اسم المستخدم</td><td style="padding:10px 14px;background:#FAFFFE;font-size:13px;color:#2d3748;font-weight:600">{{username}}</td></tr>
   <tr><td style="padding:10px 14px;background:#FAFCFF;font-size:13px;color:#6b7c99;width:35%">🔑 كلمة المرور</td><td style="padding:10px 14px;background:#FAFCFF;font-size:13px;color:#2d3748;font-weight:600"><code style="background:#f4f9ff;padding:2px 6px;border-radius:4px">{{password}}</code></td></tr>
 </table>
 <p style="color:#999;font-size:12px;margin-top:16px">يُرجى تغيير كلمة المرور بعد أول دخول.</p>''',
-        'default_body_en': '''<h2 style="color:#0C67EC;margin:0 0 12px">Welcome to ARS, {{name}}! 🎉</h2>
+        'default_body_en': '''<h2 style="color:#0C67EC;margin:0 0 12px">Welcome to STAP, {{name}}! 🎉</h2>
 <p style="color:#4a5568;margin:0 0 16px">Your account has been created. Here are your login credentials:</p>
 <table width="100%" cellpadding="0" cellspacing="0" style="border-radius:10px;overflow:hidden;border:1px solid #E0E8F5;margin-bottom:20px">
   <tr><td style="padding:10px 14px;background:#FAFFFE;font-size:13px;color:#6b7c99;width:35%">👤 Username</td><td style="padding:10px 14px;background:#FAFFFE;font-size:13px;color:#2d3748;font-weight:600">{{username}}</td></tr>
@@ -280,11 +280,11 @@ TEMPLATE_REGISTRY = {
         'variables': ['name', 'code'],
         'default_subject_ar': 'STAP — رمز التحقق من البريد الإلكتروني',
         'default_subject_en': 'STAP — Email Verification Code',
-        'default_body_ar': '''<p style="color:#4a5568;margin:0 0 20px">شكراً لتسجيلك في نظام ARS. أدخل الرمز أدناه لتفعيل حسابك:</p>
+        'default_body_ar': '''<p style="color:#4a5568;margin:0 0 20px">شكراً لتسجيلك في نظام STAP. أدخل الرمز أدناه لتفعيل حسابك:</p>
 <div style="background:#f4f9ff;border:2px dashed #0C67EC;border-radius:12px;padding:20px;text-align:center;margin-bottom:20px">
   <div style="font-size:36px;font-weight:900;letter-spacing:12px;color:#0C67EC">{{code}}</div>
 </div>''',
-        'default_body_en': '''<p style="color:#4a5568;margin:0 0 20px">Thank you for registering in ARS. Enter the code below to verify your account:</p>
+        'default_body_en': '''<p style="color:#4a5568;margin:0 0 20px">Thank you for registering in STAP. Enter the code below to verify your account:</p>
 <div style="background:#f4f9ff;border:2px dashed #0C67EC;border-radius:12px;padding:20px;text-align:center;margin-bottom:20px">
   <div style="font-size:36px;font-weight:900;letter-spacing:12px;color:#0C67EC">{{code}}</div>
 </div>''',
@@ -751,7 +751,7 @@ def send_welcome(user, password, login_url=''):
 
     if lang == 'en':
         content = f"""
-<h2 style="color:#0C67EC;margin:0 0 12px">Welcome to ARS, {name}! 🎉</h2>
+<h2 style="color:#0C67EC;margin:0 0 12px">Welcome to STAP, {name}! 🎉</h2>
 <p style="color:#4a5568;margin:0 0 16px">Your account has been created. Here are your login credentials:</p>
 <table width="100%" cellpadding="0" cellspacing="0" style="border-radius:10px;overflow:hidden;border:1px solid #E0E8F5;margin-bottom:20px">
   {_info_row('👤 Username', uname)}
@@ -763,7 +763,7 @@ def send_welcome(user, password, login_url=''):
         txt  = f"Welcome {name}!\nUsername: {uname}\nPassword: {password}\nLogin: {login_url}"
     else:
         content = f"""
-<h2 style="color:#0C67EC;margin:0 0 12px">مرحباً بك في ARS، {name}! 🎉</h2>
+<h2 style="color:#0C67EC;margin:0 0 12px">مرحباً بك في STAP، {name}! 🎉</h2>
 <p style="color:#4a5568;margin:0 0 16px">تم إنشاء حسابك بنجاح. بيانات الدخول الخاصة بك:</p>
 <table width="100%" cellpadding="0" cellspacing="0" style="border-radius:10px;overflow:hidden;border:1px solid #E0E8F5;margin-bottom:20px">
   {_info_row('👤 اسم المستخدم', uname)}
@@ -815,7 +815,7 @@ def send_verification_code(email: str, code: str, full_name: str = '', lang: str
 
     if lang == 'en':
         content = f"""
-<p style="color:#4a5568;margin:0 0 20px">Thank you for registering in ARS. Enter the code below to verify your account:</p>
+<p style="color:#4a5568;margin:0 0 20px">Thank you for registering in STAP. Enter the code below to verify your account:</p>
 <div style="background:#f4f9ff;border:2px dashed #0C67EC;border-radius:12px;padding:20px;text-align:center;margin-bottom:20px">
   <div style="font-size:36px;font-weight:900;letter-spacing:12px;color:#0C67EC">{code}</div>
 </div>"""
@@ -823,7 +823,7 @@ def send_verification_code(email: str, code: str, full_name: str = '', lang: str
         txt  = f'Verification code: {code}'
     else:
         content = f"""
-<p style="color:#4a5568;margin:0 0 20px">شكراً لتسجيلك في نظام ARS. أدخل الرمز أدناه لتفعيل حسابك:</p>
+<p style="color:#4a5568;margin:0 0 20px">شكراً لتسجيلك في نظام STAP. أدخل الرمز أدناه لتفعيل حسابك:</p>
 <div style="background:#f4f9ff;border:2px dashed #0C67EC;border-radius:12px;padding:20px;text-align:center;margin-bottom:20px">
   <div style="font-size:36px;font-weight:900;letter-spacing:12px;color:#0C67EC">{code}</div>
 </div>"""
@@ -973,20 +973,20 @@ def test_smtp(smtp_host='', smtp_port=587, sender_email='', sender_password='',
             return (False, 'No recipient email address' if en else 'لا يوجد بريد للاستلام')
 
         payload = json.dumps({
-            'sender':      {'name': 'ARS Test', 'email': from_email},
-            'to':          [{'email': test_to, 'name': 'ARS Test'}],
+            'sender':      {'name': 'STAP Test', 'email': from_email},
+            'to':          [{'email': test_to, 'name': 'STAP Test'}],
             'subject':     'STAP — Email Test ✅',
             'htmlContent': _html_wrapper(
                 '<p style="color:#4a5568;text-align:center;font-size:16px">'
                 '✅ Email configuration is working correctly!</p>'
                 '<p style="color:#888;text-align:center;font-size:13px">'
-                'ARS Email configuration is working correctly.</p>' if en else
+                'STAP Email configuration is working correctly.</p>' if en else
                 '<p style="color:#4a5568;text-align:center;font-size:16px">'
                 '✅ إعدادات البريد الإلكتروني تعمل بشكل صحيح!</p>'
                 '<p style="color:#888;text-align:center;font-size:13px">'
-                'ARS Email configuration is working correctly.</p>',
+                'STAP Email configuration is working correctly.</p>',
                 'Test', lang),
-            'textContent': 'ARS email test successful!' if en else 'ARS email test — تم الإرسال بنجاح!'
+            'textContent': 'STAP email test successful!' if en else 'STAP email test — تم الإرسال بنجاح!'
         }).encode('utf-8')
 
         req = urllib.request.Request(

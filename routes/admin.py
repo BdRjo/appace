@@ -329,8 +329,8 @@ def _load_ticker():
     except Exception as e:
         current_app.logger.warning(f"{__name__} error: {e}")
         return {
-            'feeds_ar': ['مرحباً بكم في نظام ARS لإدارة الحجوزات'],
-            'feeds_en': ['Welcome to ARS Reservation System'],
+            'feeds_ar': ['مرحباً بكم في نظام STAP لالحضور والمقابلات'],
+            'feeds_en': ['Welcome to STAP Reservation System'],
             'fg': '#F2C99A', 'bg': '', 'font': 'Tahoma',
             'size': 15, 'speed': 35, 'opacity': 0
         }
@@ -682,7 +682,7 @@ def settings():
         current_app.logger.warning(f"{__name__} error: {e}")
         cfg = {'smtp_server':'smtp.gmail.com','smtp_port':587,
                'sender_email':'','sender_password':'',
-               'sender_name':'ARS Student Tracking & Appointments',
+               'sender_name':'STAP Student Tracking & Appointments',
                'use_tls':True,'provider_key':'brevo_api',
                'brevo_api_key':''}
 
@@ -718,7 +718,7 @@ def settings():
             'smtp_port':      int(request.form.get('smtp_port', 587) or 587),
             'sender_email':   request.form.get('sender_email',''),
             'sender_password':request.form.get('sender_password',''),
-            'sender_name':    request.form.get('sender_name','ARS Student Tracking & Appointments'),
+            'sender_name':    request.form.get('sender_name','STAP Student Tracking & Appointments'),
             'use_tls':        request.form.get('use_tls') == 'on',
             'brevo_api_key':  request.form.get('brevo_api_key','').strip(),
         }
@@ -739,9 +739,9 @@ def ticker_api():
     ticker = _load_ticker()
     lang  = request.args.get('lang','ar')
     if lang == 'ar':
-        msgs = ticker.get('feeds_ar', ['مرحباً بكم في نظام ARS']) or ['مرحباً بكم في نظام ARS']
+        msgs = ticker.get('feeds_ar', ['مرحباً بكم في نظام STAP']) or ['مرحباً بكم في نظام STAP']
     else:
-        msgs = ticker.get('feeds_en', []) or ['Welcome to ARS Reservation Management System']
+        msgs = ticker.get('feeds_en', []) or ['Welcome to STAP Reservation Management System']
     sep_img = ticker.get('sep_img_url', '')
     if sep_img:
         sep_html = f' <img src="{sep_img}" style="width:24px;height:24px;object-fit:contain;vertical-align:middle;border-radius:50%;margin:0 8px;opacity:.85"> '
@@ -928,12 +928,12 @@ def email_resend(log_id):
         if _en:
             content = f"""
 <h2 style="color:#0C67EC;margin:0 0 12px">Resend</h2>
-<p style="color:#4a5568">This is a resent message from the ARS email log.</p>
+<p style="color:#4a5568">This is a resent message from the STAP email log.</p>
 <p style="color:#888;font-size:12px">Original subject: {log.subject}<br>Original recipient: {log.recipient}</p>"""
         else:
             content = f"""
 <h2 style="color:#0C67EC;margin:0 0 12px">إعادة إرسال</h2>
-<p style="color:#4a5568">هذه رسالة مُعاد إرسالها من سجل البريد الإلكتروني لنظام ARS.</p>
+<p style="color:#4a5568">هذه رسالة مُعاد إرسالها من سجل البريد الإلكتروني لنظام STAP.</p>
 <p style="color:#888;font-size:12px">الموضوع الأصلي: {log.subject}<br>المرسَل إليه الأصلي: {log.recipient}</p>"""
         resend_html = _html_wrapper(content, log.subject, lang)
     ok = _send(log.recipient, '', log.subject,
@@ -1000,7 +1000,7 @@ def email_log_forward(log_id):
         if _en:
             content = f"""
 <h2 style="color:#0C67EC;margin:0 0 12px">Forwarded Email</h2>
-<p style="color:#4a5568">This is a forwarded message from the ARS email log.</p>
+<p style="color:#4a5568">This is a forwarded message from the STAP email log.</p>
 <table style="border-radius:10px;overflow:hidden;border:1px solid #E0E8F5;width:100%;margin:12px 0">
   <tr><td style="padding:8px 14px;background:#f8fbff;color:#888;width:35%">Original Subject</td><td style="padding:8px 14px;font-weight:600">{log.subject}</td></tr>
   <tr><td style="padding:8px 14px;background:#f0f6ff;color:#888">Original Recipient</td><td style="padding:8px 14px;font-weight:600">{log.recipient}</td></tr>
@@ -1008,7 +1008,7 @@ def email_log_forward(log_id):
         else:
             content = f"""
 <h2 style="color:#0C67EC;margin:0 0 12px">إعادة توجيه</h2>
-<p style="color:#4a5568">هذه رسالة مُعاد توجيهها من سجل البريد الإلكتروني لنظام ARS.</p>
+<p style="color:#4a5568">هذه رسالة مُعاد توجيهها من سجل البريد الإلكتروني لنظام STAP.</p>
 <table style="border-radius:10px;overflow:hidden;border:1px solid #E0E8F5;width:100%;margin:12px 0">
   <tr><td style="padding:8px 14px;background:#f8fbff;color:#888;width:35%">الموضوع الأصلي</td><td style="padding:8px 14px;font-weight:600">{log.subject}</td></tr>
   <tr><td style="padding:8px 14px;background:#f0f6ff;color:#888">المرسَل إليه الأصلي</td><td style="padding:8px 14px;font-weight:600">{log.recipient}</td></tr>

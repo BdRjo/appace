@@ -18,7 +18,7 @@ def load_settings():
         'system_name': 'STAP — نظام الحضور والمقابلات',
         'provider_key': 'gmail', 'smtp_server': 'smtp.gmail.com',
         'smtp_port': 587, 'sender_email': '', 'sender_password': '',
-        'sender_name': 'ARS System', 'use_tls': True,
+        'sender_name': 'STAP System', 'use_tls': True,
         'require_approval': True, 'allow_self_register': True,
         'max_days_advance': 90, 'min_hours_before': 2,
     }
@@ -67,8 +67,8 @@ def test_email():
     try:
         import smtplib
         from email.mime.text import MIMEText
-        msg = MIMEText('هذا بريد اختباري من نظام ARS', 'plain', 'utf-8')
-        msg['Subject'] = 'اختبار ARS'
+        msg = MIMEText('هذا بريد اختباري من نظام STAP', 'plain', 'utf-8')
+        msg['Subject'] = 'اختبار STAP'
         msg['From']    = cfg.get('sender_email', cfg.get('smtp_user',''))
         msg['To']      = to
         host = cfg.get('smtp_server', cfg.get('smtp_host',''))

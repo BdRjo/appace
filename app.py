@@ -1,4 +1,4 @@
-"""ARS Student Tracking & Appointments — Web v4"""
+"""STAP Student Tracking & Appointments — Web v4"""
 import os
 from flask import Flask, g
 from flask_cors import CORS
@@ -137,15 +137,15 @@ def create_app():
                 p = os.path.join(os.path.dirname(__file__), 'maintenance_config.json')
                 cfg = json.loads(open(p).read()) if os.path.exists(p) else {}
                 # Brand defaults — قابلة للتخصيص لكل عميل
-                cfg.setdefault('brand_name',    'نظام ARS')
-                cfg.setdefault('brand_name_en', 'ARS System')
+                cfg.setdefault('brand_name',    'نظام STAP')
+                cfg.setdefault('brand_name_en', 'STAP System')
                 cfg.setdefault('brand_tagline',    'نظام إدارة الفعاليات والحجوزات')
                 cfg.setdefault('brand_tagline_en', 'Event & Booking Management System')
                 cfg.setdefault('brand_short',    'STAP')
                 cfg.setdefault('brand_short_en', 'STAP')
                 return cfg
             except: return {
-                'brand_name': 'نظام ARS', 'brand_name_en': 'ARS System',
+                'brand_name': 'نظام STAP', 'brand_name_en': 'STAP System',
                 'brand_tagline': 'نظام إدارة الفعاليات', 'brand_tagline_en': 'Event Management',
                 'brand_short': 'STAP', 'brand_short_en': 'STAP',
             }
@@ -244,7 +244,7 @@ def create_app():
         def get_ticker_cfg():
             return _build_ticker_cfg(
                 os.path.join(os.path.dirname(__file__), 'ticker_config.json'),
-                'مرحباً بكم في نظام ARS لإدارة الحجوزات', 'Welcome to ARS Reservation System',
+                'مرحباً بكم في نظام STAP لالحضور والمقابلات', 'Welcome to STAP Reservation System',
                 '#F2C99A', '#28559B')
         def get_auth_ticker_cfg():
             return _build_ticker_cfg(
@@ -438,7 +438,7 @@ def create_app():
 
 try:
     app = create_app()
-    print('✅ ARS App ready')
+    print('✅ STAP App ready')
 except Exception as e:
     import traceback; traceback.print_exc(); raise
 

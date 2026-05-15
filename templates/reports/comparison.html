@@ -672,7 +672,7 @@ function updateCount() {
 
 function printReport() {
   // Collect result content
-  const title = document.querySelector('.page-header h1')?.textContent?.trim() || 'ARS Report';
+  const title = document.querySelector('.page-header h1')?.textContent?.trim() || 'STAP Report';
   const table = document.querySelector('.table-responsive')?.innerHTML || '';
   const chart = document.querySelector('canvas')?.toDataURL('image/png') || '';
   const dir   = document.documentElement.dir || 'rtl';
