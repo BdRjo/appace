@@ -1,0 +1,251 @@
+{% extends 'base.html' %}
+{% block title %}{% if current_lang=='en' %}Send Invitations — {{ res.booking_number }}{% else %}إرسال دعوات — {{ res.booking_number }}{% endif %}{% endblock %}
+{% block extra_css %}
+<link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+<style>
+#inviteEditor { min-height:220px; font-size:.95rem; direction:{% if current_lang=='en' %}ltr{% else %}rtl{% endif %}; }
+.ql-toolbar { border-radius:8px 8px 0 0; background:#f8fbfc; }
+.ql-container { border-radius:0 0 8px 8px; }
+.contact-row:hover { background:#f0f6ff; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-header d-flex align-items-center gap-2">
+  <a href="{{ url_for('reservations.detail', res_id=res.id) }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-{% if current_lang=='en' %}left{% else %}right{% endif %} me-1"></i>
+    {% if current_lang=='en' %}Back{% else %}رجوع{% endif %}
+  </a>
+  <h4 style="margin:0">{% if current_lang=='en' %}📧 Send Invitations — {% else %}📧 إرسال دعوات — {% endif %}{{ res.title }}</h4>
+</div>
+
+<!-- معلومات الحجز -->
+<div class="card mb-3" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.08)">
+  <div class="card-body py-2 px-3">
+    <div class="row g-2 align-items-center">
+      <div class="col-auto"><span class="badge bg-primary">{{ res.booking_number }}</span></div>
+      <div class="col"><strong>{{ res.venue.name if res.venue else '—' }}</strong></div>
+      <div class="col-auto text-muted small">{{ res.start_time.strftime('%Y-%m-%d %H:%M') if res.start_time else '' }}</div>
+    </div>
+  </div>
+</div>
+
+<form method="POST" enctype="multipart/form-data" id="inviteForm">
+<div class="row g-3">
+
+  <!-- Left: recipients -->
+  <div class="col-lg-5">
+    <div class="card" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.08)">
+      <div class="card-header"><i class="bi bi-people me-2"></i>{{ _('👥 اختر المدعويين') }}</div>
+      <div class="card-body">
+
+        {% if groups %}
+        <div class="mb-3 p-3 rounded" style="background:#EEF4FD;border:1.5px solid #C8DCFF">
+          <label class="form-label fw-bold small mb-2">
+            <i class="bi bi-people-fill me-1" style="color:var(--primary)"></i>
+            {% if current_lang=='en' %}Quick select by group{% else %}اختيار سريع من مجموعة{% endif %}
+          </label>
+          <div class="d-flex gap-2 align-items-center flex-wrap">
+            <select id="groupSelector" class="form-select form-select-sm" style="max-width:220px">
+              <option value="">{% if current_lang=='en' %}Select a group...{% else %}اختر مجموعة...{% endif %}</option>
+              {% for g in groups %}
+              <option value="{{ g.id }}" data-ids="{{ g.contacts|map(attribute='id')|list|join(',') }}">
+                {{ g.name }} ({{ g.contacts|length }})
+              </option>
+              {% endfor %}
+            </select>
+            <input type="hidden" name="group_id" id="groupIdInput" value="">
+            <button type="button" class="btn btn-sm btn-primary-ars" onclick="applyGroup()">
+              <i class="bi bi-check-all me-1"></i>{% if current_lang=='en' %}Apply{% else %}تطبيق{% endif %}
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearAll()">
+              <i class="bi bi-x-lg me-1"></i>{% if current_lang=='en' %}Clear{% else %}مسح{% endif %}
+            </button>
+          </div>
+        </div>
+        {% endif %}
+
+        {% if contacts %}
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="small fw-bold text-muted">{% if current_lang=='en' %}Select individually:{% else %}أو اختر يدوياً:{% endif %}</span>
+          <div class="d-flex gap-2 align-items-center">
+            <button type="button" class="btn btn-xs btn-outline-primary btn-sm" onclick="selectAllContacts(true)">{{ _('تحديد الكل') }}</button>
+            <button type="button" class="btn btn-xs btn-outline-secondary btn-sm" onclick="selectAllContacts(false)">{{ _('إلغاء الكل') }}</button>
+            <span id="inviteCount" class="small text-muted"></span>
+          </div>
+        </div>
+        <div style="max-height:240px;overflow-y:auto;border:1px solid #dee2e6;border-radius:8px;padding:8px;">
+          {% for c in contacts %}
+          <div class="form-check contact-row" style="padding:4px 8px;border-radius:6px">
+            <input class="form-check-input contact-cb" type="checkbox" name="contact_ids"
+                   value="{{ c.id }}" id="c{{ c.id }}" onchange="updateInviteCount()">
+            <label class="form-check-label" for="c{{ c.id }}" style="font-size:.85rem;cursor:pointer">
+              <strong>{{ c.first_name }} {{ c.last_name or '' }}</strong>
+              <span class="text-muted"> — {{ c.email }}</span>
+            </label>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="alert alert-warning mb-0">
+          {{ _('لا توجد جهات اتصال') }}. <a href="{{ url_for('contacts.new') }}">{{ _('أضف جهات اتصال') }}</a> {{ _('أولاً') }}.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: message -->
+  <div class="col-lg-7">
+    <div class="card" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.08)">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-envelope-paper me-2"></i>{{ _('✉️ نص الدعوة') }}</span>
+        <button type="button" id="toggleEditorBtn"
+                onclick="toggleEditorMode()"
+                style="background:#f0f4ff;color:#0C67EC;border:1.5px solid #c5d8ff;border-radius:8px;padding:4px 12px;font-size:.8rem;font-weight:600;cursor:pointer">
+          <i class="bi bi-code-slash me-1"></i>
+          <span id="editorModeLbl">{% if current_lang=='en' %}Plain Text{% else %}نص عادي{% endif %}</span>
+        </button>
+      </div>
+      <div class="card-body">
+        <div class="alert alert-info py-1 px-2 mb-2" style="font-size:.8rem;border-radius:8px">
+          <i class="bi bi-info-circle me-1"></i>
+          {% if current_lang=='en' %}[NAME] will be replaced with each invitee's name{% else %}[NAME] سيُستبدل باسم كل مدعو تلقائياً{% endif %}
+        </div>
+        <!-- Quill editor -->
+        <div id="quillWrapper">
+          <div id="inviteEditor"></div>
+        </div>
+        <!-- Plain text fallback -->
+        <textarea name="message_plain" id="plainMsg" class="form-control" rows="10"
+                  style="display:none;resize:vertical">{{ default_msg }}</textarea>
+        <!-- Hidden fields -->
+        <input type="hidden" name="message" id="messageHtml">
+        <input type="hidden" name="editor_mode" id="editorMode" value="html">
+      </div>
+    </div>
+
+    <!-- Attachment -->
+    <div class="card mt-3" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.08)">
+      <div class="card-header"><i class="bi bi-paperclip me-2"></i>{{ _('مرفق مع الدعوة (اختياري)') }}</div>
+      <div class="card-body">
+        <input type="file" name="invite_attachment" class="form-control"
+               accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+        <div class="form-text">{{ _('سيُرفق هذا الملف مع جميع الدعوات المُرسلة') }}</div>
+      </div>
+    </div>
+
+    <!-- Buttons -->
+    <div class="mt-3">
+      <button type="submit" class="btn btn-success w-100 mb-2 py-2"
+              style="font-size:.95rem;font-weight:700"
+              onclick="prepareInviteSubmit(event)"
+              {% if not contacts %}disabled{% endif %}>
+        <i class="bi bi-send me-2"></i>{% if current_lang=="en" %}Send Invitations{% else %}إرسال الدعوات{% endif %}
+        <span id="sendCountBadge" class="badge bg-white text-success ms-1" style="display:none"></span>
+      </button>
+      <a href="{{ url_for('reservations.detail', res_id=res.id) }}"
+         class="btn btn-outline-secondary w-100">{{ _('إلغاء') }}</a>
+    </div>
+  </div>
+
+</div>
+</form>
+
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+<script>
+const EDITOR_DIR = '{{ "ltr" if current_lang=="en" else "rtl" }}';
+const quill = new Quill('#inviteEditor', {
+  theme: 'snow',
+  placeholder: '{{ _("اكتب نص الدعوة هنا...") }}',
+  modules: {
+    toolbar: [
+      [{ header: [1,2,3,false] }],
+      ['bold','italic','underline','strike'],
+      [{ color:[] },{ background:[] }],
+      [{ align:[] }],
+      [{ list:'ordered'},{ list:'bullet'}],
+      ['link'],
+      ['clean']
+    ]
+  }
+});
+quill.format('direction', EDITOR_DIR);
+quill.format('align', EDITOR_DIR === 'rtl' ? 'right' : 'left');
+
+// Set default message content
+const defaultMsg = {{ default_msg|tojson }};
+if (defaultMsg) quill.setText(defaultMsg);
+
+let isHtmlMode = true;
+
+function toggleEditorMode() {
+  isHtmlMode = !isHtmlMode;
+  document.getElementById('editorMode').value = isHtmlMode ? 'html' : 'plain';
+  document.getElementById('quillWrapper').style.display = isHtmlMode ? 'block' : 'none';
+  document.getElementById('plainMsg').style.display     = isHtmlMode ? 'none'  : 'block';
+  document.getElementById('editorModeLbl').textContent  = isHtmlMode
+    ? '{% if current_lang=="en" %}Plain Text{% else %}نص عادي{% endif %}'
+    : '{% if current_lang=="en" %}Rich Editor{% else %}محرر غني{% endif %}';
+}
+
+function prepareInviteSubmit(e) {
+  if (isHtmlMode) {
+    const html = quill.root.innerHTML;
+    document.getElementById('messageHtml').value = html;
+    if (quill.getText().trim().length === 0) {
+      e.preventDefault();
+      alert('{% if current_lang=="en" %}Please write the invitation message{% else %}الرجاء كتابة نص الدعوة{% endif %}');
+      return false;
+    }
+  } else {
+    document.getElementById('messageHtml').value = document.getElementById('plainMsg').value;
+    if (!document.getElementById('plainMsg').value.trim()) {
+      e.preventDefault();
+      alert('{% if current_lang=="en" %}Please write the invitation message{% else %}الرجاء كتابة نص الدعوة{% endif %}');
+      return false;
+    }
+  }
+}
+
+// Group data
+const groupData = {};
+{% for g in groups %}
+groupData[{{ g.id }}] = [{{ g.contacts|map(attribute='id')|list|join(',') }}];
+{% endfor %}
+
+function applyGroup() {
+  const sel = document.getElementById('groupSelector');
+  const gid = parseInt(sel.value);
+  document.getElementById('groupIdInput').value = gid || '';
+  if (!gid || !groupData[gid]) return;
+  const ids = groupData[gid];
+  document.querySelectorAll('.contact-cb').forEach(cb => {
+    cb.checked = ids.includes(parseInt(cb.value));
+  });
+  updateInviteCount();
+}
+
+function clearAll() {
+  document.querySelectorAll('.contact-cb').forEach(cb => cb.checked = false);
+  document.getElementById('groupSelector').value = '';
+  document.getElementById('groupIdInput').value = '';
+  updateInviteCount();
+}
+
+function selectAllContacts(val) {
+  document.querySelectorAll('.contact-cb').forEach(cb => cb.checked = val);
+  updateInviteCount();
+}
+
+function updateInviteCount() {
+  const n  = document.querySelectorAll('.contact-cb:checked').length;
+  const el = document.getElementById('inviteCount');
+  if (el) el.textContent = n + ' {% if current_lang=="en" %}selected{% else %}محدد{% endif %}';
+  const badge = document.getElementById('sendCountBadge');
+  if (badge) {
+    badge.style.display = n > 0 ? 'inline' : 'none';
+    badge.textContent   = n;
+  }
+}
+</script>
+{% endblock %}

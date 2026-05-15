@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block title %}{% if current_lang=="en" %}Email Templates{% else %}قوالب البريد{% endif %} — STAP{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+  <h1 style="font-size:1.4rem;font-weight:700;color:#0C67EC;margin:0">
+    <i class="bi bi-envelope-open-text me-2"></i>
+    {% if current_lang=='en' %}Email Templates{% else %}قوالب البريد الإلكتروني{% endif %}
+  </h1>
+  <span class="badge" style="background:#EEF4FD;color:#0C67EC;font-size:.8rem;padding:6px 12px;border-radius:8px">
+    {{ templates|length }} {% if current_lang=='en' %}templates{% else %}قالب{% endif %}
+  </span>
+</div>
+
+<div class="row g-3">
+{% for t in templates %}
+  <div class="col-md-6 col-lg-4">
+    <div class="card h-100" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.08);transition:transform .15s,box-shadow .15s"
+         onmouseenter="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(12,103,236,.14)'"
+         onmouseleave="this.style.transform='none';this.style.boxShadow='0 2px 12px rgba(12,103,236,.08)'">
+      <div class="card-body d-flex flex-column">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <h6 class="fw-bold mb-0" style="color:#0C67EC;font-size:.95rem">
+            {{ t.name_en if current_lang=='en' else t.name_ar }}
+          </h6>
+          <span class="badge {{ 'bg-success' if t.is_customized else 'bg-secondary' }}" style="font-size:.65rem;border-radius:6px">
+            {% if t.is_customized %}
+              {% if current_lang=='en' %}Customized{% else %}مُخصَّص{% endif %}
+            {% else %}
+              {% if current_lang=='en' %}Default{% else %}افتراضي{% endif %}
+            {% endif %}
+          </span>
+        </div>
+
+        <div class="mb-3 flex-grow-1">
+          {% for v in t.variables %}
+            <span class="badge me-1 mb-1" style="background:#EEF4FD;color:#0C67EC;font-size:.68rem;font-weight:500;border-radius:5px;padding:3px 7px">
+              {{'{{' + v + '}}'}}
+            </span>
+          {% endfor %}
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mt-auto">
+          {% if t.updated_at %}
+            <small class="text-muted" style="font-size:.72rem">
+              <i class="bi bi-clock me-1"></i>{{ t.updated_at.strftime('%Y-%m-%d %H:%M') }}
+            </small>
+          {% else %}
+            <small class="text-muted" style="font-size:.72rem">—</small>
+          {% endif %}
+          <a href="{{ url_for('admin.email_template_edit', key=t.key) }}"
+             class="btn btn-sm btn-outline-primary" style="border-radius:8px;font-size:.8rem;padding:4px 14px">
+            <i class="bi bi-pencil me-1"></i>
+            {% if current_lang=='en' %}Edit{% else %}تعديل{% endif %}
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endfor %}
+</div>
+{% endblock %}

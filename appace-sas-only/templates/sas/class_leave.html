@@ -1,0 +1,271 @@
+{% extends "sas/_sas_base.html" %}
+{%- set ar = (current_lang == 'ar') -%}
+
+{% block print_title %}{% if ar %}تسجيل الخروج من الحصة{% else %}Class Leave{% endif %}{% endblock %}
+
+{% block content %}
+<style>
+  .sas-breadcrumb { display:flex;align-items:center;gap:8px;font-size:.88rem;color:#6b7280;margin-bottom:20px;flex-wrap:wrap }
+  .sas-breadcrumb a { color:var(--sas-primary);text-decoration:none;font-weight:600 }
+  .sas-breadcrumb a:hover { text-decoration:underline }
+  .sas-breadcrumb .sep { color:#d1d5db }
+  .cl-card { background:#fff;border:1.5px solid #e5e7eb;border-radius:14px;padding:16px;margin-bottom:12px;transition:all .2s }
+  .cl-card:hover { border-color:var(--sas-primary);box-shadow:0 4px 12px rgba(8,145,178,.1) }
+  .cl-badge { font-size:.72rem;border-radius:20px;padding:3px 10px;font-weight:600 }
+  .cl-badge.pending { background:#fef3c7;color:#92400e }
+  .cl-badge.approved { background:#cffafe;color:#164e63 }
+  .cl-badge.rejected { background:#fecaca;color:#991b1b }
+  .cl-type-badge { background:#f0f9ff;color:#0891b2;border:1px solid #22d3ee;border-radius:20px;padding:2px 10px;font-size:.75rem;font-weight:600 }
+  .cl-time { font-size:.8rem;color:#6b7280;font-weight:600 }
+  .cl-form-section { background:#fff;border-radius:16px;border:1.5px solid #e5e7eb;padding:20px;margin-bottom:24px }
+  .student-search-input { border:1.5px solid #e5e7eb;border-radius:10px;padding:8px 14px;font-size:.88rem;width:100% }
+  .student-search-input:focus { border-color:var(--sas-primary);outline:none;box-shadow:0 0 0 3px rgba(8,145,178,.1) }
+  .student-result { padding:8px 12px;cursor:pointer;border-radius:8px;font-size:.85rem }
+  .student-result:hover { background:#f0f9ff }
+  .student-results-list { max-height:200px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:10px;background:#fff;display:none;position:absolute;z-index:50;width:100%;left:0;top:100%;box-shadow:0 8px 24px rgba(0,0,0,.12) }
+</style>
+
+<!-- Breadcrumb -->
+<div class="sas-breadcrumb">
+  <a href="{{ url_for('sas.portal_home', code=staff.staff_code) }}">
+    <i class="bi bi-house-fill"></i> {% if ar %}الرئيسية{% else %}Home{% endif %}
+  </a>
+  <span class="sep"><i class="bi bi-chevron-{{ 'left' if ar else 'right' }}"></i></span>
+  <span class="fw-bold" style="color:#1f2937">{% if ar %}تسجيل الخروج من الحصة{% else %}Class Leave{% endif %}</span>
+</div>
+
+<!-- Add Class Leave Form -->
+<div class="cl-form-section">
+  <h6 class="fw-bold mb-3" style="color:var(--sas-primary)">
+    <i class="bi bi-plus-circle me-1"></i>
+    {% if ar %}تسجيل خروج من الحصة{% else %}Record Class Leave{% endif %}
+  </h6>
+  <form method="POST" action="{{ url_for('sas.class_leave_add', code=staff.staff_code) }}" enctype="multipart/form-data">
+    <div class="row g-3">
+      <!-- Student Search -->
+      <div class="col-md-6">
+        <label class="form-label fw-bold" style="font-size:.82rem">{% if ar %}الطالب{% else %}Student{% endif %} *</label>
+        <div style="position:relative">
+          <input type="text" class="student-search-input" id="clStudentSearch"
+                 placeholder="{% if ar %}ابحث عن طالب...{% else %}Search student...{% endif %}"
+                 autocomplete="off" oninput="searchStudentsCL(this.value)">
+          <input type="hidden" name="student_id" id="clStudentId" required>
+          <div class="student-results-list" id="clStudentResults"></div>
+        </div>
+        <div id="clSelectedStudent" style="display:none;margin-top:6px;font-size:.82rem;color:var(--sas-primary);font-weight:600">
+          <i class="bi bi-person-check"></i> <span id="clSelectedName"></span>
+          <button type="button" class="btn btn-sm btn-link text-danger p-0 ms-2" onclick="clearStudentCL()" style="font-size:.75rem">
+            <i class="bi bi-x-circle"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Leave Type -->
+      <div class="col-md-3">
+        <label class="form-label fw-bold" style="font-size:.82rem">{% if ar %}سبب الخروج{% else %}Leave Reason{% endif %} *</label>
+        <select name="leave_type" class="form-select form-select-sm" style="border-radius:10px;font-size:.85rem" required onchange="toggleCustomType(this)">
+          <option value="">{% if ar %}-- اختر --{% else %}-- Select --{% endif %}</option>
+          {% for key, labels in leave_types.items() %}
+          <option value="{{ key }}">{{ labels[0] if ar else labels[1] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Custom Type (shown when 'other' is selected) -->
+      <div class="col-md-3" id="customTypeWrap" style="display:none">
+        <label class="form-label fw-bold" style="font-size:.82rem">{% if ar %}نوع آخر{% else %}Other Type{% endif %}</label>
+        <input type="text" name="custom_type" class="form-control form-control-sm" style="border-radius:10px;font-size:.85rem"
+               placeholder="{% if ar %}حدد النوع...{% else %}Specify type...{% endif %}">
+      </div>
+
+      <!-- Leave Time (from) -->
+      <div class="col-md-3">
+        <label class="form-label fw-bold" style="font-size:.82rem">{% if ar %}وقت الخروج (من){% else %}Leave Time (From){% endif %}</label>
+        <input type="time" name="leave_time" class="form-control form-control-sm" style="border-radius:10px;font-size:.85rem" value="{{ now_time|default('') }}">
+      </div>
+
+      <!-- Return Time (to) — hidden when leave_school -->
+      <div class="col-md-3" id="returnTimeWrap">
+        <label class="form-label fw-bold" style="font-size:.82rem">{% if ar %}وقت العودة (إلى){% else %}Return Time (To){% endif %}</label>
+        <input type="time" name="return_time" id="returnTimeInput" class="form-control form-control-sm" style="border-radius:10px;font-size:.85rem">
+      </div>
+
+      <!-- Notes -->
+      <div class="col-md-6">
+        <label class="form-label fw-bold" style="font-size:.82rem">{% if ar %}ملاحظات{% else %}Notes{% endif %}</label>
+        <textarea name="notes" class="form-control form-control-sm" style="border-radius:10px;font-size:.85rem;min-height:60px"
+               placeholder="{% if ar %}ملاحظة نصية...{% else %}Notes...{% endif %}"></textarea>
+      </div>
+
+      <!-- Attachment -->
+      <div class="col-md-3">
+        <label class="form-label fw-bold" style="font-size:.82rem">{% if ar %}مرفق{% else %}Attachment{% endif %}</label>
+        <input type="file" name="attachment" class="form-control form-control-sm" style="border-radius:10px;font-size:.82rem">
+      </div>
+    </div>
+    <div class="mt-3">
+      <button type="submit" class="btn btn-sm" style="background:var(--sas-primary);color:#fff;border:none;border-radius:10px;font-weight:700;padding:8px 24px;font-size:.85rem">
+        <i class="bi bi-plus-lg me-1"></i> {% if ar %}تسجيل{% else %}Record{% endif %}
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- Today's Class Leave Records -->
+<h6 class="fw-bold mb-3" style="color:#1f2937">
+  <i class="bi bi-clock-history me-1"></i>
+  {% if ar %}سجلات الخروج اليوم{% else %}Today's Leaves{% endif %}
+  <span class="badge" style="background:var(--sas-primary);color:#fff;border-radius:20px;font-size:.72rem;padding:3px 10px;margin-inline-start:6px">{{ leaves|length }}</span>
+</h6>
+
+{% if leaves %}
+{% for cl in leaves %}
+<div class="cl-card">
+  <div class="d-flex align-items-start justify-content-between flex-wrap gap-2">
+    <div>
+      <div class="fw-bold" style="font-size:.9rem;color:#1f2937">
+        {{ cl.student.name if cl.student else '—' }}
+        {% if cl.student and cl.student.student_number %}
+        <span style="font-size:.72rem;color:#9ca3af;margin-inline-start:6px">#{{ cl.student.student_number }}</span>
+        {% endif %}
+      </div>
+      <div style="font-size:.78rem;color:#6b7280;margin-top:2px">
+        {% if cl.student and cl.student.section %}
+        {{ cl.student.section.sas_class.stage.name if cl.student.section.sas_class and cl.student.section.sas_class.stage else '' }} &bull;
+        {{ cl.student.section.sas_class.name if cl.student.section.sas_class else '' }} &bull;
+        {{ cl.student.section.name }}
+        {% endif %}
+      </div>
+    </div>
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <span class="cl-type-badge">
+        {% set lt = leave_types.get(cl.leave_type, (cl.leave_type, cl.leave_type)) %}
+        {{ lt[0] if ar else lt[1] }}
+        {% if cl.leave_type == 'other' and cl.custom_type %}({{ cl.custom_type }}){% endif %}
+      </span>
+      <span class="cl-badge {{ cl.status }}">
+        {% if cl.status == 'pending' %}{% if ar %}معلق{% else %}Pending{% endif %}
+        {% elif cl.status == 'approved' %}{% if ar %}مقبول{% else %}Approved{% endif %}
+        {% elif cl.status == 'rejected' %}{% if ar %}مرفوض{% else %}Rejected{% endif %}
+        {% endif %}
+      </span>
+    </div>
+  </div>
+  <div class="d-flex align-items-center justify-content-between mt-2 flex-wrap gap-2">
+    <div class="d-flex align-items-center gap-3">
+      <span class="cl-time"><i class="bi bi-box-arrow-right me-1" style="color:var(--sas-primary)"></i>{{ cl.leave_time or '—' }}</span>
+      {% if cl.return_time %}
+      <span class="cl-time"><i class="bi bi-box-arrow-in-left me-1" style="color:#10b981"></i>{{ cl.return_time }}</span>
+      {% endif %}
+      {% if cl.notes %}<span style="font-size:.78rem;color:#6b7280"><i class="bi bi-chat-text me-1"></i>{{ cl.notes }}</span>{% endif %}
+      {% if cl.attachment_name %}
+      <a href="{{ url_for('sas.class_leave_attachment', code=staff.staff_code, lid=cl.id) }}" style="font-size:.78rem;color:var(--sas-primary)">
+        <i class="bi bi-paperclip"></i> {{ cl.attachment_name }}
+      </a>
+      {% endif %}
+    </div>
+    <div class="d-flex gap-1">
+      {% if not cl.return_time %}
+      <form method="POST" action="{{ url_for('sas.class_leave_return', code=staff.staff_code, lid=cl.id) }}" class="d-inline">
+        <button type="submit" class="btn btn-sm" style="background:#ecfeff;color:#0e7490;border:1px solid #22d3ee;border-radius:8px;font-size:.75rem;font-weight:600;padding:4px 10px">
+          <i class="bi bi-box-arrow-in-left me-1"></i>{% if ar %}عودة{% else %}Return{% endif %}
+        </button>
+      </form>
+      {% endif %}
+      {% if cl.status == 'pending' and (staff.role in ('secretary', 'manager')) %}
+      <form method="POST" action="{{ url_for('sas.class_leave_approve', code=staff.staff_code, lid=cl.id) }}" class="d-inline">
+        <input type="hidden" name="action" value="approve">
+        <button type="submit" class="btn btn-sm" style="background:#cffafe;color:#164e63;border:1px solid #22d3ee;border-radius:8px;font-size:.75rem;font-weight:600;padding:4px 10px">
+          <i class="bi bi-check-lg me-1"></i>{% if ar %}قبول{% else %}Approve{% endif %}
+        </button>
+      </form>
+      <form method="POST" action="{{ url_for('sas.class_leave_approve', code=staff.staff_code, lid=cl.id) }}" class="d-inline">
+        <input type="hidden" name="action" value="reject">
+        <button type="submit" class="btn btn-sm" style="background:#fecaca;color:#991b1b;border:1px solid #f87171;border-radius:8px;font-size:.75rem;font-weight:600;padding:4px 10px">
+          <i class="bi bi-x-lg me-1"></i>{% if ar %}رفض{% else %}Reject{% endif %}
+        </button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  <div style="font-size:.72rem;color:#9ca3af;margin-top:6px">
+    {% if ar %}بواسطة{% else %}By{% endif %}: {{ cl.staff.name if cl.staff else '—' }}
+    {% if cl.approver %} | {% if ar %}اعتمد بواسطة{% else %}Approved by{% endif %}: {{ cl.approver.name }}{% endif %}
+  </div>
+</div>
+{% endfor %}
+{% else %}
+<div class="text-center py-5" style="color:#9ca3af">
+  <i class="bi bi-inbox" style="font-size:2.5rem;display:block;margin-bottom:8px;opacity:.5"></i>
+  <div style="font-size:.88rem">{% if ar %}لا توجد سجلات خروج اليوم{% else %}No class leaves today{% endif %}</div>
+</div>
+{% endif %}
+
+<script>
+var _searchTimeout;
+function searchStudentsCL(q) {
+  clearTimeout(_searchTimeout);
+  var box = document.getElementById('clStudentResults');
+  if (!q || q.length < 2) { box.style.display = 'none'; return; }
+  _searchTimeout = setTimeout(function() {
+    fetch('{{ url_for("sas.api_students") }}?q=' + encodeURIComponent(q))
+      .then(function(r){
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function(data){
+        var students = data.students || [];
+        if (!students.length) {
+          box.innerHTML = '<div style="padding:10px;color:#9ca3af;font-size:.82rem;text-align:center">{% if ar %}لا توجد نتائج{% else %}No results{% endif %}</div>';
+          box.style.display = 'block';
+          return;
+        }
+        var html = '';
+        students.forEach(function(s){
+          var safeName = (s.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+          html += '<div class="student-result" onclick="selectStudentCL(' + s.id + ',\'' + safeName + '\')">';
+          html += '<strong>' + (s.name || '') + '</strong>';
+          if (s.student_number) html += ' <span style="color:#9ca3af;font-size:.75rem">#' + s.student_number + '</span>';
+          html += '<div style="font-size:.72rem;color:#6b7280">' + (s.stage || '') + ' &bull; ' + (s['class'] || '') + ' &bull; ' + (s.section || '') + '</div>';
+          html += '</div>';
+        });
+        box.innerHTML = html;
+        box.style.display = 'block';
+      })
+      .catch(function(err){
+        console.error('Student search error:', err);
+        box.innerHTML = '<div style="padding:10px;color:#dc2626;font-size:.82rem;text-align:center">{% if ar %}خطأ في البحث{% else %}Search error{% endif %}</div>';
+        box.style.display = 'block';
+      });
+  }, 300);
+}
+
+function selectStudentCL(id, name) {
+  document.getElementById('clStudentId').value = id;
+  document.getElementById('clStudentSearch').value = name;
+  document.getElementById('clSelectedName').textContent = name;
+  document.getElementById('clSelectedStudent').style.display = 'block';
+  document.getElementById('clStudentResults').style.display = 'none';
+}
+
+function clearStudentCL() {
+  document.getElementById('clStudentId').value = '';
+  document.getElementById('clStudentSearch').value = '';
+  document.getElementById('clSelectedStudent').style.display = 'none';
+}
+
+function toggleCustomType(sel) {
+  document.getElementById('customTypeWrap').style.display = sel.value === 'other' ? '' : 'none';
+  /* Hide return time when student is leaving school (no return expected) */
+  var noReturn = (sel.value === 'leave_school');
+  document.getElementById('returnTimeWrap').style.display = noReturn ? 'none' : '';
+  if(noReturn) document.getElementById('returnTimeInput').value = '';
+}
+
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#clStudentResults') && !e.target.closest('#clStudentSearch')) {
+    document.getElementById('clStudentResults').style.display = 'none';
+  }
+});
+</script>
+{% endblock %}

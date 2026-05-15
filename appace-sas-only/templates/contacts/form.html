@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}{% if current_lang=="en" %}{% if contact %}Edit Contact{% else %}New Contact{% endif %}{% else %}{% if contact %}تعديل جهة الاتصال{% else %}جهة جديدة{% endif %}{% endif %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-person-plus me-2"></i>{% if contact %}{% if current_lang=='en' %}Edit Contact{% else %}تعديل جهة الاتصال{% endif %}{% else %}{% if current_lang=='en' %}Add Contact{% else %}إضافة جهة اتصال{% endif %}{% endif %}</h1>
+</div>
+<div class="row justify-content-center"><div class="col-md-7">
+<div class="card">
+  <div class="card-header"><span>{% if current_lang=='en' %}Contact Details{% else %}بيانات جهة الاتصال{% endif %}</span></div>
+  <div class="card-body p-4">
+    <form method="POST">
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label fw-bold">{% if current_lang=='en' %}First Name{% else %}الاسم الأول{% endif %} *</label>
+          <input type="text" name="first_name" class="form-control" required
+                 value="{{ contact.first_name if contact else form.get('first_name','') }}">
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label fw-bold">{% if current_lang=='en' %}Last Name{% else %}الاسم الأخير{% endif %}</label>
+          <input type="text" name="last_name" class="form-control"
+                 value="{{ contact.last_name if contact else form.get('last_name','') }}">
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-bold">{% if current_lang=='en' %}Email{% else %}البريد الإلكتروني{% endif %} *</label>
+        <input type="email" name="email" class="form-control" required
+               value="{{ contact.email if contact else form.get('email','') }}">
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-bold">{% if current_lang=='en' %}Phone{% else %}رقم الهاتف{% endif %}</label>
+        <input type="text" name="phone" class="form-control"
+               value="{{ contact.phone if contact else form.get('phone','') }}" placeholder="05xxxxxxxx">
+      </div>
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label fw-bold">{% if current_lang=='en' %}Job Title{% else %}المسمى الوظيفي{% endif %}</label>
+          <input type="text" name="job_title" class="form-control"
+                 value="{{ contact.job_title if contact else form.get('job_title','') }}"
+                 placeholder="{% if current_lang=='en' %}Manager, Consultant...{% else %}مدير، مستشار، ...{% endif %}">
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label fw-bold">{% if current_lang=='en' %}Company / Organization{% else %}الشركة / الجهة{% endif %}</label>
+          <input type="text" name="company" class="form-control"
+                 value="{{ contact.company if contact else form.get('company','') }}"
+                 placeholder="{% if current_lang=='en' %}Company name{% else %}اسم الشركة أو المؤسسة{% endif %}">
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label fw-bold">{% if current_lang=='en' %}Department{% else %}{{ _('الدائرة / القسم') }}{% endif %}</label>
+          <input type="text" name="department" class="form-control"
+                 value="{{ contact.department if contact else form.get('department','') }}"
+                 placeholder="{% if current_lang=='en' %}e.g. Finance, IT...{% else %}مثال: المالية، تقنية المعلومات...{% endif %}">
+        </div>
+      </div>
+      <div class="mb-4">
+        <label class="form-label fw-bold">{% if current_lang=='en' %}Notes{% else %}ملاحظات{% endif %}</label>
+        <textarea name="notes" class="form-control" rows="3"
+                  placeholder="{% if current_lang=='en' %}Additional notes...{% else %}ملاحظات إضافية...{% endif %}">{{ contact.notes if contact else form.get('notes','') }}</textarea>
+      </div>
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary-ars">
+          <i class="bi bi-check-lg me-1"></i>{% if contact %}{% if current_lang=='en' %}Save{% else %}حفظ{% endif %}{% else %}{% if current_lang=='en' %}Add{% else %}إضافة{% endif %}{% endif %}
+        </button>
+        <a href="{{ url_for('sas.admin_dashboard') }}" class="btn btn-outline-secondary">{% if current_lang=='en' %}Cancel{% else %}إلغاء{% endif %}</a>
+      </div>
+    </form>
+  </div>
+</div>
+</div></div>
+{% endblock %}

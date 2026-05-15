@@ -1,0 +1,485 @@
+{% extends "base.html" %}
+{% block title %}{% if current_lang=="en" %}Task Space — STAP{% else %}مساحة المهام — STAP{% endif %}{% endblock %}
+{% block extra_css %}
+<style>
+:root { --ws-primary:#0C67EC; --ws-gold:#5C9BDE; --ws-light:#f0f6f7; }
+
+/* Workspace hero */
+.ws-hero {
+  background: linear-gradient(135deg, #0847B0 0%, #0C67EC 50%, #3D8EF5 100%);
+  border-radius: 20px; padding: 2rem 2.5rem; color:#fff;
+  position:relative; overflow:hidden; margin-bottom:1.5rem;
+}
+.ws-hero::before {
+  content:''; position:absolute; top:-60px; right:-60px;
+  width:220px; height:220px; border-radius:50%; background:rgba(92,155,222,.08);
+}
+.ws-hero::after {
+  content:''; position:absolute; bottom:-40px; left:30%;
+  width:180px; height:180px; border-radius:50%; background:rgba(255,255,255,.04);
+}
+.ws-greeting { font-size:1.5rem; font-weight:800; position:relative; z-index:1; }
+.ws-date { font-size:.85rem; color:rgba(255,255,255,.7); position:relative; z-index:1; }
+.ws-stat { text-align:center; position:relative; z-index:1; }
+.ws-stat .n { font-size:1.8rem; font-weight:800; line-height:1; }
+.ws-stat .l { font-size:.7rem; color:rgba(255,255,255,.65); margin-top:2px; }
+.ws-stat-sep { width:1px; background:rgba(255,255,255,.15); align-self:stretch; margin:0 8px; }
+
+/* Checklist cards */
+.cl-card {
+  border-radius:16px; border:none; overflow:hidden; transition:.25s;
+  box-shadow:0 2px 12px rgba(0,0,0,.08); cursor:pointer;
+  text-decoration:none; display:block; color:inherit;
+}
+.cl-card:hover { transform:translateY(-4px); box-shadow:0 8px 28px rgba(0,0,0,.14); color:inherit; }
+.cl-card-top { padding:1.4rem 1.4rem .9rem; position:relative; }
+.cl-card-emoji { font-size:2.2rem; line-height:1; margin-bottom:.6rem; display:block; }
+.cl-card-name { font-weight:700; font-size:1rem; color:#fff; margin-bottom:.2rem; }
+.cl-card-desc { font-size:.75rem; color:rgba(255,255,255,.75); display:-webkit-box;
+                -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.cl-card-badge { position:absolute; top:12px; left:12px;
+                 font-size:.62rem; padding:2px 8px; border-radius:20px;
+                 background:rgba(255,255,255,.2); color:#fff; }
+.cl-card-bottom { padding:.9rem 1.4rem; background:#fff; }
+.cl-progress { height:5px; border-radius:3px; background:#eee; margin-bottom:.6rem; }
+.cl-progress-fill { height:100%; border-radius:3px; transition:.4s; }
+.cl-meta { display:flex; justify-content:space-between; align-items:center; }
+.cl-count { font-size:.75rem; color:#888; }
+.cl-pct { font-size:.75rem; font-weight:700; }
+
+/* Sticky notes */
+.sticky-pad {
+  background: #fef9e7;
+  border-radius:14px;
+  border:none;
+  box-shadow: 0 4px 15px rgba(92,155,222,.2), 3px 3px 0 #5C9BDE;
+  padding:1.2rem;
+  position:relative;
+}
+.sticky-pad::before {
+  content:'📌'; position:absolute; top:-10px; right:16px; font-size:1.3rem;
+}
+.sticky-pad textarea {
+  border:none; outline:none; background:transparent;
+  width:100%; resize:none; font-size:.88rem; line-height:1.7;
+  color:#5a4a00; font-family:'Tajawal',sans-serif;
+  min-height:140px;
+}
+.sticky-pad textarea::placeholder { color:rgba(90,74,0,.4); }
+.sticky-saved { font-size:.7rem; color:#a08a00; margin-top:4px; opacity:0; transition:.3s; }
+
+/* Upcoming tasks */
+.due-item {
+  display:flex; gap:10px; align-items:center; padding:8px 10px;
+  border-radius:10px; border:1.5px solid #f0f2f4; margin-bottom:6px;
+  font-size:.82rem; transition:.15s;
+}
+.due-item:hover { border-color:var(--ws-primary); }
+.due-item.overdue { border-color:#fecaca; background:#fff5f5; }
+.due-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+
+/* New list button */
+.new-cl-btn {
+  border-radius:16px; border:2.5px dashed #cde; background:#f8fbfc;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:2rem 1rem; cursor:pointer; transition:.2s; color:#888; text-decoration:none;
+  min-height:180px;
+}
+.new-cl-btn:hover { border-color:var(--ws-primary); background:#f0f6f7; color:var(--ws-primary); }
+
+/* Section headers */
+.ws-section-title {
+  font-size:.78rem; font-weight:700; text-transform:uppercase;
+  letter-spacing:1px; color:#999; margin-bottom:.8rem; display:flex;
+  align-items:center; gap:6px;
+}
+.ws-section-title::after { content:''; flex:1; height:1px; background:#eee; }
+</style>
+{% endblock %}
+{% block content %}
+
+<!-- ─── HERO ─────────────────────────────────────────────────────────────── -->
+<div class="ws-hero">
+  <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+    <div>
+      <div class="ws-greeting" id="wsGreeting">{% if current_lang=='en' %}Welcome 👋{% else %}مرحباً 👋{% endif %}</div>
+      <div class="ws-date" id="wsDate"></div>
+    </div>
+    <!-- Stats + controls -->
+    <div class="d-flex align-items-center flex-wrap gap-2">
+      <div class="d-flex align-items-center gap-3">
+        <div class="ws-stat">
+          <div class="n" id="statTotal">{{ checklists|length }}</div>
+          <div class="l"><span>{% if current_lang=='en' %}My Lists{% else %}قوائمي{% endif %}</div>
+        </div>
+        <div class="ws-stat-sep"></div>
+        <div class="ws-stat">
+          <div class="n" id="statItems">{% set all_items = namespace(v=0) %}{% for cl in checklists %}{% set all_items.v = all_items.v + (cl.items|length) %}{% endfor %}{{ all_items.v }}</div>
+          <div class="l">{% if current_lang=='en' %}Tasks{% else %}مهمة{% endif %}</div>
+        </div>
+        <div class="ws-stat-sep"></div>
+        <div class="ws-stat">
+          {% set done_total = namespace(v=0) %}
+          {% for cl in checklists %}{% set done_total.v = done_total.v + (cl.items|selectattr('is_checked')|list|length) %}{% endfor %}
+          <div class="n">{{ done_total.v }}</div>
+          <div class="l"><span>{% if current_lang=='en' %}Done{% else %}مكتملة{% endif %}</div>
+        </div>
+        <div class="ws-stat-sep d-none d-md-block"></div>
+        <div class="ws-stat d-none d-md-block">
+          {% set all_items = namespace(v=0) %}
+          {% for cl in checklists %}{% set all_items.v = all_items.v + (cl.items|length) %}{% endfor %}
+          {% set pct = ((done_total.v / all_items.v * 100)|int) if all_items.v > 0 else 0 %}
+          <div class="n">{{ pct }}%</div>
+          <div class="l">{% if current_lang=='en' %}Progress{% else %}إنجاز كلي{% endif %}</div>
+        </div>
+      </div>
+      <!-- View toggle + New button -->
+      <div class="d-flex align-items-center gap-2">
+        <div class="btn-group btn-group-sm" role="group">
+          <button type="button" class="btn" id="btnCardView"
+                  style="background:rgba(255,255,255,.25);color:#fff;border:1px solid rgba(255,255,255,.4)"
+                  title="{% if current_lang=='en' %}Card View{% else %}عرض بطاقات{% endif %}">
+            <i class="bi bi-grid-3x3-gap"></i>
+          </button>
+          <button type="button" class="btn" id="btnTableView"
+                  style="background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.3)"
+                  title="{% if current_lang=='en' %}Table View{% else %}عرض جدول{% endif %}">
+            <i class="bi bi-table"></i>
+          </button>
+        </div>
+        {% if perms.can('checklists_add') %}
+        <a href="{{ url_for('sas.admin_dashboard') }}"
+           style="background:var(--ws-gold);color:#fff;border:none;border-radius:10px;font-weight:700;white-space:nowrap;padding:7px 16px;font-size:.85rem;text-decoration:none;display:inline-flex;align-items:center;gap:4px">
+          <i class="bi bi-plus-lg"></i>
+          <span>{% if current_lang=='en' %}New List{% else %}قائمة جديدة{% endif %}</span>
+        </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Table View (hidden by default) -->
+<div id="clTableView" style="display:none" class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-table me-2"></i>{% if current_lang=='en' %}Table View{% else %}عرض الجدول{% endif %}</span>
+    <input type="text" id="clSearch" class="form-control form-control-sm" style="max-width:220px"
+           placeholder="{% if current_lang=='en' %}Search...{% else %}بحث...{% endif %}" oninput="filterTable(this.value)">
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0" id="clTable">
+        <thead><tr>
+          <th>#</th>
+          <th>{% if current_lang=='en' %}List{% else %}القائمة{% endif %}</th>
+          <th>{% if current_lang=='en' %}Tasks{% else %}المهام{% endif %}</th>
+          <th>{% if current_lang=='en' %}Done{% else %}مكتملة{% endif %}</th>
+          <th>{% if current_lang=='en' %}Progress{% else %}نسبة الإنجاز{% endif %}</th>
+          <th>{% if current_lang=='en' %}Creator{% else %}المنشئ{% endif %}</th>
+          <th>{% if current_lang=='en' %}Status{% else %}الحالة{% endif %}</th>
+          <th>{% if current_lang=='en' %}Actions{% else %}إجراءات{% endif %}</th>
+        </tr></thead>
+        <tbody>
+          {% for cl in checklists %}
+          {% set total = cl.items|length %}
+          {% set done  = cl.items|selectattr('is_checked')|list|length %}
+          {% set pct   = ((done/total*100)|int) if total > 0 else 0 %}
+          <tr class="cl-table-row" onclick="window.location='{{ url_for('checklists.detail', cl_id=cl.id) }}'" style="cursor:pointer">
+            <td class="text-muted small">{{ cl.id }}</td>
+            <td>
+              <span style="font-size:1.1rem;margin-inline-end:6px">{{ cl.emoji or '📋' }}</span>
+              <span class="fw-bold">{{ cl.name }}</span>
+              {% if cl.description %}<small class="text-muted d-block">{{ cl.description[:60] }}{% if cl.description|length > 60 %}…{% endif %}</small>{% endif %}
+            </td>
+            <td class="text-center fw-bold">{{ total }}</td>
+            <td class="text-center" style="color:#198754;font-weight:700">{{ done }}</td>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <div class="progress flex-grow-1" style="height:6px;border-radius:3px">
+                  <div class="progress-bar" role="progressbar"
+                       style="width:{{ pct }}%;background:{{ cl.color or '#0C67EC' }}"></div>
+                </div>
+                <small class="fw-bold" style="min-width:32px">{{ pct }}%</small>
+              </div>
+            </td>
+            <td><small class="text-muted">{{ cl.creator.full_name if cl.creator else '—' }}</small></td>
+            <td>
+              <span class="badge {% if cl.is_public %}bg-success{% else %}bg-secondary{% endif %} rounded-pill">
+                {% if cl.is_public %}{% if current_lang=='en' %}Public{% else %}عامة{% endif %}{% else %}{% if current_lang=='en' %}Private{% else %}خاصة{% endif %}{% endif %}
+              </span>
+            </td>
+            <td onclick="event.stopPropagation()">
+              <a href="{{ url_for('checklists.detail', cl_id=cl.id) }}" class="btn btn-sm btn-outline-primary" title="{% if current_lang=='en' %}Open{% else %}فتح{% endif %}">
+                <i class="bi bi-arrow-right-circle"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="clCardView">
+<div class="row g-3">
+
+  <!-- ─── LEFT: Cards grid ──────────────────────────────────────────────── -->
+  <div class="col-lg-8">
+
+    <!-- My lists -->
+    {% set my_lists = checklists|selectattr('created_by_id','eq', current_user.id)|list %}
+    {% set pub_lists = checklists|rejectattr('created_by_id','eq', current_user.id)|list %}
+
+    {% if my_lists %}
+    <div class="ws-section-title"><i class="bi bi-person-check"></i>{% if current_lang=='en' %}My Lists{% else %}قوائمي الشخصية{% endif %}</div>
+    <div class="row g-3 mb-3">
+      {% for cl in my_lists %}
+      {% set total = cl.items|length %}
+      {% set done  = cl.items|selectattr('is_checked')|list|length %}
+      {% set pct   = ((done/total*100)|int) if total > 0 else 0 %}
+      <div class="col-sm-6 col-xl-4">
+        <a href="{{ url_for('checklists.detail', cl_id=cl.id) }}" class="cl-card">
+          <div class="cl-card-top" style="background:linear-gradient(135deg,{{ cl.color or '#0C67EC' }},color-mix(in srgb,{{ cl.color or '#0C67EC' }} 70%,#000))">
+            {% if not cl.is_public %}<span class="cl-card-badge"><i class="bi bi-lock me-1"></i>{% if current_lang=='en' %}Private{% else %}خاص{% endif %}{% endif %}
+            {{ cl.emoji or '📋' }}
+            <div class="cl-card-name">{{ cl.name }}</div>
+            {% if cl.description %}<div class="cl-card-desc">{{ cl.description }}</div>{% endif %}
+          </div>
+          <div class="cl-card-bottom">
+            <div class="cl-progress">
+              <div class="cl-progress-fill" style="width:{{ pct }}%;background:{{ cl.color or '#0C67EC' }}"></div>
+            </div>
+            <div class="cl-meta">
+              <span class="cl-count"><i class="bi bi-list-check me-1"></i>{{ total }} {% if current_lang=='en' %}task{% else %}مهمة{% endif %}</span>
+              {{ pct }}%
+            </div>
+          </div>
+        </a>
+      </div>
+      {% endfor %}
+      {% if perms.can('checklists_add') %}
+      <div class="col-sm-6 col-xl-4">
+        <a href="{{ url_for('sas.admin_dashboard') }}" class="new-cl-btn">
+          <i class="bi bi-plus-circle fs-2 mb-2"></i>
+          <span class="small fw-bold">{% if current_lang=='en' %}New List{% else %}قائمة جديدة{% endif %}
+        </a>
+      </div>
+      {% endif %}
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+      <div style="font-size:3rem;margin-bottom:1rem">📋</div>
+      <h5 class="text-muted">{{ _('لا توجد قوائم بعد') }}</h5>
+      {% if perms.can('checklists_add') %}
+      <a href="{{ url_for('sas.admin_dashboard') }}" class="btn btn-primary-ars mt-2">
+        <i class="bi bi-plus-lg me-1"></i>{% if current_lang=="en" %}Create your first list{% else %}أنشئ أول قائمة{% endif %}
+      </a>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Public/shared lists -->
+    {% if pub_lists %}
+    <div class="ws-section-title mt-2"><i class="bi bi-globe"></i>{{ _('قوائم مشتركة') }}</div>
+    <div class="row g-3">
+      {% for cl in pub_lists %}
+      {% set total = cl.items|length %}
+      {% set done  = cl.items|selectattr('is_checked')|list|length %}
+      {% set pct   = ((done/total*100)|int) if total > 0 else 0 %}
+      <div class="col-sm-6 col-xl-4">
+        <a href="{{ url_for('checklists.detail', cl_id=cl.id) }}" class="cl-card">
+          <div class="cl-card-top" style="background:linear-gradient(135deg,{{ cl.color or '#0C67EC' }},color-mix(in srgb,{{ cl.color or '#0C67EC' }} 70%,#000))">
+            <span class="cl-card-badge"><i class="bi bi-people me-1"></i>{{ cl.creator.full_name if cl.creator else '' }}</span>
+            {{ cl.emoji or '📋' }}
+            <div class="cl-card-name">{{ cl.name }}</div>
+          </div>
+          <div class="cl-card-bottom">
+            <div class="cl-progress">
+              <div class="cl-progress-fill" style="width:{{ pct }}%;background:{{ cl.color or '#0C67EC' }}"></div>
+            </div>
+            <div class="cl-meta">
+              <span class="cl-count"><i class="bi bi-list-check me-1"></i>{{ total }} {% if current_lang=='en' %}task{% else %}مهمة{% endif %}</span>
+              {{ pct }}%
+            </div>
+          </div>
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+  </div>
+
+  <!-- ─── RIGHT: Sticky notes + Upcoming ───────────────────────────────── -->
+  <div class="col-lg-4">
+
+    <!-- Sticky notes -->
+    <div class="sticky-pad mb-3">
+      <div class="ws-section-title mb-2" style="color:#a08a00;letter-spacing:.5px">
+        <i class="bi bi-pencil-fill"></i> {% if current_lang=="en" %}My Quick Notes{% else %}ملاحظاتي السريعة{% endif %}
+      </div>
+      <textarea id="stickyArea" placeholder="{{ _('اكتب أي ملاحظة هنا... تُحفظ تلقائياً ✨') }}"></textarea>
+      <div class="sticky-saved" id="stickySaved">{{ _('✅ تم الحفظ') }}</div>
+    </div>
+
+    <!-- Upcoming due items -->
+    <div class="card" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(0,0,0,.07)">
+      <div class="card-body p-3">
+        <div class="ws-section-title"><i class="bi bi-clock-history"></i>{{ _('المهام القادمة (7 أيام)') }}</div>
+        <div id="upcomingList">
+          <div class="text-center text-muted small py-3">
+            <div class="spinner-border spinner-border-sm mb-2" role="status"></div><br>
+            {% if current_lang=="en" %}Loading...{% else %}جارٍ التحميل...{% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick export -->
+    <div class="card mt-3" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(0,0,0,.07)">
+      <div class="card-body p-3">
+        <div class="ws-section-title"><i class="bi bi-download"></i>{{ _('تصدير وطباعة') }}</div>
+        <div class="d-flex flex-column gap-2">
+          <button onclick="window.print()" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-printer me-1"></i>{% if current_lang=="en" %}Print Lists{% else %}طباعة القوائم{% endif %}
+          </button>
+          <button onclick="exportAllCSV()" class="btn btn-sm btn-outline-success">
+            <i class="bi bi-file-earmark-excel me-1"></i>{% if current_lang=="en" %}Export CSV Summary{% else %}تصدير ملخص CSV{% endif %}
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div><!-- /clCardView -->
+
+
+<script>
+const IS_EN = {{ "true" if current_lang == "en" else "false" }};
+// ── Greeting & Date ──────────────────────────────────────────────────────────
+(function(){
+  const now = new Date();
+  const h = now.getHours();
+  const user = '{{ current_user.full_name or current_user.username }}';
+  const gr = h < 5  ? '{% if current_lang=="en" %}Good evening{% else %}طاب سهرك{% endif %}' :
+             h < 12 ? '{% if current_lang=="en" %}Good morning{% else %}صباح الخير{% endif %}' :
+             h < 17 ? '{% if current_lang=="en" %}Good afternoon{% else %}مساء الخير{% endif %}' : '{% if current_lang=="en" %}Good evening{% else %}مساء النور{% endif %}';
+  document.getElementById('wsGreeting').textContent = IS_EN ? `${gr}, ${user} 👋` : `${gr}، ${user} 👋`;
+  const days = {% if current_lang=='en' %}['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']{% else %}['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت']{% endif %};
+  const months = {% if current_lang=='en' %}['January','February','March','April','May','June','July','August','September','October','November','December']{% else %}['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر']{% endif %};
+  document.getElementById('wsDate').textContent =
+    IS_EN ? `${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}` : `${days[now.getDay()]}، ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+})();
+
+// ── Sticky notes ─────────────────────────────────────────────────────────────
+const stickyArea   = document.getElementById('stickyArea');
+const stickySaved  = document.getElementById('stickySaved');
+let stickyTimer;
+
+// Load notes
+fetch('/checklists/sticky-notes')
+  .then(r=>r.json()).then(d=>{ if(d.content) stickyArea.value = d.content; });
+
+stickyArea.addEventListener('input', () => {
+  clearTimeout(stickyTimer);
+  stickySaved.style.opacity = '0';
+  stickyTimer = setTimeout(() => {
+    fetch('/checklists/sticky-notes', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({content: stickyArea.value})
+    }).then(r=>r.json()).then(d=>{
+      if(d.ok){ stickySaved.style.opacity='1'; setTimeout(()=>stickySaved.style.opacity='0',2000); }
+    });
+  }, 800);
+});
+
+// ── Upcoming tasks ───────────────────────────────────────────────────────────
+fetch('/checklists/upcoming')
+  .then(r=>r.json()).then(d=>{
+    const ul = document.getElementById('upcomingList');
+    if(!d.items || !d.items.length){
+      ul.innerHTML = '<div class="text-center text-muted small py-3">{{ _('🎉 لا توجد مهام قادمة هذا الأسبوع') }}</div>';
+      return;
+    }
+    ul.innerHTML = d.items.map(item => {
+      const prioColors = {1:'#059669',2:'#ea580c',3:'#be123c'};
+      const dotColor = prioColors[item.priority] || '#aaa';
+      return `<a href="/checklists/${item.cl_id}" class="text-decoration-none" style="display:block">
+        <div class="due-item ${item.overdue?'overdue':''}" style="cursor:pointer;transition:.15s;border-radius:8px;padding:6px 8px;margin-bottom:4px;background:${item.overdue?'#fff5f5':'#f8fbff'}">
+          <div class="due-dot" style="background:${dotColor}"></div>
+          <div style="flex:1;min-width:0">
+            <div class="text-truncate" style="font-size:.82rem;font-weight:600;color:#1a2e44">${item.content}</div>
+            <div style="font-size:.7rem;color:#0C67EC">${item.cl_name}</div>
+          </div>
+          <div style="font-size:.7rem;color:${item.overdue?'#c62828':'#888'};white-space:nowrap">
+            ${item.overdue ? '⚠️ ' : '📅 '}${item.due}
+          </div>
+        </div>
+      </a>`;
+    }).join('');
+  });
+
+// ── View toggle (card / table) ───────────────────────────────────────────────
+function setView(mode) {
+  const card  = document.getElementById('clCardView');
+  const table = document.getElementById('clTableView');
+  const btnC  = document.getElementById('btnCardView');
+  const btnT  = document.getElementById('btnTableView');
+  if (mode === 'table') {
+    card.style.display = 'none';
+    table.style.display = 'block';
+    btnT.style.background = 'rgba(255,255,255,.35)';
+    btnC.style.background = 'rgba(255,255,255,.1)';
+  } else {
+    card.style.display = '';
+    table.style.display = 'none';
+    btnC.style.background = 'rgba(255,255,255,.35)';
+    btnT.style.background = 'rgba(255,255,255,.1)';
+  }
+  localStorage.setItem('cl_view_mode', mode);
+}
+function filterTable(q) {
+  const ql = q.toLowerCase();
+  document.querySelectorAll('#clTable tbody tr').forEach(tr => {
+    tr.style.display = tr.textContent.toLowerCase().includes(ql) ? '' : 'none';
+  });
+}
+// Restore last view mode
+const savedView = localStorage.getItem('cl_view_mode');
+if (savedView === 'table') setView('table');
+
+// Attach view toggle buttons after DOM ready
+document.getElementById('btnCardView')?.addEventListener('click', () => setView('card'));
+document.getElementById('btnTableView')?.addEventListener('click', () => setView('table'));
+
+// ── Export all lists CSV ─────────────────────────────────────────────────────
+function exportAllCSV() {
+  const rows = [['{% if current_lang=="en" %}List{% else %}القائمة{% endif %}','{% if current_lang=="en" %}Icon{% else %}الأيقونة{% endif %}','{% if current_lang=="en" %}Tasks{% else %}عدد المهام{% endif %}','{% if current_lang=="en" %}Done{% else %}مكتملة{% endif %}','{% if current_lang=="en" %}Progress%{% else %}%الإنجاز{% endif %}']];
+  document.querySelectorAll('.cl-card').forEach(card => {
+    const name  = card.querySelector('.cl-card-name')?.textContent?.trim() || '';
+    const emoji = card.querySelector('.cl-card-emoji')?.textContent?.trim() || '';
+    const meta  = card.querySelector('.cl-count')?.textContent?.trim() || '';
+    const pct   = card.querySelector('.cl-pct')?.textContent?.trim() || '';
+    const total = parseInt(meta) || 0;
+    const done  = Math.round(total * parseInt(pct) / 100) || 0;
+    if(name) rows.push([name, emoji, total, done, pct]);
+  });
+  const csv = '\ufeff' + rows.map(r=>r.join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download = 'my_checklists.csv'; a.click();
+}
+</script>
+<style>
+@media print {
+  .sidebar,.topbar,.col-lg-4,.ws-hero .btn,.ws-hero .d-flex > a{display:none!important}
+  .main-content{margin:0!important}
+  .col-lg-8{width:100%!important;flex:0 0 100%!important;max-width:100%!important}
+  .cl-card{break-inside:avoid;box-shadow:none!important;border:1px solid #ddd!important}
+  .ws-hero{border-radius:0!important;padding:1rem!important}
+}
+</style>
+{% endblock %}

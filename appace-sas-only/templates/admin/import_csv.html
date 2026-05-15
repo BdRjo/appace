@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% block title %}{% if current_lang=='en' %}Import {{ 'Locations' if mode=='locations' else 'Venues' if mode=='venues' else 'Users' if mode=='users' else 'Contacts' }} from CSV{% else %}استيراد {{ 'مواقع' if mode=='locations' else 'قاعات' if mode=='venues' else 'مستخدمين' if mode=='users' else 'جهات اتصال' }} من CSV{% endif %} — STAP{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h1><i class="bi bi-file-earmark-arrow-up me-2"></i>
+    {% if current_lang=='en' %}Import {{ 'Locations' if mode=='locations' else 'Venues' if mode=='venues' else 'Users' if mode=='users' else 'Contacts' }} from CSV
+    {% else %}استيراد {{ 'مواقع' if mode=='locations' else 'قاعات' if mode=='venues' else 'مستخدمين' if mode=='users' else 'جهات اتصال' }} من CSV{% endif %}
+  </h1>
+  <!-- Download Template Button -->
+  {% if mode == 'locations' %}
+  <a href="{{ url_for('locations.csv_template') }}" class="btn btn-outline-success btn-sm">
+    <i class="bi bi-file-earmark-arrow-down me-1"></i>{% if current_lang=='en' %}Download Template{% else %}تحميل القالب{% endif %}
+  </a>
+  {% elif mode == 'venues' %}
+  <a href="{{ url_for('venues_mgmt.csv_template') }}" class="btn btn-outline-success btn-sm">
+    <i class="bi bi-file-earmark-arrow-down me-1"></i>{% if current_lang=='en' %}Download Template{% else %}تحميل القالب{% endif %}
+  </a>
+  {% elif mode == 'users' %}
+  <a href="{{ url_for('users.csv_template') }}" class="btn btn-outline-success btn-sm">
+    <i class="bi bi-file-earmark-arrow-down me-1"></i>{% if current_lang=='en' %}Download Template{% else %}تحميل القالب{% endif %}
+  </a>
+  {% elif mode == 'contacts' %}
+  <a href="{{ url_for('contacts.csv_template') }}" class="btn btn-outline-success btn-sm">
+    <i class="bi bi-file-earmark-arrow-down me-1"></i>{% if current_lang=='en' %}Download Template{% else %}تحميل القالب{% endif %}
+  </a>
+  {% endif %}
+</div>
+
+<div class="row g-4">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header">{{ _('📥 رفع الملف') }}</div>
+      <div class="card-body">
+        <!-- تلميح القالب -->
+        <div class="alert alert-info">
+          {% if current_lang=="en" %}💡 File must contain these columns:{% else %}💡 يجب أن يحتوي الملف على الأعمدة التالية:{% endif %}
+          <code>{{ fields | join(', ') }}</code>
+        </div>
+
+        <form method="POST" enctype="multipart/form-data">
+          <div class="mb-3">
+            <label class="form-label fw-bold"><span>{{ _('📂 ملف CSV') }}</label>
+            <input type="file" name="file" class="form-control" accept=".csv" required>
+          </div>
+          <div class="mb-3 d-flex gap-4">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="skip_dup" id="skipDup" checked>
+              <label class="form-check-label" for="skipDup"><span>{{ _('⚠️ تخطي المكررات') }}</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="update_dup" id="updateDup">
+              <label class="form-check-label" for="updateDup">{{ _('🔄 تحديث المكررات') }}</label>
+            </div>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-success px-4">
+              <i class="bi bi-upload me-1"></i>{% if current_lang=="en" %}Import Now{% else %}استيراد الآن{% endif %}
+            </button>
+            {% if mode == 'locations' %}
+            <a href="{{ url_for('locations.index') }}" class="btn btn-secondary px-4">{{ _('إلغاء') }}</a>
+            {% else %}
+            <a href="{{ url_for('sas.admin_dashboard') }}" class="btn btn-secondary px-4">{{ _('إلغاء') }}</a>
+            {% endif %}
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header">{{ _('📋 أعمدة الملف المطلوبة') }}</div>
+      <div class="card-body">
+        <table class="table table-sm">
+          <thead><tr><th><span>{{ _('العمود') }}</th><th>{{ _('وصف') }}</th></tr></thead>
+          <tbody>
+            {% if mode == 'locations' %}
+            <tr><td><code>name</code></td><td><span>{{ _('اسم الموقع (مطلوب)') }}</td></tr>
+            <tr><td><code>name_en</code></td><td>{{ _('الاسم بالإنجليزية') }}</td></tr>
+            <tr><td><code>city</code></td><td>{{ _('المدينة') }}</td></tr>
+            <tr><td><code>area</code></td><td>{{ _('المنطقة') }}</td></tr>
+            <tr><td><code>is_active</code></td><td><span>{{ _('نشط: 1 أو 0') }}</td></tr>
+            {% else %}
+            <tr><td><code>name</code></td><td><span>{{ _('اسم القاعة (مطلوب)') }}</td></tr>
+            <tr><td><code>name_en</code></td><td>{{ _('الاسم بالإنجليزية') }}</td></tr>
+            <tr><td><code>location_name</code></td><td><span>{{ _('اسم الموقع (مطلوب)') }}</td></tr>
+            <tr><td><code>code</code></td><td><span>{{ _('رمز القاعة') }}</td></tr>
+            <tr><td><code>capacity</code></td><td>{{ _('السعة') }}</td></tr>
+            <tr><td><code>equipment</code></td><td>{{ _('المعدات') }}</td></tr>
+            <tr><td><code>notes</code></td><td>{{ _('ملاحظات') }}</td></tr>
+            <tr><td><code>requires_approval</code></td><td><span>{{ _('يحتاج موافقة: 1/0') }}</td></tr>
+            <tr><td><code>is_active</code></td><td><span>{{ _('نشط: 1 أو 0') }}</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

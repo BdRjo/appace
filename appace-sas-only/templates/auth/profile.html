@@ -1,0 +1,48 @@
+{% extends "base.html" %}{% block title %}{% if current_lang=="en" %}My Profile — STAP{% else %}الملف الشخصي — STAP{% endif %}{% endblock %}
+{% block content %}
+<div class="page-header"><h1><i class="bi bi-person-circle me-2"></i>{{ _('الملف الشخصي') }}</h1></div>
+<div class="row justify-content-center"><div class="col-md-6">
+<div class="card"><div class="card-header"><span>{{ _('تعديل البيانات') }}</div>
+<div class="card-body p-4">
+  <form method="POST">
+    <div class="mb-3">
+      <label class="form-label fw-bold">{{ _('الاسم الكامل') }}</label>
+      <input type="text" name="full_name" class="form-control" value="{{ user.full_name or '' }}">
+    </div>
+    <div class="mb-3">
+      <label class="form-label fw-bold">{{ _('رقم الهاتف') }}</label>
+      <input type="text" name="phone" class="form-control" value="{{ user.phone or '' }}">
+    </div>
+    <div class="mb-3">
+      <label class="form-label fw-bold">{{ _('اللغة') }}</label>
+      <select name="language" class="form-select">
+        <option value="ar" {% if user.language=='ar' %}selected{% endif %}>{{ _('العربية') }}</option>
+        <option value="en" {% if user.language=='en' %}selected{% endif %}>English</option>
+      </select>
+    </div>
+    <hr>
+    <h6 class="fw-bold text-muted mb-3">{{ _('تغيير كلمة المرور (اختياري)') }}</h6>
+    <div class="mb-3">
+      <label class="form-label">{{ _('كلمة المرور الحالية') }}</label>
+      <input type="password" name="old_password" class="form-control">
+    </div>
+    <div class="mb-3">
+      <label class="form-label">{{ _('كلمة المرور الجديدة') }}</label>
+      <input type="password" name="new_password" class="form-control" minlength="6">
+    </div>
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-primary-ars">{{ _('حفظ التغييرات') }}</button>
+      <a href="{{ url_for('sas.admin_dashboard') }}" class="btn btn-outline-secondary">{{ _('إلغاء') }}</a>
+    </div>
+  </form>
+</div></div>
+<div class="card mt-3"><div class="card-body">
+  <small class="text-muted">
+    <strong>{{ _('اسم المستخدم:') }}</strong> {{ user.username }}<br>
+    <strong>{{ _('البريد:') }}</strong> {{ user.email }}<br>
+    <strong>{{ _('الدور:') }}</strong> {{ user.role.name if user.role else '—' }}<br>
+    <strong>{{ _('عدد مرات الدخول:') }}</strong> {{ user.login_count or 0 }}
+  </small>
+</div></div>
+</div></div>
+{% endblock %}

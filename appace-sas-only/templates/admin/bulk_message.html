@@ -1,0 +1,289 @@
+{% extends 'base.html' %}
+{% block title %}{% if current_lang=="en" %}Bulk Message — STAP{% else %}رسالة جماعية — STAP{% endif %}{% endblock %}
+{% block extra_css %}
+<link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+<style>
+#editor { min-height:260px; font-size:1rem; direction:{% if current_lang=='en' %}ltr{% else %}rtl{% endif %}; }
+.ql-toolbar { border-radius:8px 8px 0 0; background:#f8fbfc; }
+.ql-container { border-radius:0 0 8px 8px; }
+.attach-list { list-style:none; padding:0; margin:0; }
+.attach-list li { display:flex; align-items:center; gap:8px; padding:4px 0; font-size:.85rem; }
+.attach-list li .attach-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.attach-list li .btn-remove-attach { background:none; border:none; color:#dc3545; cursor:pointer; font-size:1.1rem; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-envelope-paper me-2"></i>{{ _('إرسال رسالة جماعية') }}</h1>
+</div>
+
+<div class="card">
+  <div class="card-header">{% if current_lang=='en' %}📧 Send Email to Users{% else %}📧 إرسال بريد إلكتروني للمستخدمين{% endif %}</div>
+  <div class="card-body">
+    <form method="POST" enctype="multipart/form-data" id="msgForm">
+      <div class="row g-3">
+
+        <!-- Subject -->
+        <div class="col-12">
+          <label class="form-label fw-bold">{{ _('الموضوع') }} *</label>
+          <input type="text" name="subject" class="form-control" required
+                 placeholder="{{ _('موضوع الرسالة...') }}">
+        </div>
+
+        <!-- Rich HTML Editor -->
+        <div class="col-12">
+          <label class="form-label fw-bold">{{ _('نص الرسالة') }} *</label>
+          <div class="d-flex gap-2 mb-1">
+            <button type="button" id="toggleEditorBtn"
+                    onclick="toggleEditorMode()"
+                    style="background:#f0f4ff;color:#0C67EC;border:1.5px solid #c5d8ff;border-radius:8px;padding:4px 12px;font-size:.8rem;font-weight:600;cursor:pointer">
+              <i class="bi bi-code-slash me-1"></i><span id="editorModeLabel">{% if current_lang=='en' %}Switch to Plain Text{% else %}تبديل لنص عادي{% endif %}</span>
+            </button>
+          </div>
+          <!-- Quill editor -->
+          <div id="quillWrapper">
+            <div id="editor"></div>
+          </div>
+          <!-- Plain text fallback -->
+          <textarea name="body_plain" id="plainBody" class="form-control" rows="10"
+                    style="display:none"
+                    placeholder="{{ _('اكتب نص الرسالة هنا...') }}"></textarea>
+          <!-- Hidden field for HTML content -->
+          <input type="hidden" name="body_html" id="bodyHtmlField">
+          <input type="hidden" name="editor_mode" id="editorModeField" value="html">
+        </div>
+
+        <!-- Attachments -->
+        <div class="col-12">
+          <label class="form-label fw-bold">{{ _('المرفقات (اختياري)') }}</label>
+          <div class="input-group">
+            <input type="file" name="attachments" id="attachInput" class="form-control" multiple
+                   accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.zip,.txt,.csv">
+            <button class="btn btn-outline-secondary" type="button" onclick="addAttachment()">
+              <i class="bi bi-paperclip me-1"></i>{{ _('إضافة') }}
+            </button>
+          </div>
+          <ul class="attach-list mt-2" id="attachList"></ul>
+        </div>
+
+        <!-- Recipients -->
+        <div class="col-12">
+          <label class="form-label fw-bold">{{ _('المستلمون') }}</label>
+          <div class="mb-2 d-flex gap-3 flex-wrap">
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="recipient"
+                     value="all" id="recpAll" checked onchange="toggleRecipient('all')">
+              <label class="form-check-label" for="recpAll">
+                {% if current_lang=='en' %}All Active Users{% else %}جميع المستخدمين النشطين{% endif %} ({{ users|length }})
+              </label>
+            </div>
+            {% if groups %}
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="recipient"
+                     value="group" id="recpGroup" onchange="toggleRecipient('group')">
+              <label class="form-check-label" for="recpGroup">
+                <i class="bi bi-people-fill me-1" style="color:var(--primary)"></i>
+                {{ _('حسب مجموعة') }}
+              </label>
+            </div>
+            {% endif %}
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="recipient"
+                     value="selected" id="recpSel" onchange="toggleRecipient('selected')">
+              <label class="form-check-label" for="recpSel">{% if current_lang=='en' %}Selected Users{% else %}مستخدمون محددون{% endif %}</label>
+            </div>
+          </div>
+
+          {% if groups %}
+          <div id="groupDiv" style="display:none;margin-bottom:10px">
+            <select name="group_id" class="form-select">
+              <option value="">{{ _('اختر مجموعة...') }}</option>
+              {% for g in groups %}
+              <option value="{{ g.id }}">{{ g.name }} ({{ g.users|length }} {% if current_lang=='en' %}users{% else %}مستخدم{% endif %})</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endif %}
+
+          <div id="userListDiv" style="display:none;max-height:220px;overflow-y:auto;
+               border:1px solid #dee2e6;border-radius:8px;padding:12px;">
+            <div class="mb-2 d-flex gap-2">
+              <button type="button" class="btn btn-xs btn-outline-primary btn-sm" onclick="selectAllUsers(true)">{{ _('تحديد الكل') }}</button>
+              <button type="button" class="btn btn-xs btn-outline-secondary btn-sm" onclick="selectAllUsers(false)">{{ _('إلغاء الكل') }}</button>
+              <span id="selectedCount" class="text-muted small ms-2"></span>
+            </div>
+            {% for u in users %}
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="user_ids"
+                     value="{{ u.id }}" id="usr{{ u.id }}" onchange="updateCount()">
+              <label class="form-check-label" for="usr{{ u.id }}">
+                {{ u.full_name }} — <span class="text-muted">{{ u.email or '—' }}</span>
+              </label>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-4">
+        <button type="submit" class="btn btn-success w-100 mb-2 py-2"
+                style="font-size:.95rem;font-weight:700" onclick="prepareSubmit(event)">
+          <i class="bi bi-send me-2"></i>{{ _('إرسال') }}
+        </button>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-info flex-fill" onclick="previewMessage()">
+            <i class="bi bi-eye me-1"></i>{{ _('معاينة') }}
+          </button>
+          <a href="{{ url_for('users.index') }}" class="btn btn-outline-secondary flex-fill">
+            {{ _('إلغاء') }}
+          </a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-eye me-2"></i>{{ _('معاينة الرسالة') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="previewSubject" class="alert alert-info fw-bold mb-3"></div>
+        <div id="previewBody" style="padding:16px;border:1px solid #eee;border-radius:8px;min-height:200px;direction:{% if current_lang=='en' %}ltr{% else %}rtl{% endif %}"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('إغلاق') }}</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+<script>
+// Init Quill editor
+const EDITOR_DIR = '{{ "ltr" if current_lang=="en" else "rtl" }}';
+const quill = new Quill('#editor', {
+  theme: 'snow',
+  placeholder: '{{ _("اكتب نص الرسالة هنا...") }}',
+  modules: {
+    toolbar: [
+      [{ header: [1,2,3,false] }],
+      ['bold','italic','underline','strike'],
+      [{ color:[] },{ background:[] }],
+      [{ align:[] }],
+      [{ list:'ordered'},{ list:'bullet'}],
+      ['link','image'],
+      ['clean']
+    ]
+  }
+});
+
+// Direction support
+quill.format('direction', EDITOR_DIR);
+quill.format('align', EDITOR_DIR === 'rtl' ? 'right' : 'left');
+
+let isHtmlMode = true;
+
+function toggleEditorMode() {
+  isHtmlMode = !isHtmlMode;
+  document.getElementById('editorModeField').value = isHtmlMode ? 'html' : 'plain';
+  document.getElementById('quillWrapper').style.display = isHtmlMode ? 'block' : 'none';
+  document.getElementById('plainBody').style.display   = isHtmlMode ? 'none' : 'block';
+  document.getElementById('editorModeLabel').textContent = isHtmlMode
+    ? '{% if current_lang=="en" %}Switch to Plain Text{% else %}تبديل لنص عادي{% endif %}'
+    : '{{ _("تبديل للمحرر الغني") }}';
+}
+
+function prepareSubmit(e) {
+  if (isHtmlMode) {
+    const html = quill.root.innerHTML;
+    document.getElementById('bodyHtmlField').value = html;
+    document.getElementById('plainBody').value = quill.getText();
+    if (quill.getText().trim().length === 0) {
+      e.preventDefault();
+      alert('{{ _("الرجاء كتابة نص الرسالة") }}');
+      return false;
+    }
+  } else {
+    if (!document.getElementById('plainBody').value.trim()) {
+      e.preventDefault();
+      alert('{{ _("الرجاء كتابة نص الرسالة") }}');
+      return false;
+    }
+    document.getElementById('bodyHtmlField').value = '';
+  }
+  return true;
+}
+
+function previewMessage() {
+  const subjectEl = document.querySelector('input[name="subject"]');
+  const subject = subjectEl ? subjectEl.value : '';
+  const bodyHtml = isHtmlMode ? quill.root.innerHTML : document.getElementById('plainBody').value.replace(/\n/g,'<br>');
+  document.getElementById('previewSubject').textContent = '{{ _("الموضوع:") }} ' + subject;
+  document.getElementById('previewBody').innerHTML = bodyHtml;
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('previewModal')).show();
+}
+
+// Attachment display
+const attachFiles = new DataTransfer();
+function addAttachment() {
+  const inp = document.getElementById('attachInput');
+  for (const file of inp.files) {
+    attachFiles.items.add(file);
+  }
+  inp.files = attachFiles.files;
+  renderAttachList();
+}
+function renderAttachList() {
+  const list = document.getElementById('attachList');
+  list.innerHTML = '';
+  for (let i=0; i<attachFiles.files.length; i++) {
+    const f = attachFiles.files[i];
+    const li = document.createElement('li');
+    li.innerHTML = `<i class="bi bi-paperclip text-muted"></i>
+      <span class="attach-name">${f.name}</span>
+      <span class="text-muted small">${(f.size/1024).toFixed(1)} KB</span>
+      <button class="btn-remove-attach" type="button" onclick="removeAttach(${i})" title="{{ _('حذف') }}">×</button>`;
+    list.appendChild(li);
+  }
+}
+function removeAttach(idx) {
+  const dt = new DataTransfer();
+  for (let i=0; i<attachFiles.files.length; i++) {
+    if (i !== idx) dt.items.add(attachFiles.files[i]);
+  }
+  attachFiles.items.clear();
+  for (const f of dt.files) attachFiles.items.add(f);
+  document.getElementById('attachInput').files = attachFiles.files;
+  renderAttachList();
+}
+
+// Recipients toggle
+function toggleRecipient(val) {
+  document.getElementById('userListDiv').style.display = val === 'selected' ? 'block' : 'none';
+  const gd = document.getElementById('groupDiv');
+  if (gd) gd.style.display = val === 'group' ? 'block' : 'none';
+  if (val === 'selected') updateCount();
+}
+
+function selectAllUsers(val) {
+  document.querySelectorAll('#userListDiv input[type="checkbox"]').forEach(cb => cb.checked = val);
+  updateCount();
+}
+
+function updateCount() {
+  const total   = document.querySelectorAll('#userListDiv input[type="checkbox"]').length;
+  const checked = document.querySelectorAll('#userListDiv input[type="checkbox"]:checked').length;
+  const el = document.getElementById('selectedCount');
+  if (el) el.textContent = checked + ' / ' + total + ' {{ _("محدد") }}';
+}
+
+document.addEventListener('change', function(e) {
+  if (e.target && e.target.name === 'user_ids') updateCount();
+});
+</script>
+{% endblock %}

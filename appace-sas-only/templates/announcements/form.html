@@ -1,0 +1,446 @@
+{% extends 'base.html' %}
+{% block title %}{% if ann %}{% if current_lang=='en' %}Edit Announcement{% else %}تعديل الإعلان{% endif %}{% else %}{% if current_lang=='en' %}New Announcement{% else %}إعلان جديد{% endif %}{% endif %} — STAP{% endblock %}
+{% block extra_css %}
+<link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+<style>
+#editorAr, #editorEn { min-height:140px; }
+.ql-toolbar { border-radius:8px 8px 0 0; background:#f8fbfc; }
+.ql-container { border-radius:0 0 8px 8px; }
+.media-preview { max-width:100%; max-height:240px; border-radius:10px; object-fit:contain; }
+.target-section { background:#f0f6ff; border-radius:12px; padding:16px; border:1.5px solid #C8DCFF; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-header d-flex align-items-center gap-2">
+  <a href="{{ url_for('announcements.index') }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-{% if current_lang=='en' %}left{% else %}right{% endif %} me-1"></i>
+    {% if current_lang=='en' %}Back{% else %}رجوع{% endif %}
+  </a>
+  <h4 style="margin:0">
+    <i class="bi bi-megaphone me-2"></i>
+    {% if ann %}{% if current_lang=='en' %}Edit Announcement{% else %}تعديل الإعلان{% endif %}
+    {% else %}{% if current_lang=='en' %}New Announcement{% else %}إعلان جديد{% endif %}{% endif %}
+  </h4>
+</div>
+
+<form method="POST" enctype="multipart/form-data">
+<div class="row g-4">
+
+  <!-- Left: Content -->
+  <div class="col-lg-7">
+    <div class="card" style="border-radius:14px;border:none;box-shadow:0 2px 16px rgba(12,103,236,.09)">
+      <div class="card-header"><i class="bi bi-pencil-square me-2"></i>{% if current_lang=='en' %}Content{% else %}المحتوى{% endif %}</div>
+      <div class="card-body">
+
+        <!-- Titles -->
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label fw-bold">{% if current_lang=='en' %}Arabic Title{% else %}العنوان بالعربي{% endif %} *</label>
+            <input type="text" name="title_ar" class="form-control" required
+                   value="{{ ann.title_ar if ann else '' }}"
+                   placeholder="مثال: إشعار مهم للموظفين">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-bold">{% if current_lang=='en' %}English Title{% else %}العنوان بالإنجليزي{% endif %}</label>
+            <input type="text" name="title_en" class="form-control"
+                   value="{{ ann.title_en if ann else '' }}"
+                   placeholder="e.g. Important Staff Notice">
+          </div>
+        </div>
+
+        <!-- Arabic body -->
+        <div class="mb-3">
+          <label class="form-label fw-bold">{% if current_lang=='en' %}Arabic Body{% else %}النص بالعربي{% endif %}</label>
+          <div id="editorAr" dir="rtl"></div>
+          <input type="hidden" name="body_ar" id="bodyArField">
+        </div>
+
+        <!-- English body -->
+        <div class="mb-3">
+          <label class="form-label fw-bold">{% if current_lang=='en' %}English Body{% else %}النص بالإنجليزي{% endif %}</label>
+          <div id="editorEn" dir="ltr"></div>
+          <input type="hidden" name="body_en" id="bodyEnField">
+        </div>
+      </div>
+    </div>
+
+    <!-- Media -->
+    <div class="card mt-3" style="border-radius:14px;border:none;box-shadow:0 2px 16px rgba(12,103,236,.09)">
+      <div class="card-header"><i class="bi bi-image me-2"></i>{% if current_lang=='en' %}Media (Image / Video){% else %}الوسائط (صورة / فيديو){% endif %}</div>
+      <div class="card-body">
+        <div class="mb-3">
+          <label class="form-label fw-bold">{% if current_lang=='en' %}Media Type{% else %}نوع الوسائط{% endif %}</label>
+          <select name="media_type" class="form-select" id="mediaTypeSelect" onchange="updateMediaFields()">
+            <option value="none" {% if not ann or ann.media_type=='none' %}selected{% endif %}>{% if current_lang=='en' %}None — Text only{% else %}لا يوجد — نص فقط{% endif %}</option>
+            <option value="image" {% if ann and ann.media_type=='image' %}selected{% endif %}>🖼️ {% if current_lang=='en' %}Image (upload){% else %}صورة (رفع ملف){% endif %}</option>
+            <option value="video_url" {% if ann and ann.media_type=='video_url' %}selected{% endif %}>▶️ {% if current_lang=='en' %}Video URL (YouTube / mp4){% else %}رابط فيديو (يوتيوب / mp4){% endif %}</option>
+          </select>
+        </div>
+
+        <!-- Image upload -->
+        <div id="fieldImage" style="display:{% if ann and ann.media_type=='image' %}block{% else %}none{% endif %}">
+          <label class="form-label fw-bold small">{% if current_lang=='en' %}Upload Image{% else %}رفع صورة{% endif %}</label>
+          <input type="file" name="media_image" class="form-control" accept="image/*"
+                 onchange="previewImage(this)">
+          {% if ann and ann.media_b64 %}
+          <div class="mt-2"><img src="{{ ann.media_b64 }}" class="media-preview" id="imgPreview"></div>
+          {% else %}
+          <div class="mt-2" id="imgPreviewWrap" style="display:none"><img class="media-preview" id="imgPreview"></div>
+          {% endif %}
+        </div>
+
+        <!-- Video URL -->
+        <div id="fieldVideoUrl" style="display:{% if ann and ann.media_type=='video_url' %}block{% else %}none{% endif %}">
+          <label class="form-label fw-bold small">{% if current_lang=='en' %}Video URL{% else %}رابط الفيديو{% endif %}</label>
+          <input type="url" name="media_url" class="form-control" id="videoUrlInput"
+                 value="{{ ann.media_url if ann else '' }}"
+                 placeholder="https://youtube.com/watch?v=... or https://example.com/video.mp4">
+          <div class="form-text">{% if current_lang=='en' %}Supports YouTube, Vimeo, or direct MP4 links{% else %}يدعم يوتيوب أو روابط MP4 مباشرة{% endif %}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Settings -->
+  <div class="col-lg-5">
+    <div class="card" style="border-radius:14px;border:none;box-shadow:0 2px 16px rgba(12,103,236,.09)">
+      <div class="card-header"><i class="bi bi-gear me-2"></i>{% if current_lang=='en' %}Settings{% else %}الإعدادات{% endif %}</div>
+      <div class="card-body">
+
+        <!-- Active toggle -->
+        <div class="mb-3 p-3 rounded" style="background:#f0f6ff;border:1.5px solid #c8dcff">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" name="is_active" id="isActive"
+                   {% if not ann or ann.is_active %}checked{% endif %}>
+            <label class="form-check-label fw-bold" for="isActive">
+              {% if current_lang=='en' %}Active (visible to users){% else %}نشط (مرئي للمستخدمين){% endif %}
+            </label>
+          </div>
+        </div>
+
+        <!-- Display mode -->
+        <div class="mb-3">
+          <label class="form-label fw-bold">{% if current_lang=='en' %}Display Mode{% else %}وضع العرض{% endif %}</label>
+          <select name="display_mode" class="form-select">
+            <option value="once_session" {% if not ann or ann.display_mode=='once_session' %}selected{% endif %}>
+              🔁 {% if current_lang=='en' %}Once per session (shows every login){% else %}مرة لكل جلسة (يظهر عند كل دخول){% endif %}
+            </option>
+            <option value="once_ever" {% if ann and ann.display_mode=='once_ever' %}selected{% endif %}>
+              ✅ {% if current_lang=='en' %}Once ever (user dismisses permanently){% else %}مرة واحدة فقط (يُغلق للأبد){% endif %}
+            </option>
+            <option value="always" {% if ann and ann.display_mode=='always' %}selected{% endif %}>
+              📌 {% if current_lang=='en' %}Always (every page load){% else %}دائماً (كل تحميل صفحة){% endif %}
+            </option>
+          </select>
+        </div>
+
+        <!-- Option 1: Modal Size -->
+        <div class="mb-3">
+          <label class="form-label fw-bold">
+            📐 {% if current_lang=='en' %}Popup Size{% else %}حجم النافذة{% endif %}
+          </label>
+          <div class="d-flex gap-2 flex-wrap">
+            {% for val, icon, ar, en in [
+              ('small',      '▪️', 'صغير',       'Small'),
+              ('medium',     '▫️', 'متوسط',      'Medium'),
+              ('large',      '⬜', 'كبير',        'Large'),
+              ('fullscreen', '⛶', 'شاشة كاملة', 'Full Screen'),
+            ] %}
+            <div>
+              <input type="radio" name="modal_size" value="{{ val }}" id="sz_{{ val }}"
+                     class="d-none size-radio"
+                     {% if (ann and ann.modal_size==val) or (not ann and val=='medium') %}checked{% endif %}>
+              <label for="sz_{{ val }}" class="size-btn"
+                     style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;
+                            border:2px solid #dee2e6;border-radius:10px;cursor:pointer;
+                            font-size:.82rem;font-weight:600;transition:.15s;
+                            background:#fff;color:#444">
+                {{ icon }} {% if current_lang=='en' %}{{ en }}{% else %}{{ ar }}{% endif %}
+              </label>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Option 2: Modal Position -->
+        <div class="mb-3">
+          <label class="form-label fw-bold">
+            📍 {% if current_lang=='en' %}Popup Position{% else %}موضع النافذة{% endif %}
+          </label>
+          <div class="d-flex gap-2 flex-wrap">
+            {% for val, icon, ar, en in [
+              ('top',    '⬆️', 'أعلى الشاشة', 'Top'),
+              ('center', '🎯', 'وسط الشاشة',  'Center'),
+              ('bottom', '⬇️', 'أسفل الشاشة', 'Bottom'),
+            ] %}
+            <div>
+              <input type="radio" name="modal_pos" value="{{ val }}" id="pos_{{ val }}"
+                     class="d-none pos-radio"
+                     {% if (ann and ann.modal_pos==val) or (not ann and val=='center') %}checked{% endif %}>
+              <label for="pos_{{ val }}" class="pos-btn"
+                     style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;
+                            border:2px solid #dee2e6;border-radius:10px;cursor:pointer;
+                            font-size:.82rem;font-weight:600;transition:.15s;
+                            background:#fff;color:#444">
+                {{ icon }} {% if current_lang=='en' %}{{ en }}{% else %}{{ ar }}{% endif %}
+              </label>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Option 3: Header Color -->
+        <div class="mb-3">
+          <label class="form-label fw-bold">
+            🎨 {% if current_lang=='en' %}Header Color{% else %}لون الـ Header{% endif %}
+          </label>
+          <div class="d-flex gap-2 flex-wrap align-items-center">
+            {% for val, label, ar in [
+              ('#0847B0,#0C67EC', 'en', 'أزرق (افتراضي)'),
+              ('#155724,#27AE60', 'en', 'أخضر'),
+              ('#6C3483,#9B59B6', 'en', 'بنفسجي'),
+              ('#B71C1C,#E53935', 'en', 'أحمر'),
+              ('#1A237E,#303F9F', 'en', 'كحلي'),
+              ('#E65100,#F57C00', 'en', 'برتقالي'),
+              ('#212121,#424242', 'en', 'أسود'),
+            ] %}
+            <div>
+              <input type="radio" name="header_color" value="{{ val }}" id="clr_{{ loop.index }}"
+                     class="d-none clr-radio"
+                     {% if (ann and ann.header_color==val) or (not ann and loop.index==1) %}checked{% endif %}>
+              <label for="clr_{{ loop.index }}"
+                     style="display:inline-block;width:36px;height:36px;border-radius:50%;cursor:pointer;
+                            background:linear-gradient(135deg,{{ val.split(',')[0] }},{{ val.split(',')[1] }});
+                            border:3px solid transparent;transition:.15s"
+                     title="{{ ar }}"
+                     class="clr-btn"></label>
+            </div>
+            {% endfor %}
+            <!-- Custom color picker -->
+            <div class="d-flex align-items-center gap-2 ms-2">
+              <input type="color" id="customColor1" value="#0847B0"
+                     style="width:36px;height:36px;border:none;border-radius:50%;cursor:pointer;padding:0"
+                     title="{% if current_lang=='en' %}Custom start color{% else %}لون بداية مخصص{% endif %}">
+              <span class="text-muted small">→</span>
+              <input type="color" id="customColor2" value="#0C67EC"
+                     style="width:36px;height:36px;border:none;border-radius:50%;cursor:pointer;padding:0"
+                     title="{% if current_lang=='en' %}Custom end color{% else %}لون نهاية مخصص{% endif %}">
+              <button type="button" class="btn btn-sm btn-outline-secondary" style="border-radius:8px;font-size:.75rem"
+                      onclick="applyCustomColor()">
+                {% if current_lang=='en' %}Apply{% else %}تطبيق{% endif %}
+              </button>
+            </div>
+          </div>
+          <!-- Live preview -->
+          <div id="colorPreview" style="margin-top:10px;height:32px;border-radius:8px;
+               background:linear-gradient(135deg,#0847B0,#0C67EC);transition:.3s"></div>
+        </div>
+
+        <!-- Schedule -->
+        <div class="mb-3">
+          <label class="form-label fw-bold">{% if current_lang=='en' %}Schedule{% else %}الجدولة الزمنية{% endif %} <span class="text-muted fw-normal small">({% if current_lang=='en' %}optional{% else %}اختياري{% endif %})</span></label>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label small">{% if current_lang=='en' %}Start{% else %}من{% endif %}</label>
+              <input type="datetime-local" name="start_date" class="form-control form-control-sm"
+                     value="{{ ann.start_date.strftime('%Y-%m-%dT%H:%M') if ann and ann.start_date else '' }}">
+            </div>
+            <div class="col-6">
+              <label class="form-label small">{% if current_lang=='en' %}End{% else %}حتى{% endif %}</label>
+              <input type="datetime-local" name="end_date" class="form-control form-control-sm"
+                     value="{{ ann.end_date.strftime('%Y-%m-%dT%H:%M') if ann and ann.end_date else '' }}">
+            </div>
+          </div>
+          <div class="form-text mt-1" style="color:#e67e22;font-size:.75rem">
+            <i class="bi bi-clock me-1"></i>
+            {% if current_lang=='en' %}
+              ⚠️ Leave dates empty for no scheduling — or the server timezone (UTC) may differ from yours
+            {% else %}
+              ⚠️ اتركهما فارغين إذا لا تريد جدولة — السيرفر يعمل بتوقيت UTC (فارق ±3-4 ساعات)
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Target -->
+        <div class="mb-3">
+          <label class="form-label fw-bold">{% if current_lang=='en' %}Target Audience{% else %}الجمهور المستهدف{% endif %}</label>
+          <select name="target" class="form-select mb-2" id="targetSelect" onchange="updateTargetFields()">
+            <option value="all" {% if not ann or ann.target=='all' %}selected{% endif %}>
+              👥 {% if current_lang=='en' %}All Users{% else %}كل المستخدمين{% endif %}
+            </option>
+            <option value="role" {% if ann and ann.target=='role' %}selected{% endif %}>
+              🏷️ {% if current_lang=='en' %}By Role{% else %}حسب الدور{% endif %}
+            </option>
+            <option value="users" {% if ann and ann.target=='users' %}selected{% endif %}>
+              👤 {% if current_lang=='en' %}Specific Users{% else %}مستخدمون محددون{% endif %}
+            </option>
+          </select>
+
+          <!-- Role target -->
+          <div id="fieldRoles" class="target-section" style="display:{% if ann and ann.target=='role' %}block{% else %}none{% endif %}">
+            <label class="form-label small fw-bold">{% if current_lang=='en' %}Select Roles{% else %}اختر الأدوار{% endif %}</label>
+            {% set sel_roles = (ann.target_roles or '').split(',') if ann else [] %}
+            {% for rname in ['مدير النظام','مشرف','مستخدم','admin','Manager','User'] %}
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="target_roles"
+                     value="{{ rname }}" id="role_{{ loop.index }}"
+                     {% if rname in sel_roles %}checked{% endif %}>
+              <label class="form-check-label small" for="role_{{ loop.index }}">{{ rname }}</label>
+            </div>
+            {% endfor %}
+          </div>
+
+          <!-- Users target -->
+          <div id="fieldUsers" class="target-section" style="display:{% if ann and ann.target=='users' %}block{% else %}none{% endif %}">
+            <label class="form-label small fw-bold">{% if current_lang=='en' %}Select Users{% else %}اختر المستخدمين{% endif %}</label>
+            {% set sel_users = (ann.target_users or '').split(',') if ann else [] %}
+            <div style="max-height:180px;overflow-y:auto">
+              {% for u in users %}
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="target_users"
+                       value="{{ u.id }}" id="usr_{{ u.id }}"
+                       {% if u.id|string in sel_users %}checked{% endif %}>
+                <label class="form-check-label small" for="usr_{{ u.id }}">
+                  {{ u.full_name }} <span class="text-muted">({{ u.username }})</span>
+                </label>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Save button -->
+    <div class="mt-3">
+      <button type="submit" class="btn btn-primary-ars w-100 py-2" style="font-size:.95rem;font-weight:700"
+              onclick="prepareSubmit()">
+        <i class="bi bi-check-lg me-2"></i>
+        {% if ann %}{% if current_lang=='en' %}Save Changes{% else %}حفظ التعديلات{% endif %}
+        {% else %}{% if current_lang=='en' %}Create Announcement{% else %}إنشاء الإعلان{% endif %}{% endif %}
+      </button>
+      <a href="{{ url_for('announcements.index') }}" class="btn btn-outline-secondary w-100 mt-2">
+        {% if current_lang=='en' %}Cancel{% else %}إلغاء{% endif %}
+      </a>
+    </div>
+  </div>
+
+</div>
+</form>
+
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+<script>
+const quillAr = new Quill('#editorAr', {
+  theme:'snow',
+  placeholder:'{% if current_lang=="en" %}Arabic body text...{% else %}اكتب النص بالعربية...{% endif %}',
+  modules:{toolbar:[['bold','italic','underline'],[{color:[]},{background:[]}],[{align:[]}],['clean']]}
+});
+const quillEn = new Quill('#editorEn', {
+  theme:'snow',
+  placeholder:'{% if current_lang=="en" %}English body text...{% else %}Write in English...{% endif %}',
+  modules:{toolbar:[['bold','italic','underline'],[{color:[]},{background:[]}],[{align:[]}],['clean']]}
+});
+quillAr.format('direction','rtl'); quillAr.format('align','right');
+
+// Load existing content
+{% if ann and ann.body_ar %}quillAr.root.innerHTML = {{ ann.body_ar|tojson }};{% endif %}
+{% if ann and ann.body_en %}quillEn.root.innerHTML = {{ ann.body_en|tojson }};{% endif %}
+
+// Size/Position button highlight
+function initRadioButtons(radioClass, btnClass, activeColor) {
+  document.querySelectorAll('.' + radioClass).forEach(radio => {
+    const lbl = document.querySelector('label[for="' + radio.id + '"]');
+    if (radio.checked && lbl) {
+      lbl.style.borderColor = activeColor;
+      lbl.style.background  = activeColor + '18';
+      lbl.style.color       = activeColor;
+    }
+    radio.addEventListener('change', () => {
+      document.querySelectorAll('.' + btnClass).forEach(b => {
+        b.style.borderColor = '#dee2e6';
+        b.style.background  = '#fff';
+        b.style.color       = '#444';
+      });
+      if (lbl) {
+        lbl.style.borderColor = activeColor;
+        lbl.style.background  = activeColor + '18';
+        lbl.style.color       = activeColor;
+      }
+    });
+  });
+}
+initRadioButtons('size-radio', 'size-btn', '#0C67EC');
+initRadioButtons('pos-radio',  'pos-btn',  '#198754');
+
+// Color dot highlight
+function updateColorDots() {
+  document.querySelectorAll('.clr-radio').forEach(r => {
+    const lbl = document.querySelector('label[for="' + r.id + '"]');
+    if (!lbl) return;
+    lbl.style.border = r.checked ? '3px solid #fff' : '3px solid transparent';
+    lbl.style.boxShadow = r.checked ? '0 0 0 2px #0C67EC' : 'none';
+  });
+}
+document.querySelectorAll('.clr-radio').forEach(r => {
+  if (r.checked) {
+    const parts = r.value.split(',');
+    document.getElementById('colorPreview').style.background =
+      'linear-gradient(135deg,' + parts[0] + ',' + parts[1] + ')';
+  }
+  r.addEventListener('change', () => {
+    const parts = r.value.split(',');
+    document.getElementById('colorPreview').style.background =
+      'linear-gradient(135deg,' + parts[0] + ',' + parts[1] + ')';
+    updateColorDots();
+  });
+});
+updateColorDots();
+
+function applyCustomColor() {
+  const c1 = document.getElementById('customColor1').value;
+  const c2 = document.getElementById('customColor2').value;
+  // Deselect all preset colors
+  document.querySelectorAll('.clr-radio').forEach(r => r.checked = false);
+  // Set hidden value via a temp hidden input
+  let tmp = document.getElementById('customColorValue');
+  if (!tmp) {
+    tmp = document.createElement('input');
+    tmp.type = 'hidden'; tmp.name = 'header_color'; tmp.id = 'customColorValue';
+    document.querySelector('form').appendChild(tmp);
+  }
+  tmp.value = c1 + ',' + c2;
+  document.getElementById('colorPreview').style.background =
+    'linear-gradient(135deg,' + c1 + ',' + c2 + ')';
+  updateColorDots();
+}
+
+function prepareSubmit() {
+  document.getElementById('bodyArField').value = quillAr.root.innerHTML;
+  document.getElementById('bodyEnField').value = quillEn.root.innerHTML;
+}
+
+function updateMediaFields() {
+  const v = document.getElementById('mediaTypeSelect').value;
+  document.getElementById('fieldImage').style.display    = v==='image'     ? 'block':'none';
+  document.getElementById('fieldVideoUrl').style.display = v==='video_url' ? 'block':'none';
+}
+
+function previewImage(inp) {
+  if (!inp.files[0]) return;
+  const r = new FileReader();
+  r.onload = e => {
+    const img = document.getElementById('imgPreview');
+    const wrap = document.getElementById('imgPreviewWrap');
+    img.src = e.target.result;
+    if (wrap) wrap.style.display = 'block';
+  };
+  r.readAsDataURL(inp.files[0]);
+}
+
+function updateTargetFields() {
+  const v = document.getElementById('targetSelect').value;
+  document.getElementById('fieldRoles').style.display = v==='role'  ? 'block':'none';
+  document.getElementById('fieldUsers').style.display = v==='users' ? 'block':'none';
+}
+</script>
+{% endblock %}

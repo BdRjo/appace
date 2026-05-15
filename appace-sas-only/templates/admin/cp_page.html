@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+{% block title %}CP — {{ page.label_ar }} — STAP{% endblock %}
+{% block content %}
+
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb small">
+    <li class="breadcrumb-item"><a href="{{ url_for('cp.index') }}" style="color:var(--primary)">Control Panel</a></li>
+    <li class="breadcrumb-item active">{{ page.label_ar if current_lang != 'en' else page.label_en }}</li>
+  </ol>
+</nav>
+
+<div class="row justify-content-center">
+<div class="col-12 col-lg-8">
+
+<!-- Page Header -->
+<div class="d-flex align-items-center gap-3 mb-4 p-4 rounded-4" style="background:{{ page.color }}">
+  <div style="width:52px;height:52px;border-radius:14px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center">
+    <i class="bi {{ page.icon }} fs-4" style="color:#fff"></i>
+  </div>
+  <div>
+    <h2 style="color:#fff;font-weight:800;margin:0;font-size:1.2rem">
+      {{ page.label_ar if current_lang != 'en' else page.label_en }}
+    </h2>
+    <div style="color:rgba(255,255,255,.65);font-size:.78rem">
+      {% if current_lang=='en' %}Page Settings & Configuration{% else %}إعدادات وتهيئة الصفحة{% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="card" style="border-radius:16px;overflow:hidden">
+  <div class="card-header" style="background:var(--primary)">
+    <i class="bi bi-gear me-2"></i>
+    {% if current_lang=='en' %}Page Configuration{% else %}تهيئة الصفحة{% endif %}
+  </div>
+  <div class="card-body p-4">
+    <form method="POST">
+
+      {% set text_fields = page.fields | selectattr('type', 'equalto', 'text') | list %}
+      {% set toggle_fields = page.fields | selectattr('type', 'equalto', 'toggle') | list %}
+
+      <!-- Text Fields Section -->
+      {% if text_fields %}
+      <div class="mb-4">
+        <div class="fw-bold mb-3 d-flex align-items-center gap-2" style="color:var(--primary)">
+          <i class="bi bi-translate"></i>
+          {% if current_lang=='en' %}Labels & Titles{% else %}التسميات والعناوين{% endif %}
+        </div>
+        <div class="row g-3">
+          {% for field in text_fields %}
+          <div class="col-12 col-md-6">
+            <label class="form-label fw-bold small">{{ field.label_ar if current_lang != 'en' else field.label }}</label>
+            <input type="text" name="{{ field.key }}" class="form-control"
+                   value="{{ page_cfg.get(field.key, field.default) }}"
+                   placeholder="{{ field.default }}">
+            <div class="form-text">{% if current_lang=='en' %}Default: {% else %}الافتراضي: {% endif %}<code>{{ field.default }}</code></div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Toggle Fields Section -->
+      {% if toggle_fields %}
+      <div class="mb-2">
+        <div class="fw-bold mb-3 d-flex align-items-center gap-2" style="color:var(--primary)">
+          <i class="bi bi-toggles"></i>
+          {% if current_lang=='en' %}Features & Visibility{% else %}الميزات والإمكانية{% endif %}
+        </div>
+        <div class="d-flex flex-column gap-1">
+          {% for field in toggle_fields %}
+          {% set val = page_cfg.get(field.key, field.default) %}
+          <div class="d-flex align-items-center justify-content-between p-3 rounded-3"
+               style="background:{{ '#d4eaec' if val else '#f8f9fa' }};border:1.5px solid {{ '#3D8EF5' if val else '#dee2e6' }};transition:.2s"
+               id="row_{{ field.key }}">
+            <div>
+              <div class="fw-bold small">{{ field.label_ar if current_lang != 'en' else field.label }}</div>
+              <div class="text-muted" style="font-size:.72rem">
+                {% if current_lang=='en' %}Default: {% else %}الافتراضي: {% endif %}
+                <span class="badge" style="background:{{ '#d4eaec' if field.default else '#f5e6d0' }};color:{{ '#0847B0' if field.default else '#7a3800' }}">{{ 'ON' if field.default else 'OFF' }}</span>
+              </div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <span class="small fw-bold" id="lbl_{{ field.key }}" style="color:{{ 'var(--primary)' if val else '#aaa' }}">
+                {{ 'ON' if val else 'OFF' }}
+              </span>
+              <label class="cp-switch mb-0">
+                <input type="hidden" name="{{ field.key }}" value="0">
+                <input type="checkbox" name="{{ field.key }}" value="1"
+                       {% if val %}checked{% endif %}
+                       onchange="toggleRow(this, '{{ field.key }}')">
+                <span class="cp-slider"></span>
+              </label>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Buttons -->
+      <div class="d-flex gap-2 mt-4 flex-wrap">
+        <button type="submit" class="btn btn-primary-ars flex-fill">
+          <i class="bi bi-save me-2"></i>{% if current_lang=='en' %}Save Changes{% else %}حفظ التغييرات{% endif %}
+        </button>
+        <a href="{{ url_for('cp.index') }}" class="btn btn-outline-secondary">
+          <i class="bi bi-arrow-right me-1"></i>{% if current_lang=='en' %}Back{% else %}رجوع{% endif %}
+        </a>
+        <form method="POST" action="{{ url_for('cp.reset_page', page_id=page.id) }}" class="mb-0">
+          <button type="submit" class="btn btn-outline-warning btn-sm" onclick="return confirm('Reset to defaults?')">
+            <i class="bi bi-arrow-counterclockwise me-1"></i>{% if current_lang=='en' %}Reset{% else %}إعادة{% endif %}
+          </button>
+        </form>
+      </div>
+    </form>
+  </div>
+</div>
+</div>
+</div>
+
+<style>
+.cp-switch{position:relative;display:inline-block;width:46px;height:24px}
+.cp-switch input{opacity:0;width:0;height:0;position:absolute}
+.cp-slider{position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:24px;transition:.3s}
+.cp-slider:before{position:absolute;content:"";height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.cp-switch input:checked + .cp-slider{background:var(--primary)}
+.cp-switch input:checked + .cp-slider:before{transform:translateX(22px)}
+</style>
+
+<script>
+function toggleRow(cb, key) {
+  const row = document.getElementById('row_' + key);
+  const lbl = document.getElementById('lbl_' + key);
+  if (cb.checked) {
+    row.style.background   = '#d4eaec';
+    row.style.borderColor  = '#3D8EF5';
+    lbl.style.color = 'var(--primary)';
+    lbl.textContent = 'ON';
+  } else {
+    row.style.background   = '#f8f9fa';
+    row.style.borderColor  = '#dee2e6';
+    lbl.style.color = '#aaa';
+    lbl.textContent = 'OFF';
+  }
+}
+</script>
+{% endblock %}

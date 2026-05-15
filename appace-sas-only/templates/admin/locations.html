@@ -1,0 +1,120 @@
+{% extends "base.html" %}{% block title %}المواقع — STAP{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <h1><i class="bi bi-geo-alt me-2"></i>{% if current_lang=='en' %}Manage Locations{% else %}إدارة المواقع{% endif %} ({{ locations|length }})</h1>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('locations.import_csv') }}" class="btn btn-outline-info btn-sm">
+      <i class="bi bi-upload me-1"></i>{{ _('استيراد CSV') }}
+    </a>
+    <a href="{{ url_for('locations.new') }}" class="btn btn-primary-ars">
+      <i class="bi bi-plus-lg me-1"></i>{% if current_lang=="en" %}New Location{% else %}موقع جديد{% endif %}
+    </a>
+  </div>
+</div>
+
+<!-- Search -->
+<div class="card mb-3"><div class="card-body py-2">
+  <form method="GET" class="d-flex gap-2">
+    <input type="text" name="q" class="form-control form-control-sm"
+           placeholder="{{ _('🔍 بحث باسم الموقع') }}" value="{{ search }}" style="max-width:300px">
+    <button class="btn btn-primary-ars btn-sm">{{ _('بحث') }}</button>
+    <a href="{{ url_for('locations.index') }}" class="btn btn-outline-secondary btn-sm">{{ _('إعادة') }}</a>
+    <a href="{{ url_for('locations.export_csv') }}" class="btn btn-outline-success btn-sm ms-auto">
+      <i class="bi bi-download me-1"></i>{{ _('تصدير CSV') }}
+    </a>
+  </form>
+</div></div>
+
+<div class="card"><div class="card-body p-0">
+  {% if locations %}
+  <div id="bulkBar" style="display:none!important" style="background:rgba(220,53,69,.1)">
+    <button type="button" class="btn btn-sm" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.5);font-weight:700" onclick="selectAll(true)"><i class="bi bi-check-all me-1"></i>{{ _('تحديد الكل') }}</button>
+    <button type="button" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.4);font-weight:700" onclick="selectAll(false)"><i class="bi bi-x-lg me-1"></i>{{ _('إلغاء الكل') }}</button>
+    <span id="selCount" class="small ms-1" style="color:rgba(255,255,255,.9);font-weight:600"></span>
+    <form method="POST" action="{{ url_for('locations.bulk_delete') }}" id="bulkForm" class="ms-auto" onsubmit="return confirmBulk()">
+      <div id="bulkIds"></div>
+      <button type="submit" class="btn btn-sm btn-danger"><i class="bi bi-trash me-1"></i>{{ _('حذف المحدد') }}</button>
+    </form>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead><tr>
+        <th style="width:36px"><input type="checkbox" class="form-check-input" id="checkAll" onchange="selectAll(this.checked)"></th>
+        <th>#</th><th>{{ _('اسم الموقع') }}</th><th>{{ _('المدينة') }}</th><th>{{ _('المنطقة') }}</th>
+        <th>{{ _('عدد القاعات') }}</th><th>{{ _('الحالة') }}</th><th>{{ _('إجراءات') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for loc in locations %}
+        <tr>
+          <td><input type="checkbox" class="form-check-input row-check" value="{{ loc.id }}" onchange="updateBulk()"></td>
+          <td class="text-muted small">{{ loc.id }}</td>
+          <td class="fw-bold" style="color:#0C67EC">
+            <i class="bi bi-geo-alt me-1"></i>{{ loc.name }}
+            {% if loc.name_en and loc.name_en != loc.name %}
+            <small class="text-muted d-block">{{ loc.name_en }}</small>
+            {% endif %}
+          </td>
+          <td>{{ loc.city or '—' }}</td>
+          <td>{{ loc.area or '—' }}</td>
+          <td>
+            <span class="badge bg-secondary">
+              {{ loc._venue_count }} {% if current_lang=='en' %}venue(s){% else %}قاعة{% endif %}
+            </span>
+          </td>
+          <td>
+            {% if loc.is_active %}
+            <span class="badge bg-success">{{ _('نشط') }}
+            {% else %}
+            <span class="badge bg-danger">{{ _('موقوف') }}
+            {% endif %}
+          </td>
+          <td>
+            <div class="d-flex gap-1">
+              <a href="{{ url_for('locations.edit', loc_id=loc.id) }}"
+                 class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <form method="POST" action="{{ url_for('locations.delete', loc_id=loc.id) }}"
+                    onsubmit="return confirm('حذف الموقع: {{ loc.name }}؟')">
+                <button class="btn btn-sm btn-outline-danger"
+                        {% if loc._venue_count %}disabled title="{{ _('لا يمكن الحذف — يحتوي على قاعات') }}"{% endif %}>
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-center py-5 text-muted">
+    <i class="bi bi-geo-alt fs-1 d-block mb-2"></i>
+    {{ _('لا توجد مواقع') }}
+    <div class="mt-2">
+      <a href="{{ url_for('locations.new') }}" class="btn btn-primary-ars btn-sm">
+        <i class="bi bi-plus-lg"></i> {% if current_lang=="en" %}Add a location{% else %}أضف موقعاً{% endif %}
+      </a>
+    </div>
+  </div>
+  {% endif %}
+</div></div>
+
+<script>
+const LANG_IS_EN = document.documentElement.lang === 'en';
+function selectAll(val) { document.querySelectorAll('.row-check').forEach(cb => cb.checked = val); document.getElementById('checkAll').checked = val; updateBulk(); }
+function updateBulk() {
+  const checks = document.querySelectorAll('.row-check:checked');
+  const bar = document.getElementById('bulkBar'); const cnt = document.getElementById('selCount'); const all = document.getElementById('checkAll');
+  const total = document.querySelectorAll('.row-check').length;
+  bar.style.cssText = checks.length > 0 ? 'display:flex!important;align-items:center;gap:8px;background:#1565C0;padding:10px 16px;border-radius:0' : 'display:none!important';
+  if (cnt) cnt.textContent = checks.length + ' / ' + total + ' ' + (LANG_IS_EN ? 'selected' : 'محدد');
+  if (all) { all.indeterminate = checks.length > 0 && checks.length < total; all.checked = checks.length === total && total > 0; }
+  const bulkIds = document.getElementById('bulkIds');
+  if (bulkIds) bulkIds.innerHTML = [...checks].map(c => `<input type="hidden" name="ids" value="${c.value}">`).join('');
+}
+function confirmBulk() { const n = document.querySelectorAll('.row-check:checked').length; return confirm(LANG_IS_EN ? 'Delete ' + n + ' locations?' : 'حذف ' + n + ' موقع؟'); }
+document.querySelectorAll('.row-check').forEach(cb => cb.addEventListener('change', updateBulk));
+</script>
+{% endblock %}

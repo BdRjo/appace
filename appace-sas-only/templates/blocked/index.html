@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block title %}{% if current_lang=="en" %}Blocked Periods — STAP{% else %}الفترات المحظورة — STAP{% endif %}{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <h1><i class="bi bi-slash-circle me-2"></i>{{ _('الفترات المحظورة') }}</h1>
+  <a href="{{ url_for('blocked.new') }}" class="btn btn-primary-ars">
+    <i class="bi bi-plus-lg me-1"></i><span>{{ _('حظر فترة جديدة') }}
+  </a>
+</div>
+
+<!-- Filters -->
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <form class="row g-2 align-items-end" method="GET">
+      <div class="col-md-4">
+        <label class="form-label small fw-bold">{{ _('تصفية بالقاعة') }}</label>
+        <select name="venue_id" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value="">{{ _('كل القاعات') }}</option>
+          {% for v in venues %}
+          <option value="{{ v.id }}" {{ 'selected' if sel_venue==v.id }}>{{ v.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label small fw-bold">{{ _('تصفية بالموقع') }}</label>
+        <select name="location_id" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value="">{{ _('كل المواقع') }}</option>
+          {% for l in locations %}
+          <option value="{{ l.id }}" {{ 'selected' if sel_location==l.id }}>{{ l.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>{{ _('القاعة') }}</th>
+            <th>{{ _('الموقع') }}</th>
+            <th>{{ _('السبب') }}</th>
+            <th>{{ _('بداية الفترة') }}</th>
+            <th>{{ _('نهاية الفترة') }}</th>
+            <th>{{ _('إجراءات') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for bp in periods %}
+          <tr>
+            <td class="text-muted small">{{ loop.index }}</td>
+            <td>{{ bp.venue.name if bp.venue else '—' }}</td>
+            <td>{{ bp.location.name if bp.location else (bp.venue.location.name if bp.venue and bp.venue.location else '—') }}</td>
+            <td>{{ bp.reason or '—' }}</td>
+            <td class="small text-muted">{{ bp.start_time.strftime('%Y-%m-%d %H:%M') if bp.start_time else '—' }}</td>
+            <td class="small text-muted">{{ bp.end_time.strftime('%Y-%m-%d %H:%M') if bp.end_time else '—' }}</td>
+            <td>
+              <div class="d-flex gap-1">
+                <a href="{{ url_for('blocked.edit', bp_id=bp.id) }}" class="btn btn-sm btn-outline-primary">
+                  <i class="bi bi-pencil"></i>
+                </a>
+                <form method="POST" action="{{ url_for('blocked.delete', bp_id=bp.id) }}" class="mb-0">
+                  <button class="btn btn-sm btn-outline-danger" onclick="return confirm('{% if current_lang=="en" %}Delete blocked period?{% else %}حذف الفترة المحظورة؟{% endif %}')">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="text-center text-muted py-4">{{ _('لا توجد بيانات') }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

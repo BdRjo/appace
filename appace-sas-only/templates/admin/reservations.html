@@ -1,0 +1,80 @@
+{% extends "base.html" %}{% block title %}{% if current_lang=="en" %}Manage Reservations — STAP{% else %}الحضور والمقابلات — STAP{% endif %}{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between">
+  <h1><i class="bi bi-list-check me-2"></i>{{ _('كل الحجوزات') }}</h1>
+</div>
+<div class="card mb-3"><div class="card-body py-2">
+  <form method="GET" class="d-flex gap-2 align-items-center flex-wrap">
+    <select name="status" class="form-select form-select-sm" style="width:auto">
+      <option value=""><span>{{ _('كل الحالات') }}</option>
+      {% for s in ['pending','approved','rejected','cancelled','completed'] %}
+      <option value="{{ s }}" {% if request.args.get('status')==s %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn btn-primary-ars btn-sm">{{ _('تصفية') }}</button>
+    <a href="{{ url_for('sas.admin_dashboard') }}" class="btn btn-outline-secondary btn-sm">{{ _('إعادة') }}</a>
+  </form>
+</div></div>
+<div class="card"><div class="card-body p-0">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead><tr><th><span>{{ _('رقم الحجز') }}</th><th>{{ _('العنوان') }}</th><th>{{ _('المستخدم') }}</th><th>{{ _('القاعة') }}</th><th>{{ _('البداية') }}</th><th>{{ _('الحالة') }}</th><th></th></tr></thead>
+      <tbody>
+        {% for r in pagination.items %}
+        <tr>
+          <td class="fw-bold" style="color:#0C67EC">{{ r.booking_number }}</td>
+          <td>{{ r.title }}</td>
+          <td><small>{{ r.user.full_name if r.user else '—' }}</small></td>
+          <td><small class="text-muted">{{ r.venue.name if r.venue else '—' }}</small></td>
+          <td><small>{{ r.start_time.strftime('%Y-%m-%d %H:%M') if r.start_time else '—' }}</small></td>
+          <td>{{ status_label(r.status) }}</td>
+          <td>
+            <div class="d-flex gap-1 align-items-center">
+              <a href="{{ url_for('sas.admin_dashboard') }}"
+                 class="btn btn-sm btn-outline-primary" style="padding:2px 8px"
+                 title="{{ _('عرض') }}"><i class="bi bi-eye"></i></a>
+              {% if r.status == 'pending' %}
+              <form method="POST" action="{{ url_for('sas.admin_dashboard') }}" style="display:inline"
+                    onsubmit="return confirm('{% if current_lang=="en" %}Approve this booking?{% else %}الموافقة على هذا الحجز؟{% endif %}')">
+                <input type="hidden" name="note" value="">
+                <button class="btn btn-sm btn-success" style="padding:2px 8px" title="{{ _('موافقة') }}">
+                  <i class="bi bi-check-lg"></i>
+                </button>
+              </form>
+              <form method="POST" action="{{ url_for('sas.admin_dashboard') }}" style="display:inline"
+                    onsubmit="return confirm('{% if current_lang=="en" %}Reject this booking?{% else %}رفض هذا الحجز؟{% endif %}')">
+                <input type="hidden" name="reason" value="">
+                <button class="btn btn-sm btn-warning" style="padding:2px 8px" title="{{ _('رفض') }}">
+                  <i class="bi bi-x-lg"></i>
+                </button>
+              </form>
+              {% endif %}
+              {% if r.status not in ('cancelled','rejected','completed') %}
+              <form method="POST" action="{{ url_for('reservations.cancel', res_id=r.id) }}" style="display:inline"
+                    onsubmit="return confirm('{% if current_lang=="en" %}Cancel this booking?{% else %}إلغاء هذا الحجز؟{% endif %}')">
+                <button class="btn btn-sm btn-outline-danger" style="padding:2px 8px" title="{{ _('إلغاء') }}">
+                  <i class="bi bi-slash-circle"></i>
+                </button>
+              </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if pagination.pages > 1 %}
+  <div class="px-3 py-2 border-top">
+    <nav><ul class="pagination pagination-sm mb-0">
+      {% if pagination.has_prev %}<li class="page-item"><a class="page-link" href="?page={{ pagination.prev_num }}&status={{ request.args.get('status','') }}"><i class="bi bi-chevron-right"></i></a></li>{% endif %}
+      {% for p in pagination.iter_pages() %}
+        {% if p %}<li class="page-item {% if p==pagination.page %}active{% endif %}"><a class="page-link" href="?page={{ p }}&status={{ request.args.get('status','') }}">{{ p }}</a></li>
+        {% else %}<li class="page-item disabled">…</li>{% endif %}
+      {% endfor %}
+      {% if pagination.has_next %}<li class="page-item"><a class="page-link" href="?page={{ pagination.next_num }}&status={{ request.args.get('status','') }}"><i class="bi bi-chevron-left"></i></a></li>{% endif %}
+    </ul></nav>
+  </div>
+  {% endif %}
+</div></div>
+{% endblock %}

@@ -1,0 +1,274 @@
+{% extends "sas/_sas_base.html" %}
+
+{%- set ar = (current_lang == 'ar') -%}
+{%- set rtl = ar -%}
+{%- set cfg = sas_cfg if sas_cfg is defined else {} -%}
+
+{% block title %}{{ 'إدارة دوام الطلبة' if ar else 'Student Attendance Management' }}{% endblock %}
+
+{% block print_title %}{{ 'إدارة دوام الطلبة' if ar else 'Student Attendance Management' }}{% endblock %}
+
+{% block extra_css %}
+  /* ── Hero ── */
+  .sas-hero {
+    text-align: center;
+    padding: 2.5rem 1rem 1.5rem;
+  }
+  .sas-hero h1 {
+    font-weight: 700;
+    font-size: 1.75rem;
+    color: var(--sas-text);
+    margin-bottom: .25rem;
+  }
+  .sas-hero .sas-subtitle {
+    font-size: 1.1rem;
+    color: var(--sas-primary-dark);
+    font-weight: 600;
+    margin: 0;
+  }
+
+  /* ── Action cards ── */
+  .sas-card {
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.07);
+    padding: 2rem 1.25rem;
+    text-align: center;
+    cursor: pointer;
+    transition: transform .2s ease, box-shadow .2s ease;
+    border: 2px solid transparent;
+    position: relative;
+    overflow: hidden;
+  }
+  .sas-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0,0,0,.1);
+  }
+  .sas-card.active {
+    border-color: var(--card-accent, var(--sas-primary));
+  }
+  .sas-card-icon {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: #fff;
+    margin-bottom: 1rem;
+  }
+  .sas-card-icon.green  { background: var(--sas-primary); }
+  .sas-card-icon.blue   { background: #3b82f6; }
+  .sas-card-icon.indigo { background: #6366f1; }
+
+  .sas-card h5 {
+    font-weight: 700;
+    font-size: 1.1rem;
+    margin-bottom: .25rem;
+    color: var(--sas-text);
+  }
+  .sas-card p {
+    font-size: .875rem;
+    color: #64748b;
+    margin: 0;
+  }
+
+  /* ── Code form ── */
+  .sas-code-form {
+    display: none;
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid #e2e8f0;
+  }
+  .sas-code-form.show {
+    display: block;
+  }
+  .sas-code-input {
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    font-weight: 600;
+    font-size: 1.1rem;
+    padding: .625rem 1rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    width: 100%;
+    transition: border-color .2s;
+  }
+  .sas-code-input:focus {
+    outline: none;
+    border-color: var(--card-accent, var(--sas-primary));
+    box-shadow: 0 0 0 3px rgba(16,185,129,.15);
+  }
+  .sas-code-btn {
+    border: none;
+    border-radius: 10px;
+    padding: .5rem 1.5rem;
+    font-weight: 600;
+    color: #fff;
+    cursor: pointer;
+    font-size: .95rem;
+    width: 100%;
+    margin-top: .75rem;
+    transition: opacity .2s;
+  }
+  .sas-code-btn:hover { opacity: .9; }
+  .sas-code-btn.green  { background: var(--sas-primary); }
+  .sas-code-btn.blue   { background: #3b82f6; }
+  .sas-code-btn.indigo { background: #6366f1; }
+
+  /* ── Footer ── */
+  .sas-footer {
+    text-align: center;
+    padding: 2rem 0 1.5rem;
+    color: #94a3b8;
+    font-size: .8rem;
+  }
+{% endblock %}
+
+{% block content %}
+  <!-- ── Hero ── -->
+  <section class="sas-hero">
+    <h1>{{ cfg.school_name if ar and cfg.school_name else cfg.school_name_en|default('') }}</h1>
+    <p class="sas-subtitle">{{ 'إدارة دوام الطلبة' if ar else 'Student Attendance Management' }}</p>
+  </section>
+
+  <!-- ── Action cards ── -->
+  <div class="row g-4 justify-content-center px-2">
+
+    {# ── Supervisor card ── #}
+    <div class="col-md-4 col-sm-6">
+      <div class="sas-card" style="--card-accent: #0891b2;" onclick="toggleSASForm(this, 'supervisor')">
+        <div class="sas-card-icon green">
+          <i class="bi bi-person-badge"></i>
+        </div>
+        <h5>{{ 'المشرف' if ar else 'Supervisor' }}</h5>
+        <p>{{ 'الدخول كمشرف يومي' if ar else 'Login as daily supervisor' }}</p>
+
+        <div class="sas-code-form" id="form-supervisor">
+          <form action="{{ url_for('sas.login') }}" method="POST" onclick="event.stopPropagation()">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="role" value="supervisor">
+            <input type="text"
+                   class="sas-code-input"
+                   name="code"
+                   maxlength="30"
+                   placeholder="SAS-XXXXXX"
+                   autocomplete="off"
+                   required>
+            <button type="submit" class="sas-code-btn green">
+              {{ 'دخول' if ar else 'Enter' }}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    {# ── Admin Assistant card ── #}
+    <div class="col-md-4 col-sm-6">
+      <div class="sas-card" style="--card-accent: #3b82f6;" onclick="toggleSASForm(this, 'secretary')">
+        <div class="sas-card-icon blue">
+          <i class="bi bi-pencil-square"></i>
+        </div>
+        <h5>{{ 'المساعد الإداري' if ar else 'Admin Assistant' }}</h5>
+        <p>{{ 'الدخول كمساعد إداري' if ar else 'Login as admin assistant' }}</p>
+
+        <div class="sas-code-form" id="form-secretary">
+          <form action="{{ url_for('sas.login') }}" method="POST" onclick="event.stopPropagation()">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="role" value="secretary">
+            <input type="text"
+                   class="sas-code-input"
+                   name="code"
+                   maxlength="30"
+                   placeholder="SAS-XXXXXX"
+                   autocomplete="off"
+                   required>
+            <button type="submit" class="sas-code-btn blue">
+              {{ 'دخول' if ar else 'Enter' }}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    {# ── Manager card ── #}
+    <div class="col-md-4 col-sm-6">
+      <div class="sas-card" style="--card-accent: #6366f1;" onclick="toggleSASForm(this, 'manager')">
+        <div class="sas-card-icon indigo">
+          <i class="bi bi-graph-up"></i>
+        </div>
+        <h5>{{ 'الإدارة' if ar else 'Management' }}</h5>
+        <p>{{ 'الدخول كمدير' if ar else 'Login as manager' }}</p>
+
+        <div class="sas-code-form" id="form-manager">
+          <form action="{{ url_for('sas.login') }}" method="POST" onclick="event.stopPropagation()">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="role" value="manager">
+            <input type="text"
+                   class="sas-code-input"
+                   name="code"
+                   maxlength="30"
+                   placeholder="SAS-XXXXXX"
+                   autocomplete="off"
+                   required>
+            <button type="submit" class="sas-code-btn indigo">
+              {{ 'دخول' if ar else 'Enter' }}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Footer ── -->
+  <div class="sas-footer">
+    Powered by <strong>STAP</strong> &copy; 2026
+  </div>
+
+<script>
+  var currentOpenForm = null;
+
+  function toggleSASForm(card, role) {
+    var formEl = document.getElementById('form-' + role);
+    if (!formEl) return;
+
+    // If clicking the same card, toggle it
+    if (currentOpenForm === role) {
+      formEl.classList.remove('show');
+      card.classList.remove('active');
+      currentOpenForm = null;
+      return;
+    }
+
+    // Close any previously open form
+    if (currentOpenForm) {
+      var prev = document.getElementById('form-' + currentOpenForm);
+      if (prev) {
+        prev.classList.remove('show');
+        prev.closest('.sas-card').classList.remove('active');
+      }
+    }
+
+    // Open the clicked card's form
+    formEl.classList.add('show');
+    card.classList.add('active');
+    currentOpenForm = role;
+
+    // Focus the code input
+    var inp = formEl.querySelector('.sas-code-input');
+    if (inp) {
+      setTimeout(function(){ inp.focus(); }, 150);
+    }
+  }
+
+  // Force uppercase on code inputs
+  document.querySelectorAll('.sas-code-input').forEach(function(el){
+    el.addEventListener('input', function(){
+      this.value = this.value.toUpperCase();
+    });
+  });
+</script>
+{% endblock %}

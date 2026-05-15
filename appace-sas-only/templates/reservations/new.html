@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+{% block title %}{% if current_lang=="en" %}New Booking — STAP{% else %}حجز جديد — STAP{% endif %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-plus-circle me-2"></i>{{ _('حجز جديد') }}</h1>
+</div>
+<div class="row justify-content-center">
+<div class="col-12 col-lg-8">
+<div class="card">
+  <div class="card-header"><i class="bi bi-calendar-plus me-2"></i>{{ _('تفاصيل الحجز') }}</div>
+  <div class="card-body p-4">
+    <form method="POST" enctype="multipart/form-data">
+      <div class="mb-3">
+        <label class="form-label fw-bold">{{ _('عنوان الحجز') }}*</label>
+        <input type="text" name="title" class="form-control"
+               placeholder="{{ _('مثال: اجتماع فريق التطوير') }}"
+               value="{{ form.get('title','') }}" required>
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-bold">{{ _('القاعة') }} *</label>
+        <select name="venue_id" class="form-select" id="venueSelect" required>
+          <option value="">{{ _('— اختر القاعة —') }}</option>
+          {% for v in venues %}
+          <option value="{{ v.id }}"
+                  data-capacity="{{ v.capacity or '' }}"
+                  data-location="{{ v.location.name if v.location else '' }}"
+                  {% if form.get('venue_id')|string == v.id|string %}selected{% endif %}>
+            {{ v.name }}
+            {% if v.location %} — {{ v.location.name }}{% endif %}
+            {% if v.capacity %} {% if current_lang=="en" %}(Cap: {{ v.capacity }}){% else %}(سعة: {{ v.capacity }}){% endif %}{% endif %}
+          </option>
+          {% endfor %}
+        </select>
+        <div id="venueInfo" class="form-text text-info mt-1"></div>
+      </div>
+
+      {# ── Full Day Toggle ── #}
+      <div class="mb-3">
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" id="fullDayCheck" onchange="toggleFullDay(this)">
+          <label class="form-check-label fw-bold" for="fullDayCheck">
+            <i class="bi bi-sun me-1"></i>
+            {% if current_lang == 'en' %}Full Day Booking{% else %}حجز يوم كامل{% endif %}
+          </label>
+        </div>
+      </div>
+      <div id="fullDayRow" class="mb-3 d-none">
+        <label class="form-label fw-bold">{% if current_lang == 'en' %}Date{% else %}التاريخ{% endif %}*</label>
+        <input type="date" id="fullDayDate" class="form-control"
+               min="{{ now.strftime('%Y-%m-%d') }}" onchange="applyFullDay(this.value)">
+      </div>
+
+      <div class="row" id="timeRow">
+        <div class="col-md-6 mb-3">
+          <label class="form-label fw-bold">{{ _('وقت البداية') }}*</label>
+          <input type="datetime-local" name="start_time" class="form-control"
+                 id="startTime" value="{{ form.get('start_time','') }}"
+                 min="{{ now.strftime('%Y-%m-%dT%H:%M') }}" required>
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label fw-bold">{{ _('وقت الانتهاء') }}*</label>
+          <input type="datetime-local" name="end_time" class="form-control"
+                 id="endTime" value="{{ form.get('end_time','') }}" required>
+        </div>
+      </div>
+      <!-- Availability checker -->
+      <div id="availBox" class="alert py-2 small d-none"></div>
+      <div class="mb-3">
+        <label class="form-label fw-bold">{{ _('ملاحظات') }}</label>
+        <textarea name="notes" class="form-control" rows="3"
+                  placeholder="{{ _('أي تفاصيل إضافية...') }}">{{ form.get('notes','') }}</textarea>
+      </div>
+
+      <!-- Contacts to notify -->
+      {% if contacts %}
+      <div class="mb-4 p-3 border rounded" style="background:#f8fcfc">
+        <label class="form-label fw-bold">
+          <i class="bi bi-people me-2"></i>{% if current_lang=='en' %}Notify Contacts{% else %}إشعار جهات الاتصال{% endif %}
+          <span class="badge bg-secondary ms-1">{{ contacts|length }}</span>
+        </label>
+        <p class="text-muted small mb-3">
+          {% if current_lang=='en' %}Select contacts who are required or should be informed about this event.{% else %}اختر جهات الاتصال المطلوبة أو المعنية بهذا الحجز.{% endif %}
+        </p>
+        <div class="row g-2">
+          {% for ct in contacts %}
+          <div class="col-12 col-sm-6 col-lg-4">
+            <div class="form-check border rounded p-2" style="transition:background .15s;cursor:pointer" 
+                 onmouseover="this.style.background='#e8f5f6'" onmouseout="this.style.background=''">
+              <input class="form-check-input" type="checkbox" name="contact_ids"
+                     value="{{ ct.id }}" id="ct_{{ ct.id }}">
+              <label class="form-check-label w-100" for="ct_{{ ct.id }}" style="cursor:pointer">
+                <div class="fw-bold small">{{ ct.first_name }} {{ ct.last_name or '' }}</div>
+                {% if ct.email %}<div class="text-muted" style="font-size:.75rem">{{ ct.email }}</div>{% endif %}
+              </label>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Notify Users -->
+      {% if all_users %}
+      <div class="mb-4 p-3 border rounded" style="background:linear-gradient(135deg,#fff8f0,#fffdf8)">
+        <label class="form-label fw-bold">
+          <i class="bi bi-bell me-2" style="color:var(--primary)"></i>
+          {% if current_lang=='en' %}Notify Users{% else %}إشعار مستخدمين{% endif %}
+          <span class="badge ms-1" style="background:var(--accent);font-size:.7rem">{% if current_lang=='en' %}Optional{% else %}اختياري{% endif %}</span>
+        </label>
+        <p class="text-muted small mb-2">
+          {% if current_lang=='en' %}Select users to notify about this reservation. Each will receive an email.{% else %}اختر المستخدمين الذين سيصلهم إشعار بريد إلكتروني بهذا الحجز.{% endif %}
+        </p>
+        <div class="d-flex flex-wrap gap-2">
+          {% for u in all_users %}
+          {% if u.id != current_user.id %}
+          <div class="form-check me-3">
+            <input class="form-check-input" type="checkbox" name="notify_user_ids"
+                   value="{{ u.id }}" id="nu_{{ u.id }}">
+            <label class="form-check-label small" for="nu_{{ u.id }}">
+              {{ u.full_name or u.username }}
+            </label>
+          </div>
+          {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Requested Employee -->
+      {% if all_users %}
+      <div class="mb-4 p-3 border rounded" style="background:linear-gradient(135deg,#f0f7ff,#f8fcfc)">
+        <label class="form-label fw-bold">
+          <i class="bi bi-person-badge me-2" style="color:var(--primary)"></i>
+          {% if current_lang=='en' %}Requested Employee{% else %}الموظف المطلوب{% endif %}
+          <span class="badge ms-1" style="background:var(--accent);font-size:.7rem">{% if current_lang=='en' %}Optional{% else %}اختياري{% endif %}</span>
+        </label>
+        <p class="text-muted small mb-2">
+          {% if current_lang=='en' %}Select the employee this reservation is intended for. They will receive a separate notification.{% else %}اختر الموظف المعني بهذا الحجز، سيصله إشعار بريد إلكتروني منفصل.{% endif %}
+        </p>
+        <select name="requested_employee_id" class="form-select">
+          <option value="">— {% if current_lang=='en' %}No specific employee{% else %}بدون تحديد موظف{% endif %} —</option>
+          {% for u in all_users %}
+          {% if u.id != current_user.id %}
+          <option value="{{ u.id }}" {% if form.get('requested_employee_id')|string == u.id|string %}selected{% endif %}>
+            {{ u.full_name or u.username }}
+            {% if u.role_ref %} — {{ u.role_ref.name }}{% endif %}
+          </option>
+          {% endif %}
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+        <label class="form-label fw-bold"><i class="bi bi-paperclip me-1"></i>{{ _('مرفقات (اختياري)') }}</label>
+        <input type="file" name="attachments" class="form-control" multiple
+               accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif">
+        <div class="form-text">{{ _('يمكن إرفاق صور أو مستندات (PDF, Word, Excel, صور)') }}</div>
+      </div>
+
+      {# ── نيابةً عن ── #}
+      <div class="mb-3">
+        <label class="form-label fw-bold">
+          <i class="bi bi-person-badge me-1"></i>
+          {% if current_lang == 'en' %}On Behalf Of (Email){% else %}الحجز نيابةً عن (بريد إلكتروني){% endif %}
+          <span class="text-muted fw-normal ms-1" style="font-size:.8rem">— {% if current_lang == 'en' %}optional{% else %}اختياري{% endif %}</span>
+        </label>
+        <input type="email" name="requested_by_email" class="form-control"
+               placeholder="person@domain.com"
+               value="{{ form.get('requested_by_email','') }}">
+        <div class="form-text">
+          {% if current_lang == 'en' %}Enter the email of the person you are booking on behalf of.
+          {% else %}أدخل بريد الشخص الذي تحجز نيابةً عنه.{% endif %}
+        </div>
+      </div>
+
+      {# ── إرسال إشعار لإيميلات خارجية ── #}
+      <div class="mb-3">
+        <label class="form-label fw-bold">
+          <i class="bi bi-envelope-plus me-1"></i>
+          {% if current_lang == 'en' %}Notify External Emails{% else %}إرسال إشعار لإيميلات خارجية{% endif %}
+          <span class="text-muted fw-normal ms-1" style="font-size:.8rem">— {% if current_lang == 'en' %}optional{% else %}اختياري{% endif %}</span>
+        </label>
+        <input type="text" name="cc_emails" class="form-control"
+               placeholder="email1@domain.com;email2@domain.com"
+               value="{{ form.get('cc_emails','') }}">
+        <div class="form-text">
+          {% if current_lang == 'en' %}Enter one or more emails separated by <strong>;</strong> — they will receive a notification when the booking is approved.
+          {% else %}أدخل إيميلاً واحداً أو أكثر مفصولة بـ <strong>;</strong> — سيصلهم إشعار عند اعتماد الحجز.{% endif %}
+        </div>
+      </div>
+
+      <div class="d-flex flex-column flex-sm-row gap-2">
+        <button type="submit" class="btn btn-primary-ars w-100 w-sm-auto">
+          <i class="bi bi-send me-1"></i>{% if current_lang=="en" %}Submit Booking Request{% else %}تقديم طلب الحجز{% endif %}
+        </button>
+        <a href="{{ url_for('sas.admin_dashboard') }}" class="btn btn-outline-secondary w-100 w-sm-auto">{{ _('إلغاء') }}</a>
+      </div>
+    </form>
+  </div>
+</div>
+</div>
+</div>
+
+<script>
+const IS_EN = {{ "true" if current_lang == "en" else "false" }};
+// Show venue info
+document.getElementById('venueSelect').addEventListener('change', function() {
+  const opt = this.options[this.selectedIndex];
+  const info = document.getElementById('venueInfo');
+  if (opt.value) {
+    const loc = opt.dataset.location, cap = opt.dataset.capacity;
+    info.textContent = [loc && `📍 ${loc}`, cap && `👥 {% if current_lang=="en" %}Capacity: {% else %}السعة: {% endif %}${cap}`].filter(Boolean).join('  |  ');
+  } else { info.textContent = ''; }
+  checkAvailability();
+});
+
+// Check availability on time change
+['startTime','endTime'].forEach(id =>
+  document.getElementById(id).addEventListener('change', checkAvailability));
+
+function checkAvailability() {
+  const vid = document.getElementById('venueSelect').value;
+  const start = document.getElementById('startTime').value;
+  const end   = document.getElementById('endTime').value;
+  const box   = document.getElementById('availBox');
+  if (!vid || !start) { box.classList.add('d-none'); return; }
+  const date = start.split('T')[0];
+  fetch(`/reservations/api/availability?venue_id=${vid}&date=${date}`)
+    .then(r => r.json())
+    .then(events => {
+      if (!events.length) {
+        box.className = 'alert alert-success py-2 small';
+        box.textContent = '{% if current_lang=="en" %}✅ Venue available on this day{% else %}✅ القاعة متاحة في هذا اليوم{% endif %}';
+      } else {
+        const times = events.map(e => `${e.title} (${e.start}–${e.end})`).join(IS_EN ? ', ' : '، ');
+        box.className = 'alert alert-warning py-2 small';
+        box.textContent = `{% if current_lang == 'en' %}⚠️ Existing bookings on this day:{% else %}⚠️ حجوزات موجودة في هذا اليوم:{% endif %} ${times}`;
+      }
+      box.classList.remove('d-none');
+    });
+}
+</script>
+<script>
+// Set min date to now for start_time
+document.getElementById('startTime').min = new Date().toISOString().slice(0,16);
+// Update end_time min when start changes
+document.getElementById('startTime')?.addEventListener('change', function(){
+  const et = document.getElementById('endTime');
+  if(et) et.min = this.value;
+});
+
+// ── Full Day ──────────────────────────────────────────────────────────────
+function toggleFullDay(cb){
+  const fullRow = document.getElementById('fullDayRow');
+  const timeRow = document.getElementById('timeRow');
+  const st = document.getElementById('startTime');
+  const et = document.getElementById('endTime');
+  if(cb.checked){
+    fullRow.classList.remove('d-none');
+    timeRow.classList.add('d-none');
+    st.removeAttribute('required'); et.removeAttribute('required');
+    const d = document.getElementById('fullDayDate').value;
+    if(d) applyFullDay(d);
+  } else {
+    fullRow.classList.add('d-none');
+    timeRow.classList.remove('d-none');
+    st.setAttribute('required',''); et.setAttribute('required','');
+    st.value = ''; et.value = '';
+  }
+}
+function applyFullDay(d){
+  if(!d) return;
+  document.getElementById('startTime').value = d + 'T00:00';
+  document.getElementById('endTime').value   = d + 'T23:59';
+}
+</script>
+{% endblock %}

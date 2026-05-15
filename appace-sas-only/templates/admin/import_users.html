@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block title %}{% if current_lang=="en" %}Import Users CSV — STAP{% else %}استيراد مستخدمين من CSV — STAP{% endif %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-people me-2"></i>{{ _('استيراد مستخدمين من CSV') }}</h1>
+</div>
+
+<div class="row g-4">
+  <div class="col-md-7">
+    <div class="card">
+      <div class="card-header">{{ _('📥 رفع ملف المستخدمين') }}</div>
+      <div class="card-body">
+        <div class="alert alert-info">
+          {% if current_lang=="en" %}
+            💡 File must contain these columns:<br>
+            <code>username, password, full_name, email</code><br>
+            <span class="text-muted small">Optional: phone, role, job_title, department, is_active (1/0), is_verified (1/0)</span>
+          {% else %}
+            💡 يجب أن يحتوي الملف على الأعمدة التالية:<br>
+            <code>username, password, full_name, email</code><br>
+            <span class="text-muted small">اختيارية: phone, role, job_title, department, is_active (1/0), is_verified (1/0)</span>
+          {% endif %}
+        </div>
+
+        <div class="mb-3">
+          <a href="{{ url_for('users.csv_template') }}" class="btn btn-sm btn-outline-info">
+            <i class="bi bi-download me-1"></i>{% if current_lang=="en" %}Download CSV Template{% else %}تحميل نموذج CSV{% endif %}
+          </a>
+        </div>
+
+        <form method="POST" enctype="multipart/form-data">
+          <div class="mb-3">
+            <label class="form-label fw-bold">{{ _('📂 ملف CSV') }}</label>
+            <input type="file" name="file" class="form-control" accept=".csv" required>
+          </div>
+          <div class="alert alert-warning small">
+            {% if current_lang=="en" %}⚠️ A welcome email will be sent to each new user with login details{% else %}⚠️ سيتم إرسال بريد ترحيب لكل مستخدم جديد يحتوي على بيانات الدخول{% endif %}
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-success px-4">
+              <i class="bi bi-upload me-1"></i>{% if current_lang=="en" %}Import Users{% else %}استيراد المستخدمين{% endif %}
+            </button>
+            <a href="{{ url_for('users.index') }}" class="btn btn-secondary px-4">{{ _('إلغاء') }}</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-5">
+    <div class="card">
+      <div class="card-header">{{ _('📋 أعمدة الملف') }}</div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <thead><tr style="background:#f4f7ff"><th class="ps-3">{{ _('العمود') }}</th><th>{{ _('وصف') }}</th><th>{{ _('إلزامي') }}</th></tr></thead>
+          <tbody>
+            <tr><td class="ps-3"><code>username</code></td><td>{{ _('اسم المستخدم') }}</td><td><span class="badge bg-danger">✓</span></td></tr>
+            <tr><td class="ps-3"><code>password</code></td><td>{{ _('كلمة المرور') }}</td><td><span class="badge bg-danger">✓</span></td></tr>
+            <tr><td class="ps-3"><code>full_name</code></td><td>{{ _('الاسم الكامل') }}</td><td><span class="badge bg-danger">✓</span></td></tr>
+            <tr><td class="ps-3"><code>email</code></td><td>{{ _('البريد الإلكتروني') }}</td><td><span class="badge bg-danger">✓</span></td></tr>
+            <tr><td class="ps-3"><code>phone</code></td><td>{{ _('رقم الهاتف') }}</td><td><span class="badge bg-secondary">—</span></td></tr>
+            <tr><td class="ps-3"><code>role</code></td><td>admin / manager / user</td><td><span class="badge bg-secondary">—</span></td></tr>
+            <tr class="table-info"><td class="ps-3"><code>job_title</code></td><td>{% if current_lang=="en" %}Job Title{% else %}المسمى الوظيفي{% endif %}</td><td><span class="badge bg-secondary">—</span></td></tr>
+            <tr class="table-info"><td class="ps-3"><code>department</code></td><td>{% if current_lang=="en" %}Department{% else %}الدائرة{% endif %}</td><td><span class="badge bg-secondary">—</span></td></tr>
+            <tr><td class="ps-3"><code>is_active</code></td><td>{{ _('نشط: 1 أو 0') }}</td><td><span class="badge bg-secondary">—</span></td></tr>
+            <tr><td class="ps-3"><code>is_verified</code></td><td>{{ _('موثّق: 1 أو 0') }}</td><td><span class="badge bg-secondary">—</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card-footer text-muted small">
+        {{ _('الدور الافتراضي:') }} <strong>{{ _('مستخدم') }}</strong>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

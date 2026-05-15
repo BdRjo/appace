@@ -1,0 +1,638 @@
+{% extends "base.html" %}
+{%- set ar = (current_lang == 'ar') -%}
+
+{% block title %}{{ 'إدارة الكادر' if ar else 'Staff Management' }}{% endblock %}
+
+{% block extra_css %}
+{% include 'sas/_sas_admin_styles.html' %}
+<style>
+.sas-toggle { position: relative; display: inline-block; width: 42px; height: 24px; }
+.sas-toggle input { opacity: 0; width: 0; height: 0; }
+.sas-toggle .slider {
+  position: absolute; cursor: pointer; inset: 0;
+  background: #d1d5db; border-radius: 24px; transition: .3s;
+}
+.sas-toggle .slider::before {
+  content: ''; position: absolute; height: 18px; width: 18px;
+  bottom: 3px; left: 3px; background: #fff; border-radius: 50%; transition: .3s;
+}
+.sas-toggle input:checked + .slider { background: var(--sas); }
+.sas-toggle input:checked + .slider::before { transform: translateX(18px); }
+.role-badge {
+  padding: 3px 10px; border-radius: 20px; font-size: .76rem; font-weight: 700; display: inline-block;
+}
+.role-supervisor { background: #dbeafe; color: #1e40af; }
+.role-secretary { background: #fef3c7; color: #92400e; }
+.role-manager { background: #ede9fe; color: #5b21b6; }
+/* Staff-specific overrides */
+/* Sortable headers */
+.sas-table th.sortable { cursor: pointer; user-select: none; position: relative; padding-inline-end: 18px !important; }
+.sas-table th.sortable:hover { background: #e2e8f0 !important; }
+.sas-table th.sortable::after { content: '⇅'; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); font-size: .7rem; opacity: .4; }
+html[dir="rtl"] .sas-table th.sortable::after { right: auto; left: 6px; }
+.sas-table th.sortable.asc::after { content: '↑'; opacity: .9; color: var(--sas-dark); }
+.sas-table th.sortable.desc::after { content: '↓'; opacity: .9; color: var(--sas-dark); }
+/* Multi-select */
+.sas-table .row-check { width: 16px; height: 16px; accent-color: var(--sas); cursor: pointer; }
+.bulk-bar { display: none; background: linear-gradient(135deg, var(--sas-dark), var(--sas)); color: #fff; border-radius: 10px; padding: 8px 16px; margin-bottom: 10px; align-items: center; gap: 10px; font-size: .84rem; font-weight: 600; }
+.bulk-bar.show { display: flex; }
+.bulk-bar .count { background: rgba(255,255,255,.2); padding: 2px 10px; border-radius: 6px; }
+.bulk-bar .btn-bulk { background: rgba(255,255,255,.15); color: #fff; border: 1px solid rgba(255,255,255,.3); border-radius: 6px; font-size: .8rem; padding: 4px 12px; font-weight: 600; cursor: pointer; }
+.bulk-bar .btn-bulk:hover { background: rgba(255,255,255,.3); }
+.bulk-bar .btn-bulk.danger { background: rgba(220,38,38,.3); border-color: rgba(220,38,38,.5); }
+.code-display {
+  background: #f3f4f6; border: 2px dashed #d1d5db; border-radius: 10px;
+  padding: 12px 16px; font-family: 'Courier New', monospace;
+  font-size: 1.1rem; font-weight: 800; color: var(--sas-dark);
+  text-align: center; letter-spacing: 2px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3 sas-page-header">
+  <h1 style="font-size:1.35rem;font-weight:700;margin:0">
+    <i class="bi bi-person-badge me-2"></i>{{ 'إدارة الكادر' if ar else 'Staff Management' }}
+  </h1>
+  <div class="d-flex gap-2 flex-wrap">
+    <button class="btn-sas" data-bs-toggle="modal" data-bs-target="#addStaffModal">
+      <i class="bi bi-plus-lg me-1"></i>{{ 'إضافة موظف' if ar else 'Add Staff' }}
+    </button>
+    <button class="btn btn-sm" style="background:#eef2ff;color:#4f46e5;border:none;border-radius:8px;font-weight:600;padding:7px 14px;font-size:.84rem" data-bs-toggle="modal" data-bs-target="#importStaffModal">
+      <i class="bi bi-upload me-1"></i>{{ 'استيراد CSV' if ar else 'Import CSV' }}
+    </button>
+    <a href="{{ url_for('sas.admin_staff_export') }}" class="btn btn-sm" style="background:#f0f9ff;color:#0e7490;border:none;border-radius:8px;font-weight:600;padding:7px 14px;font-size:.84rem">
+      <i class="bi bi-download me-1"></i>{{ 'تصدير' if ar else 'Export' }}
+    </a>
+    <a href="{{ url_for('sas.admin_staff_template') }}" class="btn btn-sm" style="background:#f3f4f6;color:#374151;border:none;border-radius:8px;font-weight:600;padding:7px 14px;font-size:.84rem">
+      <i class="bi bi-file-earmark-arrow-down me-1"></i>{{ 'القالب' if ar else 'Template' }}
+    </a>
+    <a href="{{ url_for('sas.admin_dashboard') }}" class="btn btn-sm" style="border:1.5px solid var(--sas);color:var(--sas);border-radius:8px;font-weight:600">
+      <i class="bi bi-arrow-{{ 'right' if ar else 'left' }} me-1"></i>{{ 'العودة' if ar else 'Back' }}
+    </a>
+  </div>
+</div>
+
+<!-- Bulk action bar -->
+<div class="bulk-bar" id="bulkBar">
+  <input type="checkbox" class="row-check" id="masterCheck" title="{{ 'تحديد الكل' if ar else 'Select All' }}">
+  <span class="count"><span id="selectedCount">0</span> {{ 'محدد' if ar else 'selected' }}</span>
+  <button class="btn-bulk danger" onclick="bulkDeleteStaff()"><i class="bi bi-trash me-1"></i>{{ 'حذف المحدد' if ar else 'Delete Selected' }}</button>
+  <div style="flex:1"></div>
+  <button class="btn-bulk" onclick="clearStaffSelection()"><i class="bi bi-x-lg me-1"></i>{{ 'إلغاء' if ar else 'Cancel' }}</button>
+</div>
+
+<!-- Staff Table -->
+<div class="sas-card card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-people me-2"></i>{{ 'قائمة الكادر' if ar else 'Staff List' }} ({{ staff_list|length }})</span>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 sas-table" id="staffTable">
+        <thead>
+          <tr>
+            <th style="width:36px"><input type="checkbox" class="row-check" id="headerCheck"></th>
+            <th class="sortable" data-col="1">{{ 'الاسم' if ar else 'Name' }}</th>
+            <th class="sortable" data-col="2">{{ 'الدور' if ar else 'Role' }}</th>
+            <th class="sortable" data-col="3">{{ 'المرحلة' if ar else 'Stage' }}</th>
+            <th>{{ 'الرمز' if ar else 'Code' }}</th>
+            <th class="sortable" data-col="5">{{ 'البريد' if ar else 'Email' }}</th>
+            <th>{{ 'الحالة' if ar else 'Active' }}</th>
+            <th style="width:170px">{{ 'إجراءات' if ar else 'Actions' }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in staff_list %}
+          <tr id="staffRow{{ s.id }}">
+            <td><input type="checkbox" class="row-check staff-check" value="{{ s.id }}"></td>
+            <td>
+              <div style="font-weight:600">{{ s.name }}</div>
+              {% if s.name_en %}<div style="font-size:.75rem;color:#6b7280">{{ s.name_en }}</div>{% endif %}
+            </td>
+            <td>
+              <span class="role-badge role-{{ s.role }}">
+                {% if s.role == 'supervisor' %}{{ 'مشرف' if ar else 'Supervisor' }}
+                {% elif s.role == 'secretary' %}{{ 'المساعد الإداري' if ar else 'Admin Assistant' }}
+                {% elif s.role == 'manager' %}{{ 'مدير' if ar else 'Manager' }}
+                {% else %}{{ s.role }}{% endif %}
+              </span>
+            </td>
+            <td>{{ s.stage.name if s.stage else '-' }}</td>
+            <td>
+              <div class="d-flex align-items-center gap-1">
+                <code id="code-{{ s.id }}" style="background:#ecfeff;border:1.5px dashed #22d3ee;padding:4px 12px;border-radius:8px;font-weight:800;color:var(--sas-dark);font-size:.92rem;letter-spacing:1px">{{ s.staff_code }}</code>
+                <button class="btn btn-sm p-0 copy-code-btn" style="background:none;border:none;color:#6b7280;font-size:.82rem" data-code="{{ s.staff_code }}" title="{{ 'نسخ' if ar else 'Copy' }}">
+                  <i class="bi bi-clipboard"></i>
+                </button>
+              </div>
+            </td>
+            <td style="font-size:.82rem">{{ s.email or '-' }}</td>
+            <td>
+              <label class="sas-toggle">
+                <input type="checkbox" {{ 'checked' if s.is_active }} onchange="toggleStaffActive({{ s.id }}, this.checked)">
+                <span class="slider"></span>
+              </label>
+            </td>
+            <td>
+              <div class="d-flex gap-1 flex-wrap">
+                <button class="btn btn-sm staff-act" data-action="edit" data-id="{{ s.id }}" style="background:#eef2ff;color:#4f46e5;border:none;border-radius:6px;font-size:.78rem;font-weight:600" title="{{ 'تعديل' if ar else 'Edit' }}">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm staff-act" data-action="regenerate" data-id="{{ s.id }}" style="background:#fef9c4;color:#92400e;border:none;border-radius:6px;font-size:.78rem;font-weight:600" title="{{ 'تجديد الرمز' if ar else 'Regenerate Code' }}">
+                  <i class="bi bi-arrow-repeat"></i>
+                </button>
+                <button class="btn btn-sm staff-act" data-action="print" data-id="{{ s.id }}" style="background:#f0f9ff;color:#0e7490;border:none;border-radius:6px;font-size:.78rem;font-weight:600" title="{{ 'طباعة' if ar else 'Print' }}">
+                  <i class="bi bi-printer"></i>
+                </button>
+                <button class="btn btn-sm staff-act" data-action="delete" data-id="{{ s.id }}" data-name="{{ s.name }}" style="background:#fef2f2;color:#dc2626;border:none;border-radius:6px;font-size:.78rem;font-weight:600" title="{{ 'حذف' if ar else 'Delete' }}">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8" class="text-center text-muted py-4">{{ 'لا يوجد كادر مسجل' if ar else 'No staff members found' }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Add Staff Modal -->
+<div class="modal fade sas-modal" id="addStaffModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-person-plus me-2"></i>{{ 'إضافة موظف جديد' if ar else 'Add New Staff' }}</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('sas.admin_staff_add') }}" id="addStaffForm">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">{{ 'الاسم (عربي)' if ar else 'Name (AR)' }} <span class="text-danger">*</span></label>
+              <input type="text" name="name" class="form-control" dir="rtl" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">{{ 'الاسم (إنجليزي)' if ar else 'Name (EN)' }}</label>
+              <input type="text" name="name_en" class="form-control" dir="ltr">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">{{ 'البريد الإلكتروني' if ar else 'Email' }}</label>
+              <input type="email" name="email" class="form-control" dir="ltr">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">{{ 'رقم الهاتف' if ar else 'Phone' }}</label>
+              <input type="tel" name="phone" class="form-control" dir="ltr">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">{{ 'الدور' if ar else 'Role' }} <span class="text-danger">*</span></label>
+              <select name="role" class="form-select" id="addRole" required onchange="toggleStageField('add')">
+                <option value="">{{ '-- اختر --' if ar else '-- Select --' }}</option>
+                <option value="supervisor">{{ 'مشرف' if ar else 'Supervisor' }}</option>
+                <option value="secretary">{{ 'المساعد الإداري' if ar else 'Admin Assistant' }}</option>
+                <option value="manager">{{ 'مدير' if ar else 'Manager' }}</option>
+              </select>
+            </div>
+            <div class="col-md-6" id="addStageWrap">
+              <label class="form-label fw-semibold">{{ 'المرحلة' if ar else 'Stage' }}</label>
+              <select name="stage_id" class="form-select" id="addStage">
+                <option value="">{{ '-- اختر المرحلة --' if ar else '-- Select Stage --' }}</option>
+                {% for st in stages %}
+                <option value="{{ st.id }}">{{ st.name }}</option>
+                {% endfor %}
+              </select>
+              <div class="form-text">{{ 'مطلوب للمشرفين' if ar else 'Required for supervisors' }}</div>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">{{ 'رمز الموظف (يُولّد تلقائياً)' if ar else 'Staff Code (auto-generated)' }}</label>
+              <div class="code-display" id="addCodeDisplay">---</div>
+              <div class="form-text">{{ 'سيتم إنشاء الرمز عند الحفظ' if ar else 'Code will be generated on save' }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer" style="border-top:1px solid #e5e7eb">
+          <button type="button" class="btn btn-sm" style="border:1.5px solid #d1d5db;border-radius:8px;padding:7px 20px;font-weight:600" data-bs-dismiss="modal">{{ 'إلغاء' if ar else 'Cancel' }}</button>
+          <button type="submit" class="btn-sas">
+            <i class="bi bi-check-lg me-1"></i>{{ 'حفظ' if ar else 'Save' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Staff Modal -->
+<div class="modal fade sas-modal" id="editStaffModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>{{ 'تعديل موظف' if ar else 'Edit Staff' }}</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" id="editStaffForm">
+        <div class="modal-body">
+          <input type="hidden" name="staff_id" id="editId">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">{{ 'الاسم (عربي)' if ar else 'Name (AR)' }} <span class="text-danger">*</span></label>
+              <input type="text" name="name" id="editName" class="form-control" dir="rtl" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">{{ 'الاسم (إنجليزي)' if ar else 'Name (EN)' }}</label>
+              <input type="text" name="name_en" id="editNameEn" class="form-control" dir="ltr">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">{{ 'البريد الإلكتروني' if ar else 'Email' }}</label>
+              <input type="email" name="email" id="editEmail" class="form-control" dir="ltr">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">{{ 'رقم الهاتف' if ar else 'Phone' }}</label>
+              <input type="tel" name="phone" id="editPhone" class="form-control" dir="ltr">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">{{ 'الدور' if ar else 'Role' }} <span class="text-danger">*</span></label>
+              <select name="role" class="form-select" id="editRole" required onchange="toggleStageField('edit')">
+                <option value="supervisor">{{ 'مشرف' if ar else 'Supervisor' }}</option>
+                <option value="secretary">{{ 'المساعد الإداري' if ar else 'Admin Assistant' }}</option>
+                <option value="manager">{{ 'مدير' if ar else 'Manager' }}</option>
+              </select>
+            </div>
+            <div class="col-md-6" id="editStageWrap">
+              <label class="form-label fw-semibold">{{ 'المرحلة' if ar else 'Stage' }}</label>
+              <select name="stage_id" class="form-select" id="editStage">
+                <option value="">{{ '-- اختر المرحلة --' if ar else '-- Select Stage --' }}</option>
+                {% for st in stages %}
+                <option value="{{ st.id }}">{{ st.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">{{ 'رمز الموظف' if ar else 'Staff Code' }}</label>
+              <div class="code-display" id="editCodeDisplay">---</div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer" style="border-top:1px solid #e5e7eb">
+          <button type="button" class="btn btn-sm" style="border:1.5px solid #d1d5db;border-radius:8px;padding:7px 20px;font-weight:600" data-bs-dismiss="modal">{{ 'إلغاء' if ar else 'Cancel' }}</button>
+          <button type="submit" class="btn-sas">
+            <i class="bi bi-check-lg me-1"></i>{{ 'تحديث' if ar else 'Update' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Import Staff CSV Modal -->
+<div class="modal fade sas-modal" id="importStaffModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-file-earmark-spreadsheet me-2"></i>{{ 'استيراد كادر من CSV' if ar else 'Import Staff from CSV' }}</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <a href="{{ url_for('sas.admin_staff_template') }}" class="btn btn-sm" style="background:#f3f4f6;color:#374151;border:none;border-radius:8px;font-weight:600;font-size:.82rem">
+            <i class="bi bi-file-earmark-arrow-down me-1"></i>{{ 'تحميل القالب أولاً' if ar else 'Download template first' }}
+          </a>
+        </div>
+        <div style="border:2px dashed #d1d5db;border-radius:12px;padding:24px;text-align:center;background:#f9fafb;cursor:pointer" onclick="document.getElementById('staffCsvFile').click()">
+          <i class="bi bi-cloud-arrow-up" style="font-size:2rem;color:var(--sas);display:block;margin-bottom:6px"></i>
+          <div style="font-weight:600;color:#374151;font-size:.88rem">{{ 'اسحب ملف CSV هنا أو انقر للاختيار' if ar else 'Drag CSV here or click to browse' }}</div>
+          <input type="file" id="staffCsvFile" accept=".csv" style="display:none" onchange="staffFileSelected(this)">
+        </div>
+        <div id="staffFileName" style="display:none;margin-top:8px;padding:6px 12px;background:#f3f4f6;border-radius:8px;font-size:.84rem">
+          <i class="bi bi-file-earmark-check text-success me-1"></i><span id="staffFileNameText"></span>
+        </div>
+        <div id="staffImportResult" style="display:none;margin-top:12px;padding:12px;border-radius:10px;font-size:.86rem"></div>
+      </div>
+      <div class="modal-footer" style="border-top:1px solid #e5e7eb">
+        <button type="button" class="btn btn-sm" style="border:1.5px solid #d1d5db;border-radius:8px;padding:7px 20px;font-weight:600" data-bs-dismiss="modal">{{ 'إغلاق' if ar else 'Close' }}</button>
+        <button type="button" class="btn-sas" id="staffUploadBtn" onclick="uploadStaffCSV()" disabled>
+          <i class="bi bi-cloud-upload me-1"></i>{{ 'رفع' if ar else 'Upload' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div class="modal fade sas-modal" id="deleteStaffModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header" style="background:linear-gradient(135deg,#dc2626,#ef4444)">
+        <h5 class="modal-title text-white"><i class="bi bi-exclamation-triangle me-2"></i>{{ 'تأكيد الحذف' if ar else 'Confirm Delete' }}</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center py-4">
+        <p style="font-size:.9rem;color:#374151">{{ 'هل أنت متأكد من حذف' if ar else 'Are you sure you want to delete' }}</p>
+        <p style="font-weight:700;color:#dc2626;font-size:1rem" id="deleteStaffName"></p>
+      </div>
+      <div class="modal-footer justify-content-center" style="border-top:1px solid #e5e7eb">
+        <button type="button" class="btn btn-sm" style="border:1.5px solid #d1d5db;border-radius:8px;padding:7px 20px;font-weight:600" data-bs-dismiss="modal">{{ 'إلغاء' if ar else 'Cancel' }}</button>
+        <form method="POST" id="deleteStaffForm" style="display:inline">
+          <button type="submit" class="btn btn-sm" style="background:#dc2626;color:#fff;border:none;border-radius:8px;padding:7px 20px;font-weight:700">
+            <i class="bi bi-trash me-1"></i>{{ 'حذف' if ar else 'Delete' }}
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Staff data map ──
+var _sd = {};
+{% for sd in staff_json %}
+try { _sd[{{ sd.id }}] = {{ sd|tojson }}; } catch(e) { console.warn('Staff data error for id={{ sd.id }}:', e); }
+{% endfor %}
+
+// ── URL templates (resolved once) ──
+var _urlEdit = '{{ url_for("sas.admin_staff_edit", sid=0) }}';
+var _urlDelete = '{{ url_for("sas.admin_staff_delete", sid=0) }}';
+var _urlRegen = '{{ url_for("sas.admin_staff_regenerate_code", sid=0) }}';
+var _isAr = {{ 'true' if ar else 'false' }};
+function _u(tpl, id){ return tpl.replace('/0/', '/' + id + '/'); }
+
+function toggleStageField(prefix){
+  var role = document.getElementById(prefix+'Role').value;
+  var wrap = document.getElementById(prefix+'StageWrap');
+  if(wrap) wrap.style.display = (role === 'supervisor') ? '' : 'none';
+}
+
+function editStaff(staff){
+  if(!staff){ alert(_isAr ? 'بيانات الموظف غير متوفرة، أعد تحميل الصفحة' : 'Staff data not found, please reload the page'); return; }
+  document.getElementById('editId').value = staff.id;
+  document.getElementById('editName').value = staff.name || '';
+  document.getElementById('editNameEn').value = staff.name_en || '';
+  document.getElementById('editEmail').value = staff.email || '';
+  document.getElementById('editPhone').value = staff.phone || '';
+  document.getElementById('editRole').value = staff.role || 'supervisor';
+  document.getElementById('editCodeDisplay').textContent = staff.staff_code || '---';
+  var stageSelect = document.getElementById('editStage');
+  stageSelect.value = staff.stage_id ? staff.stage_id : '';
+  document.getElementById('editStaffForm').action = _u(_urlEdit, staff.id);
+  toggleStageField('edit');
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('editStaffModal')).show();
+}
+
+function deleteStaff(id, name){
+  if(!id) return;
+  document.getElementById('deleteStaffName').textContent = name || '';
+  document.getElementById('deleteStaffForm').action = _u(_urlDelete, id);
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('deleteStaffModal')).show();
+}
+
+function toggleStaffActive(id, active){
+  var form = new FormData();
+  form.append('is_active', active ? '1' : '0');
+  fetch(_u(_urlEdit, id), { method: 'POST', body: form, redirect: 'follow' })
+    .then(function(){ location.reload(); })
+    .catch(function(){ location.reload(); });
+}
+
+function copyCode(code, btn){
+  var icon = btn.querySelector('i');
+  function showDone(){
+    icon.className = 'bi bi-check-lg';
+    icon.style.color = '#0e7490';
+    setTimeout(function(){ icon.className = 'bi bi-clipboard'; icon.style.color = ''; }, 1500);
+  }
+  function fallbackCopy(){
+    var tmp = document.createElement('textarea');
+    tmp.value = code;
+    tmp.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0';
+    document.body.appendChild(tmp);
+    tmp.focus();
+    tmp.select();
+    try {
+      var ok = document.execCommand('copy');
+      if(ok) showDone();
+    } catch(e) { /* ignore */ }
+    document.body.removeChild(tmp);
+  }
+  try {
+    if(navigator.clipboard && window.isSecureContext){
+      navigator.clipboard.writeText(code).then(showDone).catch(fallbackCopy);
+    } else {
+      fallbackCopy();
+    }
+  } catch(e) {
+    fallbackCopy();
+  }
+}
+
+function regenerateCode(id){
+  if(!confirm(_isAr ? 'هل تريد تجديد رمز الدخول؟' : 'Regenerate login code?')) return;
+  fetch(_u(_urlRegen, id), {method:'POST'})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(d.ok){
+        var el = document.getElementById('code-' + id);
+        if(el) el.textContent = d.new_code;
+        alert((_isAr ? 'الرمز الجديد: ' : 'New code: ') + d.new_code);
+      } else {
+        alert(d.error || 'Error');
+      }
+    })
+    .catch(function(){ alert('Error'); });
+}
+
+function printStaffCard(staff){
+  if(!staff) return;
+  var roleName = staff.role;
+  {% if ar %}
+  if(staff.role === 'supervisor') roleName = 'مشرف';
+  else if(staff.role === 'secretary') roleName = 'المساعد الإداري';
+  else if(staff.role === 'manager') roleName = 'مدير';
+  {% else %}
+  if(staff.role === 'supervisor') roleName = 'Supervisor';
+  else if(staff.role === 'secretary') roleName = 'Admin Assistant';
+  else if(staff.role === 'manager') roleName = 'Manager';
+  {% endif %}
+  var w = window.open('', '_blank', 'width=500,height=400');
+  if(!w) return;
+  w.document.write(
+    '<!DOCTYPE html><html dir="{{ "rtl" if ar else "ltr" }}" lang="{{ "ar" if ar else "en" }}">' +
+    '<head><meta charset="UTF-8"><title>{{ "بطاقة الموظف" if ar else "Staff Card" }}</title>' +
+    '<style>' +
+    'body{font-family:Tajawal,Inter,sans-serif;padding:40px;text-align:center;color:#1e293b}' +
+    '.card{border:2px solid #0891b2;border-radius:16px;padding:32px;max-width:380px;margin:0 auto}' +
+    '.name{font-size:1.4rem;font-weight:800;margin-bottom:4px}' +
+    '.role{font-size:.9rem;color:#0e7490;font-weight:700;margin-bottom:16px}' +
+    '.code-label{font-size:.82rem;color:#6b7280;margin-bottom:6px}' +
+    '.code{background:#ecfeff;border:2px dashed #22d3ee;border-radius:12px;padding:16px;font-family:monospace;font-size:1.6rem;font-weight:900;letter-spacing:3px;color:#0e7490}' +
+    '.email{margin-top:12px;font-size:.84rem;color:#6b7280}' +
+    '@media print{body{padding:20px}}' +
+    '</style></head><body>' +
+    '<div class="card">' +
+    '<div class="name">' + (staff.name || '') + '</div>' +
+    (staff.name_en ? '<div style="font-size:.88rem;color:#6b7280;margin-bottom:4px">' + staff.name_en + '</div>' : '') +
+    '<div class="role">' + roleName + '</div>' +
+    '<div class="code-label">{{ "رمز الدخول" if ar else "Access Code" }}</div>' +
+    '<div class="code">' + (staff.staff_code || '---') + '</div>' +
+    (staff.email ? '<div class="email">' + staff.email + '</div>' : '') +
+    '</div>' +
+    '<script>setTimeout(function(){window.print()},300)<\/script>' +
+    '</body></html>'
+  );
+  w.document.close();
+}
+
+// ── Event delegation for action buttons & copy ──
+(function(){
+  var table = document.getElementById('staffTable');
+  if(!table) return;
+
+  table.addEventListener('click', function(e){
+    // Copy button
+    var copyBtn = e.target.closest('.copy-code-btn');
+    if(copyBtn){
+      e.preventDefault();
+      copyCode(copyBtn.getAttribute('data-code'), copyBtn);
+      return;
+    }
+    // Action buttons
+    var actBtn = e.target.closest('.staff-act');
+    if(!actBtn) return;
+    e.preventDefault();
+    var action = actBtn.getAttribute('data-action');
+    var id = parseInt(actBtn.getAttribute('data-id'));
+    var staff = _sd[id];
+    if(action === 'edit') editStaff(staff);
+    else if(action === 'regenerate') regenerateCode(id);
+    else if(action === 'print') printStaffCard(staff);
+    else if(action === 'delete') deleteStaff(id, staff ? staff.name : (actBtn.getAttribute('data-name') || ''));
+  });
+
+  // Checkbox delegation
+  table.addEventListener('change', function(e){
+    if(e.target.classList.contains('staff-check')) updateStaffBulkBar();
+  });
+})();
+
+// ── Header checkbox ──
+(function(){
+  var hc = document.getElementById('headerCheck');
+  var mc = document.getElementById('masterCheck');
+  if(hc) hc.addEventListener('change', function(){ toggleAllStaff(this.checked); });
+  if(mc) mc.addEventListener('change', function(){ toggleAllStaff(this.checked); });
+})();
+
+// Staff CSV Import
+var staffSelectedFile = null;
+function staffFileSelected(input){
+  if(input.files.length){
+    staffSelectedFile = input.files[0];
+    document.getElementById('staffFileName').style.display = 'block';
+    document.getElementById('staffFileNameText').textContent = staffSelectedFile.name;
+    document.getElementById('staffUploadBtn').disabled = false;
+  }
+}
+
+// ── Sortable headers ──
+function initSortable(tableId){
+  var table = document.getElementById(tableId);
+  if(!table) return;
+  table.querySelectorAll('th.sortable').forEach(function(th){
+    th.addEventListener('click', function(){
+      var col = parseInt(th.dataset.col);
+      var tbody = table.querySelector('tbody');
+      var rows = Array.from(tbody.querySelectorAll('tr'));
+      var asc = !th.classList.contains('asc');
+      table.querySelectorAll('th.sortable').forEach(function(h){ h.classList.remove('asc','desc'); });
+      th.classList.add(asc ? 'asc' : 'desc');
+      rows.sort(function(a,b){
+        var aText = (a.cells[col] ? a.cells[col].textContent.trim() : '').toLowerCase();
+        var bText = (b.cells[col] ? b.cells[col].textContent.trim() : '').toLowerCase();
+        return asc ? aText.localeCompare(bText, 'ar') : bText.localeCompare(aText, 'ar');
+      });
+      rows.forEach(function(r){ tbody.appendChild(r); });
+    });
+  });
+}
+(function(){ initSortable('staffTable'); })();
+document.addEventListener('htmx:afterSettle', function(){ initSortable('staffTable'); });
+
+// ── Multi-select ──
+function updateStaffBulkBar(){
+  var checks = document.querySelectorAll('.staff-check:checked');
+  var all    = document.querySelectorAll('.staff-check');
+  var bar    = document.getElementById('bulkBar');
+  if(!bar) return;
+  document.getElementById('selectedCount').textContent = checks.length;
+  bar.classList.toggle('show', checks.length > 0);
+  var headerCb  = document.getElementById('headerCheck');
+  var masterCb  = document.getElementById('masterCheck');
+  var allChecked = all.length > 0 && checks.length === all.length;
+  var someChecked = checks.length > 0 && !allChecked;
+  if(headerCb){ headerCb.checked = allChecked; headerCb.indeterminate = someChecked; }
+  if(masterCb){ masterCb.checked = allChecked; masterCb.indeterminate = someChecked; }
+}
+function toggleAllStaff(checked){
+  document.querySelectorAll('.staff-check').forEach(function(cb){ cb.checked = checked; });
+  updateStaffBulkBar();
+}
+function clearStaffSelection(){
+  document.querySelectorAll('.staff-check').forEach(function(cb){ cb.checked = false; });
+  var hc = document.getElementById('headerCheck');
+  var mc = document.getElementById('masterCheck');
+  if(hc){ hc.checked = false; hc.indeterminate = false; }
+  if(mc){ mc.checked = false; mc.indeterminate = false; }
+  updateStaffBulkBar();
+}
+function bulkDeleteStaff(){
+  var ids = Array.from(document.querySelectorAll('.staff-check:checked')).map(function(cb){ return parseInt(cb.value); });
+  if(!ids.length) return;
+  if(!confirm(_isAr ? 'حذف ' + ids.length + ' موظف محدد؟' : 'Delete ' + ids.length + ' selected staff?')) return;
+  var i = 0;
+  function deleteNext(){
+    if(i >= ids.length){ location.reload(); return; }
+    fetch(_u(_urlDelete, ids[i]), {method:'POST'})
+      .then(function(){ i++; deleteNext(); })
+      .catch(function(){ i++; deleteNext(); });
+  }
+  deleteNext();
+}
+
+function uploadStaffCSV(){
+  if(!staffSelectedFile) return;
+  var formData = new FormData();
+  formData.append('file', staffSelectedFile);
+  document.getElementById('staffUploadBtn').disabled = true;
+  fetch('{{ url_for("sas.admin_staff_import") }}', {method:'POST', body: formData})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var box = document.getElementById('staffImportResult');
+      box.style.display = 'block';
+      if(d.ok){
+        box.style.background = '#ecfeff';
+        box.style.border = '1px solid #22d3ee';
+        var html = '<strong style="color:#0e7490">' + (_isAr ? 'تم الاستيراد بنجاح' : 'Import Successful') + '</strong><br>';
+        html += (_isAr ? 'تمت إضافة: ' : 'Created: ') + '<strong>' + d.created + '</strong>';
+        if(d.errors && d.errors.length){
+          html += '<br><div style="margin-top:6px;color:#dc2626;font-size:.8rem">' + d.errors.join('<br>') + '</div>';
+        }
+        box.innerHTML = html;
+        setTimeout(function(){ location.reload(); }, 1500);
+      } else {
+        box.style.background = '#fef2f2';
+        box.style.border = '1px solid #fca5a5';
+        box.innerHTML = '<strong style="color:#dc2626">' + (d.error || 'Error') + '</strong>';
+        document.getElementById('staffUploadBtn').disabled = false;
+      }
+    })
+    .catch(function(){
+      var box = document.getElementById('staffImportResult');
+      box.style.display = 'block';
+      box.style.background = '#fef2f2';
+      box.innerHTML = '<strong style="color:#dc2626">Connection error</strong>';
+      document.getElementById('staffUploadBtn').disabled = false;
+    });
+}
+</script>
+{% endblock %}

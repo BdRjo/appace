@@ -1,0 +1,135 @@
+{% extends "base.html" %}{% block title %}{% if current_lang=="en" %}System Log — STAP{% else %}سجل النظام — STAP{% endif %}{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <h1><i class="bi bi-journal-code me-2"></i>{{ _('سجل النظام والأمان') }}</h1>
+  <div class="d-flex gap-2 flex-wrap">
+    <form method="GET" class="d-flex gap-2">
+      <input type="text" name="q" value="{{ request.args.get('q','') }}"
+             class="form-control form-control-sm" placeholder="{{ _('بحث...') }}">
+      <select name="level" class="form-select form-select-sm" style="width:120px">
+        <option value="">{{ _('كل المستويات') }}</option>
+        <option value="info"    {{ 'selected' if request.args.get('level')=='info' }}>info</option>
+        <option value="warning" {{ 'selected' if request.args.get('level')=='warning' }}>warning</option>
+        <option value="error"   {{ 'selected' if request.args.get('level')=='error' }}>error</option>
+      </select>
+      <button class="btn btn-sm btn-primary-ars">{{ _('فلترة') }}</button>
+    </form>
+    <button onclick="window.print()" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-printer me-1"></i>{{ _('طباعة') }}
+    </button>
+    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-arrow-right me-1"></i>{{ _('العودة') }}
+    </a>
+  </div>
+</div>
+
+<!-- Live Users Widget -->
+<div class="card mb-3" id="liveUsersCard">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-people-fill me-2"></i><span>{{ _('المستخدمون النشطون') }}
+      —
+    </span>
+    <button onclick="loadLiveUsers()" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-arrow-clockwise"></i>
+    </button>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-sm mb-0" id="liveTable">
+        <thead><tr><th>{{ _('المستخدم') }}</th><th>IP</th><th>{{ _('المتصفح') }}</th><th><span>{{ _('آخر نشاط') }}</th></tr></thead>
+        <tbody id="liveBody">
+          <tr><td colspan="4" class="text-center text-muted py-3">{{ _('جارٍ التحميل...') }}</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Stats row -->
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#0C67EC,#3D8EF5)">
+      <div class="num">{{ logs|length }}</div><div class="lbl">{{ _('إجمالي') }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#5a3a7a,#7c5aa0)">
+      <div class="num">{{ logs|selectattr('level','eq','error')|list|length }}</div>
+      <div class="lbl"><span>{{ _('أخطاء') }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#5C9BDE,#c49030)">
+      <div class="num">{{ logs|selectattr('level','eq','warning')|list|length }}</div>
+      <div class="lbl">{{ _('تحذيرات') }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#3D8EF5,#0C67EC)">
+      <div class="num">{{ logs|selectattr('level','eq','info')|list|length }}</div>
+      <div class="lbl">{{ _('معلومات') }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Audit log table -->
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0">
+        <thead>
+          <tr><th>#</th><th>{{ _('الإجراء') }}</th><th>{{ _('الوصف') }}</th><th>{{ _('المستخدم') }}</th><th>{{ _('المستوى') }}</th><th><span>{{ _('الوقت') }}</th></tr>
+        </thead>
+        <tbody>
+        {% for log in logs %}
+        <tr class="{{ 'table-warning bg-opacity-50' if log.level=='warning' else '' }}">
+          <td class="text-muted small">{{ loop.index }}</td>
+          <td>
+            {{ log.action }}
+          </td>
+          <td><small>{{ log.description or '—' }}</small></td>
+          <td><small class="text-muted"><i class="bi bi-person me-1"></i>{{ log.user.username if log.user else 'النظام' }}</small></td>
+          <td>
+            <span class="badge" style="
+              background:{% if log.level=='error' %}#5a3a7a{% elif log.level=='warning' %}#5C9BDE{% else %}#9ab3b8{% endif %};
+              color:{% if log.level=='warning' %}#3b2800{% else %}#fff{% endif %}">
+              {% if log.level=='error' %}⛔{% elif log.level=='warning' %}⚠️{% else %}ℹ️{% endif %} {{ log.level }}
+            </span>
+          </td>
+          <td><small class="text-muted">{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') if log.created_at else '' }}</small></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-center text-muted py-4">{{ _('لا توجد سجلات') }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+function loadLiveUsers(){
+  fetch('/admin/live-users')
+    .then(r=>r.json()).then(d=>{
+      document.getElementById('liveCount').textContent = d.count;
+      const body = document.getElementById('liveBody');
+      if(!d.users || !d.users.length){
+        body.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-2">{{ _('لا يوجد مستخدمون نشطون الآن') }}</td></tr>';
+        return;
+      }
+      body.innerHTML = d.users.map(u=>`
+        <tr>
+          <td><i class="bi bi-person-circle me-1 text-muted"></i>${u.full_name} <small class="text-muted">(${u.username})</small></td>
+          <td><code class="small">${u.ip}</code></td>
+          <td><small class="text-muted">${u.browser}</small></td>
+          <td><small class="text-muted">${u.time}</small></td>
+        </tr>`).join('');
+    }).catch(()=>{
+      document.getElementById('liveBody').innerHTML =
+        '<tr><td colspan="4" class="text-center text-muted py-2">{{ _('تعذّر التحميل') }}</td></tr>';
+    });
+}
+loadLiveUsers();
+setInterval(loadLiveUsers, 30000); // refresh every 30s
+</script>
+{% endblock %}

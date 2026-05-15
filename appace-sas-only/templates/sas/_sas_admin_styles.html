@@ -1,0 +1,60 @@
+{# ── Shared SAS Admin Styles ── #}
+{# Include once in every SAS admin template's extra_css block #}
+{# Usage: {% include 'sas/_sas_admin_styles.html' %} #}
+<style>
+:root {
+  --sas: {{ (sas_cfg.theme_primary if sas_cfg and sas_cfg.theme_primary) | default('#0891b2') }};
+  --sas-dark: {{ (sas_cfg.theme_primary_dark if sas_cfg and sas_cfg.theme_primary_dark) | default('#0e7490') }};
+  --sas-light: {{ (sas_cfg.theme_primary_light if sas_cfg and sas_cfg.theme_primary_light) | default('#22d3ee') }};
+  --sas-bg: {{ (sas_cfg.theme_bg if sas_cfg and sas_cfg.theme_bg) | default('#ecfeff') }};
+  /* Record type colors — standardized tokens */
+  --sas-absent: #ef4444;
+  --sas-absent-dark: #dc2626;
+  --sas-late: #f59e0b;
+  --sas-late-dark: #d97706;
+  --sas-leave: #3b82f6;
+  --sas-leave-dark: #2563eb;
+  --sas-other: #8b5cf6;
+  --sas-other-dark: #7c3aed;
+}
+.sas-page-header h1 { color: var(--sas) !important; }
+.sas-card { border-radius: 14px; border: none; box-shadow: 0 2px 12px rgba(16,185,129,.1); }
+.sas-card .card-header {
+  background: linear-gradient(135deg, var(--sas-dark), var(--sas));
+  color: #fff; border-radius: 14px 14px 0 0 !important;
+  padding: 12px 20px; font-weight: 700; font-size: .9rem;
+}
+.btn-sas {
+  background: linear-gradient(160deg, var(--sas-light), var(--sas), var(--sas-dark));
+  color: #fff; border: none; border-radius: 8px; padding: 7px 18px;
+  font-size: .84rem; font-weight: 700; transition: all .2s;
+}
+.btn-sas:hover { background: linear-gradient(160deg, #0e7490, #155e75); color: #fff; transform: translateY(-1px); }
+.btn-sas-outline {
+  background: transparent; color: var(--sas); border: 1.5px solid var(--sas);
+  border-radius: 8px; padding: 6px 16px; font-size: .84rem; font-weight: 600; transition: all .2s;
+}
+.btn-sas-outline:hover { background: var(--sas); color: #fff; }
+.sas-table th { background: #f1f5f9 !important; color: var(--sas-dark) !important; font-weight: 700; }
+.sas-table td { vertical-align: middle; }
+.sas-modal .modal-header { background: linear-gradient(135deg, var(--sas-dark), var(--sas)); color: #fff; }
+.sas-modal .modal-content { border-radius: 16px; overflow: hidden; border: none; }
+
+/* Record type color classes */
+.type-absent { color: var(--sas-absent); }
+.type-late { color: var(--sas-late); }
+.type-leave { color: var(--sas-leave); }
+.type-other { color: var(--sas-other); }
+.bg-absent { background-color: var(--sas-absent); }
+.bg-late { background-color: var(--sas-late); }
+.bg-leave { background-color: var(--sas-leave); }
+.bg-other { background-color: var(--sas-other); }
+
+/* Print overrides — darker for paper contrast */
+@media print {
+  .type-absent { color: var(--sas-absent-dark) !important; }
+  .type-late { color: var(--sas-late-dark) !important; }
+  .type-leave { color: var(--sas-leave-dark) !important; }
+  .type-other { color: var(--sas-other-dark) !important; }
+}
+</style>

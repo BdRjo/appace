@@ -1,0 +1,719 @@
+{% extends 'base.html' %}
+{% block title %}{% if current_lang=="en" %}Advanced Comparison — STAP{% else %}المقارنة المتقدمة — STAP{% endif %}{% endblock %}
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+@media print {
+  .no-print{display:none!important}
+  .card{box-shadow:none!important;border:1px solid #ddd!important;break-inside:avoid;margin-bottom:10px!important}
+  .table{font-size:.78rem!important;width:100%!important}
+  .table td,.table th{padding:5px 7px!important;white-space:normal!important;word-break:break-word!important}
+  .table-responsive{overflow:visible!important}
+  .row{display:block!important}
+  .col-md-6,.col-md-4,.col-12{width:100%!important;flex:none!important;max-width:100%!important}
+  canvas{max-width:100%!important;height:auto!important}
+  [dir="rtl"] body{direction:rtl!important;text-align:right!important}
+  [dir="ltr"] body{direction:ltr!important;text-align:left!important}
+}
+.table-row-clickable:hover{background:#EEF4FD!important;cursor:pointer}
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2 no-print">
+  <h1><i class="bi bi-bar-chart-steps me-2"></i>{{ _('المقارنة المتقدمة') }}</h1>
+  <div class="d-flex gap-2">
+    {% if result %}
+    <button onclick="printReport()" class="btn btn-outline-danger btn-sm">
+      <i class="bi bi-printer me-1"></i>{% if current_lang=="en" %}Print Report{% else %}طباعة التقرير{% endif %}
+    </button>
+    <a href="{{ url_for('reports.comparison_csv', **request.args) }}" class="btn btn-outline-success btn-sm">
+      <i class="bi bi-download me-1"></i>CSV
+    </a>
+    {% endif %}
+    <a href="{{ url_for('sas.admin_dashboard') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-right me-1"></i>{{ _('التقارير') }}
+    </a>
+  </div>
+</div>
+
+<!-- Mode Selector + Inputs -->
+<div class="card mb-4 no-print">
+  <div class="card-body">
+    <form method="GET" id="compForm">
+      <div class="row g-3 align-items-end">
+
+        <!-- Mode -->
+        <div class="col-12 col-md-3">
+          <label class="form-label fw-bold small">{% if current_lang=="en" %}Comparison Mode{% else %}وضع المقارنة{% endif %}</label>
+          <select name="mode" class="form-select" onchange="handleModeChange(this)">
+            <optgroup label="{% if current_lang=='en' %}Bookings{% else %}الحجوزات{% endif %}">
+              <option value="venue"    {% if mode=='venue'    %}selected{% endif %}>{% if current_lang=="en" %}Venue(s){% else %}قاعة ← أو أكثر{% endif %}</option>
+              <option value="location" {% if mode=='location' %}selected{% endif %}>{% if current_lang=="en" %}Location(s){% else %}موقع ← أو أكثر{% endif %}</option>
+              <option value="user"     {% if mode=='user'     %}selected{% endif %}>{% if current_lang=="en" %}User(s){% else %}مستخدم ← أو أكثر{% endif %}</option>
+              <option value="period"   {% if mode=='period'   %}selected{% endif %}>{% if current_lang=="en" %}Period ↔ Period{% else %}فترة ↔ فترة{% endif %}</option>
+              <option value="period_user" {% if mode=='period_user' %}selected{% endif %}>{% if current_lang=="en" %}Period ↔ Users{% else %}فترة ↔ مستخدمين{% endif %}</option>
+              <option value="date_all" {% if mode=='date_all' %}selected{% endif %}>📆 {% if current_lang=="en" %}Daily Activity (All){% else %}نشاط يومي — كل الحجوزات{% endif %}</option>
+              <option value="user_venue" {% if mode=='user_venue' %}selected{% endif %}>{% if current_lang=="en" %}User ↔ Venue{% else %}مستخدم ↔ قاعة{% endif %}</option>
+              <option value="user_location" {% if mode=='user_location' %}selected{% endif %}>{% if current_lang=="en" %}User ↔ Location{% else %}مستخدم ↔ موقع{% endif %}</option>
+              <option value="venue_location" {% if mode=='venue_location' %}selected{% endif %}>{% if current_lang=="en" %}Venue ↔ Location{% else %}قاعة ↔ موقع{% endif %}</option>
+              <option value="status"   {% if mode=='status'   %}selected{% endif %}>{% if current_lang=="en" %}Status Distribution{% else %}توزيع الحالات{% endif %}</option>
+            </optgroup>
+            <optgroup label="⭐ {% if current_lang=='en' %}Ratings{% else %}التقييمات{% endif %}">
+              <option value="rating_venue"    {% if mode=='rating_venue'    %}selected{% endif %}>⭐ {% if current_lang=="en" %}Venue Rating(s){% else %}تقييم قاعة(ات){% endif %}</option>
+              <option value="rating_location" {% if mode=='rating_location' %}selected{% endif %}>⭐ {% if current_lang=="en" %}Location Rating(s){% else %}تقييم موقع(ات){% endif %}</option>
+              <option value="rating_user"     {% if mode=='rating_user'     %}selected{% endif %}>⭐ {% if current_lang=="en" %}User Rating(s){% else %}تقييم مستخدم(ين){% endif %}</option>
+              <option value="rating_all"      {% if mode=='rating_all'      %}selected{% endif %}>⭐ {% if current_lang=="en" %}Top Rated Venues{% else %}أعلى القاعات تقييماً{% endif %}</option>
+            </optgroup>
+            <optgroup label="📧 {% if current_lang=='en' %}Email{% else %}البريد الإلكتروني{% endif %}">
+              <option value="email_stats" {% if mode=='email_stats' %}selected{% endif %}>📧 {% if current_lang=="en" %}Email Statistics & Analytics{% else %}إحصائيات وتحليل البريد{% endif %}</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <!-- Multi-item selector for venue/location/user modes -->
+        {% if mode in ('venue','rating_venue') %}
+        <div class="col-12 col-md-7">
+          <label class="form-label fw-bold small">
+            {% if current_lang=="en" %}Select Venues (up to 5){% else %}اختر القاعات (حتى 5){% endif %}
+            <span class="badge bg-primary ms-1" id="selCount">{{ items_vals|length }}</span>
+          </label>
+          <div class="row g-2">
+            {% for k in items_keys %}
+            {% set outer_idx = loop.index0 %}
+            <div class="col-12 col-md-6 col-lg-4">
+              <select name="{{ k }}" class="form-select form-select-sm item-sel" onchange="updateCount()">
+                <option value="">— {% if current_lang=="en" %}None{% else %}بدون{% endif %}</option>
+                {% for v in venues %}
+                <option value="{{ v.name }}" {% if items_vals|length > outer_idx and items_vals[outer_idx] == v.name %}selected{% endif %}>{{ v.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        {% elif mode in ('location','rating_location') %}
+        <div class="col-12 col-md-7">
+          <label class="form-label fw-bold small">
+            {% if current_lang=="en" %}Select Locations (up to 5){% else %}اختر المواقع (حتى 5){% endif %}
+            <span class="badge bg-primary ms-1" id="selCount">{{ items_vals|length }}</span>
+          </label>
+          <div class="row g-2">
+            {% for k in items_keys %}
+            {% set outer_idx = loop.index0 %}
+            <div class="col-12 col-md-6 col-lg-4">
+              <select name="{{ k }}" class="form-select form-select-sm item-sel" onchange="updateCount()">
+                <option value="">— {% if current_lang=="en" %}None{% else %}بدون{% endif %}</option>
+                {% for l in locations %}
+                <option value="{{ l.name }}" {% if items_vals|length > outer_idx and items_vals[outer_idx] == l.name %}selected{% endif %}>{{ l.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        {% elif mode in ('user','rating_user') %}
+        <div class="col-12 col-md-7">
+          <label class="form-label fw-bold small">
+            {% if current_lang=="en" %}Select Users (up to 5){% else %}اختر المستخدمين (حتى 5){% endif %}
+            <span class="badge bg-primary ms-1" id="selCount">{{ items_vals|length }}</span>
+          </label>
+          <div class="row g-2">
+            {% for k in items_keys %}
+            {% set outer_idx = loop.index0 %}
+            <div class="col-12 col-md-6 col-lg-4">
+              <select name="{{ k }}" class="form-select form-select-sm item-sel" onchange="updateCount()">
+                <option value="">— {% if current_lang=="en" %}None{% else %}بدون{% endif %}</option>
+                {% for u in users_all %}
+                <option value="{{ u.username }}" {% if items_vals|length > outer_idx and items_vals[outer_idx] == u.username %}selected{% endif %}>{{ u.full_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        {% elif mode == 'user_venue' %}
+        <div class="col-6 col-md-3">
+          <label class="form-label fw-bold small">{% if current_lang=="en" %}Venue{% else %}القاعة{% endif %}</label>
+          <select name="a" class="form-select"><option value="">{{ _('اختر...') }}</option>{% for v in venues %}<option value="{{ v.name }}" {% if a==v.name %}selected{% endif %}>{{ v.name }}</option>{% endfor %}</select>
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label fw-bold small">{% if current_lang=="en" %}User{% else %}المستخدم{% endif %}</label>
+          <select name="b" class="form-select"><option value="">{{ _('اختر...') }}</option>{% for u in users_all %}<option value="{{ u.username }}" {% if b==u.username %}selected{% endif %}>{{ u.full_name }}</option>{% endfor %}</select>
+        </div>
+
+        {% elif mode == 'user_location' %}
+        <div class="col-6 col-md-3">
+          <label class="form-label fw-bold small">{% if current_lang=="en" %}Location{% else %}الموقع{% endif %}</label>
+          <select name="a" class="form-select"><option value="">{{ _('اختر...') }}</option>{% for l in locations %}<option value="{{ l.name }}" {% if a==l.name %}selected{% endif %}>{{ l.name }}</option>{% endfor %}</select>
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label fw-bold small">{% if current_lang=="en" %}User{% else %}المستخدم{% endif %}</label>
+          <select name="b" class="form-select"><option value="">{{ _('اختر...') }}</option>{% for u in users_all %}<option value="{{ u.username }}" {% if b==u.username %}selected{% endif %}>{{ u.full_name }}</option>{% endfor %}</select>
+        </div>
+
+        {% elif mode == 'venue_location' %}
+        <div class="col-6 col-md-3">
+          <label class="form-label fw-bold small">{% if current_lang=="en" %}Venue{% else %}القاعة{% endif %}</label>
+          <select name="a" class="form-select"><option value="">{{ _('اختر...') }}</option>{% for v in venues %}<option value="{{ v.name }}" {% if a==v.name %}selected{% endif %}>{{ v.name }}</option>{% endfor %}</select>
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label fw-bold small">{% if current_lang=="en" %}Location{% else %}الموقع{% endif %}</label>
+          <select name="b" class="form-select"><option value="">{{ _('اختر...') }}</option>{% for l in locations %}<option value="{{ l.name }}" {% if b==l.name %}selected{% endif %}>{{ l.name }}</option>{% endfor %}</select>
+        </div>
+
+        {% elif mode == 'period' %}
+        <div class="col-6 col-md-2"><label class="form-label fw-bold small">{% if current_lang=="en" %}Period A From{% else %}الفترة أ — من{% endif %}</label><input type="date" name="fa" class="form-control" value="{{ fa }}"></div>
+        <div class="col-6 col-md-2"><label class="form-label fw-bold small">{{ _('إلى') }}</label><input type="date" name="ta" class="form-control" value="{{ ta }}"></div>
+        <div class="col-6 col-md-2"><label class="form-label fw-bold small">{% if current_lang=="en" %}Period B From{% else %}الفترة ب — من{% endif %}</label><input type="date" name="fb" class="form-control" value="{{ fb }}"></div>
+        <div class="col-6 col-md-2"><label class="form-label fw-bold small">{{ _('إلى') }}</label><input type="date" name="tb" class="form-control" value="{{ tb }}"></div>
+
+        {% elif mode == 'period_user' %}
+        <div class="col-6 col-md-2"><label class="form-label fw-bold small">{% if current_lang=="en" %}From{% else %}من{% endif %}</label><input type="date" name="fa" class="form-control" value="{{ fa }}"></div>
+        <div class="col-6 col-md-2"><label class="form-label fw-bold small">{% if current_lang=="en" %}To{% else %}إلى{% endif %}</label><input type="date" name="ta" class="form-control" value="{{ ta }}"></div>
+        <div class="col-12 col-md-4">
+          <label class="form-label fw-bold small">{% if current_lang=="en" %}Select Users (up to 5){% else %}اختر المستخدمين (حتى 5){% endif %}</label>
+          {% set ukeys = ['a','b','c','d','e'] %}
+          {% for idx in range(5) %}
+          <select name="{{ ukeys[idx] }}" class="form-select form-select-sm mb-1">
+            <option value="">{% if current_lang=="en" %}— User {{ idx+1 }} (optional) —{% else %}— مستخدم {{ idx+1 }} (اختياري) —{% endif %}</option>
+            {% for u in users_all %}
+            <option value="{{ u.username }}" {% if items_vals|length > idx and items_vals[idx] == u.username %}selected{% endif %}>{{ u.full_name }}</option>
+            {% endfor %}
+          </select>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="col-12 col-md-2">
+          <button type="submit" class="btn btn-primary-ars w-100">
+            <i class="bi bi-search me-1"></i>{% if current_lang=="en" %}Compare{% else %}مقارنة{% endif %}
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if result %}
+{% if result.get('email_mode') %}
+<!-- ══ EMAIL ANALYTICS ══════════════════════════════════════════════════════ -->
+{% if result.get('error') %}
+<div class="alert alert-danger">❌ {{ result.error }}</div>
+{% else %}
+
+<!-- KPI Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-2">
+    <div class="card text-center p-3" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.1)">
+      <div style="font-size:1.8rem;font-weight:900;color:#0C67EC">{{ result.total_all }}</div>
+      <div class="text-muted small">{% if current_lang=='en' %}All-Time Total{% else %}الإجمالي الكلي{% endif %}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card text-center p-3" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.1)">
+      <div style="font-size:1.8rem;font-weight:900;color:#198754">{{ result.period_sent }}</div>
+      <div class="text-muted small">✅ {% if current_lang=='en' %}Sent (Period){% else %}أُرسِل (الفترة){% endif %}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card text-center p-3" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.1)">
+      <div style="font-size:1.8rem;font-weight:900;color:#DC3545">{{ result.period_fail }}</div>
+      <div class="text-muted small">❌ {% if current_lang=='en' %}Failed{% else %}فشل{% endif %}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card text-center p-3" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.1)">
+      <div style="font-size:1.8rem;font-weight:900;color:#6C3483">{{ result.success_rate }}%</div>
+      <div class="text-muted small">📊 {% if current_lang=='en' %}Success Rate{% else %}نسبة النجاح{% endif %}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card text-center p-3" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.1)">
+      <div style="font-size:1.8rem;font-weight:900;color:#0847B0">{{ result.bulk_all }}</div>
+      <div class="text-muted small">📨 {% if current_lang=='en' %}Bulk Total{% else %}الجماعية{% endif %}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card text-center p-3" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.1)">
+      <div style="font-size:1.8rem;font-weight:900;color:#E67E22">{{ result.notif_all }}</div>
+      <div class="text-muted small">🔔 {% if current_lang=='en' %}Notifications{% else %}إشعارات{% endif %}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Range selector -->
+<div class="card mb-4" style="border-radius:14px;border:none;box-shadow:0 4px 16px rgba(12,103,236,.15);background:linear-gradient(135deg,#0847B0,#0C67EC);overflow:hidden">
+  <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2"
+       style="background:transparent;border-bottom:1px solid rgba(255,255,255,.15)">
+    <span style="color:#fff;font-weight:700"><i class="bi bi-envelope-check me-2"></i>{{ result.title }}</span>
+    <div class="d-flex gap-2 flex-wrap">
+      {% for d in [7,14,30,60,90] %}
+      <a href="?mode=email_stats&date_range={{ d }}"
+         style="border-radius:10px;padding:4px 14px;font-size:.82rem;font-weight:700;text-decoration:none;
+                {% if result.date_range==d %}background:#fff;color:#0C67EC{% else %}background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3){% endif %}">
+        {{ d }}{% if current_lang=='en' %}d{% else %}ي{% endif %}
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="card-body" style="background:#fff;border-radius:0 0 14px 14px">
+    <canvas id="emailDailyChart" height="80"></canvas>
+  </div>
+</div>
+
+<!-- 3 comparison charts -->
+<div class="row g-4 mb-4">
+  <!-- By Type -->
+  {% if result.types_data %}
+  <div class="col-md-4">
+    <div class="card" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.08)">
+      <div class="card-header"><i class="bi bi-pie-chart me-2"></i>{% if current_lang=='en' %}By Type{% else %}حسب النوع{% endif %}</div>
+      <div class="card-body"><canvas id="emailTypeChart" height="220"></canvas></div>
+    </div>
+  </div>
+  {% endif %}
+  <!-- By User/Recipient top 8 -->
+  {% if result.users_data %}
+  <div class="col-md-4">
+    <div class="card" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.08)">
+      <div class="card-header"><i class="bi bi-people me-2"></i>{% if current_lang=='en' %}Top Recipients{% else %}أكثر المستلمين{% endif %}</div>
+      <div class="card-body"><canvas id="emailUsersChart" height="220"></canvas></div>
+    </div>
+  </div>
+  {% endif %}
+  <!-- By user account (who triggered emails) -->
+  {% if result.venue_email_map %}
+  <div class="col-md-4">
+    <div class="card" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.08)">
+      <div class="card-header"><i class="bi bi-person-badge me-2"></i>{% if current_lang=='en' %}Emails per User{% else %}الرسائل لكل مستخدم{% endif %}</div>
+      <div class="card-body"><canvas id="emailVenueChart" height="220"></canvas></div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+(function(){
+  // Daily line chart
+  const dCtx = document.getElementById('emailDailyChart');
+  if (dCtx) {
+    new Chart(dCtx, {
+      type: 'bar',
+      data: {
+        labels: {{ result.email_daily.keys()|list|tojson }},
+        datasets: [{
+          label: '{% if current_lang=="en" %}Emails Sent{% else %}رسائل مرسلة{% endif %}',
+          data: {{ result.email_daily.values()|list|tojson }},
+          backgroundColor: 'rgba(12,103,236,.7)',
+          borderColor: '#0C67EC', borderWidth:1, borderRadius:4
+        }]
+      },
+      options: { responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,ticks:{stepSize:1}}} }
+    });
+  }
+  // Type donut
+  const tCtx = document.getElementById('emailTypeChart');
+  if (tCtx && {{ result.types_data|tojson }}) {
+    const td = {{ result.types_data|tojson }};
+    new Chart(tCtx, {
+      type: 'doughnut',
+      data: {
+        labels: Object.keys(td),
+        datasets: [{ data: Object.values(td), backgroundColor:['#0C67EC','#198754','#E67E22','#9B59B6','#DC3545'], borderWidth:2 }]
+      },
+      options: { responsive:true, plugins:{legend:{position:'bottom'}} }
+    });
+  }
+  // Users bar
+  const uCtx = document.getElementById('emailUsersChart');
+  if (uCtx && {{ result.users_data|tojson }}) {
+    const ud = {{ result.users_data|tojson }};
+    new Chart(uCtx, {
+      type: 'bar',
+      data: {
+        labels: Object.keys(ud),
+        datasets: [{ label:'{% if current_lang=="en" %}Emails{% else %}رسائل{% endif %}', data:Object.values(ud), backgroundColor:'rgba(25,135,84,.7)', borderRadius:4 }]
+      },
+      options: { indexAxis:'y', responsive:true, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true}} }
+    });
+  }
+  // Venue/User triggered
+  const vCtx = document.getElementById('emailVenueChart');
+  if (vCtx && {{ result.venue_email_map|tojson }}) {
+    const vd = {{ result.venue_email_map|tojson }};
+    new Chart(vCtx, {
+      type: 'bar',
+      data: {
+        labels: Object.keys(vd),
+        datasets: [{ label:'{% if current_lang=="en" %}Emails{% else %}رسائل{% endif %}', data:Object.values(vd), backgroundColor:'rgba(108,52,131,.7)', borderRadius:4 }]
+      },
+      options: { indexAxis:'y', responsive:true, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true}} }
+    });
+  }
+})();
+</script>
+{% endif %}
+{% elif result.get('date_all') %}
+<!-- ══ DATE_ALL RESULTS — Daily Activity Chart ══════════════════════════════════ -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card text-center p-3" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.1)">
+      <div style="font-size:1.8rem;font-weight:900;color:#0C67EC">{{ result.period_total }}</div>
+      <div class="text-muted small">{% if current_lang=='en' %}Total in Period{% else %}إجمالي الفترة{% endif %}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center p-3" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.1)">
+      <div style="font-size:1.8rem;font-weight:900;color:#198754">{{ result.busiest_count }}</div>
+      <div class="text-muted small">{% if current_lang=='en' %}Peak Day ({{ result.busiest_day }}){% else %}أعلى يوم ({{ result.busiest_day }}){% endif %}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center p-3" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.1)">
+      <div style="font-size:1.8rem;font-weight:900;color:#E67E22">{{ (result.period_total / result.date_range)|round(1) }}</div>
+      <div class="text-muted small">{% if current_lang=='en' %}Avg/Day{% else %}متوسط/يوم{% endif %}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center p-3" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.1)">
+      <div style="font-size:1.8rem;font-weight:900;color:#6C3483">{{ result.date_range }}</div>
+      <div class="text-muted small">{% if current_lang=='en' %}Days Shown{% else %}عدد الأيام{% endif %}</div>
+    </div>
+  </div>
+</div>
+<!-- Range selector -->
+<div class="card mb-4" style="border-radius:14px;border:none;box-shadow:0 4px 16px rgba(12,103,236,.2);background:linear-gradient(135deg,#0847B0,#0C67EC);overflow:hidden">
+  <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2"
+       style="background:transparent;border-bottom:1px solid rgba(255,255,255,.15)">
+    <span style="color:#fff;font-weight:700">
+      <i class="bi bi-calendar-range me-2"></i>{{ result.title }}
+    </span>
+    <div class="d-flex gap-2 flex-wrap">
+      {% for d in [7, 14, 30, 60, 90] %}
+      <a href="?mode=date_all&date_range={{ d }}"
+         style="border-radius:10px;padding:4px 14px;font-size:.82rem;font-weight:700;text-decoration:none;
+                {% if result.date_range == d %}
+                  background:#fff;color:#0C67EC;
+                {% else %}
+                  background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);
+                {% endif %}">
+        {{ d }}{% if current_lang=='en' %}d{% else %}ي{% endif %}
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="card-body" style="background:#fff;border-radius:0 0 14px 14px">
+    <canvas id="dateAllChart" height="80"></canvas>
+  </div>
+</div>
+<!-- Daily breakdown table -->
+<div class="card" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.08)">
+  <div class="card-header"><i class="bi bi-table me-2"></i>{% if current_lang=='en' %}Daily Breakdown{% else %}تفاصيل يومية{% endif %}</div>
+  <div class="card-body p-0">
+    <div class="table-responsive" style="max-height:380px;overflow-y:auto">
+      <table class="table table-sm table-hover mb-0" style="font-size:.83rem">
+        <thead style="background:#f4f7ff;position:sticky;top:0">
+          <tr>
+            <th class="ps-3">{% if current_lang=='en' %}Date{% else %}التاريخ{% endif %}</th>
+            <th class="text-center">{% if current_lang=='en' %}Total{% else %}الإجمالي{% endif %}</th>
+            {% set first_day = result.status_daily.keys()|list|first %}
+            {% if first_day %}
+              {% for sk in result.status_daily[first_day].keys() %}
+              <th class="text-center" style="white-space:nowrap">{{ sk }}</th>
+              {% endfor %}
+            {% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for day, count in result.daily_data.items()|reverse %}
+          <tr {% if count == result.busiest_count and count > 0 %}style="background:#fffbeb"{% endif %}>
+            <td class="ps-3 fw-semibold">{{ day }}{% if count == result.busiest_count and count > 0 %} 🔥{% endif %}</td>
+            <td class="text-center fw-bold" style="color:#0C67EC">{{ count }}</td>
+            {% if result.status_daily.get(day) %}
+              {% for sv in result.status_daily[day].values() %}
+              <td class="text-center text-muted">{{ sv if sv > 0 else '—' }}</td>
+              {% endfor %}
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  const labels = {{ result.daily_data.keys()|list|tojson }};
+  const data   = {{ result.daily_data.values()|list|tojson }};
+  const ctx = document.getElementById('dateAllChart');
+  if(!ctx) return;
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '{% if current_lang=="en" %}Reservations{% else %}الحجوزات{% endif %}',
+        data: data,
+        backgroundColor: 'rgba(12,103,236,.7)',
+        borderColor: '#0C67EC',
+        borderWidth: 1,
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1 } },
+        x: { ticks: { maxRotation: 45 } }
+      }
+    }
+  });
+})();
+</script>
+{% elif result.get('multi') %}
+<!-- ══ MULTI-ITEM RESULTS ══════════════════════════════════════════════════════ -->
+<div class="row g-4">
+  <div class="col-12 col-lg-8">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-bar-chart me-2"></i>{{ result.title }}</span>
+        <div class="d-flex gap-2 flex-wrap small">
+          {% set colors = ['#0C67EC','#E65100','#27ae60','#8e44ad','#c0392b'] %}
+          {% for ds in result.datasets %}
+          <span style="display:inline-flex;align-items:center;gap:4px">
+            <span style="width:12px;height:12px;background:{{ colors[loop.index0 % 5] }};border-radius:2px;display:inline-block"></span>
+            {{ ds.label }}
+          </span>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="card-body"><canvas id="multiChart"></canvas></div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-4">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-table me-2"></i>{{ _('📊 نتائج المقارنة') }}</div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-sm table-hover mb-0">
+            <thead>
+              <tr style="background:#f4f7ff">
+                <th class="ps-3">{% if current_lang=="en" %}Metric{% else %}المقياس{% endif %}</th>
+                {% for ds in result.datasets %}
+                <th class="text-center" style="color:{{ colors[loop.index0 % 5] }};white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis" title="{{ ds.label }}">{{ ds.label[:18] }}{% if ds.label|length > 18 %}…{% endif %}</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for metric in result.metrics %}
+              <tr>
+                <td class="ps-3 small fw-bold">
+                  {% if 'نجوم' in metric or 'نجمة' in metric or 'star' in metric|lower %}⭐ {% endif %}{{ metric }}
+                </td>
+                {% for ds in result.datasets %}
+                <td class="text-center">
+                  <span class="badge" style="background:{{ colors[loop.index0 % 5] }}22;color:{{ colors[loop.index0 % 5] }};font-weight:700">
+                    {{ ds.data.get(metric, 0) }}
+                  </span>
+                </td>
+                {% endfor %}
+              </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr style="background:#f0f7ff;font-weight:700">
+                <td class="ps-3">{% if current_lang=="en" %}Total{% else %}المجموع{% endif %}</td>
+                {% for ds in result.datasets %}
+                {% set ns = namespace(tot=0) %}{% for v in ds.data.values() %}{% if v is number %}{% set ns.tot = ns.tot + v %}{% endif %}{% endfor %}
+                <td class="text-center" style="color:{{ colors[loop.index0 % 5] }}">{{ ns.tot }}</td>
+                {% endfor %}
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <!-- Winner: find dataset with highest total -->
+        {% set ns_win = namespace(best_label=result.datasets[0].label, best_tot=0) %}
+        {% for ds in result.datasets %}
+          {% set ns_ds = namespace(tot=0) %}{% for v in ds.data.values() %}{% if v is number %}{% set ns_ds.tot = ns_ds.tot + v %}{% endif %}{% endfor %}
+          {% if ns_ds.tot > ns_win.best_tot %}{% set ns_win.best_tot = ns_ds.tot %}{% set ns_win.best_label = ds.label %}{% endif %}
+        {% endfor %}
+        <div class="p-3 text-center">
+          <span class="badge" style="background:linear-gradient(135deg,#27ae60,#2ecc71);color:#fff;font-size:.85rem;padding:6px 14px;border-radius:20px">
+            🏆 {% if current_lang=="en" %}Top{% else %}الأعلى{% endif %}: {{ ns_win.best_label }}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const COLORS = ['#0C67EC','#E65100','#27ae60','#8e44ad','#c0392b'];
+const metrics = {{ result.metrics | tojson }};
+const rawDatasets = {{ result.datasets | map(attribute='data') | list | tojson }};
+const dsLabels = {{ result.datasets | map(attribute='label') | list | tojson }};
+const datasets = dsLabels.map((lbl, i) => ({
+  label: lbl,
+  data: metrics.map(m => { const v = rawDatasets[i][m]; return (typeof v === 'number' && isFinite(v)) ? v : 0; }),
+  backgroundColor: COLORS[i % 5],
+  borderRadius: 4,
+}));
+new Chart(document.getElementById('multiChart'), {
+  type: 'bar',
+  data: { labels: metrics, datasets },
+  options: {
+    responsive: true,
+    plugins: { legend: { position: 'top' } },
+    scales: { y: { beginAtZero: true, grid: { color: '#f0f0f0' } }, x: { grid: { display: false } } }
+  }
+});
+</script>
+
+{% else %}
+<!-- ══ STANDARD 2-ITEM RESULTS ════════════════════════════════════════════════ -->
+{% set colors2 = ['#0C67EC','#E65100'] %}
+<div class="row g-4">
+  <div class="col-12 col-lg-7">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-bar-chart me-2"></i>{{ result.title }}</span>
+        {% if not result.get('single') %}
+        <div class="d-flex gap-2 small">
+          <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:12px;height:12px;background:#0C67EC;border-radius:2px;display:inline-block"></span>{{ result.label_a }}</span>
+          <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:12px;height:12px;background:#E65100;border-radius:2px;display:inline-block"></span>{{ result.label_b }}</span>
+        </div>
+        {% endif %}
+      </div>
+      <div class="card-body"><canvas id="compChart"></canvas></div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-5">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-table me-2"></i>{{ _('📊 نتائج المقارنة') }}</span>
+        {% if not result.get('single') and result.data_a %}
+        {% set ns_a = namespace(tot=0) %}{% for v in result.data_a.values() %}{% if v is number %}{% set ns_a.tot = ns_a.tot + v %}{% endif %}{% endfor %}
+        {% set ns_b = namespace(tot=0) %}{% for v in result.data_b.values() %}{% if v is number %}{% set ns_b.tot = ns_b.tot + v %}{% endif %}{% endfor %}
+        <span class="badge" style="background:linear-gradient(135deg,#27ae60,#2ecc71);color:#fff;border-radius:20px;padding:4px 12px">
+          🏆 {{ result.label_a if ns_a.tot >= ns_b.tot else result.label_b }}
+        </span>
+        {% endif %}
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead>
+              <tr style="background:#f4f7ff">
+                <th class="ps-3">{% if current_lang=="en" %}Metric{% else %}المقياس{% endif %}</th>
+                <th class="text-center" style="color:#0C67EC">{{ result.label_a }}</th>
+                {% if not result.get('single') %}<th class="text-center" style="color:#E65100">{{ result.label_b }}</th><th class="text-center">Δ%</th>{% endif %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for metric, va in result.data_a.items() %}
+              {% set vb = result.data_b.get(metric, 0) if not result.get('single') else None %}
+              <tr>
+                <td class="ps-3 fw-bold small">{% if 'نجوم' in metric or 'نجمة' in metric %}⭐ {% endif %}{{ metric }}</td>
+                <td class="text-center"><span class="badge" style="background:#EEF4FD;color:#0C67EC;font-weight:700;font-size:.88rem">{{ va }}</span></td>
+                {% if not result.get('single') and vb is not none %}
+                <td class="text-center"><span class="badge" style="background:#FFF3E0;color:#E65100;font-weight:700;font-size:.88rem">{{ vb }}</span></td>
+                <td class="text-center">
+                  {% if va != 0 %}{% set d = ((vb - va) / va * 100)|round|int %}
+                  <span class="badge {{ 'bg-success' if d >= 0 else 'bg-danger' }}">{{ '+' if d >= 0 else '' }}{{ d }}%</span>
+                  {% elif vb > 0 %}<span class="badge bg-success">+∞</span>{% else %}—{% endif %}
+                </td>
+                {% endif %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+const labels = {{ result.data_a.keys()|list|tojson }};
+const _safeNum = v => (typeof v === 'number' && isFinite(v)) ? v : 0;
+const dataA = {{ result.data_a.values()|list|tojson }}.map(_safeNum);
+{% if not result.get('single') %}const dataB = {{ result.data_b.values()|list|tojson }}.map(_safeNum);{% endif %}
+new Chart(document.getElementById('compChart'), {
+  type: 'bar',
+  data: { labels, datasets: [
+    { label:'{{ result.label_a }}', data:dataA, backgroundColor:'#0C67EC', borderRadius:5 },
+    {% if not result.get('single') %}{ label:'{{ result.label_b }}', data:dataB, backgroundColor:'#E65100', borderRadius:5 }{% endif %}
+  ]},
+  options: { responsive:true, plugins:{legend:{position:'top'}}, scales:{y:{beginAtZero:true, ticks:{precision:0}},x:{grid:{display:false}}} }
+});
+</script>
+{% endif %}
+
+{% else %}
+<div class="card">
+  <div class="card-body text-center py-5 text-muted">
+    <i class="bi bi-bar-chart-steps" style="font-size:3.5rem;color:#ccc;display:block;margin-bottom:1rem"></i>
+    <p class="fw-bold">{% if current_lang=="en" %}Select mode and items, then click Compare{% else %}اختر الوضع والعناصر ثم اضغط مقارنة{% endif %}</p>
+    <p class="small">{% if current_lang=="en" %}Supports up to 5 items in multi-comparison modes{% else %}يدعم حتى 5 عناصر في أوضاع المقارنة المتعددة{% endif %}</p>
+  </div>
+</div>
+{% endif %}
+
+<script>
+function updateCount() {
+  const n = document.querySelectorAll('.item-sel').length - 
+            Array.from(document.querySelectorAll('.item-sel')).filter(s=>!s.value).length;
+  const el = document.getElementById('selCount');
+  if(el) el.textContent = n;
+}
+
+function printReport() {
+  // Collect result content
+  const title = document.querySelector('.page-header h1')?.textContent?.trim() || 'STAP Report';
+  const table = document.querySelector('.table-responsive')?.innerHTML || '';
+  const chart = document.querySelector('canvas')?.toDataURL('image/png') || '';
+  const dir   = document.documentElement.dir || 'rtl';
+  const lang  = document.documentElement.lang || 'ar';
+  const today = new Date().toLocaleDateString(lang==='en'?'en-US':'ar-SA',{year:'numeric',month:'long',day:'numeric'});
+
+  const html = `<!DOCTYPE html><html lang="${lang}" dir="${dir}">
+<head><meta charset="UTF-8"><title>${title}</title>
+<style>
+  body{font-family:'Segoe UI',Arial,sans-serif;margin:0;padding:24px;background:#fff;color:#222;direction:${dir};font-size:11pt}
+  h1{color:#0C67EC;font-size:16pt;margin-bottom:4px;border-bottom:2px solid #0C67EC;padding-bottom:8px}
+  .sub{color:#888;font-size:9pt;margin-bottom:20px}
+  table{width:100%;border-collapse:collapse;margin-top:16px}
+  th{background:#0C67EC;color:#fff;padding:8px 10px;font-size:10pt;text-align:${dir==='rtl'?'right':'left'}}
+  td{padding:7px 10px;border-bottom:1px solid #eee;font-size:10pt}
+  tr:nth-child(even) td{background:#f7f9fc}
+  img{max-width:100%;margin:16px 0;border-radius:8px}
+  @page{margin:1.5cm;size:A4}
+  @media print{body{padding:0}}
+</style></head>
+<body>
+<h1>📊 ${title}</h1>
+<div class="sub">STAP — Applied Event System &nbsp;·&nbsp; ${today}</div>
+${chart?`<img src="${chart}" />`:''}
+${table}
+<script>window.onload=function(){window.print();setTimeout(()=>window.close(),1000);}<\/script>
+</body></html>`;
+
+  const w = window.open('','_blank','width=800,height=700');
+  if(w){ w.document.write(html); w.document.close(); }
+}
+
+// Handle mode change — email_stats and date_all go directly, others submit form
+function handleModeChange(sel) {
+  const mode = sel.value;
+  const directModes = ['email_stats', 'date_all', 'status', 'rating_all'];
+  if (directModes.includes(mode)) {
+    window.location.href = '?mode=' + mode;
+  } else {
+    sel.form.submit();
+  }
+}
+</script>
+{% endblock %}

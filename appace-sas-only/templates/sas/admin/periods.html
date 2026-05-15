@@ -1,0 +1,295 @@
+{% extends "base.html" %}
+{%- set ar = (current_lang == 'ar') -%}
+
+{% block title %}{{ 'جدول الحصص والفرص' if ar else 'Period & Break Schedule' }} — {{ stage.name }}{% endblock %}
+
+{% block extra_css %}
+{% include 'sas/_sas_admin_styles.html' %}
+<style>
+.sas-page-header h1 { color: var(--sas) !important; }
+.btn-sas {
+  background: linear-gradient(160deg, var(--sas-light), var(--sas), var(--sas-dark));
+  color: #fff; border: none; border-radius: 8px; padding: 7px 18px;
+  font-size: .84rem; font-weight: 700; transition: all .2s;
+}
+.btn-sas:hover { background: linear-gradient(160deg, #0e7490, #155e75); color: #fff; }
+.day-card { background: #fff; border-radius: 14px; border: 1.5px solid #e5e7eb; margin-bottom: 14px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.04); }
+.day-header {
+  background: var(--sas-bg); padding: 10px 16px; font-weight: 700; color: var(--sas-dark);
+  display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.day-body { padding: 10px 16px 2px; }
+.period-row {
+  display: flex; align-items: center; gap: 7px; padding: 6px 0;
+  border-bottom: 1px solid #f3f4f6; flex-wrap: wrap;
+}
+.period-row:last-child { border-bottom: none; }
+.badge-type { padding: 2px 10px; border-radius: 20px; font-size: .72rem; font-weight: 700; min-width: 52px; text-align: center; flex-shrink: 0; }
+.badge-period { background: #dbeafe; color: #1e40af; }
+.badge-break  { background: #fef3c7; color: #92400e; }
+.period-row input[type="time"] { width: 112px; font-size: .83rem; border-radius: 6px; border: 1.5px solid #d1d5db; padding: 4px 8px; }
+.period-row input[type="text"]  { flex: 1; min-width: 90px; font-size: .83rem; border-radius: 6px; border: 1.5px solid #d1d5db; padding: 4px 8px; }
+.period-row select { font-size: .83rem; border-radius: 6px; border: 1.5px solid #d1d5db; padding: 4px 7px; }
+.period-row input:focus, .period-row select:focus { border-color: var(--sas); outline: none; box-shadow: 0 0 0 2px rgba(8,145,178,.1); }
+.btn-add-period {
+  background: #f0fdf4; color: #16a34a; border: 1.5px dashed #86efac; border-radius: 8px;
+  padding: 6px 14px; font-size: .8rem; font-weight: 600; cursor: pointer; transition: all .15s;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.btn-add-period:hover { background: #dcfce7; border-color: #16a34a; }
+.btn-rm { background: none; border: none; color: #dc2626; cursor: pointer; font-size: .9rem; padding: 2px 5px; flex-shrink: 0; }
+.btn-rm:hover { color: #991b1b; }
+.arrow-sep { color: #9ca3af; font-size: .9rem; flex-shrink: 0; }
+
+/* Copy modal */
+.copy-day-check { width: 16px; height: 16px; accent-color: var(--sas); cursor: pointer; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3 sas-page-header">
+  <h1 style="font-size:1.3rem;font-weight:700;margin:0">
+    <i class="bi bi-clock me-2"></i>{{ 'جدول الحصص والفرص' if ar else 'Period & Break Schedule' }}
+    <span style="font-size:.84rem;font-weight:500;color:#6b7280;margin-inline-start:8px">— {{ stage.name }}</span>
+  </h1>
+  <div class="d-flex gap-2">
+    <button class="btn-sas" onclick="saveAll()"><i class="bi bi-check-lg me-1"></i>{{ 'حفظ' if ar else 'Save' }}</button>
+    <a href="{{ url_for('sas.admin_stages') }}" class="btn btn-sm" style="border:1.5px solid var(--sas);color:var(--sas);border-radius:8px;font-weight:600">
+      <i class="bi bi-arrow-{{ 'right' if ar else 'left' }} me-1"></i>{{ 'العودة' if ar else 'Back' }}
+    </a>
+  </div>
+</div>
+
+<div class="mb-3" style="font-size:.82rem;color:#6b7280;background:#f9fafb;padding:8px 14px;border-radius:8px;border:1px solid #e5e7eb">
+  <i class="bi bi-info-circle me-1" style="color:var(--sas)"></i>
+  {{ 'أضف الحصص والفرص لكل يوم بشكل مستقل. استخدم زر النسخ لنقل جدول يوم إلى أيام أخرى.' if ar else 'Add periods and breaks for each day independently. Use the copy button to duplicate a day\'s schedule to other days.' }}
+</div>
+
+<div id="scheduleContainer">
+{% for day_num in range(7) %}
+  {% set day_periods = by_day.get(day_num, []) %}
+  <div class="day-card" data-day="{{ day_num }}">
+    <div class="day-header">
+      <span><i class="bi bi-calendar3 me-2"></i>{{ day_names_ar[day_num] if ar else day_names_en[day_num] }}</span>
+      <div class="d-flex gap-2 align-items-center">
+        <span style="font-size:.76rem;color:#6b7280" id="dayCount{{ day_num }}">
+          {{ day_periods|length }} {{ 'عنصر' if ar else 'items' }}
+        </span>
+        <button class="btn btn-sm" style="background:rgba(14,116,144,.1);color:var(--sas-dark);border:none;border-radius:7px;font-size:.76rem;font-weight:600;padding:4px 10px"
+                onclick="openCopyModal({{ day_num }})" title="{{ 'نسخ إلى أيام أخرى' if ar else 'Copy to other days' }}">
+          <i class="bi bi-copy me-1"></i>{{ 'نسخ' if ar else 'Copy' }}
+        </button>
+      </div>
+    </div>
+    <div class="day-body" id="dayBody{{ day_num }}">
+      {% for p in day_periods %}
+      <div class="period-row">
+        <select class="period-type-sel" onchange="updateBadge(this)">
+          <option value="period" {{ 'selected' if p.period_type == 'period' }}>{{ 'حصة' if ar else 'Period' }}</option>
+          <option value="break"  {{ 'selected' if p.period_type == 'break' }}>{{ 'فرصة' if ar else 'Break' }}</option>
+        </select>
+        <span class="badge-type {{ 'badge-break' if p.period_type == 'break' else 'badge-period' }}">
+          {% if p.period_type == 'break' %}{{ 'فرصة' if ar else 'Break' }}
+          {% else %}{{ ('حصة' if ar else 'P') ~ loop.index }}{% endif %}
+        </span>
+        <input type="text" class="period-label" value="{{ p.label or '' }}" placeholder="{{ 'التسمية (اختياري)' if ar else 'Label (optional)' }}">
+        <input type="time" class="period-start" value="{{ p.start_time }}">
+        <span class="arrow-sep">→</span>
+        <input type="time" class="period-end" value="{{ p.end_time }}">
+        <button class="btn-rm" onclick="removePeriodRow(this)" title="{{ 'حذف' if ar else 'Remove' }}"><i class="bi bi-x-circle-fill"></i></button>
+      </div>
+      {% endfor %}
+    </div>
+    <div style="padding:6px 16px 14px">
+      <button class="btn-add-period" onclick="addPeriod({{ day_num }}, 'period')">
+        <i class="bi bi-plus-circle"></i>{{ 'إضافة حصة' if ar else 'Add Period' }}
+      </button>
+      <button class="btn-add-period ms-2" style="background:#fef9c3;color:#92400e;border-color:#fde68a" onclick="addPeriod({{ day_num }}, 'break')">
+        <i class="bi bi-plus-circle"></i>{{ 'إضافة فرصة' if ar else 'Add Break' }}
+      </button>
+    </div>
+  </div>
+{% endfor %}
+</div>
+
+<div class="text-center mt-2 mb-5">
+  <button class="btn-sas" style="padding:10px 44px;font-size:.9rem" onclick="saveAll()">
+    <i class="bi bi-check-lg me-1"></i>{{ 'حفظ جميع الأيام' if ar else 'Save All Days' }}
+  </button>
+</div>
+
+<!-- Copy Day Modal -->
+<div class="modal fade" id="copyDayModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:16px;overflow:hidden;border:none">
+      <div class="modal-header" style="background:linear-gradient(135deg,var(--sas-dark),var(--sas));color:#fff;border:none">
+        <h5 class="modal-title"><i class="bi bi-copy me-2"></i>{{ 'نسخ الجدول إلى أيام أخرى' if ar else 'Copy Schedule to Other Days' }}</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:.86rem;color:#6b7280;margin-bottom:12px">
+          {{ 'اختر الأيام التي تريد نسخ جدول اليوم المحدد إليها:' if ar else 'Select the days to copy the selected day\'s schedule to:' }}
+        </p>
+        <div id="copyDayCheckboxes" class="d-flex flex-column gap-2"></div>
+      </div>
+      <div class="modal-footer" style="border-top:1px solid #e5e7eb">
+        <button type="button" class="btn btn-sm" style="border:1.5px solid #d1d5db;border-radius:8px;padding:6px 18px;font-weight:600" data-bs-dismiss="modal">{{ 'إلغاء' if ar else 'Cancel' }}</button>
+        <button type="button" class="btn-sas" onclick="executeCopy()"><i class="bi bi-copy me-1"></i>{{ 'نسخ' if ar else 'Copy' }}</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+var ar = {{ 'true' if ar else 'false' }};
+var dayNamesAr = {{ day_names_ar | tojson }};
+var dayNamesEn = {{ day_names_en | tojson }};
+var copyFromDay = null;
+
+function periodRowHTML(type) {
+  type = type || 'period';
+  var isBreak = type === 'break';
+  var badgeClass = isBreak ? 'badge-break' : 'badge-period';
+  var badgeText = isBreak ? (ar ? 'فرصة' : 'Break') : (ar ? 'حصة' : 'P');
+  var typeLabelP = ar ? 'حصة' : 'Period';
+  var typeLabelB = ar ? 'فرصة' : 'Break';
+  var labelPH    = ar ? 'التسمية (اختياري)' : 'Label (optional)';
+  var rmTitle    = ar ? 'حذف' : 'Remove';
+  return '<div class="period-row">' +
+    '<select class="period-type-sel" onchange="updateBadge(this)">' +
+    '<option value="period"' + (!isBreak ? ' selected' : '') + '>' + typeLabelP + '</option>' +
+    '<option value="break"' + (isBreak ? ' selected' : '') + '>' + typeLabelB + '</option>' +
+    '</select>' +
+    '<span class="badge-type ' + badgeClass + '">' + badgeText + '</span>' +
+    '<input type="text" class="period-label" placeholder="' + labelPH + '">' +
+    '<input type="time" class="period-start" value="">' +
+    '<span class="arrow-sep">→</span>' +
+    '<input type="time" class="period-end" value="">' +
+    '<button class="btn-rm" onclick="removePeriodRow(this)" title="' + rmTitle + '"><i class="bi bi-x-circle-fill"></i></button>' +
+    '</div>';
+}
+
+function addPeriod(day, type) {
+  var body = document.getElementById('dayBody' + day);
+  body.insertAdjacentHTML('beforeend', periodRowHTML(type || 'period'));
+  // Auto-fill start from previous row's end
+  var rows = body.querySelectorAll('.period-row');
+  if (rows.length > 1) {
+    var prevEnd = rows[rows.length - 2].querySelector('.period-end').value;
+    if (prevEnd) rows[rows.length - 1].querySelector('.period-start').value = prevEnd;
+  }
+  updateDayCount(day);
+  rows[rows.length - 1].querySelector('.period-start').focus();
+}
+
+function removePeriodRow(btn) {
+  var row = btn.closest('.period-row');
+  var dayCard = row.closest('.day-card');
+  var day = parseInt(dayCard.dataset.day);
+  row.remove();
+  updateDayCount(day);
+}
+
+function updateBadge(sel) {
+  var row = sel.closest('.period-row');
+  var badge = row.querySelector('.badge-type');
+  var val = sel.value;
+  badge.className = 'badge-type ' + (val === 'break' ? 'badge-break' : 'badge-period');
+  badge.textContent = val === 'break' ? (ar ? 'فرصة' : 'Break') : (ar ? 'حصة' : 'P');
+}
+
+function updateDayCount(day) {
+  var body = document.getElementById('dayBody' + day);
+  var count = body.querySelectorAll('.period-row').length;
+  var el = document.getElementById('dayCount' + day);
+  if (el) el.textContent = count + ' ' + (ar ? 'عنصر' : 'items');
+}
+
+function collectDay(dayNum) {
+  var body = document.getElementById('dayBody' + dayNum);
+  var rows = body.querySelectorAll('.period-row');
+  var items = [];
+  rows.forEach(function (row) {
+    items.push({
+      type:  row.querySelector('.period-type-sel').value,
+      label: row.querySelector('.period-label').value,
+      start: row.querySelector('.period-start').value,
+      end:   row.querySelector('.period-end').value,
+    });
+  });
+  return items;
+}
+
+/* ── Copy Modal ── */
+function openCopyModal(fromDay) {
+  copyFromDay = fromDay;
+  var container = document.getElementById('copyDayCheckboxes');
+  var names = ar ? dayNamesAr : dayNamesEn;
+  var html = '';
+  for (var d = 0; d < 7; d++) {
+    if (d === fromDay) continue;
+    html += '<label style="display:flex;align-items:center;gap:10px;font-size:.87rem;cursor:pointer">' +
+      '<input type="checkbox" class="copy-day-check" value="' + d + '" checked> ' + names[d] +
+      '</label>';
+  }
+  container.innerHTML = html;
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('copyDayModal')).show();
+}
+
+function executeCopy() {
+  var srcItems = collectDay(copyFromDay);
+  var checks = document.querySelectorAll('.copy-day-check:checked');
+  checks.forEach(function (cb) {
+    var dayNum = parseInt(cb.value);
+    var body = document.getElementById('dayBody' + dayNum);
+    body.innerHTML = '';
+    srcItems.forEach(function (item) {
+      body.insertAdjacentHTML('beforeend', periodRowHTML(item.type));
+      var rows = body.querySelectorAll('.period-row');
+      var last = rows[rows.length - 1];
+      last.querySelector('.period-type-sel').value = item.type;
+      last.querySelector('.period-label').value = item.label;
+      last.querySelector('.period-start').value = item.start;
+      last.querySelector('.period-end').value = item.end;
+      updateBadge(last.querySelector('.period-type-sel'));
+    });
+    updateDayCount(dayNum);
+  });
+  bootstrap.Modal.getInstance(document.getElementById('copyDayModal')).hide();
+}
+
+/* ── Save All ── */
+function saveAll() {
+  var days = {};
+  for (var d = 0; d < 7; d++) { days[d] = collectDay(d); }
+
+  var btn = document.querySelector('.btn-sas');
+  var origHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>' + (ar ? 'جارٍ الحفظ...' : 'Saving...');
+
+  fetch('{{ url_for("sas.admin_periods_save", stage_id=stage.id) }}', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ days: days })
+  })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      btn.disabled = false;
+      if (d.ok) {
+        btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>' + (ar ? 'تم الحفظ ✓' : 'Saved ✓');
+        btn.style.background = '#0e7490';
+        setTimeout(function () { btn.innerHTML = origHtml; btn.style.background = ''; }, 2500);
+      } else {
+        btn.innerHTML = origHtml;
+        alert(d.error || (ar ? 'حدث خطأ' : 'Error'));
+      }
+    })
+    .catch(function () {
+      btn.disabled = false;
+      btn.innerHTML = origHtml;
+      alert(ar ? 'فشل الاتصال بالخادم' : 'Connection error');
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,269 @@
+{% extends 'base.html' %}
+{% block content %}
+{%- set ar = (current_lang == 'ar') -%}
+<style>
+/* ─ Stats cards ─ */
+.pi-stat{background:white;border-radius:16px;padding:20px;border:1px solid #f1f5f9;
+  box-shadow:0 1px 3px rgba(0,0,0,.04);transition:all .2s}
+.pi-stat:hover{box-shadow:0 4px 20px rgba(0,0,0,.08);transform:translateY(-2px)}
+.pi-stat .icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;
+  justify-content:center;font-size:1.2rem;flex-shrink:0}
+.pi-stat .num{font-size:1.6rem;font-weight:800;color:#0f172a;line-height:1}
+.pi-stat .lbl{font-size:.78rem;color:#64748b;margin-top:2px}
+
+/* ─ Table wrapper ─ */
+.ev-table-card{background:white;border-radius:16px;overflow:hidden;
+  box-shadow:0 1px 3px rgba(0,0,0,.06);border:1px solid #f1f5f9}
+.ev-table-card .table{margin:0;font-size:.85rem}
+.ev-table-card .table thead th{background:#f8fafc;border-bottom:2px solid #e2e8f0;
+  font-weight:700;color:#475569;font-size:.78rem;text-transform:uppercase;letter-spacing:.03em;
+  padding:12px 14px;white-space:nowrap}
+.ev-table-card .table tbody td{padding:14px;vertical-align:middle;border-bottom:1px solid #f1f5f9}
+.ev-table-card .table tbody tr:hover{background:#f8fafc}
+
+/* ─ Badges ─ */
+.badge-open{background:#dcfce7;color:#166534;border-radius:100px;padding:4px 12px;font-size:.73rem;font-weight:600;display:inline-flex;align-items:center;gap:4px}
+.badge-closed{background:#fef2f2;color:#991b1b;border-radius:100px;padding:4px 12px;font-size:.73rem;font-weight:600;display:inline-flex;align-items:center;gap:4px}
+
+/* ─ Mini progress ─ */
+.slot-prog{height:5px;border-radius:100px;background:#e2e8f0;overflow:hidden;min-width:60px}
+.slot-prog .fill{height:100%;border-radius:100px;background:linear-gradient(90deg,#6366f1,#8b5cf6);transition:width .4s}
+
+/* ─ Code cell ─ */
+.code-cell{font-family:'SF Mono','Fira Code',monospace;font-size:.8rem;background:#f8fafc;
+  padding:3px 8px;border-radius:6px;cursor:pointer;border:1px solid #e2e8f0;
+  display:inline-block;transition:all .15s}
+.code-cell:hover{background:#eef2ff;border-color:#c7d2fe}
+
+/* ─ Actions dropdown ─ */
+.act-drop .dropdown-toggle{border-radius:8px;padding:5px 10px;font-size:.78rem;font-weight:600;
+  border:1.5px solid #e2e8f0;background:white;color:#475569}
+.act-drop .dropdown-toggle:hover,.act-drop .dropdown-toggle:focus{border-color:#c7d2fe;background:#f8fafc}
+.act-drop .dropdown-toggle::after{margin-{{ 'right' if ar else 'left' }}:6px}
+.act-drop .dropdown-menu{border-radius:12px;border:1px solid #e2e8f0;box-shadow:0 8px 24px rgba(0,0,0,.1);
+  padding:6px;min-width:180px;font-size:.82rem}
+.act-drop .dropdown-item{border-radius:8px;padding:7px 12px;font-weight:500;display:flex;align-items:center;gap:8px}
+.act-drop .dropdown-item:hover{background:#f1f5f9}
+.act-drop .dropdown-item i{font-size:.9rem;width:18px;text-align:center}
+.act-drop .dropdown-divider{margin:4px 0}
+
+/* ─ Empty state ─ */
+.empty-state{text-align:center;padding:60px 20px;background:white;border-radius:16px;border:1.5px solid #f1f5f9}
+</style>
+
+<div class="container-fluid py-4">
+
+  {# ── Header ── #}
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
+    <div>
+      <h4 class="fw-800 mb-1" style="color:#0f172a">
+        <i class="bi bi-people-fill me-2" style="color:#6366f1"></i>
+        {% if ar %}مقابلات أولياء الأمور{% else %}Parent Interviews{% endif %}
+      </h4>
+      <p class="text-muted mb-0" style="font-size:.85rem">
+        {% if ar %}إدارة الفعاليات والمعلمين والحجوزات{% else %}Manage events, teachers and bookings{% endif %}
+      </p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <a href="{{ url_for('interviews.admin_calendar') }}"
+         class="btn fw-600 rounded-3 px-3 d-flex align-items-center gap-2"
+         style="background:#eff6ff;color:#0284c7;border:1.5px solid #bae6fd;font-size:.85rem">
+        <i class="bi bi-calendar3"></i>{% if ar %}إدارة التقويم{% else %}Calendar{% endif %}
+      </a>
+      <a href="{{ url_for('interviews.admin_reports') }}"
+         class="btn fw-600 rounded-3 px-3 d-flex align-items-center gap-2"
+         style="background:#fefce8;color:#a16207;border:1.5px solid #fde68a;font-size:.85rem">
+        <i class="bi bi-bar-chart-line"></i>{% if ar %}التقارير{% else %}Reports{% endif %}
+      </a>
+      {% if events|length == 1 %}
+      <a href="{{ url_for('interviews.admin_data_entry', event_id=events[0].id) }}"
+         class="btn text-white fw-600 rounded-3 px-3 d-flex align-items-center gap-2"
+         style="background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;box-shadow:0 4px 12px rgba(99,102,241,.3)">
+        <i class="bi bi-table"></i>{% if ar %}إدخال البيانات{% else %}Data Entry{% endif %}
+      </a>
+      {% endif %}
+      <a href="{{ url_for('interviews.admin_event_new') }}"
+         class="btn fw-600 rounded-3 px-3 d-flex align-items-center gap-2"
+         style="background:{% if events|length == 1 %}#f1f5f9;color:#475569;border:1.5px solid #e2e8f0{% else %}linear-gradient(135deg,#6366f1,#8b5cf6);color:white;border:none;box-shadow:0 4px 12px rgba(99,102,241,.3){% endif %}">
+        <i class="bi bi-plus-lg"></i>{% if ar %}فعالية جديدة{% else %}New Event{% endif %}
+      </a>
+    </div>
+  </div>
+
+  {# ── Stats summary ── #}
+  {%- set total_events=events|length -%}
+  {%- set open_events=events|selectattr('is_open')|list|length -%}
+  {%- set total_bookings=stats.values()|sum(attribute='booked') -%}
+  {%- set total_teachers=stats.values()|sum(attribute='teachers') -%}
+  <div class="row g-3 mb-4">
+    {% for icon,color,bg,num,lbl_ar,lbl_en in [
+      ('calendar2-event','#6366f1','#eef2ff',total_events,'إجمالي الفعاليات','Total Events'),
+      ('lightning-charge-fill','#16a34a','#f0fdf4',open_events,'فعاليات نشطة','Active Events'),
+      ('calendar-check','#d97706','#fffbeb',total_bookings,'إجمالي الحجوزات','Total Bookings'),
+      ('person-workspace','#0284c7','#eff6ff',total_teachers,'إجمالي المعلمين','Total Teachers'),
+    ] %}
+    <div class="col-6 col-lg-3">
+      <div class="pi-stat d-flex align-items-center gap-3">
+        <div class="icon" style="background:{{ bg }};color:{{ color }}"><i class="bi bi-{{ icon }}"></i></div>
+        <div>
+          <div class="num">{{ num }}</div>
+          <div class="lbl">{% if ar %}{{ lbl_ar }}{% else %}{{ lbl_en }}{% endif %}</div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {# ── Events table ── #}
+  {% if not events %}
+  <div class="empty-state">
+    <i class="bi bi-calendar-plus display-3 d-block mb-3" style="color:#c7d2fe"></i>
+    <h6 class="fw-700 mb-2" style="color:#475569">{% if ar %}لا توجد فعاليات بعد{% else %}No events yet{% endif %}</h6>
+    <p class="text-muted small mb-3">{% if ar %}ابدأ بإنشاء فعالية جديدة لتنظيم مقابلات أولياء الأمور{% else %}Create your first event to start organizing parent interviews{% endif %}</p>
+    <a href="{{ url_for('interviews.admin_event_new') }}"
+       class="btn text-white px-4 rounded-3" style="background:#6366f1;border:none">
+      <i class="bi bi-plus-lg me-2"></i>{% if ar %}إنشاء فعالية{% else %}Create Event{% endif %}
+    </a>
+  </div>
+  {% else %}
+
+  <div class="ev-table-card shadow-sm rounded-4">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>{% if ar %}اسم الفعالية{% else %}Event Name{% endif %}</th>
+            <th>{% if ar %}الرمز{% else %}Code{% endif %}</th>
+            <th>{% if ar %}الحالة{% else %}Status{% endif %}</th>
+            <th>{% if ar %}التواريخ{% else %}Dates{% endif %}</th>
+            <th>{% if ar %}المعلمون{% else %}Teachers{% endif %}</th>
+            <th>{% if ar %}الحجوزات{% else %}Slots{% endif %}</th>
+            <th>{% if ar %}إجراءات{% else %}Actions{% endif %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for ev in events %}
+          {%- set s=stats.get(ev.id,{'total':0,'booked':0,'teachers':0}) -%}
+          {%- set pct = ((s.booked / s.total * 100) if s.total > 0 else 0)|round|int -%}
+          <tr style="cursor:pointer" onclick="window.location='{{ url_for('interviews.admin_data_entry', event_id=ev.id) }}'">
+            {# Event name #}
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <div style="width:34px;height:34px;border-radius:10px;background:{{ ev.brand_color }};display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:.82rem;flex-shrink:0">{{ ev.name[0].upper() }}</div>
+                <div>
+                  <div class="fw-600" style="color:#0f172a">{{ ev.name }}{% if ev.use_hierarchy %} <span style="background:#f5f3ff;color:#7c3aed;font-size:.65rem;padding:2px 8px;border-radius:100px;font-weight:600;vertical-align:middle"><i class="bi bi-diagram-3"></i> {% if ar %}هرمي{% else %}Hierarchy{% endif %}</span>{% endif %}</div>
+                  {% if ev.school_name %}<div class="text-muted" style="font-size:.75rem">{{ ev.school_name }}</div>{% endif %}
+                </div>
+              </div>
+            </td>
+            {# Code (monospace, copy-on-click) #}
+            <td>
+              <span class="code-cell" onclick="navigator.clipboard.writeText('{{ ev.event_code }}');this.title='{% if ar %}تم النسخ{% else %}Copied{% endif %}'" title="{% if ar %}انسخ{% else %}Click to copy{% endif %}">
+                {{ ev.event_code }} <i class="bi bi-clipboard" style="font-size:.7rem;opacity:.5"></i>
+              </span>
+            </td>
+            {# Status badge + toggle #}
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                {% if ev.is_open %}
+                <span class="badge-open"><i class="bi bi-circle-fill" style="font-size:.4rem"></i> {% if ar %}مفتوح{% else %}Open{% endif %}</span>
+                {% else %}
+                <span class="badge-closed"><i class="bi bi-circle-fill" style="font-size:.4rem"></i> {% if ar %}مغلق{% else %}Closed{% endif %}</span>
+                {% endif %}
+                <button onclick="event.stopPropagation();toggleOpen({{ ev.id }},this)"
+                        class="btn btn-sm p-0 border-0" style="font-size:.82rem;color:#94a3b8"
+                        data-open="{{ 'true' if ev.is_open else 'false' }}"
+                        title="{% if ev.is_open %}{% if ar %}إغلاق{% else %}Close{% endif %}{% else %}{% if ar %}فتح{% else %}Open{% endif %}{% endif %}">
+                  <i class="bi bi-{{ 'toggle-on text-success' if ev.is_open else 'toggle-off' }}"></i>
+                </button>
+              </div>
+            </td>
+            {# Dates #}
+            <td class="text-muted" style="font-size:.8rem;white-space:nowrap">
+              {% if ev.start_date %}{{ ev.start_date.strftime('%d/%m') }}{% endif %}
+              {% if ev.end_date %} — {{ ev.end_date.strftime('%d/%m') }}{% endif %}
+              {% if not ev.start_date and not ev.end_date %}—{% endif %}
+            </td>
+            {# Teachers count #}
+            <td>
+              <span class="fw-600">{{ s.teachers }}</span>
+              <span class="text-muted" style="font-size:.75rem">{% if ar %}معلم{% else %}{% if s.teachers == 1 %}teacher{% else %}teachers{% endif %}{% endif %}</span>
+            </td>
+            {# Slots (booked/total with mini progress bar) #}
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <span class="fw-600" style="font-size:.82rem">{{ s.booked }}<span class="text-muted fw-normal">/{{ s.total }}</span></span>
+                <div class="slot-prog">
+                  <div class="fill" style="width:{{ pct }}%"></div>
+                </div>
+              </div>
+            </td>
+            {# Actions dropdown #}
+            <td onclick="event.stopPropagation()">
+              <div class="act-drop dropdown">
+                <button class="dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                  <i class="bi bi-three-dots-vertical"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                  <li><a class="dropdown-item" href="{{ url_for('interviews.admin_data_entry', event_id=ev.id) }}">
+                    <i class="bi bi-table" style="color:#6366f1"></i> {% if ar %}إدخال البيانات{% else %}Data Entry{% endif %}</a></li>
+                  <li><a class="dropdown-item" href="{{ url_for('interviews.admin_teachers', event_id=ev.id) }}">
+                    <i class="bi bi-person-plus text-primary"></i> {% if ar %}المعلمون{% else %}Teachers{% endif %}</a></li>
+                  <li><a class="dropdown-item" href="{{ url_for('interviews.admin_bookings', event_id=ev.id) }}">
+                    <i class="bi bi-calendar-check text-success"></i> {% if ar %}الحجوزات{% else %}Bookings{% endif %}</a></li>
+                  <li><a class="dropdown-item" href="{{ url_for('interviews.admin_timetable', event_id=ev.id) }}">
+                    <i class="bi bi-table text-info"></i> {% if ar %}الجدول{% else %}Timetable{% endif %}</a></li>
+                  <li><a class="dropdown-item" href="{{ url_for('interviews.admin_requests', event_id=ev.id) }}">
+                    <i class="bi bi-inbox text-warning"></i> {% if ar %}الطلبات{% else %}Requests{% endif %}</a></li>
+                  <li><a class="dropdown-item" href="{{ url_for('interviews.admin_codes', event_id=ev.id) }}">
+                    <i class="bi bi-qr-code text-secondary"></i> {% if ar %}الرموز{% else %}Codes{% endif %}</a></li>
+                  {% if ev.use_hierarchy %}
+                  <li><a class="dropdown-item" href="{{ url_for('interviews.admin_hierarchy', event_id=ev.id) }}">
+                    <i class="bi bi-diagram-3" style="color:#7c3aed"></i> {% if ar %}الهيكل الهرمي{% else %}Hierarchy{% endif %}</a></li>
+                  {% endif %}
+                  <li><hr class="dropdown-divider"></li>
+                  <li><a class="dropdown-item" href="{{ url_for('interviews.admin_event_edit', event_id=ev.id) }}">
+                    <i class="bi bi-pencil-square text-secondary"></i> {% if ar %}تعديل{% else %}Edit{% endif %}</a></li>
+                  <li>
+                    <form method="post" action="{{ url_for('interviews.admin_event_delete', event_id=ev.id) }}"
+                          onsubmit="return confirm('{% if ar %}حذف هذا الفعالية نهائياً؟{% else %}Delete this event permanently?{% endif %}')">
+                      <button type="submit" class="dropdown-item text-danger">
+                        <i class="bi bi-trash3"></i> {% if ar %}حذف{% else %}Delete{% endif %}
+                      </button>
+                    </form>
+                  </li>
+                </ul>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+function toggleOpen(id,btn){
+  fetch(`/interviews/admin/events/${id}/toggle-open`,{method:'POST'})
+    .then(r=>r.json()).then(d=>{
+      const isOpen=d.is_open;
+      btn.dataset.open=isOpen;
+      const icon=btn.querySelector('i');
+      if(icon){
+        icon.className=isOpen?'bi bi-toggle-on text-success':'bi bi-toggle-off';
+      }
+      btn.title=isOpen?'{{ "إغلاق" if ar else "Close" }}':'{{ "فتح" if ar else "Open" }}';
+      const row=btn.closest('tr');
+      if(row){
+        const badge=row.querySelector('.badge-open,.badge-closed');
+        if(badge){
+          badge.className=isOpen?'badge-open':'badge-closed';
+          badge.innerHTML=`<i class="bi bi-circle-fill" style="font-size:.4rem"></i> ${isOpen?'{{ "مفتوح" if ar else "Open" }}':'{{ "مغلق" if ar else "Closed" }}'}`;
+        }
+      }
+    });
+}
+</script>
+{% endblock %}

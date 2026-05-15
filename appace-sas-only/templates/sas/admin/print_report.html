@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+{%- set ar = (current_lang == 'ar') -%}
+
+{% block title %}{{ 'تقرير الغياب' if ar else 'Attendance Report' }}{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Print-only styles - override base layout for clean print */
+@media screen {
+  .print-report { max-width: 900px; margin: 0 auto; }
+}
+
+.print-report {
+  font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+  color: #1f2937;
+}
+
+/* School Header */
+.report-header {
+  display: flex; align-items: center; gap: 16px;
+  padding: 16px 0; border-bottom: 3px solid #0891b2;
+  margin-bottom: 16px;
+}
+.report-header .logo {
+  width: 72px; height: 72px; object-fit: contain; border-radius: 10px;
+}
+.report-header .logo-placeholder {
+  width: 72px; height: 72px; border-radius: 10px; background: #ecfeff;
+  display: flex; align-items: center; justify-content: center;
+  color: #0891b2; font-size: 2rem;
+}
+.report-header .info { flex: 1; }
+.report-header .school-name {
+  font-size: 1.2rem; font-weight: 800; color: #0e7490; margin: 0;
+}
+.report-header .report-title {
+  font-size: .95rem; font-weight: 600; color: #374151; margin: 4px 0 0;
+}
+.report-header .date-range {
+  font-size: .8rem; color: #6b7280; margin-top: 2px;
+}
+
+/* Filter Summary */
+.filter-summary {
+  background: #f9fafb; border-radius: 8px; padding: 10px 16px;
+  font-size: .82rem; color: #4b5563; margin-bottom: 16px;
+  border: 1px solid #e5e7eb;
+}
+
+/* Records Table */
+.report-table {
+  width: 100%; border-collapse: collapse; font-size: .82rem; margin-bottom: 16px;
+}
+.report-table th {
+  background: #ecfeff; color: #0e7490; font-weight: 700;
+  padding: 10px 12px; text-align: {{ 'right' if ar else 'left' }};
+  border-bottom: 2px solid #0891b2;
+}
+.report-table td {
+  padding: 8px 12px; border-bottom: 1px solid #f3f4f6;
+  vertical-align: middle;
+}
+.report-table tbody tr:nth-child(even) { background: #fafafa; }
+.report-table tbody tr:hover { background: #ecfeff; }
+.report-table .type-absent { color: #dc2626; font-weight: 600; }
+.report-table .type-late { color: #d97706; font-weight: 600; }
+.report-table .type-leave { color: #2563eb; font-weight: 600; }
+.report-table .type-other { color: #6b7280; font-weight: 600; }
+
+/* Summary Stats */
+.report-summary {
+  display: flex; gap: 12px; flex-wrap: wrap; padding: 16px 0;
+  border-top: 2px solid #0891b2; margin-top: 16px;
+}
+.summary-item {
+  flex: 1; min-width: 120px; text-align: center;
+  padding: 12px; border-radius: 10px; background: #f9fafb; border: 1px solid #e5e7eb;
+}
+.summary-item .num { font-size: 1.4rem; font-weight: 800; }
+.summary-item .lbl { font-size: .76rem; color: #6b7280; margin-top: 2px; }
+
+/* Print Footer */
+.report-footer {
+  text-align: center; font-size: .72rem; color: #9ca3af;
+  padding-top: 16px; border-top: 1px solid #e5e7eb; margin-top: 20px;
+}
+
+/* Print Media */
+@media print {
+  @page { size: A4 landscape; margin: 1cm; }
+  html, body { overflow: visible !important; height: auto !important; }
+  body { background: #fff !important; }
+  .sidebar, .topbar, #arsTickerBar, .app-footer, .sidebar-overlay,
+  .menu-btn, #liveUsersPanel, .no-print, .btn, .modal { display: none !important; }
+  .main-content { margin: 0 !important; height: auto !important; }
+  .content-area {
+    overflow: visible !important; padding: 0 !important;
+    height: auto !important; background: #fff !important;
+  }
+  .print-report { max-width: 100%; }
+  .report-table { page-break-inside: auto; }
+  .report-table tr { page-break-inside: avoid; }
+  .report-summary { page-break-inside: avoid; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="print-report">
+  <!-- Print/Close Buttons (hidden on print) -->
+  <div class="no-print d-flex justify-content-end gap-2 mb-3">
+    <button class="btn btn-sm" style="background:#0891b2;color:#fff;border:none;border-radius:8px;padding:7px 18px;font-weight:700" onclick="window.print()">
+      <i class="bi bi-printer me-1"></i>{{ 'طباعة' if ar else 'Print' }}
+    </button>
+    <a href="{{ url_for('sas.admin_dashboard') }}" class="btn btn-sm" style="border:1.5px solid #d1d5db;border-radius:8px;padding:7px 18px;font-weight:600;color:#374151">
+      <i class="bi bi-x-lg me-1"></i>{{ 'إغلاق' if ar else 'Close' }}
+    </a>
+  </div>
+
+  <!-- School Header -->
+  <div class="report-header">
+    {% if config.school_logo_b64 %}
+    <img src="{{ config.school_logo_b64 }}" class="logo" alt="Logo">
+    {% else %}
+    <div class="logo-placeholder"><i class="bi bi-building"></i></div>
+    {% endif %}
+    <div class="info">
+      <h2 class="school-name">{{ config.school_name_ar if ar else (config.school_name_en or config.school_name_ar) }}</h2>
+      <div class="report-title">{{ title or ('تقرير الغياب' if ar else 'Attendance Report') }}</div>
+      {% if date_from or date_to %}
+      <div class="date-range">
+        {{ date_from or '' }} {{ 'إلى' if ar else 'to' }} {{ date_to or '' }}
+      </div>
+      {% endif %}
+    </div>
+    <div style="text-align:center">
+      <div style="font-size:.78rem;color:#6b7280">{{ config.academic_year or '' }}</div>
+      <div style="font-size:.72rem;color:#9ca3af;margin-top:2px">{{ 'تاريخ الطباعة' if ar else 'Printed' }}: <span id="printDate"></span></div>
+    </div>
+  </div>
+
+  <!-- Filter Summary -->
+  {% if filters_text %}
+  <div class="filter-summary">
+    <i class="bi bi-funnel me-1"></i>{{ 'عوامل التصفية' if ar else 'Filters' }}: {{ filters_text }}
+  </div>
+  {% endif %}
+
+  <!-- Records Table -->
+  <table class="report-table">
+    <thead>
+      <tr>
+        <th style="width:40px">#</th>
+        <th>{{ 'الطالب' if ar else 'Student' }}</th>
+        <th>{{ 'المرحلة/الصف/الشعبة' if ar else 'Stage/Class/Section' }}</th>
+        <th>{{ 'التاريخ' if ar else 'Date' }}</th>
+        <th>{{ 'النوع' if ar else 'Type' }}</th>
+        <th>{{ 'الحالة' if ar else 'Status' }}</th>
+        <th>{{ 'ملاحظات' if ar else 'Notes' }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in records %}
+      <tr>
+        <td style="color:#9ca3af">{{ loop.index }}</td>
+        <td style="font-weight:600">{{ r.student_name or (r.student.name if r.student else '-') }}</td>
+        <td style="font-size:.8rem">
+          {{ r.stage_name or '' }}
+          {% if r.class_name %} / {{ r.class_name }}{% endif %}
+          {% if r.section_name %} / {{ r.section_name }}{% endif %}
+        </td>
+        <td style="font-size:.82rem;direction:ltr">{{ r.record_date if r.record_date is string else r.record_date| fmt_date if r.record_date else '-' }}</td>
+        <td>
+          {% if r.record_type == 'absent' %}<span class="type-absent">{{ 'غياب' if ar else 'Absent' }}</span>
+          {% elif r.record_type == 'late' %}<span class="type-late">{{ 'تأخر' if ar else 'Late' }}</span>
+          {% elif r.record_type == 'leave' %}<span class="type-leave">{{ 'استئذان' if ar else 'Leave' }}</span>
+          {% elif r.record_type == 'school_trip' %}<span class="type-other" style="color:#7c3aed">{{ 'رحلة مدرسية' if ar else 'School Trip' }}</span>
+          {% elif r.record_type == 'school_activity' %}<span class="type-other" style="color:#db2777">{{ 'نشاط مدرسي' if ar else 'School Activity' }}</span>
+          {% else %}<span class="type-other">{{ 'أخرى' if ar else 'Other' }}</span>
+          {% endif %}
+        </td>
+        <td style="font-size:.82rem">{{ r.status or '-' }}</td>
+        <td style="font-size:.8rem;color:#6b7280;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.notes or '-' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" style="text-align:center;color:#9ca3af;padding:30px">{{ 'لا توجد سجلات' if ar else 'No records found' }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Summary Stats -->
+  {% if records %}
+  {% set total_count = records|length %}
+  {% set absent_count = records|selectattr('record_type','equalto','absent')|list|length %}
+  {% set late_count = records|selectattr('record_type','equalto','late')|list|length %}
+  {% set leave_count = records|selectattr('record_type','equalto','leave')|list|length %}
+  {% set other_count = total_count - absent_count - late_count - leave_count %}
+
+  <div class="report-summary">
+    <div class="summary-item">
+      <div class="num" style="color:#0891b2">{{ total_count }}</div>
+      <div class="lbl">{{ 'إجمالي السجلات' if ar else 'Total Records' }}</div>
+    </div>
+    <div class="summary-item">
+      <div class="num" style="color:#dc2626">{{ absent_count }}</div>
+      <div class="lbl">{{ 'غياب' if ar else 'Absent' }}</div>
+    </div>
+    <div class="summary-item">
+      <div class="num" style="color:#d97706">{{ late_count }}</div>
+      <div class="lbl">{{ 'تأخر' if ar else 'Late' }}</div>
+    </div>
+    <div class="summary-item">
+      <div class="num" style="color:#2563eb">{{ leave_count }}</div>
+      <div class="lbl">{{ 'استئذان' if ar else 'Leave' }}</div>
+    </div>
+    <div class="summary-item">
+      <div class="num" style="color:#6b7280">{{ other_count }}</div>
+      <div class="lbl">{{ 'أخرى' if ar else 'Other' }}</div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Class Leave Records -->
+  {% if class_leaves is defined and class_leaves %}
+  <div style="margin-top:24px;padding-top:16px;border-top:2px solid #0891b2">
+    <h3 style="font-size:1rem;font-weight:700;color:#0e7490;margin-bottom:12px">
+      <i class="bi bi-door-open me-1"></i>{{ 'سجلات الخروج من الحصة' if ar else 'Class Leave Records' }}
+    </h3>
+    <table class="report-table">
+      <thead>
+        <tr>
+          <th style="width:40px">#</th>
+          <th>{{ 'الطالب' if ar else 'Student' }}</th>
+          <th>{{ 'المرحلة/الصف/الشعبة' if ar else 'Stage/Class/Section' }}</th>
+          <th>{{ 'التاريخ' if ar else 'Date' }}</th>
+          <th>{{ 'وقت الخروج' if ar else 'Leave Time' }}</th>
+          <th>{{ 'وقت العودة' if ar else 'Return' }}</th>
+          <th>{{ 'النوع' if ar else 'Type' }}</th>
+          <th>{{ 'الحالة' if ar else 'Status' }}</th>
+          <th>{{ 'ملاحظات' if ar else 'Notes' }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for cl in class_leaves %}
+        <tr>
+          <td style="color:#9ca3af">{{ loop.index }}</td>
+          <td style="font-weight:600">{{ cl.student.name if cl.student else '-' }}</td>
+          <td style="font-size:.8rem">
+            {% if cl.student and cl.student.section and cl.student.section.sas_class %}
+            {{ cl.student.section.sas_class.stage.name if cl.student.section.sas_class.stage else '' }}
+            / {{ cl.student.section.sas_class.name }}
+            / {{ cl.student.section.name }}
+            {% endif %}
+          </td>
+          <td style="font-size:.82rem;direction:ltr">{{ cl.leave_date }}</td>
+          <td>{{ cl.leave_time or '-' }}</td>
+          <td>{{ cl.return_time or '-' }}</td>
+          <td>
+            {% set lt = leave_types.get(cl.leave_type, (cl.leave_type, cl.leave_type)) %}
+            <span style="color:#0891b2;font-weight:600">{{ lt[0] if ar else lt[1] }}</span>
+          </td>
+          <td style="font-size:.82rem">{{ cl.status or '-' }}</td>
+          <td style="font-size:.8rem;color:#6b7280;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ cl.notes or '-' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% set cl_total = class_leaves|length %}
+    <div class="report-summary" style="border-top:1px solid #d1d5db;margin-top:12px;padding-top:12px">
+      <div class="summary-item">
+        <div class="num" style="color:#0891b2">{{ cl_total }}</div>
+        <div class="lbl">{{ 'إجمالي إذونات الخروج' if ar else 'Total Class Leaves' }}</div>
+      </div>
+      <div class="summary-item">
+        <div class="num" style="color:#059669">{{ class_leaves|selectattr('status','equalto','approved')|list|length }}</div>
+        <div class="lbl">{{ 'معتمد' if ar else 'Approved' }}</div>
+      </div>
+      <div class="summary-item">
+        <div class="num" style="color:#f59e0b">{{ class_leaves|selectattr('status','equalto','pending')|list|length }}</div>
+        <div class="lbl">{{ 'معلق' if ar else 'Pending' }}</div>
+      </div>
+      <div class="summary-item">
+        <div class="num" style="color:#dc2626">{{ class_leaves|selectattr('status','equalto','rejected')|list|length }}</div>
+        <div class="lbl">{{ 'مرفوض' if ar else 'Rejected' }}</div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Report Footer -->
+  <div class="report-footer">
+    {{ config.school_name_ar if ar else (config.school_name_en or config.school_name_ar) }} &mdash;
+    {{ 'إدارة دوام الطلبة' if ar else 'Student Attendance Management' }} &mdash;
+    {{ config.academic_year or '' }}
+  </div>
+</div>
+
+<script>
+// Set print date
+document.getElementById('printDate').textContent = new Date().toLocaleDateString('{{ "ar-SA" if ar else "en-US" }}', {year:'numeric',month:'short',day:'numeric'});
+
+// Auto-print on load
+window.onload = function(){
+  // Small delay to ensure rendering is complete
+  setTimeout(function(){ window.print(); }, 600);
+};
+</script>
+{% endblock %}

@@ -1,0 +1,333 @@
+{% extends "base.html" %}
+{%- set ar = (current_lang == 'ar') -%}
+
+{% block title %}{{ 'لوحة تحكم إدارة دوام الطلبة' if ar else 'SAS Dashboard' }}{% endblock %}
+
+{% block extra_css %}
+{% include 'sas/_sas_admin_styles.html' %}
+<style>
+.sas-page-header h1 { color: var(--sas) !important; }
+.sas-card { border-radius: 14px; border: none; box-shadow: 0 2px 12px rgba(16,185,129,.1); }
+.sas-card .card-header {
+  background: linear-gradient(135deg, var(--sas-dark), var(--sas-light));
+  color: #fff; border-radius: 14px 14px 0 0 !important;
+  padding: 12px 20px; font-weight: 700; font-size: .9rem;
+}
+.btn-sas {
+  background: linear-gradient(160deg, var(--sas-light), var(--sas), var(--sas-dark));
+  color: #fff; border: none; border-radius: 8px; padding: 7px 18px;
+  font-size: .84rem; font-weight: 700; transition: all .2s;
+}
+.btn-sas:hover { background: linear-gradient(160deg, #0e7490, #155e75); color: #fff; transform: translateY(-1px); }
+.btn-sas-outline {
+  background: transparent; color: var(--sas); border: 1.5px solid var(--sas);
+  border-radius: 8px; padding: 6px 16px; font-size: .84rem; font-weight: 600; transition: all .2s;
+}
+.btn-sas-outline:hover { background: var(--sas); color: #fff; }
+.sas-stat {
+  border-radius: 14px; padding: 18px 16px; color: #fff;
+  min-height: 88px; display: flex; flex-direction: column; justify-content: center;
+  box-shadow: 0 4px 14px rgba(0,0,0,.1); transition: transform .15s;
+}
+.sas-stat:hover { transform: translateY(-2px); }
+.sas-stat .num { font-size: 2rem; font-weight: 800; line-height: 1; }
+.sas-stat .lbl { font-size: .78rem; opacity: .92; margin-top: 4px; }
+.sas-stat .icn { font-size: 1.6rem; opacity: .7; position: absolute; top: 14px; }
+[dir="ltr"] .sas-stat .icn { right: 16px; }
+[dir="rtl"] .sas-stat .icn { left: 16px; }
+.sas-stat { position: relative; overflow: hidden; }
+.filter-bar {
+  background: var(--sas-bg); border-radius: 12px; padding: 14px 20px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 20px;
+  border: 1px solid rgba(16,185,129,.15);
+}
+.filter-bar label { font-size: .82rem; font-weight: 600; color: var(--sas-dark); }
+.filter-bar input[type="date"] { border-radius: 8px; border: 1.5px solid #d0dde0; padding: 5px 10px; font-size: .84rem; }
+.filter-bar input[type="date"]:focus { border-color: var(--sas); box-shadow: 0 0 0 3px rgba(16,185,129,.12); outline: none; }
+.sas-table th { background: var(--sas-bg) !important; color: var(--sas-dark) !important; font-weight: 700; }
+.chart-container { position: relative; min-height: 300px; }
+.quick-link {
+  display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;
+  border-radius: 8px; font-size: .82rem; font-weight: 600; text-decoration: none;
+  border: 1.5px solid #e5e7eb; color: #374151; transition: all .2s;
+}
+.quick-link:hover { border-color: var(--sas); color: var(--sas); background: var(--sas-bg); }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3 sas-page-header">
+  <h1 style="font-size:1.35rem;font-weight:700;margin:0">
+    <i class="bi bi-clipboard-data me-2"></i>{{ 'لوحة تحكم إدارة دوام الطلبة' if ar else 'SAS Dashboard' }}
+  </h1>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('sas.admin_config') }}" class="btn-sas-outline"><i class="bi bi-gear me-1"></i>{{ 'الإعدادات' if ar else 'Settings' }}</a>
+  </div>
+</div>
+
+<!-- Date Range Filter -->
+<form method="GET" class="filter-bar">
+  <label><i class="bi bi-calendar-range me-1"></i>{{ 'الفترة' if ar else 'Date Range' }}</label>
+  <div class="d-flex align-items-center gap-2 flex-wrap">
+    <input type="date" name="date_from" value="{{ request.args.get('date_from','') }}" class="form-control form-control-sm" style="width:auto">
+    <span style="color:#888;font-size:.82rem">{{ 'إلى' if ar else 'to' }}</span>
+    <input type="date" name="date_to" value="{{ request.args.get('date_to','') }}" class="form-control form-control-sm" style="width:auto">
+    <button type="submit" class="btn-sas btn-sm"><i class="bi bi-funnel me-1"></i>{{ 'تطبيق' if ar else 'Apply' }}</button>
+  </div>
+</form>
+
+<!-- Stat Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-4">
+    <a href="{{ url_for('sas.admin_students') }}" style="text-decoration:none;color:inherit">
+      <div class="sas-stat" style="background:linear-gradient(135deg,#0891b2,#0e7490)">
+        <i class="bi bi-people-fill icn"></i>
+        <div class="num">{{ total_students }}</div>
+        <div class="lbl">{{ 'إجمالي الطلاب' if ar else 'Total Students' }}</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-md-4">
+    <a href="{{ url_for('sas.admin_export') }}?record_type=absent&date_from={{ today_date }}&date_to={{ today_date }}" style="text-decoration:none;color:inherit">
+      <div class="sas-stat" style="background:linear-gradient(135deg,#ef4444,#dc2626)">
+        <i class="bi bi-person-x-fill icn"></i>
+        <div class="num">{{ today_absent }}</div>
+        <div class="lbl">{{ 'غياب اليوم' if ar else 'Today Absent' }}</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-md-4">
+    <a href="{{ url_for('sas.admin_export') }}?record_type=late&date_from={{ today_date }}&date_to={{ today_date }}" style="text-decoration:none;color:inherit">
+      <div class="sas-stat" style="background:linear-gradient(135deg,#f59e0b,#d97706)">
+        <i class="bi bi-clock-fill icn"></i>
+        <div class="num">{{ today_late }}</div>
+        <div class="lbl">{{ 'تأخر اليوم' if ar else 'Today Late' }}</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-md-4">
+    <a href="{{ url_for('sas.admin_export') }}?record_type=leave&date_from={{ today_date }}&date_to={{ today_date }}" style="text-decoration:none;color:inherit">
+      <div class="sas-stat" style="background:linear-gradient(135deg,#3b82f6,#2563eb)">
+        <i class="bi bi-door-open-fill icn"></i>
+        <div class="num">{{ today_leave }}</div>
+        <div class="lbl">{{ 'استئذان اليوم' if ar else 'Today Leave' }}</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-md-4">
+    <a href="{{ url_for('sas.admin_export') }}?date_from={{ week_start }}&date_to={{ week_end }}" style="text-decoration:none;color:inherit">
+      <div class="sas-stat" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed)">
+        <i class="bi bi-calendar-week-fill icn"></i>
+        <div class="num">{{ week_total }}</div>
+        <div class="lbl">{{ 'هذا الأسبوع' if ar else 'This Week Total' }}</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-md-4">
+    <a href="{{ url_for('sas.admin_export') }}?date_from={{ month_start }}&date_to={{ month_end }}" style="text-decoration:none;color:inherit">
+      <div class="sas-stat" style="background:linear-gradient(135deg,#6366f1,#4f46e5)">
+        <i class="bi bi-calendar-month-fill icn"></i>
+        <div class="num">{{ month_total }}</div>
+        <div class="lbl">{{ 'هذا الشهر' if ar else 'This Month Total' }}</div>
+      </div>
+    </a>
+  </div>
+</div>
+
+<!-- Charts Section -->
+<div class="row g-3 mb-4">
+  <!-- Monthly Trend -->
+  <div class="col-md-8">
+    <div class="sas-card card">
+      <div class="card-header">
+        <i class="bi bi-bar-chart-line me-2"></i>{{ 'الاتجاه الشهري' if ar else 'Monthly Trend' }}
+      </div>
+      <div class="card-body">
+        <div class="chart-container">
+          <canvas id="monthlyTrendChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Stage Distribution -->
+  <div class="col-md-4">
+    <div class="sas-card card">
+      <div class="card-header">
+        <i class="bi bi-diagram-3 me-2"></i>{{ 'توزيع المراحل' if ar else 'Stage Distribution' }}
+      </div>
+      <div class="card-body">
+        {% if stage_dist %}
+        {% set max_count = stage_dist|map(attribute='record_count')|list|max if stage_dist else 1 %}
+        {% for s in stage_dist %}
+        <div class="mb-2">
+          <div class="d-flex justify-content-between mb-1">
+            <span style="font-size:.82rem;font-weight:600;color:#374151">{{ s.stage_name }}</span>
+            <span style="font-size:.78rem;color:#6b7280">{{ s.record_count }}</span>
+          </div>
+          <div style="height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden">
+            <div style="height:100%;width:{{ (s.record_count / max_count * 100) if max_count else 0 }}%;background:linear-gradient(90deg,var(--sas),var(--sas-light));border-radius:4px;transition:width .6s"></div>
+          </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="text-center text-muted py-4" style="font-size:.85rem">
+          {{ 'لا توجد بيانات' if ar else 'No data available' }}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Top 10 Absent Students -->
+<div class="sas-card card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-trophy me-2"></i>{{ 'أكثر 10 طلاب غياباً' if ar else 'Top 10 Absent Students' }}</span>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 sas-table">
+        <thead>
+          <tr>
+            <th style="width:50px">#</th>
+            <th>{{ 'اسم الطالب' if ar else 'Student Name' }}</th>
+            <th>{{ 'المرحلة' if ar else 'Stage' }}</th>
+            <th style="width:100px">{{ 'عدد الغياب' if ar else 'Absences' }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in top_absent[:10] %}
+          <tr>
+            <td><span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:{% if loop.index<=3 %}var(--sas-bg){% else %}#f3f4f6{% endif %};font-weight:700;font-size:.82rem;color:{% if loop.index<=3 %}var(--sas-dark){% else %}#6b7280{% endif %}">{{ loop.index }}</span></td>
+            <td style="font-weight:600">{{ s.student_name }}</td>
+            <td><span style="background:var(--sas-bg);color:var(--sas-dark);padding:3px 10px;border-radius:20px;font-size:.78rem;font-weight:600">{{ s.stage_name }}</span></td>
+            <td><span style="background:#fef2f2;color:#dc2626;padding:3px 12px;border-radius:20px;font-size:.82rem;font-weight:700">{{ s.record_count }}</span></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="text-center text-muted py-4">{{ 'لا توجد بيانات' if ar else 'No data available' }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Class Leave Card -->
+<div class="sas-card card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-door-open me-2"></i>{{ 'تسجيل الخروج من الحصة - اليوم' if ar else "Today's Class Leave" }}</span>
+    <a href="{{ url_for('sas.admin_class_leave_export') }}" class="btn btn-sm" style="background:var(--sas-bg);color:var(--sas-dark);border:none;border-radius:8px;font-size:.78rem;font-weight:600;padding:4px 12px">
+      <i class="bi bi-download me-1"></i>{{ 'تصدير' if ar else 'Export' }}
+    </a>
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-4">
+        <div class="text-center">
+          <div style="font-size:2rem;font-weight:900;color:var(--sas)">{{ today_class_leaves|default(0) }}</div>
+          <div style="font-size:.82rem;color:#6b7280">{{ 'إجمالي إذونات اليوم' if ar else "Total today" }}</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="text-center">
+          <div style="font-size:2rem;font-weight:900;color:#f59e0b">{{ pending_class_leaves|default(0) }}</div>
+          <div style="font-size:.82rem;color:#6b7280">{{ 'معلق' if ar else 'Pending approval' }}</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        {% if cl_by_type %}
+        <div style="font-size:.8rem">
+          {% for lt, cnt in cl_by_type %}
+          <div class="d-flex justify-content-between mb-1">
+            <span style="color:#6b7280">
+              {% set lbl = leave_types.get(lt, (lt, lt)) %}
+              {{ lbl[0] if ar else lbl[1] }}
+            </span>
+            <span class="fw-bold">{{ cnt }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center text-muted" style="font-size:.82rem;padding-top:12px">{{ 'لا توجد إذونات اليوم' if ar else 'No leaves today' }}</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Links -->
+<div class="d-flex gap-2 flex-wrap mb-3">
+  <a href="{{ url_for('sas.admin_print') }}?date_from={{ request.args.get('date_from','') }}&date_to={{ request.args.get('date_to','') }}" target="_blank" class="quick-link">
+    <i class="bi bi-printer"></i>{{ 'طباعة' if ar else 'Print' }}
+  </a>
+  <a href="{{ url_for('sas.admin_export') }}?date_from={{ request.args.get('date_from','') }}&date_to={{ request.args.get('date_to','') }}" class="quick-link">
+    <i class="bi bi-download"></i>{{ 'تصدير' if ar else 'Export' }}
+  </a>
+  <a href="{{ url_for('sas.admin_compare') }}" class="quick-link">
+    <i class="bi bi-bar-chart-steps"></i>{{ 'مقارنة' if ar else 'Compare' }}
+  </a>
+  <a href="{{ url_for('sas.admin_class_leave_export') }}" class="quick-link">
+    <i class="bi bi-door-open"></i>{{ 'تصدير الخروج من الحصة' if ar else 'Export Class Leave' }}
+  </a>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function(){
+  const isRTL = document.documentElement.dir === 'rtl';
+  const ar = {{ 'true' if ar else 'false' }};
+
+  // Monthly Trend Chart
+  const trendData = {{ monthly_trend|tojson }};
+  if(trendData && trendData.length){
+    const ctx = document.getElementById('monthlyTrendChart');
+    if(ctx){
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: trendData.map(d => d.month),
+          datasets: [
+            {
+              label: ar ? 'غياب' : 'Absent',
+              data: trendData.map(d => d.absent),
+              backgroundColor: 'rgba(239,68,68,.85)',
+              borderRadius: 4
+            },
+            {
+              label: ar ? 'تأخر' : 'Late',
+              data: trendData.map(d => d.late),
+              backgroundColor: 'rgba(245,158,11,.85)',
+              borderRadius: 4
+            },
+            {
+              label: ar ? 'استئذان' : 'Leave',
+              data: trendData.map(d => d.leave),
+              backgroundColor: 'rgba(59,130,246,.85)',
+              borderRadius: 4
+            },
+            {
+              label: ar ? 'أخرى' : 'Other',
+              data: trendData.map(d => d.other),
+              backgroundColor: 'rgba(107,114,128,.7)',
+              borderRadius: 4
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'top', rtl: isRTL, labels: { font: { size: 12, weight: '600' }, usePointStyle: true, pointStyle: 'rectRounded' } }
+          },
+          scales: {
+            x: { stacked: true, grid: { display: false }, ticks: { font: { size: 11 } } },
+            y: { stacked: true, beginAtZero: true, grid: { color: 'rgba(0,0,0,.05)' }, ticks: { font: { size: 11 } } }
+          }
+        }
+      });
+    }
+  }
+})();
+</script>
+{% endblock %}

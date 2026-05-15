@@ -1,0 +1,654 @@
+{% extends "base.html" %}
+{%- set ar = (current_lang == 'ar') -%}
+
+{% block title %}{{ 'إدارة الطلاب' if ar else 'Student Management' }}{% endblock %}
+
+{% block extra_css %}
+{% include 'sas/_sas_admin_styles.html' %}
+<style>
+.sas-page-header h1 { color: var(--sas) !important; }
+.sas-card { border-radius: 14px; border: none; box-shadow: 0 2px 12px rgba(16,185,129,.1); }
+.sas-card .card-header {
+  background: linear-gradient(135deg, var(--sas-dark), var(--sas-light));
+  color: #fff; border-radius: 14px 14px 0 0 !important;
+  padding: 12px 20px; font-weight: 700; font-size: .9rem;
+}
+.btn-sas {
+  background: linear-gradient(160deg, var(--sas-light), var(--sas), var(--sas-dark));
+  color: #fff; border: none; border-radius: 8px; padding: 7px 18px;
+  font-size: .84rem; font-weight: 700; transition: all .2s;
+}
+.btn-sas:hover { background: linear-gradient(160deg, #0e7490, #155e75); color: #fff; transform: translateY(-1px); }
+.btn-sas-outline {
+  background: transparent; color: var(--sas); border: 1.5px solid var(--sas);
+  border-radius: 8px; padding: 6px 16px; font-size: .84rem; font-weight: 600; transition: all .2s;
+}
+.btn-sas-outline:hover { background: var(--sas); color: #fff; }
+.sas-table th { background: var(--sas-bg) !important; color: var(--sas-dark) !important; font-weight: 700; }
+.sas-table td { vertical-align: middle; }
+.sas-modal .modal-header {
+  background: linear-gradient(135deg, var(--sas-dark), var(--sas));
+  color: #fff;
+}
+.sas-modal .modal-content { border-radius: 16px; overflow: hidden; border: none; }
+.toolbar {
+  background: var(--sas-bg); border-radius: 12px; padding: 12px 16px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 16px;
+  border: 1px solid rgba(16,185,129,.15);
+}
+.toolbar .form-select { border-radius: 8px; font-size: .84rem; border: 1.5px solid #d1d5db; min-width: 140px; }
+.toolbar .form-select:focus { border-color: var(--sas); box-shadow: 0 0 0 3px rgba(16,185,129,.12); }
+.import-zone {
+  border: 2px dashed #d1d5db; border-radius: 12px; padding: 30px; text-align: center;
+  background: #f9fafb; transition: all .2s; cursor: pointer;
+}
+.import-zone:hover, .import-zone.dragover { border-color: var(--sas); background: var(--sas-bg); }
+.import-progress { display: none; margin-top: 16px; }
+.import-progress .progress { height: 8px; border-radius: 4px; background: #e5e7eb; }
+.import-progress .progress-bar { background: var(--sas); border-radius: 4px; transition: width .3s; }
+.import-results { display: none; margin-top: 16px; }
+.sas-pagination { display: flex; justify-content: center; gap: 4px; margin-top: 16px; }
+.sas-pagination a, .sas-pagination span {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 8px; font-size: .84rem; font-weight: 600;
+  text-decoration: none; transition: all .15s;
+}
+.sas-pagination a { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
+.sas-pagination a:hover { background: var(--sas-bg); color: var(--sas-dark); border-color: var(--sas); }
+.sas-pagination span.active { background: var(--sas); color: #fff; border: 1px solid var(--sas); }
+.sas-pagination span.dots { background: transparent; border: none; color: #9ca3af; }
+/* Sortable headers */
+.sas-table th.sortable { cursor: pointer; user-select: none; position: relative; padding-inline-end: 18px !important; }
+.sas-table th.sortable:hover { background: #d5f5f6 !important; }
+.sas-table th.sortable::after { content: '⇅'; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); font-size: .7rem; opacity: .4; }
+html[dir="rtl"] .sas-table th.sortable::after { right: auto; left: 6px; }
+.sas-table th.sortable.asc::after { content: '↑'; opacity: .9; color: var(--sas-dark); }
+.sas-table th.sortable.desc::after { content: '↓'; opacity: .9; color: var(--sas-dark); }
+/* Multi-select */
+.sas-table .row-check { width: 16px; height: 16px; accent-color: var(--sas); cursor: pointer; }
+.bulk-bar { display: none; background: linear-gradient(135deg, var(--sas-dark), var(--sas)); color: #fff; border-radius: 10px; padding: 8px 16px; margin-bottom: 10px; align-items: center; gap: 10px; font-size: .84rem; font-weight: 600; }
+.bulk-bar.show { display: flex; }
+.bulk-bar .count { background: rgba(255,255,255,.2); padding: 2px 10px; border-radius: 6px; }
+.bulk-bar .btn-bulk { background: rgba(255,255,255,.15); color: #fff; border: 1px solid rgba(255,255,255,.3); border-radius: 6px; font-size: .8rem; padding: 4px 12px; font-weight: 600; cursor: pointer; }
+.bulk-bar .btn-bulk:hover { background: rgba(255,255,255,.3); }
+.bulk-bar .btn-bulk.danger { background: rgba(220,38,38,.3); border-color: rgba(220,38,38,.5); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3 sas-page-header">
+  <h1 style="font-size:1.35rem;font-weight:700;margin:0">
+    <i class="bi bi-mortarboard me-2"></i>{{ 'إدارة الطلاب' if ar else 'Student Management' }}
+    <span style="font-size:.85rem;font-weight:500;color:#6b7280;margin-inline-start:8px">({{ total_students }})</span>
+  </h1>
+  <a href="{{ url_for('sas.admin_dashboard') }}" class="btn btn-sm" style="border:1.5px solid var(--sas);color:var(--sas);border-radius:8px;font-weight:600">
+    <i class="bi bi-arrow-{{ 'right' if ar else 'left' }} me-1"></i>{{ 'العودة' if ar else 'Back' }}
+  </a>
+</div>
+
+<!-- Toolbar -->
+<div class="toolbar">
+  <button class="btn-sas btn-sm" data-bs-toggle="modal" data-bs-target="#addStudentModal">
+    <i class="bi bi-plus-lg me-1"></i>{{ 'إضافة طالب' if ar else 'Add Student' }}
+  </button>
+  <button class="btn btn-sm" style="background:#eef2ff;color:#4f46e5;border:none;border-radius:8px;font-weight:600;padding:6px 14px;font-size:.84rem" data-bs-toggle="modal" data-bs-target="#importCSVModal">
+    <i class="bi bi-upload me-1"></i>{{ 'استيراد CSV' if ar else 'Import CSV' }}
+  </button>
+  <a href="{{ url_for('sas.admin_export') }}" class="btn-sas-outline btn-sm">
+    <i class="bi bi-download me-1"></i>{{ 'تصدير' if ar else 'Export' }}
+  </a>
+  <div style="flex:1"></div>
+  <select class="form-select form-select-sm" id="filterStage" onchange="filterStudents()">
+    <option value="">{{ 'كل المراحل' if ar else 'All Stages' }}</option>
+    {% for st in stages %}
+    <option value="{{ st.id }}" {{ 'selected' if request.args.get('stage_id')==st.id|string }}>{{ st.name }}</option>
+    {% endfor %}
+  </select>
+  <select class="form-select form-select-sm" id="filterClass" onchange="filterStudents()">
+    <option value="">{{ 'كل الصفوف' if ar else 'All Classes' }}</option>
+  </select>
+  <select class="form-select form-select-sm" id="filterSection" onchange="filterStudents()">
+    <option value="">{{ 'كل الشعب' if ar else 'All Sections' }}</option>
+  </select>
+</div>
+
+<!-- Bulk action bar -->
+<div class="bulk-bar" id="bulkBar">
+  <input type="checkbox" class="row-check" id="masterCheck" onchange="toggleAllStudents(this.checked)" title="{{ 'تحديد الكل' if ar else 'Select All' }}">
+  <span class="count"><span id="selectedCount">0</span> {{ 'محدد' if ar else 'selected' }}</span>
+  <button class="btn-bulk danger" onclick="bulkDeleteStudents()"><i class="bi bi-trash me-1"></i>{{ 'حذف المحدد' if ar else 'Delete Selected' }}</button>
+  <div style="flex:1"></div>
+  <button class="btn-bulk" onclick="clearSelection()"><i class="bi bi-x-lg me-1"></i>{{ 'إلغاء' if ar else 'Cancel' }}</button>
+</div>
+
+<!-- Student Table -->
+<div class="sas-card card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 sas-table" id="studentsTable">
+        <thead>
+          <tr>
+            <th style="width:36px"><input type="checkbox" class="row-check" id="headerCheck" onchange="toggleAllStudents(this.checked)"></th>
+            <th class="sortable" data-col="1">{{ 'الاسم' if ar else 'Name' }}</th>
+            <th class="sortable" data-col="2">{{ 'رقم الطالب' if ar else 'Student #' }}</th>
+            <th class="sortable" data-col="3">{{ 'المرحلة' if ar else 'Stage' }}</th>
+            <th class="sortable" data-col="4">{{ 'الصف' if ar else 'Class' }}</th>
+            <th class="sortable" data-col="5">{{ 'الشعبة' if ar else 'Section' }}</th>
+            <th class="sortable" data-col="6">{{ 'ولي الأمر' if ar else 'Guardian' }}</th>
+            <th>{{ 'الهاتف' if ar else 'Phone' }}</th>
+            <th>{{ 'الحالة' if ar else 'Active' }}</th>
+            <th style="width:80px">{{ 'إجراءات' if ar else 'Actions' }}</th>
+          </tr>
+        </thead>
+        <tbody id="studentsBody">
+          {% set row_num = 0 %}
+          {% for stage in stages %}
+            {% for cls in stage.classes %}
+              {% for sec in cls.sections %}
+                {% for student in sec.students %}
+                  {% set row_num = row_num + 1 %}
+                  <tr class="student-row" data-stage="{{ stage.id }}" data-class="{{ cls.id }}" data-section="{{ sec.id }}" data-student-id="{{ student.id }}">
+                    <td><input type="checkbox" class="row-check student-check" value="{{ student.id }}" onchange="updateBulkBar()"></td>
+                    <td style="font-weight:600">{{ student.name }}</td>
+                    <td><code style="background:#f3f4f6;padding:2px 8px;border-radius:6px;font-size:.8rem">{{ student.student_number or '-' }}</code></td>
+                    <td style="font-size:.82rem">{{ stage.name }}</td>
+                    <td style="font-size:.82rem">{{ cls.name }}</td>
+                    <td style="font-size:.82rem">{{ sec.name }}</td>
+                    <td style="font-size:.82rem">{{ student.guardian_name or '-' }}</td>
+                    <td style="font-size:.82rem;direction:ltr">{{ student.guardian_phone or '-' }}</td>
+                    <td>
+                      <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{{ '#10b981' if student.is_active else '#ef4444' }}"></span>
+                    </td>
+                    <td>
+                      <button class="btn btn-sm" style="background:#fef2f2;color:#dc2626;border:none;border-radius:6px;font-size:.76rem" onclick="deleteStudent({{ student.id }})">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </td>
+                  </tr>
+                {% endfor %}
+              {% endfor %}
+            {% endfor %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Pagination -->
+{% if request.args.get('page') is not none %}
+<div class="sas-pagination" id="pagination"></div>
+{% endif %}
+
+<!-- Manual Add Student Modal -->
+<div class="modal fade sas-modal" id="addStudentModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-person-plus me-2"></i>{{ 'إضافة طالب' if ar else 'Add Student' }}</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('sas.admin_student_add') }}">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">{{ 'المرحلة' if ar else 'Stage' }} <span class="text-danger">*</span></label>
+              <select class="form-select" id="manualStage" required onchange="updateManualClasses()">
+                <option value="">{{ '-- اختر --' if ar else '-- Select --' }}</option>
+                {% for st in stages %}
+                <option value="{{ st.id }}">{{ st.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">{{ 'الصف' if ar else 'Class' }} <span class="text-danger">*</span></label>
+              <select class="form-select" id="manualClass" required onchange="updateManualSections()">
+                <option value="">{{ '-- اختر المرحلة أولاً --' if ar else '-- Select stage first --' }}</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">{{ 'الشعبة' if ar else 'Section' }} <span class="text-danger">*</span></label>
+              <select class="form-select" id="manualSection" name="section_id" required>
+                <option value="">{{ '-- اختر الصف أولاً --' if ar else '-- Select class first --' }}</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">{{ 'اسم الطالب (عربي)' if ar else 'Student Name (AR)' }} <span class="text-danger">*</span></label>
+              <input type="text" name="name" class="form-control" dir="rtl" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">{{ 'اسم الطالب (إنجليزي)' if ar else 'Student Name (EN)' }}</label>
+              <input type="text" name="name_en" class="form-control" dir="ltr">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">{{ 'رقم الطالب' if ar else 'Student Number' }}</label>
+              <input type="text" name="student_number" class="form-control" dir="ltr">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">{{ 'اسم ولي الأمر' if ar else 'Guardian Name' }}</label>
+              <input type="text" name="guardian_name" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">{{ 'هاتف ولي الأمر' if ar else 'Guardian Phone' }}</label>
+              <input type="tel" name="guardian_phone" class="form-control" dir="ltr">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">{{ 'بريد ولي الأمر' if ar else 'Guardian Email' }}</label>
+              <input type="email" name="guardian_email" class="form-control" dir="ltr">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer" style="border-top:1px solid #e5e7eb">
+          <button type="button" class="btn btn-sm" style="border:1.5px solid #d1d5db;border-radius:8px;padding:7px 20px;font-weight:600" data-bs-dismiss="modal">{{ 'إلغاء' if ar else 'Cancel' }}</button>
+          <button type="submit" class="btn-sas"><i class="bi bi-check-lg me-1"></i>{{ 'حفظ' if ar else 'Save' }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Import CSV Modal (3 modes) -->
+<div class="modal fade sas-modal" id="importCSVModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-file-earmark-spreadsheet me-2"></i>{{ 'استيراد طلاب' if ar else 'Import Students' }}</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Mode Tabs -->
+        <ul class="nav nav-pills mb-3" style="gap:6px">
+          <li class="nav-item">
+            <button class="nav-link active" style="border-radius:8px;font-size:.84rem;font-weight:600" data-bs-toggle="pill" data-bs-target="#modeClass" type="button">
+              <i class="bi bi-file-earmark-plus me-1"></i>{{ 'رفع لصف' if ar else 'Class Upload' }}
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" style="border-radius:8px;font-size:.84rem;font-weight:600" data-bs-toggle="pill" data-bs-target="#modeStage" type="button">
+              <i class="bi bi-files me-1"></i>{{ 'رفع لمرحلة' if ar else 'Stage Upload' }}
+            </button>
+          </li>
+        </ul>
+
+        <div class="tab-content">
+          <!-- Class Upload Mode -->
+          <div class="tab-pane fade show active" id="modeClass">
+            <div class="row g-2 mb-3">
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">{{ 'المرحلة' if ar else 'Stage' }} <span class="text-danger">*</span></label>
+                <select class="form-select form-select-sm" id="classUploadStage" onchange="updateClassUploadClasses()">
+                  <option value="">{{ '-- اختر --' if ar else '-- Select --' }}</option>
+                  {% for st in stages %}
+                  <option value="{{ st.id }}">{{ st.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">{{ 'الصف' if ar else 'Class' }} <span class="text-danger">*</span></label>
+                <select class="form-select form-select-sm" id="classUploadClass">
+                  <option value="">{{ '-- اختر المرحلة أولاً --' if ar else '-- Select stage first --' }}</option>
+                </select>
+              </div>
+              <div class="col-md-4 d-flex align-items-end">
+                <a href="{{ url_for('sas.admin_students_template_class') }}" class="btn btn-sm" style="background:#f3f4f6;color:#374151;border:none;border-radius:8px;font-weight:600;font-size:.8rem;width:100%">
+                  <i class="bi bi-file-earmark-arrow-down me-1"></i>{{ 'تحميل القالب' if ar else 'Template' }}
+                </a>
+              </div>
+            </div>
+            <div class="mb-2" style="font-size:.8rem;color:#6b7280;background:#f9fafb;padding:8px 12px;border-radius:8px">
+              {{ 'الأعمدة المطلوبة: section, student_number, name, name_en, guardian_name, guardian_phone, guardian_email' if ar else 'Required columns: section, student_number, name, name_en, guardian_name, guardian_phone, guardian_email' }}
+            </div>
+            <div class="import-zone" onclick="document.getElementById('classCSVFile').click()" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="event.preventDefault();this.classList.remove('dragover');handleDropClass(event)">
+              <i class="bi bi-cloud-arrow-up" style="font-size:2rem;color:var(--sas);display:block;margin-bottom:6px"></i>
+              <div style="font-weight:600;color:#374151;font-size:.88rem">{{ 'اسحب ملف CSV أو انقر' if ar else 'Drag CSV or click to browse' }}</div>
+              <input type="file" id="classCSVFile" accept=".csv" style="display:none" onchange="classFileSelected(this)">
+            </div>
+            <div id="classFileName" style="display:none;margin-top:8px;padding:6px 12px;background:#f3f4f6;border-radius:8px;font-size:.84rem">
+              <i class="bi bi-file-earmark-check text-success me-1"></i><span id="classFileNameText"></span>
+            </div>
+          </div>
+
+          <!-- Stage Upload Mode -->
+          <div class="tab-pane fade" id="modeStage">
+            <div class="row g-2 mb-3">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">{{ 'المرحلة' if ar else 'Stage' }} <span class="text-danger">*</span></label>
+                <select class="form-select form-select-sm" id="stageUploadStage">
+                  <option value="">{{ '-- اختر --' if ar else '-- Select --' }}</option>
+                  {% for st in stages %}
+                  <option value="{{ st.id }}">{{ st.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-6 d-flex align-items-end">
+                <a href="{{ url_for('sas.admin_students_template_stage') }}" class="btn btn-sm" style="background:#f3f4f6;color:#374151;border:none;border-radius:8px;font-weight:600;font-size:.8rem;width:100%">
+                  <i class="bi bi-file-earmark-arrow-down me-1"></i>{{ 'تحميل القالب' if ar else 'Template' }}
+                </a>
+              </div>
+            </div>
+            <div class="mb-2" style="font-size:.8rem;color:#6b7280;background:#f9fafb;padding:8px 12px;border-radius:8px">
+              {{ 'الأعمدة المطلوبة: class, section, student_number, name, name_en, guardian_name, guardian_phone, guardian_email' if ar else 'Required columns: class, section, student_number, name, name_en, guardian_name, guardian_phone, guardian_email' }}
+            </div>
+            <div class="import-zone" onclick="document.getElementById('stageCSVFile').click()" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="event.preventDefault();this.classList.remove('dragover');handleDropStage(event)">
+              <i class="bi bi-cloud-arrow-up" style="font-size:2rem;color:var(--sas);display:block;margin-bottom:6px"></i>
+              <div style="font-weight:600;color:#374151;font-size:.88rem">{{ 'اسحب ملف CSV أو انقر' if ar else 'Drag CSV or click to browse' }}</div>
+              <input type="file" id="stageCSVFile" accept=".csv" style="display:none" onchange="stageFileSelected(this)">
+            </div>
+            <div id="stageFileName" style="display:none;margin-top:8px;padding:6px 12px;background:#f3f4f6;border-radius:8px;font-size:.84rem">
+              <i class="bi bi-file-earmark-check text-success me-1"></i><span id="stageFileNameText"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Shared progress & results -->
+        <div class="import-progress" id="importProgress">
+          <div style="font-size:.84rem;font-weight:600;color:#374151;margin-bottom:6px">
+            <span id="progressText">{{ 'جاري الرفع...' if ar else 'Uploading...' }}</span>
+            <span id="progressPct" style="float:{{ 'left' if ar else 'right' }}">0%</span>
+          </div>
+          <div class="progress">
+            <div class="progress-bar" id="progressBar" style="width:0%"></div>
+          </div>
+        </div>
+        <div class="import-results" id="importResults">
+          <div style="border-radius:10px;padding:14px;margin-top:8px" id="resultBox"></div>
+        </div>
+      </div>
+      <div class="modal-footer" style="border-top:1px solid #e5e7eb">
+        <button type="button" class="btn btn-sm" style="border:1.5px solid #d1d5db;border-radius:8px;padding:7px 20px;font-weight:600" data-bs-dismiss="modal">{{ 'إغلاق' if ar else 'Close' }}</button>
+        <button type="button" class="btn-sas" id="uploadBtn" onclick="uploadCSV()" disabled>
+          <i class="bi bi-cloud-upload me-1"></i>{{ 'رفع' if ar else 'Upload' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const ar = {{ 'true' if ar else 'false' }};
+
+// Stage/Class/Section hierarchy data for cascading filters
+const stagesData = {{ stages_json|tojson }};
+
+function filterStudents(){
+  const stageId = document.getElementById('filterStage').value;
+  const classId = document.getElementById('filterClass').value;
+  const sectionId = document.getElementById('filterSection').value;
+
+  // Update class dropdown based on stage
+  const classSelect = document.getElementById('filterClass');
+  const sectionSelect = document.getElementById('filterSection');
+
+  if(stageId){
+    const stage = stagesData.find(s => s.id == stageId);
+    classSelect.innerHTML = '<option value="">' + (ar ? 'كل الصفوف' : 'All Classes') + '</option>';
+    if(stage && stage.classes){
+      stage.classes.forEach(c => {
+        classSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+      });
+    }
+  } else {
+    classSelect.innerHTML = '<option value="">' + (ar ? 'كل الصفوف' : 'All Classes') + '</option>';
+  }
+
+  // Update section dropdown
+  if(classId && stageId){
+    const stage = stagesData.find(s => s.id == stageId);
+    const cls = stage && stage.classes ? stage.classes.find(c => c.id == classId) : null;
+    sectionSelect.innerHTML = '<option value="">' + (ar ? 'كل الشعب' : 'All Sections') + '</option>';
+    if(cls && cls.sections){
+      cls.sections.forEach(s => {
+        sectionSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+      });
+    }
+  } else {
+    sectionSelect.innerHTML = '<option value="">' + (ar ? 'كل الشعب' : 'All Sections') + '</option>';
+  }
+
+  // Filter rows
+  document.querySelectorAll('.student-row').forEach(row => {
+    let show = true;
+    if(stageId && row.dataset.stage !== stageId) show = false;
+    if(classId && row.dataset.class !== classId) show = false;
+    if(sectionId && row.dataset.section !== sectionId) show = false;
+    row.style.display = show ? '' : 'none';
+  });
+}
+
+// Manual add: cascading dropdowns
+function updateManualClasses(){
+  const stageId = document.getElementById('manualStage').value;
+  const classSelect = document.getElementById('manualClass');
+  const sectionSelect = document.getElementById('manualSection');
+  classSelect.innerHTML = '<option value="">' + (ar ? '-- اختر --' : '-- Select --') + '</option>';
+  sectionSelect.innerHTML = '<option value="">' + (ar ? '-- اختر الصف أولاً --' : '-- Select class first --') + '</option>';
+  if(!stageId) return;
+  const stage = stagesData.find(s => s.id == stageId);
+  if(stage && stage.classes){
+    stage.classes.forEach(c => { classSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`; });
+  }
+}
+function updateManualSections(){
+  const stageId = document.getElementById('manualStage').value;
+  const classId = document.getElementById('manualClass').value;
+  const sectionSelect = document.getElementById('manualSection');
+  sectionSelect.innerHTML = '<option value="">' + (ar ? '-- اختر --' : '-- Select --') + '</option>';
+  if(!stageId || !classId) return;
+  const stage = stagesData.find(s => s.id == stageId);
+  const cls = stage && stage.classes ? stage.classes.find(c => c.id == classId) : null;
+  if(cls && cls.sections){
+    cls.sections.forEach(s => { sectionSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`; });
+  }
+}
+
+// Class upload: cascading class dropdown
+function updateClassUploadClasses(){
+  const stageId = document.getElementById('classUploadStage').value;
+  const classSelect = document.getElementById('classUploadClass');
+  classSelect.innerHTML = '<option value="">' + (ar ? '-- اختر --' : '-- Select --') + '</option>';
+  if(!stageId) return;
+  const stage = stagesData.find(s => s.id == stageId);
+  if(stage && stage.classes){
+    stage.classes.forEach(c => { classSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`; });
+  }
+}
+
+// CSV Import (multi-mode)
+let classUploadFile = null;
+let stageUploadFile = null;
+
+function classFileSelected(input){
+  if(input.files.length){
+    classUploadFile = input.files[0];
+    document.getElementById('classFileName').style.display = 'block';
+    document.getElementById('classFileNameText').textContent = classUploadFile.name;
+    document.getElementById('uploadBtn').disabled = false;
+  }
+}
+function stageFileSelected(input){
+  if(input.files.length){
+    stageUploadFile = input.files[0];
+    document.getElementById('stageFileName').style.display = 'block';
+    document.getElementById('stageFileNameText').textContent = stageUploadFile.name;
+    document.getElementById('uploadBtn').disabled = false;
+  }
+}
+function handleDropClass(e){
+  const files = e.dataTransfer.files;
+  if(files.length && files[0].name.endsWith('.csv')){
+    classUploadFile = files[0];
+    document.getElementById('classFileName').style.display = 'block';
+    document.getElementById('classFileNameText').textContent = classUploadFile.name;
+    document.getElementById('uploadBtn').disabled = false;
+  }
+}
+function handleDropStage(e){
+  const files = e.dataTransfer.files;
+  if(files.length && files[0].name.endsWith('.csv')){
+    stageUploadFile = files[0];
+    document.getElementById('stageFileName').style.display = 'block';
+    document.getElementById('stageFileNameText').textContent = stageUploadFile.name;
+    document.getElementById('uploadBtn').disabled = false;
+  }
+}
+
+function uploadCSV(){
+  // Determine active tab mode
+  const isClassMode = document.getElementById('modeClass').classList.contains('show');
+  let selectedFile, formData;
+
+  if(isClassMode){
+    const stageId = document.getElementById('classUploadStage').value;
+    const classId = document.getElementById('classUploadClass').value;
+    if(!stageId || !classId){ alert(ar ? 'اختر المرحلة والصف' : 'Select stage and class'); return; }
+    if(!classUploadFile){ alert(ar ? 'اختر ملف' : 'Select a file'); return; }
+    selectedFile = classUploadFile;
+    formData = new FormData();
+    formData.append('file', selectedFile);
+    formData.append('stage_id', stageId);
+    formData.append('class_id', classId);
+  } else {
+    const stageId = document.getElementById('stageUploadStage').value;
+    if(!stageId){ alert(ar ? 'اختر المرحلة' : 'Select a stage'); return; }
+    if(!stageUploadFile){ alert(ar ? 'اختر ملف' : 'Select a file'); return; }
+    selectedFile = stageUploadFile;
+    formData = new FormData();
+    formData.append('file', selectedFile);
+    formData.append('stage_id', stageId);
+  }
+
+  const progress = document.getElementById('importProgress');
+  const progressBar = document.getElementById('progressBar');
+  const progressPct = document.getElementById('progressPct');
+  const results = document.getElementById('importResults');
+  const uploadBtn = document.getElementById('uploadBtn');
+
+  progress.style.display = 'block';
+  results.style.display = 'none';
+  uploadBtn.disabled = true;
+
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '{{ url_for("sas.admin_students_import") }}');
+
+  xhr.upload.onprogress = function(e){
+    if(e.lengthComputable){
+      const pct = Math.round(e.loaded / e.total * 100);
+      progressBar.style.width = pct + '%';
+      progressPct.textContent = pct + '%';
+    }
+  };
+
+  xhr.onload = function(){
+    progress.style.display = 'none';
+    results.style.display = 'block';
+    const resultBox = document.getElementById('resultBox');
+
+    if(xhr.status === 200){
+      const data = JSON.parse(xhr.responseText);
+      resultBox.style.background = '#ecfeff';
+      resultBox.style.border = '1px solid #22d3ee';
+      resultBox.innerHTML = `
+        <div style="font-weight:700;color:#0e7490;font-size:.9rem;margin-bottom:6px">
+          <i class="bi bi-check-circle me-1"></i>${ar ? 'تم الاستيراد بنجاح' : 'Import Successful'}
+        </div>
+        <div style="font-size:.84rem;color:#374151">
+          ${ar ? 'تمت إضافة' : 'Added'}: <strong>${data.imported || 0}</strong> |
+          ${ar ? 'أخطاء' : 'Errors'}: <strong>${(data.errors || []).length}</strong>
+        </div>
+        ${data.errors && data.errors.length ? '<div style="margin-top:8px;font-size:.78rem;color:#dc2626;max-height:100px;overflow-y:auto">' + data.errors.map(e => 'Row ' + e.row + ': ' + e.error).join('<br>') + '</div>' : ''}
+      `;
+      setTimeout(() => location.reload(), 2000);
+    } else {
+      let errMsg = ar ? 'حدث خطأ أثناء الاستيراد' : 'Error during import';
+      try { errMsg = JSON.parse(xhr.responseText).error || errMsg; } catch(e){}
+      resultBox.style.background = '#fef2f2';
+      resultBox.style.border = '1px solid #fca5a5';
+      resultBox.innerHTML = `<div style="color:#dc2626;font-weight:600"><i class="bi bi-x-circle me-1"></i>${errMsg}</div>`;
+      uploadBtn.disabled = false;
+    }
+  };
+
+  xhr.onerror = function(){
+    progress.style.display = 'none';
+    results.style.display = 'block';
+    document.getElementById('resultBox').innerHTML = '<div style="color:#dc2626">' + (ar ? 'فشل الاتصال' : 'Connection failed') + '</div>';
+    uploadBtn.disabled = false;
+  };
+
+  xhr.send(formData);
+}
+
+function deleteStudent(id){
+  if(!confirm(ar ? 'حذف هذا الطالب؟' : 'Delete this student?')) return;
+  fetch('{{ url_for("sas.admin_student_delete", student_id=0) }}'.replace('0', id), {method:'POST'})
+    .then(r => r.json())
+    .then(d => { if(d.ok) location.reload(); else alert(d.error || 'Error'); })
+    .catch(() => alert('Error'));
+}
+
+// Init filter on load
+document.addEventListener('DOMContentLoaded', function(){
+  const stageParam = '{{ request.args.get("stage_id","") }}';
+  if(stageParam){
+    document.getElementById('filterStage').value = stageParam;
+    filterStudents();
+  }
+  initSortable('studentsTable');
+});
+
+// ── Sortable headers ──
+function initSortable(tableId){
+  var table = document.getElementById(tableId);
+  if(!table) return;
+  table.querySelectorAll('th.sortable').forEach(function(th){
+    th.addEventListener('click', function(){
+      var col = parseInt(th.dataset.col);
+      var tbody = table.querySelector('tbody');
+      var rows = Array.from(tbody.querySelectorAll('tr'));
+      var asc = !th.classList.contains('asc');
+      // Reset all
+      table.querySelectorAll('th.sortable').forEach(function(h){ h.classList.remove('asc','desc'); });
+      th.classList.add(asc ? 'asc' : 'desc');
+      rows.sort(function(a,b){
+        var aText = (a.cells[col] ? a.cells[col].textContent.trim() : '').toLowerCase();
+        var bText = (b.cells[col] ? b.cells[col].textContent.trim() : '').toLowerCase();
+        if(!isNaN(aText) && !isNaN(bText) && aText !== '' && bText !== '') return asc ? aText - bText : bText - aText;
+        return asc ? aText.localeCompare(bText, 'ar') : bText.localeCompare(aText, 'ar');
+      });
+      rows.forEach(function(r){ tbody.appendChild(r); });
+    });
+  });
+}
+
+// ── Multi-select ──
+function updateBulkBar(){
+  var checks = document.querySelectorAll('.student-check:checked');
+  var bar = document.getElementById('bulkBar');
+  document.getElementById('selectedCount').textContent = checks.length;
+  bar.classList.toggle('show', checks.length > 0);
+  var headerCheck = document.getElementById('headerCheck');
+  var allVisible = document.querySelectorAll('.student-row:not([style*="display: none"]) .student-check');
+  headerCheck.checked = allVisible.length > 0 && checks.length === allVisible.length;
+}
+function toggleAllStudents(checked){
+  document.querySelectorAll('.student-row:not([style*="display: none"]) .student-check').forEach(function(cb){ cb.checked = checked; });
+  updateBulkBar();
+}
+function clearSelection(){
+  document.querySelectorAll('.student-check').forEach(function(cb){ cb.checked = false; });
+  document.getElementById('headerCheck').checked = false;
+  updateBulkBar();
+}
+function bulkDeleteStudents(){
+  var ids = Array.from(document.querySelectorAll('.student-check:checked')).map(function(cb){ return cb.value; });
+  if(!ids.length) return;
+  if(!confirm(ar ? 'حذف ' + ids.length + ' طالب محدد؟' : 'Delete ' + ids.length + ' selected students?')) return;
+  var done = 0;
+  ids.forEach(function(id){
+    fetch('{{ url_for("sas.admin_student_delete", student_id=0) }}'.replace('0', id), {method:'POST'})
+      .then(function(){ done++; if(done >= ids.length) location.reload(); })
+      .catch(function(){ done++; if(done >= ids.length) location.reload(); });
+  });
+}
+</script>
+{% endblock %}

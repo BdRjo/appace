@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+{% block title %}{% if current_lang=='en' %}Announcements — STAP{% else %}الإعلانات — STAP{% endif %}{% endblock %}
+{% block extra_css %}
+<style>
+.ann-card { border-radius:14px; border:none; box-shadow:0 2px 12px rgba(12,103,236,.1); transition:.2s; }
+.ann-card:hover { box-shadow:0 4px 20px rgba(12,103,236,.18); }
+.ann-badge-active  { background:#d4edda; color:#155724; border-radius:20px; padding:3px 12px; font-size:.75rem; font-weight:700; }
+.ann-badge-inactive{ background:#f8d7da; color:#721c24; border-radius:20px; padding:3px 12px; font-size:.75rem; font-weight:700; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <h1><i class="bi bi-megaphone me-2"></i>{% if current_lang=='en' %}Announcements{% else %}الإعلانات والإشعارات{% endif %}</h1>
+  <a href="{{ url_for('announcements.new') }}" class="btn btn-primary-ars">
+    <i class="bi bi-plus-lg me-1"></i>{% if current_lang=='en' %}New Announcement{% else %}إعلان جديد{% endif %}
+  </a>
+</div>
+
+<!-- Debug bar for admin -->
+<div class="alert alert-info d-flex align-items-center gap-3 py-2 px-3" style="border-radius:12px;border:none;background:#e8f4fd">
+  <i class="bi bi-bug" style="color:#0C67EC;font-size:1.1rem"></i>
+  <span class="small">
+    {% if current_lang=='en' %}To test a popup: click <strong>Preview</strong> on any announcement.{% else %}لاختبار الإعلان: اضغط <strong>معاينة</strong> على أي إعلان.{% endif %}
+  </span>
+  <a href="/announcements/api/debug" target="_blank" class="btn btn-sm btn-outline-primary ms-auto" style="border-radius:8px;font-size:.75rem">
+    <i class="bi bi-bug me-1"></i>Debug API
+  </a>
+</div>
+
+{% if items %}
+<div class="row g-3">
+  {% for ann in items %}
+  <div class="col-12">
+    <div class="card ann-card">
+      <div class="card-body d-flex align-items-start gap-3 flex-wrap">
+        <!-- Media preview -->
+        <div style="width:70px;height:70px;border-radius:10px;overflow:hidden;background:#f0f4ff;flex-shrink:0;display:flex;align-items:center;justify-content:center">
+          {% if ann.media_type == 'image' and ann.media_b64 %}
+            <img src="{{ ann.media_b64 }}" style="width:100%;height:100%;object-fit:cover">
+          {% elif ann.media_type in ('video_url','video_file') %}
+            <i class="bi bi-play-circle" style="font-size:2rem;color:#0C67EC"></i>
+          {% else %}
+            <i class="bi bi-megaphone" style="font-size:1.8rem;color:#0C67EC;opacity:.5"></i>
+          {% endif %}
+        </div>
+        <!-- Info -->
+        <div style="flex:1;min-width:0">
+          <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+            <span class="fw-bold" style="font-size:1rem">{{ ann.title_ar }}</span>
+            {% if ann.title_en %}<span class="text-muted small">/ {{ ann.title_en }}</span>{% endif %}
+            <span class="{% if ann.is_active %}ann-badge-active{% else %}ann-badge-inactive{% endif %}">
+              {% if ann.is_active %}✅ {% if current_lang=='en' %}Active{% else %}نشط{% endif %}
+              {% else %}⏸ {% if current_lang=='en' %}Inactive{% else %}متوقف{% endif %}{% endif %}
+            </span>
+          </div>
+          <div class="d-flex gap-3 flex-wrap" style="font-size:.78rem;color:#888">
+            <span><i class="bi bi-people me-1"></i>
+              {% if ann.target=='all' %}{% if current_lang=='en' %}All Users{% else %}كل المستخدمين{% endif %}
+              {% elif ann.target=='role' %}{{ ann.target_roles }}
+              {% else %}{% if current_lang=='en' %}Selected Users{% else %}مستخدمون محددون{% endif %}{% endif %}
+            </span>
+            <span><i class="bi bi-eye me-1"></i>
+              {% if ann.display_mode=='once_session' %}{% if current_lang=='en' %}Once per session{% else %}مرة لكل جلسة{% endif %}
+              {% elif ann.display_mode=='once_ever' %}{% if current_lang=='en' %}Once ever{% else %}مرة واحدة فقط{% endif %}
+              {% else %}{% if current_lang=='en' %}Every login{% else %}كل تسجيل دخول{% endif %}{% endif %}
+            </span>
+            {% if ann.start_date or ann.end_date %}
+            <span><i class="bi bi-calendar3 me-1"></i>
+              {{ ann.start_date.strftime('%Y-%m-%d') if ann.start_date else '∞' }}
+              → {{ ann.end_date.strftime('%Y-%m-%d') if ann.end_date else '∞' }}
+            </span>
+            {% endif %}
+            <span class="text-muted">{{ ann.created_at.strftime('%Y-%m-%d') if ann.created_at else '' }}</span>
+          </div>
+        </div>
+        <!-- Actions -->
+        <div class="d-flex gap-2 align-items-center">
+          <!-- Toggle active — shows clear ON/OFF state -->
+          <button class="btn btn-sm {% if ann.is_active %}btn-success{% else %}btn-outline-danger{% endif %}"
+                  style="padding:4px 12px;border-radius:8px;font-size:.78rem;font-weight:700"
+                  onclick="toggleAnn({{ ann.id }}, this)"
+                  title="{% if ann.is_active %}{% if current_lang=='en' %}Click to DEACTIVATE{% else %}اضغط لإيقاف التشغيل{% endif %}{% else %}{% if current_lang=='en' %}Click to ACTIVATE{% else %}اضغط لتفعيل{% endif %}{% endif %}">
+            <i class="bi bi-{% if ann.is_active %}toggle-on{% else %}toggle-off{% endif %} me-1"></i>
+            {% if ann.is_active %}{% if current_lang=='en' %}ON{% else %}مفعّل{% endif %}{% else %}{% if current_lang=='en' %}OFF{% else %}متوقف{% endif %}{% endif %}
+          </button>
+          {% if ann.display_mode == 'once_ever' %}
+          <form method="POST" action="{{ url_for('announcements.reset_dismissals', ann_id=ann.id) }}"
+                style="display:inline"
+                onsubmit="return confirm(this.dataset.msg)"
+                data-msg="{% if current_lang=='en' %}Reset announcement — all users will see it again?{% else %}إعادة تعيين الإعلان — سيظهر لجميع المستخدمين مجدداً؟{% endif %}">
+            <button class="btn btn-sm btn-outline-info" style="padding:4px 10px;border-radius:8px"
+                    title="{% if current_lang=='en' %}Reset (show again to all){% else %}إعادة تعيين (إظهار للجميع){% endif %}">
+              <i class="bi bi-arrow-clockwise"></i>
+            </button>
+          </form>
+          {% endif %}
+          <a href="{{ url_for('announcements.edit', ann_id=ann.id) }}"
+             class="btn btn-sm btn-outline-primary" style="padding:4px 10px;border-radius:8px">
+            <i class="bi bi-pencil"></i>
+          </a>
+          <!-- Preview button — shows popup immediately -->
+          <button class="btn btn-sm btn-outline-info" style="padding:4px 10px;border-radius:8px"
+                  onclick="previewAnn({{ ann.id }})"
+                  title="{% if current_lang=='en' %}Preview popup{% else %}معاينة النافذة{% endif %}">
+            <i class="bi bi-eye"></i>
+          </button>
+          <form method="POST" action="{{ url_for('announcements.delete', ann_id=ann.id) }}"
+                data-msg="{% if current_lang=='en' %}Delete this announcement?{% else %}حذف هذا الإعلان؟{% endif %}"
+                style="display:inline"
+                onsubmit="return confirm(this.dataset.msg)">
+            <button class="btn btn-sm btn-outline-danger" style="padding:4px 10px;border-radius:8px">
+              <i class="bi bi-trash"></i>
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card" style="border-radius:14px;border:none;box-shadow:0 2px 12px rgba(12,103,236,.08)">
+  <div class="card-body text-center py-5">
+    <i class="bi bi-megaphone" style="font-size:3.5rem;color:#0C67EC;opacity:.3"></i>
+    <p class="text-muted mt-3 mb-3">{% if current_lang=='en' %}No announcements yet{% else %}لا توجد إعلانات بعد{% endif %}</p>
+    <a href="{{ url_for('announcements.new') }}" class="btn btn-primary-ars">
+      <i class="bi bi-plus-lg me-1"></i>{% if current_lang=='en' %}Create First Announcement{% else %}إنشاء أول إعلان{% endif %}
+    </a>
+  </div>
+</div>
+{% endif %}
+
+<script>
+function toggleAnn(id, btn) {
+  fetch('/announcements/' + id + '/toggle', {method:'POST'})
+    .then(r=>r.json())
+    .then(d=>{
+      location.reload();
+    });
+}
+
+function previewAnn(id) {
+  // Force show the announcement regardless of dismissal/session
+  fetch('/announcements/api/preview/' + id)
+    .then(r=>r.json())
+    .then(ann=>{
+      if (!ann || ann.error) { alert('Error: ' + (ann.error||'not found')); return; }
+      // Trigger the global annQueue
+      if (typeof annQueue !== 'undefined') {
+        annQueue = [ann];
+        if (typeof showNext === 'function') showNext();
+        else window._annShowNext && window._annShowNext();
+      } else {
+        alert('Popup system not loaded — check base.html');
+      }
+    })
+    .catch(e => alert('Preview error: ' + e));
+}
+</script>
+{% endblock %}

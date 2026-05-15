@@ -1,0 +1,242 @@
+{% extends 'base.html' %}
+{% block title %}{% if current_lang=='en' %}Calendar Management{% else %}إدارة الروزنامة{% endif %}{% endblock %}
+{% block content %}
+{%- set ar = (current_lang == 'ar') -%}
+
+{# ── Header ── #}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+  <h5 class="fw-700 mb-0">
+    <i class="bi bi-calendar3 me-2"></i>{% if ar %}إدارة روزنامة المواعيد{% else %}Appointment Calendar Management{% endif %}
+  </h5>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('interviews.admin_calendar_bookings') }}" class="btn btn-sm btn-outline-primary rounded-3">
+      <i class="bi bi-inbox me-1"></i>{% if ar %}الطلبات{% else %}Requests{% endif %}
+      {% if pending_count %}<span class="badge bg-danger ms-1">{{ pending_count }}</span>{% endif %}
+    </a>
+    <a href="{{ url_for('interviews.admin_calendar_export') }}" class="btn btn-sm btn-outline-secondary rounded-3">
+      <i class="bi bi-download me-1"></i>{% if ar %}تصدير{% else %}Export{% endif %}
+    </a>
+    <a href="{{ url_for('interviews.admin_calendar_template') }}" class="btn btn-sm btn-outline-info rounded-3">
+      <i class="bi bi-file-earmark-spreadsheet me-1"></i>{% if ar %}قالب CSV{% else %}CSV Template{% endif %}
+    </a>
+    <button class="btn btn-sm btn-danger rounded-3" data-bs-toggle="modal" data-bs-target="#addBlockedModal">
+      <i class="bi bi-plus-lg me-1"></i>{% if ar %}إضافة فترة محظورة{% else %}Add Blocked Period{% endif %}
+    </button>
+    <button class="btn btn-sm btn-warning rounded-3" data-bs-toggle="modal" data-bs-target="#blockRangeModal">
+      <i class="bi bi-slash-circle me-1"></i>{% if ar %}حظر نطاق تواريخ{% else %}Block Date Range{% endif %}
+    </button>
+  </div>
+</div>
+
+{# ── Pending Requests Alert ── #}
+{% if pending_count %}
+<a href="{{ url_for('interviews.admin_calendar_bookings', status='pending') }}"
+   class="d-flex align-items-center gap-3 text-decoration-none mb-4 p-3 rounded-4"
+   style="background:linear-gradient(135deg,#fef3c7,#fde68a);border:1.5px solid #f59e0b;box-shadow:0 2px 8px rgba(245,158,11,.2)">
+  <div style="width:46px;height:46px;border-radius:14px;background:#f59e0b;color:white;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0">
+    <i class="bi bi-inbox-fill"></i>
+  </div>
+  <div class="flex-grow-1">
+    <div class="fw-700" style="color:#92400e;font-size:.95rem">
+      {% if ar %}يوجد {{ pending_count }} طلب موعد بانتظار المراجعة{% else %}{{ pending_count }} appointment request(s) awaiting review{% endif %}
+    </div>
+    <div style="font-size:.8rem;color:#a16207;margin-top:2px">
+      {% if ar %}انقر هنا للمراجعة والقبول أو الرفض{% else %}Click here to review, approve or reject{% endif %}
+    </div>
+  </div>
+  <div style="color:#a16207;font-size:1.2rem;flex-shrink:0">
+    <i class="bi bi-arrow-{{ 'left' if ar else 'right' }}-circle-fill"></i>
+  </div>
+</a>
+{% endif %}
+
+{# ── Stats Cards ── #}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm rounded-4 h-100">
+      <div class="card-body text-center py-3">
+        <div style="font-size:1.6rem;font-weight:800;color:#dc2626">{{ total_blocked }}</div>
+        <div class="small text-muted">{% if ar %}فترات محظورة{% else %}Blocked Periods{% endif %}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm rounded-4 h-100">
+      <div class="card-body text-center py-3">
+        <div style="font-size:1.6rem;font-weight:800;color:#2563eb">{{ total_bookings }}</div>
+        <div class="small text-muted">{% if ar %}إجمالي الطلبات{% else %}Total Requests{% endif %}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm rounded-4 h-100">
+      <div class="card-body text-center py-3">
+        <div style="font-size:1.6rem;font-weight:800;color:#f59e0b">{{ pending_count }}</div>
+        <div class="small text-muted">{% if ar %}قيد الانتظار{% else %}Pending{% endif %}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm rounded-4 h-100">
+      <div class="card-body text-center py-3">
+        <div style="font-size:1.6rem;font-weight:800;color:#16a34a">{{ approved_count }}</div>
+        <div class="small text-muted">{% if ar %}مقبول{% else %}Approved{% endif %}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── CSV Import ── #}
+<div class="card border-0 shadow-sm rounded-4 mb-3">
+  <div class="card-body p-3">
+    <form method="post" action="{{ url_for('interviews.admin_calendar_import') }}" enctype="multipart/form-data" class="d-flex align-items-center gap-2 flex-wrap">
+      <i class="bi bi-upload text-primary"></i>
+      <span class="fw-600 small">{% if ar %}استيراد فترات محظورة (CSV){% else %}Import Blocked Periods (CSV){% endif %}</span>
+      <input type="file" name="csv_file" accept=".csv" class="form-control form-control-sm" style="max-width:250px" required>
+      <button type="submit" class="btn btn-sm btn-primary rounded-3">{% if ar %}رفع{% else %}Upload{% endif %}</button>
+    </form>
+  </div>
+</div>
+
+{# ── Section: Blocked Periods by Date ── #}
+<h6 class="fw-700 mt-4 mb-3">
+  <i class="bi bi-slash-circle text-danger me-1"></i>{% if ar %}الفترات المحظورة{% else %}Blocked Periods{% endif %}
+</h6>
+
+{% if dates %}
+{% for d in dates %}
+<div class="card border-0 shadow-sm rounded-4 mb-3">
+  <div class="card-header bg-light border-0 rounded-top-4 py-2 px-3">
+    <strong><i class="bi bi-calendar3 me-1 text-danger"></i> {{ d }}</strong>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 small">
+        <thead><tr>
+          <th>{% if ar %}من{% else %}From{% endif %}</th>
+          <th>{% if ar %}إلى{% else %}To{% endif %}</th>
+          <th>{% if ar %}النوع{% else %}Type{% endif %}</th>
+          <th>{% if ar %}ملاحظة{% else %}Note{% endif %}</th>
+          <th style="width:120px"></th>
+        </tr></thead>
+        <tbody>
+        {% for s in by_date[d] %}
+        <tr>
+          <td class="font-monospace">{{ s.start_time }}</td>
+          <td class="font-monospace">{{ s.end_time }}</td>
+          <td>
+            {% if s.status == 'break' %}
+            <span class="badge bg-warning-subtle text-warning border border-warning-subtle">{% if ar %}استراحة{% else %}Break{% endif %}</span>
+            {% else %}
+            <span class="badge bg-danger-subtle text-danger border border-danger-subtle">{% if ar %}محظور{% else %}Blocked{% endif %}</span>
+            {% endif %}
+          </td>
+          <td style="color:#64748b">{{ s.note or '' }}</td>
+          <td class="text-end">
+            <button class="btn btn-sm btn-outline-primary" style="font-size:.72rem" data-bs-toggle="modal" data-bs-target="#edit-{{ s.id }}">
+              <i class="bi bi-pencil"></i>
+            </button>
+            <form method="post" action="{{ url_for('interviews.admin_calendar_delete_slot', slot_id=s.id) }}" style="display:inline"
+                  onsubmit="return confirm('{% if ar %}تأكيد الحذف؟{% else %}Delete?{% endif %}')">
+              <button type="submit" class="btn btn-sm btn-outline-danger" style="font-size:.72rem">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+
+            {# Edit modal #}
+            <div class="modal fade" id="edit-{{ s.id }}" tabindex="-1"><div class="modal-dialog"><div class="modal-content rounded-4">
+              <div class="modal-header border-0"><h6 class="modal-title fw-700">{% if ar %}تعديل الفترة{% else %}Edit Period{% endif %}</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+              <form method="post" action="{{ url_for('interviews.admin_calendar_edit_slot', slot_id=s.id) }}">
+              <div class="modal-body">
+                <div class="mb-3"><label class="form-label small fw-600">{% if ar %}التاريخ{% else %}Date{% endif %}</label>
+                  <input type="date" name="slot_date" class="form-control" value="{{ s.slot_date }}" required></div>
+                <div class="row g-2 mb-3">
+                  <div class="col-6"><label class="form-label small fw-600">{% if ar %}من{% else %}From{% endif %}</label>
+                    <input type="time" name="start_time" class="form-control" value="{{ s.start_time }}" required></div>
+                  <div class="col-6"><label class="form-label small fw-600">{% if ar %}إلى{% else %}To{% endif %}</label>
+                    <input type="time" name="end_time" class="form-control" value="{{ s.end_time }}" required></div>
+                </div>
+                <div class="mb-3"><label class="form-label small fw-600">{% if ar %}النوع{% else %}Type{% endif %}</label>
+                  <select name="status" class="form-select">
+                    <option value="blocked" {{ 'selected' if s.status=='blocked' }}>{% if ar %}محظور{% else %}Blocked{% endif %}</option>
+                    <option value="break" {{ 'selected' if s.status=='break' }}>{% if ar %}استراحة{% else %}Break{% endif %}</option>
+                  </select></div>
+                <div class="mb-3"><label class="form-label small fw-600">{% if ar %}ملاحظة{% else %}Note{% endif %}</label>
+                  <input type="text" name="note" class="form-control" value="{{ s.note or '' }}"></div>
+              </div>
+              <div class="modal-footer border-0">
+                <button type="submit" class="btn btn-primary rounded-3">{% if ar %}حفظ{% else %}Save{% endif %}</button></div>
+              </form>
+            </div></div></div>
+          </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endfor %}
+{% else %}
+<div class="card border-0 shadow-sm rounded-4">
+  <div class="card-body text-center py-5">
+    <i class="bi bi-calendar-check fs-1 text-muted"></i>
+    <p class="mt-2 text-muted">{% if ar %}لا توجد فترات محظورة — جميع الأوقات متاحة للحجز{% else %}No blocked periods — all work hours are available for booking{% endif %}</p>
+  </div>
+</div>
+{% endif %}
+
+{# ── Add Blocked Period Modal ── #}
+<div class="modal fade" id="addBlockedModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content rounded-4">
+  <div class="modal-header border-0"><h6 class="modal-title fw-700">{% if ar %}إضافة فترة محظورة{% else %}Add Blocked Period{% endif %}</h6>
+    <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <form method="post" action="{{ url_for('interviews.admin_calendar_add_slot') }}">
+  <div class="modal-body">
+    <div class="mb-3"><label class="form-label small fw-600">{% if ar %}التاريخ{% else %}Date{% endif %}</label>
+      <input type="date" name="slot_date" class="form-control" required></div>
+    <div class="row g-2 mb-3">
+      <div class="col-6"><label class="form-label small fw-600">{% if ar %}من{% else %}From{% endif %}</label>
+        <input type="time" name="start_time" class="form-control" value="08:00" required></div>
+      <div class="col-6"><label class="form-label small fw-600">{% if ar %}إلى{% else %}To{% endif %}</label>
+        <input type="time" name="end_time" class="form-control" value="15:30" required></div>
+    </div>
+    <div class="mb-3"><label class="form-label small fw-600">{% if ar %}النوع{% else %}Type{% endif %}</label>
+      <select name="status" class="form-select">
+        <option value="blocked">{% if ar %}محظور{% else %}Blocked{% endif %}</option>
+        <option value="break">{% if ar %}استراحة{% else %}Break{% endif %}</option>
+      </select></div>
+    <div class="mb-3"><label class="form-label small fw-600">{% if ar %}ملاحظة{% else %}Note{% endif %}</label>
+      <input type="text" name="note" class="form-control" placeholder="{% if ar %}السبب...{% else %}Reason...{% endif %}"></div>
+  </div>
+  <div class="modal-footer border-0">
+    <button type="submit" class="btn btn-danger rounded-3">{% if ar %}إضافة{% else %}Add{% endif %}</button></div>
+  </form>
+</div></div></div>
+
+{# ── Block Date Range Modal ── #}
+<div class="modal fade" id="blockRangeModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content rounded-4">
+  <div class="modal-header border-0"><h6 class="modal-title fw-700">{% if ar %}حظر نطاق تواريخ{% else %}Block Date Range{% endif %}</h6>
+    <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <form method="post" action="{{ url_for('interviews.admin_calendar_block_period') }}">
+  <div class="modal-body">
+    <div class="row g-2 mb-3">
+      <div class="col-6"><label class="form-label small fw-600">{% if ar %}من تاريخ{% else %}From Date{% endif %}</label>
+        <input type="date" name="from_date" class="form-control" required></div>
+      <div class="col-6"><label class="form-label small fw-600">{% if ar %}إلى تاريخ{% else %}To Date{% endif %}</label>
+        <input type="date" name="to_date" class="form-control"></div>
+    </div>
+    <div class="row g-2 mb-3">
+      <div class="col-6"><label class="form-label small fw-600">{% if ar %}من{% else %}From{% endif %}</label>
+        <input type="time" name="start_time" class="form-control" value="08:00" required></div>
+      <div class="col-6"><label class="form-label small fw-600">{% if ar %}إلى{% else %}To{% endif %}</label>
+        <input type="time" name="end_time" class="form-control" value="15:30" required></div>
+    </div>
+    <div class="mb-3"><label class="form-label small fw-600">{% if ar %}ملاحظة{% else %}Note{% endif %}</label>
+      <input type="text" name="note" class="form-control" placeholder="{% if ar %}السبب...{% else %}Reason...{% endif %}"></div>
+  </div>
+  <div class="modal-footer border-0">
+    <button type="submit" class="btn btn-danger rounded-3">{% if ar %}حظر{% else %}Block{% endif %}</button></div>
+  </form>
+</div></div></div>
+{% endblock %}

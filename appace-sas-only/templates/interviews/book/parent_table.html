@@ -1,0 +1,242 @@
+{%- set ar = (current_lang == 'ar') -%}
+{% extends 'interviews/_public_base.html' %}
+{% block title %}{% if ar %}حجز المقابلات{% else %}Book Interview{% endif %}{% endblock %}
+
+{% block nav_action %}
+<a href="{{ url_for('interviews.book_welcome') }}" class="nav-back-btn">
+  <i class="bi bi-arrow-{{ 'right' if ar else 'left' }}"></i>
+</a>
+{% endblock %}
+
+{% block extra_style %}
+<style>
+.pt-card{background:white;border-radius:18px;box-shadow:0 1px 3px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.06);
+  border:1px solid rgba(255,255,255,.8);padding:24px;max-width:720px;margin:0 auto}
+.pt-title{font-weight:800;font-size:1.05rem;color:#0f172a;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+.pt-table{width:100%;font-size:.85rem;border-collapse:collapse}
+.pt-table thead th{background:#f8fafc;font-weight:700;color:#475569;font-size:.75rem;text-transform:uppercase;
+  letter-spacing:.03em;padding:10px 12px;border-bottom:2px solid #e2e8f0}
+.pt-table tbody td{padding:12px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+.pt-table tbody tr:hover{background:#fafbff}
+.pt-code{font-family:'SF Mono','Fira Code',monospace;font-size:.82rem;background:#eef2ff;color:#6366f1;
+  padding:6px 14px;border-radius:10px;font-weight:700;cursor:pointer;border:1.5px solid #c7d2fe;
+  display:inline-flex;align-items:center;gap:6px;transition:all .2s;text-decoration:none}
+.pt-code:hover{background:#6366f1;color:white;border-color:#6366f1;transform:translateY(-1px);box-shadow:0 4px 12px rgba(99,102,241,.3)}
+/* Course panel (hidden initially) */
+.course-panel{display:none;margin-top:16px;background:#fafbff;border-radius:14px;border:1.5px solid #e2e8f0;padding:20px}
+.course-panel.active{display:block}
+.course-row{display:flex;align-items:center;gap:12px;padding:10px 14px;background:white;border-radius:10px;
+  border:1.5px solid #f1f5f9;margin-bottom:8px;cursor:pointer;transition:all .2s}
+.course-row:hover{border-color:var(--bc-mid);box-shadow:0 2px 8px rgba(0,0,0,.06);transform:translateY(-1px)}
+.course-row .icon{width:36px;height:36px;border-radius:10px;background:var(--bc-light);color:var(--bc);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0}
+/* Slot grid */
+.slot-panel{display:none;margin-top:16px}
+.slot-panel.active{display:block}
+.date-tab{display:inline-flex;padding:6px 16px;border-radius:100px;font-size:.8rem;font-weight:600;cursor:pointer;
+  border:1.5px solid #e2e8f0;background:white;color:#475569;margin:0 4px 8px 0;transition:all .15s}
+.date-tab.active{background:var(--bc);color:white;border-color:var(--bc)}
+.slot-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;margin-top:12px}
+.slot-btn{padding:10px 8px;border-radius:10px;border:1.5px solid #e2e8f0;background:white;font-size:.82rem;
+  font-weight:600;cursor:pointer;text-align:center;transition:all .2s;color:#0f172a}
+.slot-btn:hover{border-color:var(--bc);background:var(--bc-light)}
+.slot-btn.selected{background:var(--bc);color:white;border-color:var(--bc)}
+.slot-btn.booked{background:#f1f5f9;color:#94a3b8;cursor:not-allowed;border-color:#e2e8f0}
+/* Confirm form */
+.confirm-panel{display:none;margin-top:20px}
+.confirm-panel.active{display:block}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="pt-card">
+    <div class="pt-title">
+      <i class="bi bi-calendar2-heart" style="color:var(--bc)"></i>
+      {% if ar %}اختر مقابلتك{% else %}Book Your Interview{% endif %}
+    </div>
+    <p class="text-muted mb-3" style="font-size:.85rem">
+      {% if ar %}اختر الشعبة المناسبة ثم اضغط على كود الحجز{% else %}Find your class and click the booking code{% endif %}
+    </p>
+
+    {# ── Main table: Stage | Class | Section | Code ── #}
+    <table class="pt-table" id="main-table">
+      <thead>
+        <tr>
+          <th>{% if ar %}المرحلة{% else %}Stage{% endif %}</th>
+          <th>{% if ar %}الصف{% else %}Class{% endif %}</th>
+          <th>{% if ar %}الشعبة{% else %}Section{% endif %}</th>
+          <th>{% if ar %}كود الحجز{% else %}Booking Code{% endif %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td>{{ r.stage }}</td>
+          <td>{{ r.cls }}</td>
+          <td>{{ r.section }}</td>
+          <td>
+            <a href="javascript:void(0)" class="pt-code" onclick="showCourses('{{ r.section_id }}','{{ r.stage }}','{{ r.cls }}','{{ r.section }}')">
+              {{ r.code }} <i class="bi bi-arrow-{{ 'left' if ar else 'right' }}" style="font-size:.7rem"></i>
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {# ── Course panel (appears when code clicked) ── #}
+    <div class="course-panel" id="course-panel">
+      <h6 class="fw-700 mb-3" style="font-size:.9rem">
+        <i class="bi bi-book me-2" style="color:var(--bc)"></i>
+        <span id="course-header"></span>
+      </h6>
+      <div id="course-list"></div>
+    </div>
+
+    {# ── Slot panel (appears when course selected) ── #}
+    <div class="slot-panel" id="slot-panel">
+      <h6 class="fw-700 mb-2" style="font-size:.9rem">
+        <i class="bi bi-clock me-2" style="color:var(--bc)"></i>
+        {% if ar %}اختر الموعد المناسب{% else %}Pick Available Time{% endif %}
+      </h6>
+      <div id="date-tabs"></div>
+      <div id="slot-grid" class="slot-grid"></div>
+    </div>
+
+    {# ── Confirm form ── #}
+    <div class="confirm-panel" id="confirm-panel">
+      <h6 class="fw-700 mb-3" style="font-size:.9rem">
+        <i class="bi bi-person-check me-2" style="color:#16a34a"></i>
+        {% if ar %}تأكيد الحجز{% else %}Confirm Booking{% endif %}
+      </h6>
+      <form method="post" action="{{ url_for('interviews.book_confirm', event_id=ev.id) }}" id="confirm-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="slot_ids" id="selected-slot-id">
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-sm-6">
+            <label class="pi-label">{% if ar %}اسم ولي الأمر{% else %}Parent Name{% endif %} *</label>
+            <input name="parent_name" class="pi-input" required>
+          </div>
+          <div class="col-12 col-sm-6">
+            <label class="pi-label">{% if ar %}اسم الطالب{% else %}Student Name{% endif %} *</label>
+            <input name="child_name" class="pi-input" required>
+          </div>
+          <div class="col-12 col-sm-6">
+            <label class="pi-label">{% if ar %}البريد الإلكتروني{% else %}Email{% endif %}</label>
+            <input name="parent_email" class="pi-input" type="email">
+          </div>
+          <div class="col-12 col-sm-6">
+            <label class="pi-label">{% if ar %}رقم الهاتف{% else %}Phone{% endif %}</label>
+            <input name="parent_phone" class="pi-input" type="tel">
+          </div>
+          {% if ev.allow_comments %}
+          <div class="col-12">
+            <label class="pi-label">{% if ar %}ملاحظات{% else %}Notes{% endif %}</label>
+            <textarea name="comment" class="pi-input" rows="2"></textarea>
+          </div>
+          {% endif %}
+        </div>
+        <button type="submit" class="btn-pi btn w-100">
+          <i class="bi bi-check-circle me-2"></i>{% if ar %}تأكيد الحجز{% else %}Confirm Booking{% endif %}
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_script %}
+<script>
+var EID = {{ ev.id }};
+var AR = {{ 'true' if ar else 'false' }};
+var API = '/interviews/api/events/' + EID;
+
+function showCourses(sectionId, stage, cls, sec) {
+  // Hide slot/confirm panels
+  document.getElementById('slot-panel').classList.remove('active');
+  document.getElementById('confirm-panel').classList.remove('active');
+  // Show course panel
+  var panel = document.getElementById('course-panel');
+  panel.classList.add('active');
+  document.getElementById('course-header').textContent = stage + ' / ' + cls + ' / ' + (AR?'شعبة ':'Section ') + sec;
+  var list = document.getElementById('course-list');
+  list.innerHTML = '<div class="text-center text-muted py-3"><i class="bi bi-hourglass-split"></i></div>';
+  // Fetch courses for this section
+  fetch(API + '/courses?section_id=' + sectionId)
+    .then(function(r){ return r.json(); })
+    .then(function(courses) {
+      if (!courses.length) {
+        list.innerHTML = '<div class="text-center text-muted py-3">' + (AR?'لا توجد مباحث':'No courses available') + '</div>';
+        return;
+      }
+      var html = '';
+      courses.forEach(function(c) {
+        html += '<div class="course-row" onclick="selectCourse(' + c.id + ',\'' + (c.course_name||'').replace(/'/g,"\\'") + '\',\'' + (c.room||'').replace(/'/g,"\\'") + '\')">';
+        html += '<div class="icon"><i class="bi bi-journal-text"></i></div>';
+        html += '<div style="flex:1"><div class="fw-600" style="font-size:.88rem">' + (AR && c.course_name_ar ? c.course_name_ar : c.course_name) + '</div>';
+        if (c.room) html += '<div class="text-muted" style="font-size:.75rem"><i class="bi bi-door-open me-1"></i>' + (AR?'غرفة ':'Room ') + c.room + '</div>';
+        html += '</div>';
+        html += '<i class="bi bi-chevron-' + (AR?'left':'right') + '" style="color:#94a3b8"></i>';
+        html += '</div>';
+      });
+      list.innerHTML = html;
+    });
+  panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function selectCourse(assignmentId, courseName, room) {
+  document.getElementById('confirm-panel').classList.remove('active');
+  var panel = document.getElementById('slot-panel');
+  panel.classList.add('active');
+  var grid = document.getElementById('slot-grid');
+  var tabs = document.getElementById('date-tabs');
+  grid.innerHTML = '<div class="text-center text-muted py-3"><i class="bi bi-hourglass-split"></i></div>';
+  tabs.innerHTML = '';
+  // Fetch available slots
+  fetch(API + '/slots?assignment_id=' + assignmentId)
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      var dates = data.dates || {};
+      var dateKeys = Object.keys(dates).sort();
+      if (!dateKeys.length) {
+        grid.innerHTML = '<div class="text-center text-muted py-3">' + (AR?'لا توجد أوقات متاحة':'No available times') + '</div>';
+        return;
+      }
+      // Date tabs
+      dateKeys.forEach(function(d, i) {
+        var tab = document.createElement('span');
+        tab.className = 'date-tab' + (i===0?' active':'');
+        tab.textContent = d;
+        tab.onclick = function() {
+          document.querySelectorAll('.date-tab').forEach(function(t){ t.classList.remove('active'); });
+          tab.classList.add('active');
+          renderSlots(dates[d]);
+        };
+        tabs.appendChild(tab);
+      });
+      renderSlots(dates[dateKeys[0]]);
+    });
+  panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function renderSlots(slots) {
+  var grid = document.getElementById('slot-grid');
+  grid.innerHTML = '';
+  slots.forEach(function(s) {
+    var btn = document.createElement('div');
+    btn.className = 'slot-btn';
+    btn.textContent = s.start + ' - ' + s.end;
+    btn.dataset.slotId = s.id;
+    btn.onclick = function() {
+      document.querySelectorAll('.slot-btn').forEach(function(b){ b.classList.remove('selected'); });
+      btn.classList.add('selected');
+      document.getElementById('selected-slot-id').value = s.id;
+      document.getElementById('confirm-panel').classList.add('active');
+      document.getElementById('confirm-panel').scrollIntoView({behavior:'smooth',block:'nearest'});
+    };
+    grid.appendChild(btn);
+  });
+}
+</script>
+{% endblock %}

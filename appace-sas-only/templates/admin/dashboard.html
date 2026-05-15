@@ -1,0 +1,328 @@
+{% extends "base.html" %}
+{% block title %}{% if current_lang=="en" %}Dashboard — STAP{% else %}لوحة التحكم — STAP{% endif %}{% endblock %}
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+.stat-card{border-radius:16px;padding:24px;color:#fff;
+  transition:all .2s;min-height:100px!important;height:100%!important;display:flex!important;
+  flex-direction:column!important;justify-content:center!important;cursor:pointer}
+.stat-card:hover{transform:translateY(-3px);box-shadow:0 6px 24px rgba(0,0,0,.18)}
+.stat-card .num{font-size:2.2rem;font-weight:900;line-height:1;text-shadow:0 2px 6px rgba(0,0,0,.3)}
+.stat-card .lbl{font-size:.82rem;font-weight:800;text-shadow:0 1px 4px rgba(0,0,0,.45);
+  opacity:1!important;letter-spacing:.3px;margin-top:6px}
+.col-6.col-md-3{display:flex;flex-direction:column}
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <h1><i class="bi bi-speedometer2 me-2"></i>{{ _('لوحة التحكم') }}</h1>
+  <div class="d-flex gap-2 flex-wrap nav-print-hide">
+    <button onclick="printDashboardReport()" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-printer me-1"></i>{{ _('طباعة تقرير') }}
+    </button>
+    <a href="{{ url_for('admin.dashboard_pdf') }}" class="btn btn-sm btn-outline-danger">
+      <i class="bi bi-file-pdf me-1"></i>PDF
+    </a>
+    <a href="{{ url_for('admin.dashboard_excel') }}" class="btn btn-sm btn-outline-success">
+      <i class="bi bi-file-earmark-excel me-1"></i>Excel
+    </a>
+  </div>
+</div>
+
+<!-- Quick Stats — 2 rows × 4 cards -->
+{%- set en = (current_lang == 'en') -%}
+<div class="row g-3 mb-4">
+  {%- for href, icon, grad, num, lbl in [
+    (url_for('sas.admin_dashboard'), 'calendar3', 'linear-gradient(135deg,#0C67EC,#3D8EF5)', stats.total, ('Total Reservations' if en else 'إجمالي الحجوزات')),
+    (url_for('sas.admin_dashboard') ~ '?status=pending', 'hourglass-split', 'linear-gradient(135deg,#E67E22,#F39C12)', stats.pending, ('Pending' if en else 'معلقة')),
+    (url_for('sas.admin_dashboard') ~ '?status=approved', 'check-circle', 'linear-gradient(135deg,#198754,#27AE60)', stats.approved, ('Approved' if en else 'موافق عليها')),
+    (url_for('sas.admin_dashboard') ~ '?date_filter=today', 'calendar-day', 'linear-gradient(135deg,#0847B0,#0C67EC)', stats.today, ("Today's Bookings" if en else 'حجوزات اليوم')),
+    (url_for('sas.admin_dashboard') ~ '?date_filter=month', 'calendar-month', 'linear-gradient(135deg,#6C3483,#9B59B6)', stats.this_month, ('This Month' if en else 'هذا الشهر')),
+    (url_for('users.index'), 'people', 'linear-gradient(135deg,#0d6efd,#4fc3f7)', stats.users, ('Users' if en else 'المستخدمون')),
+    (url_for('sas.admin_dashboard'), 'building', 'linear-gradient(135deg,#6c757d,#95a5a6)', stats.venues, ('Venues' if en else 'القاعات')),
+    (url_for('sas.admin_dashboard') ~ '?status=rejected', 'x-circle', 'linear-gradient(135deg,#DC3545,#E74C3C)', stats.rejected, ('Rejected' if en else 'مرفوضة')),
+  ] %}
+  <div class="col-6 col-md-3">
+    <a href="{{ href }}" class="text-decoration-none">
+    <div class="stat-card" style="background:{{ grad }}" onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+      <div class="lbl"><i class="bi bi-{{ icon }} me-1"></i>{{ lbl }}</div>
+      <div class="num">{{ num }}</div>
+    </div></a>
+  </div>
+  {%- endfor %}
+</div>
+
+<!-- Charts Row -->
+<div class="row g-3 mb-4">
+  <!-- Monthly bar + trend line -->
+  <div class="col-md-8">
+    <div class="card h-100">
+      <div class="card-header"><i class="bi bi-graph-up me-2"></i>{{ _('الحجوزات — آخر 12 شهر + منحنى الاتجاه') }}</div>
+      <div class="card-body"><canvas id="monthlyChart" height="100"></canvas></div>
+    </div>
+  </div>
+  <!-- Status pie -->
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header"><i class="bi bi-pie-chart me-2"></i>{{ _('توزيع الحالات') }}</div>
+      <div class="card-body d-flex align-items-center justify-content-center">
+        <canvas id="statusChart" height="200"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- XY Scatter: Users Activity (Total vs Approved) -->
+<div class="row g-3 mb-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-diagram-3 me-2"></i>
+          {% if current_lang=='en' %}Top Users Activity — Total vs Approved Bookings{% else %}{{ _('أنشط المستخدمين — الإجمالي مقابل الموافقات') }}{% endif %}
+        </span>
+        <a href="{{ url_for('sas.admin_dashboard') }}?mode=user" class="btn btn-sm btn-outline-light">
+          {% if current_lang=='en' %}Detailed Comparison{% else %}{{ _('مقارنة تفصيلية') }}{% endif %}
+        </a>
+      </div>
+      <div class="card-body" style="position:relative;height:280px">
+        <canvas id="xyChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Pending + Quick Actions -->
+<div class="row g-3 mb-4">
+  <!-- Pending reservations -->
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-hourglass-split me-2"></i>{{ _('الحجوزات المعلقة') }}</span>
+        <a href="{{ url_for('sas.admin_dashboard') }}?status=pending" class="btn btn-sm btn-outline-light">{{ _('عرض الكل') }}</a>
+      </div>
+      <div class="card-body p-0">
+        {% if pending_list %}
+        <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>{{ _('الحجز') }}</th><th>{{ _('القاعة') }}</th><th>{{ _('المستخدم') }}</th><th>{{ _('البداية') }}</th><th>{{ _('إجراء') }}</th></tr></thead>
+          <tbody>
+          {% for r in pending_list[:8] %}
+          <tr>
+            <td><a href="{{ url_for('sas.admin_dashboard') }}" class="fw-bold text-decoration-none small">{{ r.booking_number }}</a></td>
+            <td><small>{{ r.venue.name if r.venue else '—' }}</small></td>
+            <td><small class="text-muted">{{ r.user.full_name if r.user else '—' }}</small></td>
+            <td><small class="text-muted">{{ r.start_time.strftime('%m-%d %H:%M') if r.start_time else '' }}</small></td>
+            <td>
+              <div class="d-flex gap-1">
+                <form method="POST" action="{{ url_for('sas.admin_dashboard') }}">
+                  <button class="btn btn-success btn-sm py-0 px-1" title="{{ _('موافقة') }}"><i class="bi bi-check"></i></button>
+                </form>
+                <form method="POST" action="{{ url_for('sas.admin_dashboard') }}">
+                  <button class="btn btn-danger btn-sm py-0 px-1" title="{{ _('رفض') }}"><i class="bi bi-x"></i></button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4 text-muted small">{{ _('لا توجد حجوزات معلقة ✅') }}</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick links -->
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header"><i class="bi bi-lightning me-2"></i>{{ _('روابط سريعة') }}</div>
+      <div class="card-body">
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <a href="{{ url_for('sas.admin_dashboard') }}" class="btn btn-primary-ars w-100 d-flex flex-column align-items-center justify-content-center gap-1" style="min-height:90px;padding:12px 8px">
+              <i class="bi bi-plus-circle fs-4"></i>
+              <span class="small fw-bold">{{ _('حجز جديد') }}</span>
+            </a>
+          </div>
+          <div class="col-6">
+            <a href="{{ url_for('sas.admin_dashboard') }}" class="btn w-100 d-flex flex-column align-items-center justify-content-center gap-1 text-white" style="min-height:90px;padding:12px 8px;background:linear-gradient(135deg,#0d6efd,#4fc3f7)">
+              <i class="bi bi-calendar3 fs-4"></i>
+              <span class="small fw-bold">{{ _('عرض التقويم') }}</span>
+            </a>
+          </div>
+          <div class="col-6">
+            <a href="{{ url_for('sas.admin_dashboard') }}" class="btn w-100 d-flex flex-column align-items-center justify-content-center gap-1 text-white" style="min-height:90px;padding:12px 8px;background:linear-gradient(135deg,#6C3483,#9B59B6)">
+              <i class="bi bi-building fs-4"></i>
+              <span class="small fw-bold">{{ _('إدارة القاعات') }}</span>
+            </a>
+          </div>
+          <div class="col-6">
+            <a href="{{ url_for('sas.admin_dashboard') }}" class="btn w-100 d-flex flex-column align-items-center justify-content-center gap-1 text-white" style="min-height:90px;padding:12px 8px;background:linear-gradient(135deg,#198754,#27AE60)">
+              <i class="bi bi-bar-chart fs-4"></i>
+              <span class="small fw-bold">{{ _('عرض التقارير') }}</span>
+            </a>
+          </div>
+        </div>
+        <div class="row g-2">
+          <div class="col-6"><a href="{{ url_for('locations.new') }}" class="btn btn-outline-primary w-100 text-start small fw-semibold"><i class="bi bi-geo-alt me-2"></i>{{ _('موقع جديد') }}</a></div>
+          <div class="col-6"><a href="{{ url_for('sas.admin_dashboard') }}" class="btn btn-outline-primary w-100 text-start small fw-semibold"><i class="bi bi-building me-2"></i>{{ _('قاعة جديدة') }}</a></div>
+          <div class="col-6"><a href="{{ url_for('users.new') }}" class="btn btn-outline-secondary w-100 text-start small fw-semibold"><i class="bi bi-person-plus me-2"></i>{{ _('مستخدم جديد') }}</a></div>
+          <div class="col-6"><a href="{{ url_for('sas.admin_dashboard') }}" class="btn btn-outline-secondary w-100 text-start small fw-semibold"><i class="bi bi-list-check me-2"></i>{{ _('قائمة مهام') }}</a></div>
+          <div class="col-6"><a href="{{ url_for('users.login_log') }}" class="btn btn-outline-secondary w-100 text-start small fw-semibold"><i class="bi bi-shield me-2"></i>{{ _('سجل الدخول') }}</a></div>
+          <div class="col-6"><a href="{{ url_for('settings.index') }}" class="btn btn-outline-secondary w-100 text-start small fw-semibold"><i class="bi bi-gear me-2"></i>{{ _('الإعدادات') }}</a></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const monthly = {{ monthly | tojson }};
+const stats   = {{ stats | tojson }};
+const LANG_IS_EN = document.documentElement.lang === 'en';
+
+// Moving-average trend
+function movingAvg(data, w) {
+  return data.map((_, i) => {
+    const s = Math.max(0, i - Math.floor(w/2));
+    const e = Math.min(data.length, s + w);
+    const slice = data.slice(s, e);
+    return slice.reduce((a,b)=>a+b,0)/slice.length;
+  });
+}
+const counts = monthly.map(m=>m.count);
+const trend  = movingAvg(counts, 3);
+
+new Chart(document.getElementById('monthlyChart'), {
+  type:'bar',
+  data:{
+    labels: monthly.map(m=>m.month),
+    datasets:[
+      {
+        label: LANG_IS_EN ? 'Reservations' : 'الحجوزات',
+        data: counts,
+        backgroundColor:'rgba(12,103,236,0.65)',
+        borderRadius:6,
+        order:2
+      },
+      {
+        label: LANG_IS_EN ? 'Trend' : 'منحنى الاتجاه',
+        data: trend,
+        type:'line',
+        borderColor:'#E67E22',
+        backgroundColor:'rgba(230,126,34,0.12)',
+        borderWidth:3,
+        pointRadius:4,
+        pointBackgroundColor:'#E67E22',
+        fill:true,
+        tension:0.45,
+        order:1
+      }
+    ]
+  },
+  options:{
+    responsive:true,
+    plugins:{legend:{display:true,position:'top'}},
+    scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}
+  }
+});
+
+new Chart(document.getElementById('statusChart'), {
+  type:'doughnut',
+  data:{
+    labels: LANG_IS_EN
+      ? ['Pending','Approved','Rejected','Cancelled','Completed']
+      : ['معلق','موافق','مرفوض','ملغي','مكتمل'],
+    datasets:[{
+      data:[stats.pending,stats.approved,stats.rejected,stats.cancelled,stats.completed],
+      backgroundColor:['#FFC107','#198754','#DC3545','#6C757D','#0DCAF0'],
+      borderWidth:2
+    }]
+  },
+  options:{responsive:true,plugins:{legend:{position:'bottom'}}}
+});
+
+// ── XY Scatter: Users Activity ────────────────────────────────────────────────
+const xyRaw = {{ top_users_xy | tojson }};
+const xyLabels  = xyRaw.map(r => r[0]);  // full_name
+const xyTotal   = xyRaw.map(r => r[1]);  // total bookings
+const xyApproved= xyRaw.map(r => r[2] || 0); // approved
+
+new Chart(document.getElementById('xyChart'), {
+  type: 'bar',
+  data: {
+    labels: xyLabels,
+    datasets: [
+      {
+        label: LANG_IS_EN ? 'Total Bookings' : 'إجمالي الحجوزات',
+        data:  xyTotal,
+        backgroundColor: 'rgba(21,101,192,0.75)',
+        borderRadius: 5,
+        order: 2
+      },
+      {
+        label: LANG_IS_EN ? 'Approved' : 'موافق عليها',
+        data:  xyApproved,
+        type:  'line',
+        borderColor: '#2ECC71',
+        backgroundColor: 'rgba(46,204,113,0.15)',
+        borderWidth: 3,
+        pointRadius: 5,
+        pointBackgroundColor: '#27AE60',
+        fill: true,
+        tension: 0.35,
+        order: 1
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: true, position: 'top' },
+      tooltip: {
+        callbacks: {
+          afterLabel: function(ctx) {
+            const idx = ctx.dataIndex;
+            const tot = xyTotal[idx] || 0;
+            const app = xyApproved[idx] || 0;
+            const pct = tot > 0 ? Math.round(app/tot*100) : 0;
+            return (LANG_IS_EN ? 'Approval rate: ' : 'نسبة الموافقة: ') + pct + '%';
+          }
+        }
+      }
+    },
+    scales: {
+      x: { ticks: { font: { size: 11 } } },
+      y: { beginAtZero: true, ticks: { stepSize: 1 } }
+    }
+  }
+});
+
+// ── Print report function ─────────────────────────────────────────────────────
+function printDashboardReport() {
+  document.title = '{% if current_lang=="en" %}Dashboard Report — STAP{% else %}تقرير لوحة التحكم — STAP{% endif %}';
+  window.print();
+  setTimeout(function(){
+    document.title = '{% if current_lang=="en" %}Dashboard — STAP{% else %}لوحة التحكم — STAP{% endif %}';
+  }, 2000);
+}
+</script>
+<style>
+@media print {
+  .nav-print-hide,.sidebar,.topbar,.ticker-bar,.menu-btn,.sidebar-overlay { display:none!important; }
+  .main-content { margin:0!important; height:auto!important; }
+  body,html { overflow:auto!important; height:auto!important; background:#fff!important; }
+  .content-area { overflow:visible!important; height:auto!important; padding:10px!important; }
+  .card { break-inside:avoid; box-shadow:none!important; border:1px solid #ddd!important; margin-bottom:12px!important; }
+  .row { display:block!important; }
+  .col-md-8,.col-md-4,.col-md-6,.col-md-3,.col-12 { width:100%!important; max-width:100%!important; flex:none!important; }
+  .stat-card { border:1px solid #ddd!important; margin-bottom:8px!important; }
+  canvas { max-width:100%!important; height:auto!important; }
+  [dir="rtl"] body { direction:rtl!important; }
+  [dir="ltr"] body { direction:ltr!important; }
+}
+</style>
+{% endblock %}

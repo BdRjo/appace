@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block title %}New Row — {{ cfg.label }} — STAP{% endblock %}
+{% block content %}
+
+<nav class="mb-3"><ol class="breadcrumb small">
+  <li class="breadcrumb-item"><a href="{{ url_for('backoffice.index') }}" style="color:var(--primary)">Back-Office</a></li>
+  <li class="breadcrumb-item"><a href="{{ url_for('backoffice.table_view', table_name=table_name) }}" style="color:var(--primary)">{{ cfg.label }}</a></li>
+  <li class="breadcrumb-item active">New Row</li>
+</ol></nav>
+
+<div class="d-flex align-items-center gap-3 mb-4 p-4 rounded-4" style="background:{{ cfg.color }}">
+  <i class="bi bi-plus-circle fs-3" style="color:#fff"></i>
+  <div>
+    <h2 style="color:#fff;font-weight:800;margin:0;font-size:1.1rem">Add New Row</h2>
+    <div style="color:rgba(255,255,255,.7);font-size:.78rem">{{ cfg.label }} / {{ table_name }}</div>
+  </div>
+</div>
+
+<div class="row justify-content-center">
+<div class="col-12 col-lg-8">
+<div class="card"><div class="card-body p-4">
+<form method="POST">
+  <div class="row g-3">
+    {% for col in cols %}
+    <div class="col-12 col-md-6">
+      <label class="form-label fw-bold small">{{ col }}</label>
+      <input type="text" name="{{ col }}" class="form-control form-control-sm"
+             placeholder="{{ col }}">
+    </div>
+    {% endfor %}
+  </div>
+  <div class="d-flex gap-2 mt-4">
+    <button type="submit" class="btn btn-primary-ars">
+      <i class="bi bi-plus-lg me-1"></i>Add Row
+    </button>
+    <a href="{{ url_for('backoffice.table_view', table_name=table_name) }}"
+       class="btn btn-outline-secondary">Cancel</a>
+  </div>
+</form>
+</div></div>
+</div>
+</div>
+{% endblock %}
