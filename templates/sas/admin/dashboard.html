@@ -158,15 +158,15 @@
       </div>
       <div class="card-body">
         {% if stage_dist %}
-        {% set max_count = stage_dist|map(attribute='count')|list|max if stage_dist else 1 %}
+        {% set max_count = stage_dist|map(attribute='record_count')|list|max if stage_dist else 1 %}
         {% for s in stage_dist %}
         <div class="mb-2">
           <div class="d-flex justify-content-between mb-1">
             <span style="font-size:.82rem;font-weight:600;color:#374151">{{ s.stage_name }}</span>
-            <span style="font-size:.78rem;color:#6b7280">{{ s.count }}</span>
+            <span style="font-size:.78rem;color:#6b7280">{{ s.record_count }}</span>
           </div>
           <div style="height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden">
-            <div style="height:100%;width:{{ (s.count / max_count * 100) if max_count else 0 }}%;background:linear-gradient(90deg,var(--sas),var(--sas-light));border-radius:4px;transition:width .6s"></div>
+            <div style="height:100%;width:{{ (s.record_count / max_count * 100) if max_count else 0 }}%;background:linear-gradient(90deg,var(--sas),var(--sas-light));border-radius:4px;transition:width .6s"></div>
           </div>
         </div>
         {% endfor %}
@@ -202,7 +202,7 @@
             <td><span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:{% if loop.index<=3 %}var(--sas-bg){% else %}#f3f4f6{% endif %};font-weight:700;font-size:.82rem;color:{% if loop.index<=3 %}var(--sas-dark){% else %}#6b7280{% endif %}">{{ loop.index }}</span></td>
             <td style="font-weight:600">{{ s.student_name }}</td>
             <td><span style="background:var(--sas-bg);color:var(--sas-dark);padding:3px 10px;border-radius:20px;font-size:.78rem;font-weight:600">{{ s.stage_name }}</span></td>
-            <td><span style="background:#fef2f2;color:#dc2626;padding:3px 12px;border-radius:20px;font-size:.82rem;font-weight:700">{{ s.count }}</span></td>
+            <td><span style="background:#fef2f2;color:#dc2626;padding:3px 12px;border-radius:20px;font-size:.82rem;font-weight:700">{{ s.record_count }}</span></td>
           </tr>
           {% else %}
           <tr><td colspan="4" class="text-center text-muted py-4">{{ 'لا توجد بيانات' if ar else 'No data available' }}</td></tr>
