@@ -158,7 +158,7 @@
       </div>
       <div class="card-body">
         {% if stage_dist %}
-        {% set max_count = stage_dist|map(attribute='count')|max %}
+        {% set max_count = stage_dist|map(attribute='count')|list|max if stage_dist else 1 %}
         {% for s in stage_dist %}
         <div class="mb-2">
           <div class="d-flex justify-content-between mb-1">
