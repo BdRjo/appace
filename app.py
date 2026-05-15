@@ -23,6 +23,8 @@ def create_app():
     app.config['REMEMBER_COOKIE_SECURE'] = is_prod
     # ── CSRF Protection ───────────────────────────────────────────────────────
     app.config['WTF_CSRF_TIME_LIMIT'] = 3600  # 1 hour
+    app.config['WTF_CSRF_SSL_STRICT'] = False
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
     from flask_wtf.csrf import CSRFProtect
     csrf = CSRFProtect(app)
     # Exempt mobile API from CSRF (uses JWT instead)
@@ -98,34 +100,19 @@ def create_app():
 
     # ── Register all blueprints ───────────────────────────────────────────────
     from routes.auth          import auth_bp
-    from routes.reservations  import reservations_bp
-    from routes.venues        import venues_bp
     from routes.admin         import admin_bp
     from routes.api           import api_bp
-    from routes.locations     import locations_bp, venues_mgmt_bp
     from routes.users         import users_bp
-    from routes.reports       import reports_bp
-    from routes.contacts      import contacts_bp
-    from routes.checklists    import checklists_bp
-    from routes.blocked       import blocked_bp
-    from routes.ratings       import ratings_bp
-    from routes.calendar_view import calendar_bp
-    from routes.public_calendar import public_cal_bp
     from routes.settings      import settings_bp
     from routes.cp            import cp_bp
-    from routes.backoffice    import bo_bp
-    from routes.groups        import groups_bp
     from routes.announcements import announcements_bp
     from routes.interviews    import interviews_bp
     from routes.sas           import sas_bp
     from routes.mobile_api import mobile_api_bp
     from routes.download_data import dl_bp
 
-    for bp in [auth_bp, reservations_bp, venues_bp, admin_bp, api_bp,
-               locations_bp, venues_mgmt_bp, users_bp, reports_bp,
-               contacts_bp, checklists_bp, blocked_bp, ratings_bp,
-               calendar_bp, settings_bp, cp_bp, bo_bp, groups_bp,
-               public_cal_bp,
+    for bp in [auth_bp, admin_bp, api_bp,
+               users_bp, settings_bp, cp_bp,
                announcements_bp, interviews_bp, sas_bp, mobile_api_bp, dl_bp]:
         app.register_blueprint(bp)        
 

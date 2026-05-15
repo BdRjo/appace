@@ -30,72 +30,9 @@ CONFIG_MAINT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__fi
 @login_required
 @admin_required
 def dashboard():
-    db  = get_db()
-    now = datetime.now()
+    from flask import redirect, url_for
+    return redirect(url_for('sas.admin_dashboard'))
 
-    stats = {
-        'total':      db.query(Reservation).count(),
-        'pending':    db.query(Reservation).filter_by(status='pending').count(),
-        'approved':   db.query(Reservation).filter_by(status='approved').count(),
-        'rejected':   db.query(Reservation).filter_by(status='rejected').count(),
-        'cancelled':  db.query(Reservation).filter_by(status='cancelled').count(),
-        'completed':  db.query(Reservation).filter_by(status='completed').count(),
-        'users':      db.query(User).filter_by(is_active=True).count(),
-        'venues':     db.query(Venue).filter_by(is_active=True).count(),
-        'locations':  db.query(Location).filter_by(is_active=True).count(),
-        'this_month': db.query(Reservation).filter(
-            Reservation.created_at >= now.replace(day=1)).count(),
-        'today': db.query(Reservation).filter(
-            Reservation.start_time >= now.replace(hour=0, minute=0, second=0, microsecond=0),
-            Reservation.start_time <  now.replace(hour=23, minute=59, second=59, microsecond=999999)
-        ).count(),
-        'today_approved': db.query(Reservation).filter(
-            Reservation.start_time >= now.replace(hour=0, minute=0, second=0, microsecond=0),
-            Reservation.start_time <  now.replace(hour=23, minute=59, second=59, microsecond=999999),
-            Reservation.status == 'approved'
-        ).count(),
-    }
-
-    # Trend شهري (12 شهر) — مثل v54 show_bar_chart
-    monthly = []
-    for i in range(11, -1, -1):
-        d   = (now - timedelta(days=30*i)).replace(day=1,hour=0,minute=0,second=0)
-        nd  = (d + timedelta(days=32)).replace(day=1)
-        cnt = db.query(Reservation).filter(
-            Reservation.created_at >= d, Reservation.created_at < nd).count()
-        monthly.append({'month': d.strftime('%m/%Y'), 'count': cnt})
-
-    # حجوزات معلقة — مثل v54 pending list
-    pending_list = (db.query(Reservation).filter_by(status='pending')
-                    .order_by(Reservation.created_at.asc()).limit(8).all())
-
-    # أعلى 5 قاعات
-    top_venues = (db.query(Venue.name, func.count(Reservation.id).label('cnt'))
-                  .join(Reservation, Reservation.venue_id == Venue.id, isouter=True)
-                  .group_by(Venue.id)
-                  .order_by(func.count(Reservation.id).desc())
-                  .limit(5).all())
-
-    # XY — أعلى 8 مستخدمين نشاطاً (الإجمالي vs. الموافقات)
-    from sqlalchemy import case
-    _xy_rows = (db.query(
-                    User.full_name,
-                    func.count(Reservation.id).label('total'),
-                    func.sum(case((Reservation.status == 'approved', 1), else_=0)).label('approved')
-                )
-                .join(Reservation, Reservation.user_id == User.id, isouter=True)
-                .group_by(User.id)
-                .order_by(func.count(Reservation.id).desc())
-                .limit(8).all())
-    top_users_xy = [[r[0], int(r[1] or 0), int(r[2] or 0)] for r in _xy_rows]
-
-    return render_template('admin/dashboard.html',
-        stats=stats, monthly=monthly,
-        pending_list=pending_list, top_venues=top_venues,
-        top_users_xy=top_users_xy)
-
-
-# ── Dashboard PDF Export ───────────────────────────────────────────────────────
 @admin_bp.route('/dashboard/pdf')
 @login_required
 @admin_required

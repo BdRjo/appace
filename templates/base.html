@@ -448,68 +448,32 @@ html[dir="rtl"] .ticker-overflow {
   </a>
   {% endif %}
   {% if cp_enabled('calendar') %}
-  <a href="{{ url_for('calendar_view.index') }}" class="nav-link {% if request.blueprint=='calendar_view' %}active{% endif %}">
-    <i class="bi bi-calendar3"></i>{{ _('التقويم') }}
-  </a>
   {% endif %}
   <div class="section-label">{{ _('الحجوزات') }}</div>
   {% if cp_enabled('reservations') %}
-  <a href="{{ url_for('reservations.index') }}" class="nav-link {% if request.blueprint=='reservations' %}active{% endif %}">
-    <i class="bi bi-journal-text"></i>{{ _('الحجوزات') }}
-  </a>
   {% endif %}
   {% if cp_enabled('venues') %}
-  <a href="{{ url_for('venues.index') }}" class="nav-link {% if request.blueprint=='venues' %}active{% endif %}">
-    <i class="bi bi-building"></i>{{ _('القاعات') }}
-  </a>
   {% endif %}
   <div class="section-label">{{ _('إضافيات') }}</div>
   {% if cp_enabled('checklists') %}
-  <a href="{{ url_for('checklists.index') }}" class="nav-link" {% if request.blueprint=='checklists' %}active{% endif %}">
-    <i class="bi bi-check2-square"></i>{{ _('قوائم المهام') }}
-  </a>
   {% endif %}
   {% if cp_enabled('contacts') %}
-  <a href="{{ url_for('contacts.index') }}" class="nav-link {% if request.blueprint=='contacts' %}active{% endif %}">
-    <i class="bi bi-person-lines-fill"></i>{{ _('جهات الاتصال') }}
-  </a>
-  <a href="{{ url_for('groups.index') }}" class="nav-link {% if request.blueprint=='groups' %}active{% endif %}">
-    <i class="bi bi-people-fill"></i>{% if current_lang=='en' %}Distribution Groups{% else %}مجموعات التوزيع{% endif %}
-  </a>
   {% endif %}
   {% if current_user.role and current_user.role.name in ('مدير النظام','admin','Admin','مشرف','Manager','manager') %}
   <div class="section-label">{{ _('الإدارة') }}</div>
   {% if cp_enabled('locations') %}
-  <a href="{{ url_for('locations.index') }}" class="nav-link {% if request.blueprint=='locations' %}active{% endif %}">
-    <i class="bi bi-geo-alt"></i>{{ _('المواقع') }}
-  </a>
   {% endif %}
   {% if cp_enabled('venues_mgmt') %}
-  <a href="{{ url_for('venues_mgmt.index') }}" class="nav-link {% if request.blueprint=='venues_mgmt' %}active{% endif %}">
-    <i class="bi bi-building-gear"></i>{{ _('إدارة القاعات') }}
-  </a>
   {% endif %}
   <a href="{{ url_for('users.index') }}" class="nav-link {% if request.blueprint=='users' %}active{% endif %}">
     <i class="bi bi-people"></i>{{ _('المستخدمون') }}
   </a>
   {% if cp_enabled('reports') %}
-  <a href="{{ url_for('reports.index') }}" class="nav-link" {% if request.blueprint=='reports' %}active{% endif %}">
-    <i class="bi bi-bar-chart"></i>{{ _('التقارير') }}
-  </a>
   {% if cp_enabled('reports','rep_compare') %}
-  <a href="{{ url_for('reports.comparison') }}" class="nav-link" {% if request.endpoint=='reports.comparison' %}active{% endif %}">
-    <i class="bi bi-bar-chart-steps"></i>{{ _('المقارنة') }}
-  </a>
   {% endif %}
   {% endif %}
   {% if cp_enabled('blocked') %}
-  <a href="{{ url_for('blocked.index') }}" class="nav-link {% if request.blueprint=='blocked' %}active{% endif %}">
-    <i class="bi bi-slash-circle"></i><span>{{ _('حظر فترة') }}
-  </a>
   {% else %}
-  <a href="{{ url_for('blocked.new') }}" class="nav-link {% if request.endpoint=='blocked.new' %}active{% endif %}">
-    <i class="bi bi-slash-circle"></i><span>{% if current_lang=='en' %}Block Period{% else %}إضافة فترة حظر{% endif %}
-  </a>
   {% endif %}
   <!-- ✉️ Email Section -->
   <div class="section-label">{% if current_lang=='en' %}📧 Email{% else %}📧 البريد{% endif %}</div>
@@ -567,9 +531,6 @@ html[dir="rtl"] .ticker-overflow {
   </a>
   <a href="{{ url_for('cp.index') }}" class="nav-link {% if request.blueprint=='cp' %}active{% endif %}">
     <i class="bi bi-sliders"></i>{% if current_lang=='en' %}Control Panel{% else %}لوحة التحكم{% endif %}
-  </a>
-  <a href="{{ url_for('backoffice.index') }}" class="nav-link {% if request.blueprint=='backoffice' %}active{% endif %}">
-    <i class="bi bi-database"></i>{% if current_lang=='en' %}Back-Office{% else %}إدارة البيانات{% endif %}
   </a>
   <!-- 📋 Logs Section -->
   <div class="section-label">{% if current_lang=='en' %}📋 Logs{% else %}📋 السجلات{% endif %}</div>

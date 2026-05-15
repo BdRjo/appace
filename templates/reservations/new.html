@@ -192,7 +192,7 @@
         <button type="submit" class="btn btn-primary-ars w-100 w-sm-auto">
           <i class="bi bi-send me-1"></i>{% if current_lang=="en" %}Submit Booking Request{% else %}تقديم طلب الحجز{% endif %}
         </button>
-        <a href="{{ url_for('reservations.index') }}" class="btn btn-outline-secondary w-100 w-sm-auto">{{ _('إلغاء') }}</a>
+        <a href="{{ url_for('sas.admin_dashboard') }}" class="btn btn-outline-secondary w-100 w-sm-auto">{{ _('إلغاء') }}</a>
       </div>
     </form>
   </div>

@@ -60,7 +60,7 @@
         <button type="submit" class="btn btn-primary-ars">
           <i class="bi bi-check-lg me-1"></i>{% if contact %}{% if current_lang=='en' %}Save{% else %}حفظ{% endif %}{% else %}{% if current_lang=='en' %}Add{% else %}إضافة{% endif %}{% endif %}
         </button>
-        <a href="{{ url_for('contacts.index') }}" class="btn btn-outline-secondary">{% if current_lang=='en' %}Cancel{% else %}إلغاء{% endif %}</a>
+        <a href="{{ url_for('sas.admin_dashboard') }}" class="btn btn-outline-secondary">{% if current_lang=='en' %}Cancel{% else %}إلغاء{% endif %}</a>
       </div>
     </form>
   </div>

@@ -148,7 +148,7 @@
           </button>
         </div>
         {% if perms.can('checklists_add') %}
-        <a href="{{ url_for('checklists.new') }}"
+        <a href="{{ url_for('sas.admin_dashboard') }}"
            style="background:var(--ws-gold);color:#fff;border:none;border-radius:10px;font-weight:700;white-space:nowrap;padding:7px 16px;font-size:.85rem;text-decoration:none;display:inline-flex;align-items:center;gap:4px">
           <i class="bi bi-plus-lg"></i>
           <span>{% if current_lang=='en' %}New List{% else %}قائمة جديدة{% endif %}</span>
@@ -260,7 +260,7 @@
       {% endfor %}
       {% if perms.can('checklists_add') %}
       <div class="col-sm-6 col-xl-4">
-        <a href="{{ url_for('checklists.new') }}" class="new-cl-btn">
+        <a href="{{ url_for('sas.admin_dashboard') }}" class="new-cl-btn">
           <i class="bi bi-plus-circle fs-2 mb-2"></i>
           <span class="small fw-bold">{% if current_lang=='en' %}New List{% else %}قائمة جديدة{% endif %}
         </a>
@@ -272,7 +272,7 @@
       <div style="font-size:3rem;margin-bottom:1rem">📋</div>
       <h5 class="text-muted">{{ _('لا توجد قوائم بعد') }}</h5>
       {% if perms.can('checklists_add') %}
-      <a href="{{ url_for('checklists.new') }}" class="btn btn-primary-ars mt-2">
+      <a href="{{ url_for('sas.admin_dashboard') }}" class="btn btn-primary-ars mt-2">
         <i class="bi bi-plus-lg me-1"></i>{% if current_lang=="en" %}Create your first list{% else %}أنشئ أول قائمة{% endif %}
       </a>
       {% endif %}

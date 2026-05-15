@@ -15,12 +15,12 @@
          style="background:rgba(0,0,0,.07);border:1px solid rgba(0,0,0,.1)">
       <div class="d-flex align-items-center gap-2 small">
         <i class="bi bi-calendar3 text-warning flex-shrink-0"></i>
-        <a href="{{ url_for('reservations.detail', res_id=r.id) }}"
+        <a href="{{ url_for('sas.admin_dashboard') }}"
            class="fw-bold text-decoration-none" style="color:var(--primary)">
           #{{ r.booking_number }}
         </a>
         <span class="text-muted">|</span>
-        <a href="{{ url_for('reservations.detail', res_id=r.id) }}"
+        <a href="{{ url_for('sas.admin_dashboard') }}"
            class="text-decoration-none fw-bold text-dark flex-grow-1 text-truncate"
            title="{{ r.title }}"
            onmouseover="this.style.color='var(--primary)'"
@@ -53,7 +53,7 @@
     <a href="{{ url_for('reservations.export_pdf', **filters) }}" class="btn btn-outline-secondary btn-sm">
       <i class="bi bi-file-pdf me-1"></i>PDF
     </a>
-    <a href="{{ url_for('reservations.new') }}" class="btn btn-primary-ars btn-sm">
+    <a href="{{ url_for('sas.admin_dashboard') }}" class="btn btn-primary-ars btn-sm">
       <i class="bi bi-plus-lg me-1"></i>{{ _('حجز جديد') }}
     </a>
   </div>
@@ -109,7 +109,7 @@
       </div>
       <div class="col-md-3 d-flex gap-2">
         <button type="submit" class="btn btn-primary-ars btn-sm flex-grow-1">{{ _('تصفية') }}</button>
-        <a href="{{ url_for('reservations.index') }}" class="btn btn-outline-secondary btn-sm">{{ _('إعادة') }}</a>
+        <a href="{{ url_for('sas.admin_dashboard') }}" class="btn btn-outline-secondary btn-sm">{{ _('إعادة') }}</a>
       </div>
     </form>
   </div>
@@ -149,7 +149,7 @@
         {% for r in reservations %}
         <tr>
           <td><input type="checkbox" class="form-check-input row-check" value="{{ r.id }}" onchange="updateBulk()"></td>
-          <td><a href="{{ url_for('reservations.detail', res_id=r.id) }}" class="fw-bold text-primary">{{ r.booking_number }}</a></td>
+          <td><a href="{{ url_for('sas.admin_dashboard') }}" class="fw-bold text-primary">{{ r.booking_number }}</a></td>
           <td>{{ r.title }}</td>
           {% if perms.is_admin_or_manager() %}<td>{{ r.user.full_name if r.user else '—' }}</td>{% endif %}
           <td>{{ r.venue.name if r.venue else '—' }}</td>
@@ -162,7 +162,7 @@
           </td>
           <td>
             <div class="d-flex gap-1 flex-wrap">
-              <a href="{{ url_for('reservations.detail', res_id=r.id) }}" class="btn btn-xs btn-outline-primary">
+              <a href="{{ url_for('sas.admin_dashboard') }}" class="btn btn-xs btn-outline-primary">
                 <i class="bi bi-eye"></i>
               </a>
               {% if r.status in ('pending','approved') and (r.user_id == current_user.id or perms.is_admin_or_manager()) %}

@@ -33,14 +33,14 @@
 {%- set en = (current_lang == 'en') -%}
 <div class="row g-3 mb-4">
   {%- for href, icon, grad, num, lbl in [
-    (url_for('reservations.index'), 'calendar3', 'linear-gradient(135deg,#0C67EC,#3D8EF5)', stats.total, ('Total Reservations' if en else 'إجمالي الحجوزات')),
-    (url_for('reservations.index') ~ '?status=pending', 'hourglass-split', 'linear-gradient(135deg,#E67E22,#F39C12)', stats.pending, ('Pending' if en else 'معلقة')),
-    (url_for('reservations.index') ~ '?status=approved', 'check-circle', 'linear-gradient(135deg,#198754,#27AE60)', stats.approved, ('Approved' if en else 'موافق عليها')),
-    (url_for('reservations.index') ~ '?date_filter=today', 'calendar-day', 'linear-gradient(135deg,#0847B0,#0C67EC)', stats.today, ("Today's Bookings" if en else 'حجوزات اليوم')),
-    (url_for('reservations.index') ~ '?date_filter=month', 'calendar-month', 'linear-gradient(135deg,#6C3483,#9B59B6)', stats.this_month, ('This Month' if en else 'هذا الشهر')),
+    (url_for('sas.admin_dashboard'), 'calendar3', 'linear-gradient(135deg,#0C67EC,#3D8EF5)', stats.total, ('Total Reservations' if en else 'إجمالي الحجوزات')),
+    (url_for('sas.admin_dashboard') ~ '?status=pending', 'hourglass-split', 'linear-gradient(135deg,#E67E22,#F39C12)', stats.pending, ('Pending' if en else 'معلقة')),
+    (url_for('sas.admin_dashboard') ~ '?status=approved', 'check-circle', 'linear-gradient(135deg,#198754,#27AE60)', stats.approved, ('Approved' if en else 'موافق عليها')),
+    (url_for('sas.admin_dashboard') ~ '?date_filter=today', 'calendar-day', 'linear-gradient(135deg,#0847B0,#0C67EC)', stats.today, ("Today's Bookings" if en else 'حجوزات اليوم')),
+    (url_for('sas.admin_dashboard') ~ '?date_filter=month', 'calendar-month', 'linear-gradient(135deg,#6C3483,#9B59B6)', stats.this_month, ('This Month' if en else 'هذا الشهر')),
     (url_for('users.index'), 'people', 'linear-gradient(135deg,#0d6efd,#4fc3f7)', stats.users, ('Users' if en else 'المستخدمون')),
-    (url_for('venues_mgmt.index'), 'building', 'linear-gradient(135deg,#6c757d,#95a5a6)', stats.venues, ('Venues' if en else 'القاعات')),
-    (url_for('reservations.index') ~ '?status=rejected', 'x-circle', 'linear-gradient(135deg,#DC3545,#E74C3C)', stats.rejected, ('Rejected' if en else 'مرفوضة')),
+    (url_for('sas.admin_dashboard'), 'building', 'linear-gradient(135deg,#6c757d,#95a5a6)', stats.venues, ('Venues' if en else 'القاعات')),
+    (url_for('sas.admin_dashboard') ~ '?status=rejected', 'x-circle', 'linear-gradient(135deg,#DC3545,#E74C3C)', stats.rejected, ('Rejected' if en else 'مرفوضة')),
   ] %}
   <div class="col-6 col-md-3">
     <a href="{{ href }}" class="text-decoration-none">
@@ -80,7 +80,7 @@
         <span><i class="bi bi-diagram-3 me-2"></i>
           {% if current_lang=='en' %}Top Users Activity — Total vs Approved Bookings{% else %}{{ _('أنشط المستخدمين — الإجمالي مقابل الموافقات') }}{% endif %}
         </span>
-        <a href="{{ url_for('reports.comparison') }}?mode=user" class="btn btn-sm btn-outline-light">
+        <a href="{{ url_for('sas.admin_dashboard') }}?mode=user" class="btn btn-sm btn-outline-light">
           {% if current_lang=='en' %}Detailed Comparison{% else %}{{ _('مقارنة تفصيلية') }}{% endif %}
         </a>
       </div>
@@ -98,7 +98,7 @@
     <div class="card h-100">
       <div class="card-header d-flex justify-content-between align-items-center">
         <span><i class="bi bi-hourglass-split me-2"></i>{{ _('الحجوزات المعلقة') }}</span>
-        <a href="{{ url_for('reservations.index') }}?status=pending" class="btn btn-sm btn-outline-light">{{ _('عرض الكل') }}</a>
+        <a href="{{ url_for('sas.admin_dashboard') }}?status=pending" class="btn btn-sm btn-outline-light">{{ _('عرض الكل') }}</a>
       </div>
       <div class="card-body p-0">
         {% if pending_list %}
@@ -108,16 +108,16 @@
           <tbody>
           {% for r in pending_list[:8] %}
           <tr>
-            <td><a href="{{ url_for('reservations.detail', res_id=r.id) }}" class="fw-bold text-decoration-none small">{{ r.booking_number }}</a></td>
+            <td><a href="{{ url_for('sas.admin_dashboard') }}" class="fw-bold text-decoration-none small">{{ r.booking_number }}</a></td>
             <td><small>{{ r.venue.name if r.venue else '—' }}</small></td>
             <td><small class="text-muted">{{ r.user.full_name if r.user else '—' }}</small></td>
             <td><small class="text-muted">{{ r.start_time.strftime('%m-%d %H:%M') if r.start_time else '' }}</small></td>
             <td>
               <div class="d-flex gap-1">
-                <form method="POST" action="{{ url_for('reservations.approve', res_id=r.id) }}">
+                <form method="POST" action="{{ url_for('sas.admin_dashboard') }}">
                   <button class="btn btn-success btn-sm py-0 px-1" title="{{ _('موافقة') }}"><i class="bi bi-check"></i></button>
                 </form>
-                <form method="POST" action="{{ url_for('reservations.reject', res_id=r.id) }}">
+                <form method="POST" action="{{ url_for('sas.admin_dashboard') }}">
                   <button class="btn btn-danger btn-sm py-0 px-1" title="{{ _('رفض') }}"><i class="bi bi-x"></i></button>
                 </form>
               </div>
@@ -141,25 +141,25 @@
       <div class="card-body">
         <div class="row g-2 mb-3">
           <div class="col-6">
-            <a href="{{ url_for('reservations.new') }}" class="btn btn-primary-ars w-100 d-flex flex-column align-items-center justify-content-center gap-1" style="min-height:90px;padding:12px 8px">
+            <a href="{{ url_for('sas.admin_dashboard') }}" class="btn btn-primary-ars w-100 d-flex flex-column align-items-center justify-content-center gap-1" style="min-height:90px;padding:12px 8px">
               <i class="bi bi-plus-circle fs-4"></i>
               <span class="small fw-bold">{{ _('حجز جديد') }}</span>
             </a>
           </div>
           <div class="col-6">
-            <a href="{{ url_for('calendar_view.index') }}" class="btn w-100 d-flex flex-column align-items-center justify-content-center gap-1 text-white" style="min-height:90px;padding:12px 8px;background:linear-gradient(135deg,#0d6efd,#4fc3f7)">
+            <a href="{{ url_for('sas.admin_dashboard') }}" class="btn w-100 d-flex flex-column align-items-center justify-content-center gap-1 text-white" style="min-height:90px;padding:12px 8px;background:linear-gradient(135deg,#0d6efd,#4fc3f7)">
               <i class="bi bi-calendar3 fs-4"></i>
               <span class="small fw-bold">{{ _('عرض التقويم') }}</span>
             </a>
           </div>
           <div class="col-6">
-            <a href="{{ url_for('venues_mgmt.index') }}" class="btn w-100 d-flex flex-column align-items-center justify-content-center gap-1 text-white" style="min-height:90px;padding:12px 8px;background:linear-gradient(135deg,#6C3483,#9B59B6)">
+            <a href="{{ url_for('sas.admin_dashboard') }}" class="btn w-100 d-flex flex-column align-items-center justify-content-center gap-1 text-white" style="min-height:90px;padding:12px 8px;background:linear-gradient(135deg,#6C3483,#9B59B6)">
               <i class="bi bi-building fs-4"></i>
               <span class="small fw-bold">{{ _('إدارة القاعات') }}</span>
             </a>
           </div>
           <div class="col-6">
-            <a href="{{ url_for('reports.index') }}" class="btn w-100 d-flex flex-column align-items-center justify-content-center gap-1 text-white" style="min-height:90px;padding:12px 8px;background:linear-gradient(135deg,#198754,#27AE60)">
+            <a href="{{ url_for('sas.admin_dashboard') }}" class="btn w-100 d-flex flex-column align-items-center justify-content-center gap-1 text-white" style="min-height:90px;padding:12px 8px;background:linear-gradient(135deg,#198754,#27AE60)">
               <i class="bi bi-bar-chart fs-4"></i>
               <span class="small fw-bold">{{ _('عرض التقارير') }}</span>
             </a>
@@ -167,9 +167,9 @@
         </div>
         <div class="row g-2">
           <div class="col-6"><a href="{{ url_for('locations.new') }}" class="btn btn-outline-primary w-100 text-start small fw-semibold"><i class="bi bi-geo-alt me-2"></i>{{ _('موقع جديد') }}</a></div>
-          <div class="col-6"><a href="{{ url_for('venues_mgmt.new') }}" class="btn btn-outline-primary w-100 text-start small fw-semibold"><i class="bi bi-building me-2"></i>{{ _('قاعة جديدة') }}</a></div>
+          <div class="col-6"><a href="{{ url_for('sas.admin_dashboard') }}" class="btn btn-outline-primary w-100 text-start small fw-semibold"><i class="bi bi-building me-2"></i>{{ _('قاعة جديدة') }}</a></div>
           <div class="col-6"><a href="{{ url_for('users.new') }}" class="btn btn-outline-secondary w-100 text-start small fw-semibold"><i class="bi bi-person-plus me-2"></i>{{ _('مستخدم جديد') }}</a></div>
-          <div class="col-6"><a href="{{ url_for('checklists.new') }}" class="btn btn-outline-secondary w-100 text-start small fw-semibold"><i class="bi bi-list-check me-2"></i>{{ _('قائمة مهام') }}</a></div>
+          <div class="col-6"><a href="{{ url_for('sas.admin_dashboard') }}" class="btn btn-outline-secondary w-100 text-start small fw-semibold"><i class="bi bi-list-check me-2"></i>{{ _('قائمة مهام') }}</a></div>
           <div class="col-6"><a href="{{ url_for('users.login_log') }}" class="btn btn-outline-secondary w-100 text-start small fw-semibold"><i class="bi bi-shield me-2"></i>{{ _('سجل الدخول') }}</a></div>
           <div class="col-6"><a href="{{ url_for('settings.index') }}" class="btn btn-outline-secondary w-100 text-start small fw-semibold"><i class="bi bi-gear me-2"></i>{{ _('الإعدادات') }}</a></div>
         </div>

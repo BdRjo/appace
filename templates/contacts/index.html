@@ -21,7 +21,7 @@
     <input type="text" name="q" class="form-control form-control-sm"
            placeholder="{% if current_lang=='en' %}🔍 Search by name, email or company{% else %}🔍 بحث بالاسم أو البريد أو الشركة{% endif %}" value="{{ search }}" style="max-width:320px">
     <button class="btn btn-primary-ars btn-sm">{% if current_lang=='en' %}Search{% else %}بحث{% endif %}</button>
-    <a href="{{ url_for('contacts.index') }}" class="btn btn-outline-secondary btn-sm">{% if current_lang=='en' %}Reset{% else %}إعادة{% endif %}</a>
+    <a href="{{ url_for('sas.admin_dashboard') }}" class="btn btn-outline-secondary btn-sm">{% if current_lang=='en' %}Reset{% else %}إعادة{% endif %}</a>
   </form>
 </div></div>
 
