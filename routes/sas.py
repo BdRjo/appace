@@ -474,6 +474,14 @@ def record_add(code):
     try:
         db.commit()
         flash(_t('تم إضافة السجل بنجاح', 'Record added successfully'), 'success')
+        # إرسال إشعار لولي الأمر
+        try:
+            from utils.email_helper import send_absence_notification
+            from utils.i18n import get_lang
+            if student.guardian_email and record_type in ('absent', 'late', 'excused'):
+                send_absence_notification(student, record, lang=get_lang())
+        except Exception:
+            pass
     except Exception:
         db.rollback()
         flash(_t('حدث خطأ أثناء الحفظ', 'Error saving record'), 'danger')

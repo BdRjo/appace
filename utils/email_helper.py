@@ -1011,3 +1011,55 @@ def test_smtp(smtp_host='', smtp_port=587, sender_email='', sender_password='',
         return (False, f'Brevo API error {e.code}: {err}' if en else f'Brevo API خطأ {e.code}: {err}')
     except Exception as e:
         return (False, f'Connection error: {e}' if en else f'خطأ في الاتصال: {e}')
+
+
+def send_absence_notification(student, record, lang='ar'):
+    """إرسال إشعار غياب لولي أمر الطالب"""
+    to_email = student.guardian_email
+    if not to_email:
+        return False
+
+    guardian_name = student.guardian_name or ('Guardian' if lang == 'en' else 'ولي الأمر')
+    student_name  = student.name_en if lang == 'en' and student.name_en else student.name
+    record_date   = record.record_date.strftime('%Y-%m-%d') if hasattr(record.record_date, 'strftime') else str(record.record_date)[:10]
+
+    type_labels = {
+        'absent':  ('Absent',   'غياب'),
+        'late':    ('Late',     'تأخر'),
+        'excused': ('Excused',  'غياب بعذر'),
+        'leave':   ('Leave',    'إذن خروج'),
+    }
+    type_ar, type_en = type_labels.get(record.record_type, (record.record_type, record.record_type))
+    record_label = type_en if lang == 'en' else type_ar
+
+    if lang == 'en':
+        subj = f'📋 Attendance Notification — {student_name}'
+        content = f"""
+<h2 style="color:#0C67EC;margin:0 0 12px">Dear {guardian_name},</h2>
+<p style="color:#4a5568">We would like to inform you that your child <strong>{student_name}</strong> was recorded as <strong style="color:#dc2626">{record_label}</strong> on <strong>{record_date}</strong>.</p>
+<table width="100%" cellpadding="0" cellspacing="0" style="border-radius:10px;overflow:hidden;border:1px solid #E0E8F5;margin:16px 0">
+  <tr><td style="padding:10px 14px;background:#FAFFFE;font-size:13px;color:#6b7c99;width:40%">👤 Student</td><td style="padding:10px 14px;font-size:13px;color:#2d3748;font-weight:600">{student_name}</td></tr>
+  <tr><td style="padding:10px 14px;background:#f7faff;font-size:13px;color:#6b7c99">📅 Date</td><td style="padding:10px 14px;background:#f7faff;font-size:13px;color:#2d3748;font-weight:600">{record_date}</td></tr>
+  <tr><td style="padding:10px 14px;background:#FAFFFE;font-size:13px;color:#6b7c99">📌 Status</td><td style="padding:10px 14px;font-size:13px;font-weight:600;color:#dc2626">{record_label}</td></tr>
+</table>
+{'<p style="color:#6b7c99;font-size:13px">📝 Notes: ' + record.notes + '</p>' if record.notes else ''}
+<div style="background:#fff8f0;border-left:4px solid #f59e0b;border-radius:8px;padding:12px 16px;color:#92400e;font-size:13px;margin-top:8px">
+  Please contact the school administration for any inquiries.
+</div>"""
+    else:
+        subj = f'📋 إشعار حضور وغياب — {student_name}'
+        content = f"""
+<h2 style="color:#0C67EC;margin:0 0 12px">عزيزي {guardian_name}،</h2>
+<p style="color:#4a5568">نودّ إعلامكم بأن طالبكم <strong>{student_name}</strong> تم تسجيل <strong style="color:#dc2626">{record_label}</strong> بتاريخ <strong>{record_date}</strong>.</p>
+<table width="100%" cellpadding="0" cellspacing="0" style="border-radius:10px;overflow:hidden;border:1px solid #E0E8F5;margin:16px 0">
+  <tr><td style="padding:10px 14px;background:#FAFFFE;font-size:13px;color:#6b7c99;width:40%">👤 الطالب</td><td style="padding:10px 14px;font-size:13px;color:#2d3748;font-weight:600">{student_name}</td></tr>
+  <tr><td style="padding:10px 14px;background:#f7faff;font-size:13px;color:#6b7c99">📅 التاريخ</td><td style="padding:10px 14px;background:#f7faff;font-size:13px;color:#2d3748;font-weight:600">{record_date}</td></tr>
+  <tr><td style="padding:10px 14px;background:#FAFFFE;font-size:13px;color:#6b7c99">📌 الحالة</td><td style="padding:10px 14px;font-size:13px;font-weight:600;color:#dc2626">{record_label}</td></tr>
+</table>
+{'<p style="color:#6b7c99;font-size:13px">📝 ملاحظات: ' + record.notes + '</p>' if record.notes else ''}
+<div style="background:#fff8f0;border-right:4px solid #f59e0b;border-radius:8px;padding:12px 16px;color:#92400e;font-size:13px;margin-top:8px">
+  للاستفسار، يرجى التواصل مع إدارة المدرسة.
+</div>"""
+
+    _send(to_email, guardian_name, subj, _html_wrapper(content, subj, lang), '', sync=True, email_type='notification')
+    return True
