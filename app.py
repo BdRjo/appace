@@ -140,7 +140,7 @@ def create_app():
                 cfg.setdefault('brand_name',    'نظام STAP')
                 cfg.setdefault('brand_name_en', 'STAP System')
                 cfg.setdefault('brand_tagline',    'نظام إدارة الفعاليات والحجوزات')
-                cfg.setdefault('brand_tagline_en', 'Event & Booking Management System')
+                cfg.setdefault('brand_tagline_en', 'Student Tracking & Appointments')
                 cfg.setdefault('brand_short',    'STAP')
                 cfg.setdefault('brand_short_en', 'STAP')
                 return cfg
