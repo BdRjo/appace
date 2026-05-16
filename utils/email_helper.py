@@ -312,6 +312,26 @@ TEMPLATE_REGISTRY = {
   <tr><td style="padding:10px 14px;background:#FAFCFF;font-size:13px;color:#6b7c99;width:35%">🕐 Time</td><td style="padding:10px 14px;background:#FAFCFF;font-size:13px;color:#2d3748;font-weight:600">{{start_time}}</td></tr>
 </table>''',
     },
+
+    'sas_absence': {
+        'name_ar': 'إشعار غياب طالب',
+        'name_en': 'Student Absence Notification',
+        'variables': ['guardian_name', 'student_name', 'record_date', 'record_type'],
+        'default_subject_ar': 'إشعار غياب — {{student_name}}',
+        'default_subject_en': 'Absence Notification — {{student_name}}',
+        'default_body_ar': '<h2>عزيزي {{guardian_name}}،</h2><p>تم تسجيل <strong>{{record_type}}</strong> للطالب <strong>{{student_name}}</strong> بتاريخ {{record_date}}.</p>',
+        'default_body_en': '<h2>Dear {{guardian_name}},</h2><p>Student <strong>{{student_name}}</strong> was recorded as <strong>{{record_type}}</strong> on {{record_date}}.</p>',
+    },
+    'eas_report': {
+        'name_ar': 'تقرير حضور الموظفين',
+        'name_en': 'Employee Attendance Report',
+        'variables': ['recipient_name', 'group_name', 'date_from', 'date_to', 'total', 'present', 'absent', 'late'],
+        'default_subject_ar': 'تقرير حضور — {{group_name}}',
+        'default_subject_en': 'Attendance Report — {{group_name}}',
+        'default_body_ar': '<h2>عزيزي {{recipient_name}}،</h2><p>تقرير حضور مجموعة <strong>{{group_name}}</strong> من {{date_from}} إلى {{date_to}}.</p><p>الإجمالي: {{total}} | حاضر: {{present}} | غائب: {{absent}} | متأخر: {{late}}</p>',
+        'default_body_en': '<h2>Dear {{recipient_name}},</h2><p>Attendance report for <strong>{{group_name}}</strong> from {{date_from}} to {{date_to}}.</p><p>Total: {{total}} | Present: {{present}} | Absent: {{absent}} | Late: {{late}}</p>',
+    },
+
 }
 
 def _resolve_template(template_key, lang, variables_dict):
