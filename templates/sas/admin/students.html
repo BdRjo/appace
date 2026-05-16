@@ -529,6 +529,7 @@ function uploadCSV(){
 
   const xhr = new XMLHttpRequest();
   xhr.open('POST', '{{ url_for("sas.admin_students_import") }}');
+  xhr.setRequestHeader('X-CSRFToken', '{{ csrf_token() }}');
 
   xhr.upload.onprogress = function(e){
     if(e.lengthComputable){

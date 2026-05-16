@@ -436,7 +436,7 @@ html[dir="rtl"] .ticker-overflow {
     {% endif %}
     <div class="brand-text">
       <div class="brand-title">{% if current_lang=='en' %}{{ _mcfg.get('brand_name_en','STAP') }}{% else %}{{ _mcfg.get('brand_name','نظام STAP') }}{% endif %}</div>
-      <div class="brand-sub">{% if current_lang=='en' %}{{ _mcfg.get('brand_tagline_en','Event & Booking System') }}{% else %}{{ _mcfg.get('brand_tagline','نظام إدارة الفعاليات') }}{% endif %}</div>
+      <div class="brand-sub">{% if current_lang=='en' %}{{ _mcfg.get('brand_tagline_en','Student Tracking & Appointments') }}{% else %}{{ _mcfg.get('brand_tagline','نظام الحضور والمقابلات') }}{% endif %}</div>
     </div>
   </div>
   <div class="sidebar-scroll" hx-boost="true" hx-target="#contentArea" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#pageLoader" hx-select="#contentArea">
@@ -494,6 +494,9 @@ html[dir="rtl"] .ticker-overflow {
   </a>
   <a href="/announcements/" class="nav-link {% if request.blueprint=='announcements' %}active{% endif %}">
     <i class="bi bi-megaphone-fill"></i>{% if current_lang=='en' %}Announcements{% else %}الإعلانات{% endif %}
+  </a>
+  <a href="{{ url_for('eas.index') }}" class="nav-link {% if request.blueprint=='eas' %}active{% endif %}" hx-boost="false">
+    <i class="bi bi-person-check"></i>{{ _('حضور الموظفين') if current_lang=='ar' else 'Employee Attendance' }}
   </a>
   <a href="/interviews/admin/" class="nav-link {% if request.blueprint=='interviews' %}active{% endif %}" hx-boost="false">
     <i class="bi bi-people-fill"></i>{% if current_lang=='en' %}Parent Interviews{% else %}مقابلات أولياء الأمور{% endif %}
@@ -662,7 +665,7 @@ html[dir="rtl"] .ticker-overflow {
       <i class="bi bi-calendar-check"></i>
       <strong>STAP</strong>
       <span class="footer-sep">|</span>
-      <span>{% if current_lang=='en' %}Applied Event System{% else %}نظام إدارة الفعاليات{% endif %}</span>
+      <span>{% if current_lang=='en' %}Student Tracking & Appointments{% else %}نظام الحضور والمقابلات{% endif %}</span>
       <span class="footer-sep">|</span>
       <a href="#" class="footer-terms" data-bs-toggle="modal" data-bs-target="#aboutModal">
         {% if current_lang=='en' %}About{% else %}عن النظام{% endif %}
@@ -695,7 +698,7 @@ html[dir="rtl"] .ticker-overflow {
                 <i class="bi bi-calendar-check" style="font-size:1.8rem;color:#fff"></i>
               </div>
               <h4 style="color:var(--primary);font-weight:800;margin-bottom:4px">STAP</h4>
-              <p style="color:#666;font-size:.88rem;margin:0">{% if current_lang=='en' %}Applied Event System{% else %}نظام إدارة الفعاليات التطبيقي{% endif %}</p>
+              <p style="color:#666;font-size:.88rem;margin:0">{% if current_lang=='en' %}Student Tracking & Appointments{% else %}نظام الحضور والمقابلات التطبيقي{% endif %}</p>
             </div>
             {% if current_lang=='en' %}
             <div class="row g-3">
@@ -802,7 +805,7 @@ html[dir="rtl"] .ticker-overflow {
             <p>All data is stored securely using encryption standards. Access is restricted to authorized users only, and all system activities are logged for security purposes.</p>
 
             <h6 class="fw-bold text-primary mb-2"><i class="bi bi-4-circle me-1"></i>Intellectual Property</h6>
-            <p>STAP — Applied Event System and all its components, interfaces, code, and content are the exclusive intellectual property of the system owner. Reproduction, copying, or redistribution of any part of this system is strictly prohibited without prior written permission.</p>
+            <p>STAP — Student Tracking & Appointments and all its components, interfaces, code, and content are the exclusive intellectual property of the system owner. Reproduction, copying, or redistribution of any part of this system is strictly prohibited without prior written permission.</p>
 
             <h6 class="fw-bold text-primary mb-2"><i class="bi bi-5-circle me-1"></i>User Responsibilities</h6>
             <p>Users are responsible for maintaining the confidentiality of their login credentials. Any misuse of the system, unauthorized access attempts, or violation of these terms may result in immediate account suspension and potential legal action.</p>
@@ -814,7 +817,7 @@ html[dir="rtl"] .ticker-overflow {
             <p>These terms are governed by applicable local laws. Any disputes shall be resolved through the competent judicial authorities.</p>
 
             <div class="mt-3 p-2 rounded" style="background:#EEF4FD;border-right:3px solid var(--primary)">
-              <small class="text-muted">Last updated: 2026 · STAP Applied Event System · All rights reserved ©</small>
+              <small class="text-muted">Last updated: 2026 · STAP Student Tracking & Appointments · All rights reserved ©</small>
             </div>
 
             {% else %}
@@ -829,7 +832,7 @@ html[dir="rtl"] .ticker-overflow {
             <p>تُحفظ جميع البيانات بشكل آمن باستخدام معايير التشفير المعتمدة. لا يمكن الوصول إليها إلا للمستخدمين المخولين، وتُسجَّل جميع أنشطة النظام لأغراض أمنية.</p>
 
             <h6 class="fw-bold text-primary mb-2"><i class="bi bi-4-circle me-1"></i>الملكية الفكرية</h6>
-            <p>نظام STAP — Applied Event System وجميع مكوناته وواجهاته وكوده ومحتواه هي الملكية الفكرية الحصرية لمالك النظام. يُحظر تمامًا إعادة إنتاج أي جزء من هذا النظام أو نسخه أو توزيعه دون إذن كتابي مسبق.</p>
+            <p>نظام STAP — Student Tracking & Appointments وجميع مكوناته وواجهاته وكوده ومحتواه هي الملكية الفكرية الحصرية لمالك النظام. يُحظر تمامًا إعادة إنتاج أي جزء من هذا النظام أو نسخه أو توزيعه دون إذن كتابي مسبق.</p>
 
             <h6 class="fw-bold text-primary mb-2"><i class="bi bi-5-circle me-1"></i>مسؤوليات المستخدم</h6>
             <p>يتحمل المستخدم مسؤولية الحفاظ على سرية بيانات تسجيل الدخول الخاصة به. قد يؤدي أي إساءة في استخدام النظام أو محاولات وصول غير مصرح بها أو انتهاك هذه الشروط إلى تعليق الحساب فورًا واتخاذ الإجراءات القانونية اللازمة.</p>
@@ -865,7 +868,7 @@ html[dir="rtl"] .ticker-overflow {
               <div style="color:#fff;font-weight:700;font-size:.95rem;margin-top:4px">
                 {% if current_lang=='en' %}We're here to help!{% else %}نحن هنا لمساعدتك!{% endif %}
               </div>
-              <div style="color:rgba(255,255,255,.75);font-size:.78rem">STAP — Applied Event System</div>
+              <div style="color:rgba(255,255,255,.75);font-size:.78rem">STAP — Student Tracking & Appointments</div>
             </div>
             <div class="p-4 d-flex flex-column gap-3">
               <!-- Email -->

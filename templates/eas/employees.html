@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{%- set ar = (current_lang == 'ar') -%}
+
+{% block title %}{% if ar %}موظفو {{ group.name_ar or group.name }}{% else %}{{ group.name }} Staff{% endif %}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <h4 class="fw-bold mb-0">
+    <i class="bi bi-people-fill me-2" style="color:var(--primary)"></i>
+    {{ group.name_ar if ar and group.name_ar else group.name }}
+  </h4>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('eas.groups') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-{{ 'right' if ar else 'left' }} me-1"></i>{% if ar %}رجوع{% else %}Back{% endif %}
+    </a>
+    <a href="{{ url_for('eas.report') }}?group_id={{ group.id }}" class="btn btn-outline-primary btn-sm">
+      <i class="bi bi-bar-chart me-1"></i>{% if ar %}تقرير{% else %}Report{% endif %}
+    </a>
+  </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% for cat, msg in messages %}
+<div class="alert alert-{{ 'success' if cat == 'success' else 'danger' }} alert-dismissible fade show">
+  {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endfor %}
+{% endwith %}
+
+<div class="row g-3 mb-4">
+  <!-- Add Employee -->
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm h-100" style="border-radius:14px">
+      <div class="card-header bg-white border-0 pt-3 pb-0">
+        <h6 class="fw-bold"><i class="bi bi-person-plus me-2" style="color:var(--primary)"></i>{% if ar %}إضافة موظف{% else %}Add Employee{% endif %}</h6>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('eas.employee_add', gid=group.id) }}">
+          <div class="row g-2">
+            <div class="col-12">
+              <input type="text" name="name" class="form-control form-control-sm" required
+                     placeholder="{% if ar %}الاسم الكامل *{% else %}Full Name *{% endif %}">
+            </div>
+            <div class="col-md-6">
+              <input type="text" name="name_en" class="form-control form-control-sm"
+                     placeholder="{% if ar %}الاسم بالإنجليزية{% else %}Name in Arabic{% endif %}">
+            </div>
+            <div class="col-md-6">
+              <input type="text" name="employee_id" class="form-control form-control-sm"
+                     placeholder="{% if ar %}رقم الموظف{% else %}Employee ID{% endif %}">
+            </div>
+            <div class="col-md-6">
+              <input type="email" name="email" class="form-control form-control-sm"
+                     placeholder="{% if ar %}البريد الإلكتروني{% else %}Email{% endif %}">
+            </div>
+            <div class="col-md-6">
+              <input type="text" name="phone" class="form-control form-control-sm"
+                     placeholder="{% if ar %}الهاتف{% else %}Phone{% endif %}">
+            </div>
+            <div class="col-12">
+              <button type="submit" class="btn btn-primary-ars btn-sm w-100">
+                <i class="bi bi-plus me-1"></i>{% if ar %}إضافة{% else %}Add{% endif %}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import Excel -->
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm h-100" style="border-radius:14px">
+      <div class="card-header bg-white border-0 pt-3 pb-0">
+        <h6 class="fw-bold"><i class="bi bi-file-earmark-excel me-2 text-success"></i>{% if ar %}استيراد من Excel{% else %}Import from Excel{% endif %}</h6>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('eas.employees_import', gid=group.id) }}" enctype="multipart/form-data">
+          <p class="small text-muted mb-2">
+            {% if ar %}الأعمدة المطلوبة: name, name_en, email, phone, employee_id{% else %}Required columns: name, name_en, email, phone, employee_id{% endif %}
+          </p>
+          <div class="d-flex gap-2">
+            <input type="file" name="file" class="form-control form-control-sm" accept=".xlsx,.xls" required>
+            <button type="submit" class="btn btn-success btn-sm px-3">
+              <i class="bi bi-upload"></i>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Employees Table -->
+<div class="card border-0 shadow-sm" style="border-radius:14px">
+  <div class="card-header bg-white border-bottom d-flex align-items-center justify-content-between">
+    <span class="fw-bold small">
+      <i class="bi bi-people me-1"></i>
+      {{ employees|length }} {% if ar %}موظف{% else %}employees{% endif %}
+    </span>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0" style="font-size:.88rem">
+        <thead style="background:linear-gradient(90deg,var(--primary),var(--primary-dark));color:#fff">
+          <tr>
+            <th class="ps-3">#</th>
+            <th>{% if ar %}الاسم{% else %}Name{% endif %}</th>
+            <th>{% if ar %}رقم الموظف{% else %}ID{% endif %}</th>
+            <th>{% if ar %}البريد{% else %}Email{% endif %}</th>
+            <th>{% if ar %}الهاتف{% else %}Phone{% endif %}</th>
+            <th>{% if ar %}السجلات{% else %}Records{% endif %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for emp in employees %}
+          <tr>
+            <td class="ps-3 text-muted">{{ loop.index }}</td>
+            <td class="fw-semibold">{{ emp.name }}</td>
+            <td><span class="badge bg-light text-dark border">{{ emp.employee_id or '—' }}</span></td>
+            <td>{{ emp.email or '—' }}</td>
+            <td>{{ emp.phone or '—' }}</td>
+            <td>
+              <span class="badge" style="background:var(--primary-light);color:var(--primary)">
+                {{ emp.records|length }}
+              </span>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="text-center text-muted py-4">{% if ar %}لا يوجد موظفون{% else %}No employees{% endif %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1056,6 +1056,7 @@ class SASConfig(Base):
     stages          = relationship('SASStage', back_populates='config', cascade='all, delete-orphan')
     staff           = relationship('SASStaff', back_populates='config', cascade='all, delete-orphan')
     holidays        = relationship('SASHoliday', back_populates='config', cascade='all, delete-orphan')
+    eas_groups      = relationship('EASGroup', back_populates='config', cascade='all, delete-orphan')
 
 class SASYear(Base):
     """Educational year (e.g. 2025-2026)"""
@@ -1261,3 +1262,80 @@ class SASTimetable(Base):
     updated_at    = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     section       = relationship('SASSection')
     period        = relationship('SASPeriod')
+
+
+# ═══════════════════════════════════════════════════
+#  Staff Attendance System (EAS - Employee Attendance)
+# ═══════════════════════════════════════════════════
+
+class EASGroup(Base):
+    """مجموعة الموظفين (ACS Staff, KG Teachers, etc.)"""
+    __tablename__ = 'eas_groups'
+    id          = Column(Integer, primary_key=True)
+    config_id   = Column(Integer, ForeignKey('sas_configs.id'), nullable=False)
+    name        = Column(String(200), nullable=False)   # e.g. "KG Teachers"
+    name_ar     = Column(String(200))                   # e.g. "معلمو الروضة"
+    work_days   = Column(String(20), default='1,2,3,4,5')  # 0=Sun,1=Mon,...,6=Sat
+    shift_start = Column(String(10), default='07:30')   # HH:MM
+    shift_end   = Column(String(10), default='15:00')   # HH:MM
+    late_tolerance = Column(Integer, default=10)        # minutes
+    created_at  = Column(DateTime, default=datetime.now)
+    config      = relationship('SASConfig')
+    employees   = relationship('EASEmployee', back_populates='group', cascade='all, delete-orphan')
+
+
+class EASEmployee(Base):
+    """موظف في مجموعة"""
+    __tablename__ = 'eas_employees'
+    id          = Column(Integer, primary_key=True)
+    group_id    = Column(Integer, ForeignKey('eas_groups.id'), nullable=False)
+    name        = Column(String(200), nullable=False)
+    name_en     = Column(String(200))
+    email       = Column(String(200))
+    phone       = Column(String(50))
+    employee_id = Column(String(50))                    # رقم الموظف
+    is_active   = Column(Boolean, default=True)
+    created_at  = Column(DateTime, default=datetime.now)
+    group       = relationship('EASGroup', back_populates='employees')
+    records     = relationship('EASRecord', back_populates='employee', cascade='all, delete-orphan')
+
+
+class EASShift(Base):
+    """فترة مناوبة لمجموعة"""
+    __tablename__ = 'eas_shifts'
+    id          = Column(Integer, primary_key=True)
+    group_id    = Column(Integer, ForeignKey('eas_groups.id'), nullable=False)
+    name        = Column(String(200), nullable=False)
+    shift_start = Column(String(10), nullable=False)
+    shift_end   = Column(String(10), nullable=False)
+    created_at  = Column(DateTime, default=datetime.now)
+    group       = relationship('EASGroup')
+    assignments = relationship('EASShiftAssignment', back_populates='shift', cascade='all, delete-orphan')
+
+
+class EASShiftAssignment(Base):
+    """تعيين موظف لمناوبة"""
+    __tablename__ = 'eas_shift_assignments'
+    id          = Column(Integer, primary_key=True)
+    shift_id    = Column(Integer, ForeignKey('eas_shifts.id'), nullable=False)
+    employee_id = Column(Integer, ForeignKey('eas_employees.id'), nullable=False)
+    date        = Column(String(10), nullable=False)    # YYYY-MM-DD
+    created_at  = Column(DateTime, default=datetime.now)
+    shift       = relationship('EASShift', back_populates='assignments')
+    employee    = relationship('EASEmployee')
+
+
+class EASRecord(Base):
+    """سجل حضور موظف (من ملف Excel أو يدوي)"""
+    __tablename__ = 'eas_records'
+    id          = Column(Integer, primary_key=True)
+    employee_id = Column(Integer, ForeignKey('eas_employees.id'), nullable=False)
+    record_date = Column(String(10), nullable=False)    # YYYY-MM-DD
+    check_in    = Column(String(10))                    # HH:MM
+    check_out   = Column(String(10))                    # HH:MM
+    status      = Column(String(20), default='present') # present/absent/late/early_leave
+    late_minutes = Column(Integer, default=0)
+    notes       = Column(Text)
+    source      = Column(String(20), default='excel')   # excel/manual
+    created_at  = Column(DateTime, default=datetime.now)
+    employee    = relationship('EASEmployee', back_populates='records')
