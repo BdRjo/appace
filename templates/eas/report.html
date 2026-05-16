@@ -104,8 +104,7 @@
 </div>
 
 {% if records %}
-{% set normal = records | selectattr('employee_id', 'not in', shift_employees) | list %}
-{% set shifted = records | selectattr('employee_id', 'in', shift_employees) | list %}
+{% set normal = [] %}{% set shifted = [] %}{% for rec in records %}{% if rec.employee_id in shift_employees %}{% set shifted = shifted + [rec] %}{% else %}{% set normal = normal + [rec] %}{% endif %}{% endfor %}
 
 <!-- Stats -->
 {% set total = records|length %}
