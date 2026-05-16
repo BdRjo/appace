@@ -1,0 +1,372 @@
+{% extends "base.html" %}
+{%- set ar = (current_lang == 'ar') -%}
+
+{% block title %}{% if ar %}تقرير الحضور{% else %}Attendance Report{% endif %}{% endblock %}
+
+{% block extra_css %}
+<style>
+.stat-card { border-radius:12px; padding:18px 20px; color:#fff; }
+.rec-present { border-right: 3px solid #10b981; }
+.rec-absent  { border-right: 3px solid #ef4444; }
+.rec-late    { border-right: 3px solid #f59e0b; }
+[dir="ltr"] .rec-present { border-right:none; border-left: 3px solid #10b981; }
+[dir="ltr"] .rec-absent  { border-right:none; border-left: 3px solid #ef4444; }
+[dir="ltr"] .rec-late    { border-right:none; border-left: 3px solid #f59e0b; }
+.shift-section { background:#fef3c7; border-radius:10px; padding:12px; margin-top:16px; }
+@media print {
+  .no-print { display:none !important; }
+  .card { box-shadow:none !important; border:1px solid #ddd !important; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2 no-print">
+  <h4 class="fw-bold mb-0">
+    <i class="bi bi-bar-chart-fill me-2" style="color:var(--primary)"></i>
+    {% if ar %}تقرير حضور الموظفين{% else %}Employee Attendance Report{% endif %}
+  </h4>
+  <div class="d-flex gap-2 flex-wrap">
+    <button onclick="window.print()" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-printer me-1"></i>{% if ar %}طباعة{% else %}Print{% endif %}
+    </button>
+    {% if records %}
+    <button onclick="exportPDF()" class="btn btn-outline-danger btn-sm">
+      <i class="bi bi-file-pdf me-1"></i>PDF
+    </button>
+    <button id="sendBtn" onclick="showSendModal()" class="btn btn-primary-ars btn-sm">
+      <i class="bi bi-send me-1"></i>{% if ar %}إرسال{% else %}Send{% endif %}
+    </button>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="card border-0 shadow-sm mb-4 no-print" style="border-radius:14px">
+  <div class="card-body">
+    <form method="GET" class="row g-3 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label small fw-semibold">{% if ar %}المجموعة{% else %}Group{% endif %}</label>
+        <select name="group_id" class="form-select form-select-sm">
+          <option value="">{% if ar %}كل المجموعات{% else %}All Groups{% endif %}</option>
+          {% for g in groups %}
+          <option value="{{ g.id }}" {% if group and group.id == g.id %}selected{% endif %}>
+            {{ g.name_ar if ar and g.name_ar else g.name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small fw-semibold">{% if ar %}من{% else %}From{% endif %}</label>
+        <input type="date" name="from" class="form-control form-control-sm" value="{{ date_from }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small fw-semibold">{% if ar %}إلى{% else %}To{% endif %}</label>
+        <input type="date" name="to" class="form-control form-control-sm" value="{{ date_to }}">
+      </div>
+      {% if dept_names %}
+      <div class="col-md-3">
+        <label class="form-label small fw-semibold">{% if ar %}الدائرة{% else %}Department{% endif %}</label>
+        <select name="department" class="form-select form-select-sm">
+          <option value="">{% if ar %}كل الدوائر{% else %}All Departments{% endif %}</option>
+          {% for d in dept_names %}
+          <option value="{{ d }}" {% if dept_filter == d %}selected{% endif %}>{{ d }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-primary-ars btn-sm w-100">
+          <i class="bi bi-funnel me-1"></i>{% if ar %}تطبيق{% else %}Filter{% endif %}
+        </button>
+      </div>
+      <div class="col-12">
+        <div class="border rounded p-3" style="background:#fffbeb">
+          <div class="form-check form-switch mb-2">
+            <input class="form-check-input" type="checkbox" id="shiftToggle" name="use_shift"
+                   {% if request.args.get('use_shift') %}checked{% endif %}
+                   onchange="document.getElementById('shiftOptions').style.display=this.checked?'block':'none'">
+            <label class="form-check-label fw-semibold small" for="shiftToggle">
+              <i class="bi bi-moon-stars me-1" style="color:#d97706"></i>
+              {% if ar %}تفعيل فلتر المناوبة{% else %}Enable Shift Filter{% endif %}
+            </label>
+          </div>
+          <div id="shiftOptions" style="display:{% if request.args.get('use_shift') %}block{% else %}none{% endif %}">
+            <div class="row g-2">
+              <div class="col-md-3">
+                <label class="form-label small fw-semibold">{% if ar %}بداية الوردية{% else %}Shift Start{% endif %}</label>
+                <input type="time" name="shift_from" class="form-control form-control-sm" value="{{ request.args.get('shift_from','') }}">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-semibold">{% if ar %}نهاية الوردية{% else %}Shift End{% endif %}</label>
+                <input type="time" name="shift_to" class="form-control form-control-sm" value="{{ request.args.get('shift_to','') }}">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">{% if ar %}أسماء المناوبة (سطر لكل اسم){% else %}Shift Names (one per line){% endif %}</label>
+                <textarea name="shift_names" class="form-control form-control-sm" rows="3"
+                          placeholder="{% if ar %}أحمد محمد{% else %}Ahmed Mohammed{% endif %}">{{ request.args.get('shift_names','') }}</textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if records %}
+{# FIX: Jinja2 can't mutate lists inside loops — split in route instead #}
+{# normal = records not in shift_employees; shifted = records in shift_employees #}
+{% set normal  = records | rejectattr('employee_id', 'in', shift_employees) | list if shift_employees else records | list %}
+{% set shifted = records | selectattr('employee_id', 'in', shift_employees) | list if shift_employees else [] %}
+
+<!-- Stats -->
+{% set total = records|length %}
+{% set present = records|selectattr('status','eq','present')|list|length %}
+{% set absent = records|selectattr('status','eq','absent')|list|length %}
+{% set late = records|selectattr('status','eq','late')|list|length %}
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#0C67EC,#3D8EF5)">
+      <div style="font-size:1.8rem;font-weight:800">{{ total }}</div>
+      <div style="font-size:.82rem;opacity:.85">{% if ar %}إجمالي السجلات{% else %}Total Records{% endif %}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#10b981,#34d399)">
+      <div style="font-size:1.8rem;font-weight:800">{{ present }}</div>
+      <div style="font-size:.82rem;opacity:.85">{% if ar %}حاضر{% else %}Present{% endif %}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#ef4444,#f87171)">
+      <div style="font-size:1.8rem;font-weight:800">{{ absent }}</div>
+      <div style="font-size:.82rem;opacity:.85">{% if ar %}غائب{% else %}Absent{% endif %}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#f59e0b,#fbbf24)">
+      <div style="font-size:1.8rem;font-weight:800">{{ late }}</div>
+      <div style="font-size:.82rem;opacity:.85">{% if ar %}متأخر{% else %}Late{% endif %}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Main Records Table -->
+<div class="card border-0 shadow-sm mb-4" style="border-radius:14px">
+  <div class="card-header bg-white border-bottom">
+    <h6 class="fw-bold mb-0">
+      <i class="bi bi-table me-2" style="color:var(--primary)"></i>
+      {% if ar %}سجلات الحضور العامة{% else %}General Attendance Records{% endif %}
+      <span class="badge ms-2" style="background:var(--primary-light);color:var(--primary)">{{ normal|length }}</span>
+    </h6>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0" style="font-size:.85rem">
+        <thead style="background:linear-gradient(90deg,var(--primary),var(--primary-dark));color:#fff">
+          <tr>
+            <th class="ps-3">{% if ar %}الموظف{% else %}Employee{% endif %}</th>
+            <th>{% if ar %}التاريخ{% else %}Date{% endif %}</th>
+            <th>{% if ar %}دخول{% else %}Check In{% endif %}</th>
+            <th>{% if ar %}خروج{% else %}Check Out{% endif %}</th>
+            <th>{% if ar %}الحالة{% else %}Status{% endif %}</th>
+            <th>{% if ar %}التأخر{% else %}Late{% endif %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for rec in normal %}
+          {% set cls = 'rec-present' if rec.status=='present' else ('rec-absent' if rec.status=='absent' else 'rec-late') %}
+          <tr class="{{ cls }}">
+            <td class="ps-3 fw-semibold">{{ rec.employee.name }}</td>
+            <td>{{ rec.record_date }}</td>
+            <td>{{ rec.check_in or '—' }}</td>
+            <td>{{ rec.check_out or '—' }}</td>
+            <td>
+              {% if rec.status == 'present' %}
+              <span class="badge" style="background:#dcfce7;color:#15803d">{% if ar %}حاضر{% else %}Present{% endif %}</span>
+              {% elif rec.status == 'absent' %}
+              <span class="badge" style="background:#fee2e2;color:#dc2626">{% if ar %}غائب{% else %}Absent{% endif %}</span>
+              {% elif rec.status == 'late' %}
+              <span class="badge" style="background:#fef3c7;color:#d97706">{% if ar %}متأخر{% else %}Late{% endif %}</span>
+              {% else %}
+              <span class="badge bg-secondary">{{ rec.status }}</span>
+              {% endif %}
+            </td>
+            <td>{% if rec.late_minutes %}{{ rec.late_minutes }} {% if ar %}د{% else %}min{% endif %}{% else %}—{% endif %}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="text-center text-muted py-4">{% if ar %}لا توجد سجلات{% else %}No records{% endif %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Shift Records -->
+{% if shifted %}
+<div class="shift-section mb-4">
+  <h6 class="fw-bold mb-3">
+    <i class="bi bi-moon-stars me-2" style="color:#d97706"></i>
+    {% if ar %}سجلات المناوبة{% else %}Shift Records{% endif %}
+    <span class="badge ms-2" style="background:#fef3c7;color:#d97706">{{ shifted|length }}</span>
+  </h6>
+  <div class="table-responsive">
+    <table class="table table-sm table-hover mb-0 bg-white" style="font-size:.85rem;border-radius:10px;overflow:hidden">
+      <thead style="background:linear-gradient(90deg,#d97706,#f59e0b);color:#fff">
+        <tr>
+          <th class="ps-3">{% if ar %}الموظف{% else %}Employee{% endif %}</th>
+          <th>{% if ar %}التاريخ{% else %}Date{% endif %}</th>
+          <th>{% if ar %}دخول{% else %}Check In{% endif %}</th>
+          <th>{% if ar %}خروج{% else %}Check Out{% endif %}</th>
+          <th>{% if ar %}الحالة{% else %}Status{% endif %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rec in shifted %}
+        <tr>
+          <td class="ps-3 fw-semibold">{{ rec.employee.name }}</td>
+          <td>{{ rec.record_date }}</td>
+          <td>{{ rec.check_in or '—' }}</td>
+          <td>{{ rec.check_out or '—' }}</td>
+          <td>
+            <span class="badge" style="background:#fef3c7;color:#d97706">
+              {% if ar %}مناوبة{% else %}Shift{% endif %}
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% else %}
+<div class="text-center text-muted py-5">
+  <i class="bi bi-bar-chart" style="font-size:3rem;opacity:.3"></i>
+  <p class="mt-3">{% if ar %}اختر مجموعة وفترة زمنية لعرض التقرير{% else %}Select a group and date range to view report{% endif %}</p>
+</div>
+{% endif %}
+
+<!-- Send Modal -->
+<div class="modal fade no-print" id="sendModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content" style="border-radius:14px">
+      <div class="modal-header border-0">
+        <h6 class="modal-title fw-bold">
+          <i class="bi bi-send me-2" style="color:var(--primary)"></i>
+          {% if ar %}إرسال التقرير{% else %}Send Report{% endif %}
+        </h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">{% if ar %}إرسال إلى{% else %}Send To{% endif %}</label>
+          <select id="sendTarget" class="form-select form-select-sm">
+            <option value="group">{% if ar %}مجموعة من المستخدمين{% else %}User Group{% endif %}</option>
+            <option value="individual">{% if ar %}فردي{% else %}Individual{% endif %}</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">{% if ar %}البريد الإلكتروني{% else %}Email{% endif %}</label>
+          <input type="email" id="sendEmail" class="form-control form-control-sm"
+                 placeholder="{% if ar %}أدخل البريد...{% else %}Enter email...{% endif %}">
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">{% if ar %}الفترة{% else %}Period{% endif %}</label>
+          <div class="d-flex gap-2">
+            <input type="date" id="sendFrom" class="form-control form-control-sm" value="{{ date_from }}">
+            <span class="align-self-center">—</span>
+            <input type="date" id="sendTo" class="form-control form-control-sm" value="{{ date_to }}">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">
+          {% if ar %}إلغاء{% else %}Cancel{% endif %}
+        </button>
+        <button type="button" class="btn btn-primary-ars btn-sm" onclick="sendReport()">
+          <i class="bi bi-send me-1"></i>{% if ar %}إرسال{% else %}Send{% endif %}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% block extra_js %}
+<script>
+// Autocomplete for shift names textarea
+var shiftTextarea = document.querySelector('[name="shift_names"]');
+var suggestBox = null;
+
+if (shiftTextarea) {
+  shiftTextarea.addEventListener('input', function() {
+    var lines = this.value.split('\n');
+    var lastLine = lines[lines.length - 1].trim();
+    if (lastLine.length < 2) { hideSuggest(); return; }
+    
+    var groupId = document.querySelector('[name="group_id"]').value;
+    fetch('/eas/api/employees/search?q=' + encodeURIComponent(lastLine) + '&group_id=' + groupId)
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if (!data.length) { hideSuggest(); return; }
+        showSuggest(data, lines);
+      });
+  });
+}
+
+function showSuggest(items, lines) {
+  hideSuggest();
+  suggestBox = document.createElement('div');
+  suggestBox.style.cssText = 'position:absolute;background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.1);z-index:9999;min-width:200px;max-height:180px;overflow-y:auto';
+  items.forEach(function(emp) {
+    var item = document.createElement('div');
+    item.textContent = emp.name;
+    item.style.cssText = 'padding:8px 14px;cursor:pointer;font-size:.88rem';
+    item.onmouseenter = function(){ this.style.background='#f0f4ff'; };
+    item.onmouseleave = function(){ this.style.background=''; };
+    item.onclick = function() {
+      lines[lines.length - 1] = emp.name;
+      shiftTextarea.value = lines.join('\n') + '\n';
+      hideSuggest();
+    };
+    suggestBox.appendChild(item);
+  });
+  var rect = shiftTextarea.getBoundingClientRect();
+  suggestBox.style.top = (window.scrollY + rect.bottom) + 'px';
+  suggestBox.style.left = rect.left + 'px';
+  document.body.appendChild(suggestBox);
+}
+
+function hideSuggest() {
+  if (suggestBox) { suggestBox.remove(); suggestBox = null; }
+}
+
+document.addEventListener('click', function(e) {
+  if (e.target !== shiftTextarea) hideSuggest();
+});
+
+function showSendModal() {
+  new bootstrap.Modal(document.getElementById('sendModal')).show();
+}
+
+function sendReport() {
+  const email = document.getElementById('sendEmail').value;
+  if (!email) {
+    alert('{% if ar %}يرجى إدخال البريد الإلكتروني{% else %}Please enter email{% endif %}');
+    return;
+  }
+  // TODO: implement send API call
+  alert('{% if ar %}تم إرسال التقرير{% else %}Report sent{% endif %}');
+  bootstrap.Modal.getInstance(document.getElementById('sendModal')).hide();
+}
+
+function exportPDF() {
+  window.print();
+}
+</script>
+{% endblock %}
+{% endblock %}
