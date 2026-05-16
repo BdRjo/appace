@@ -104,7 +104,15 @@
 </div>
 
 {% if records %}
-{% set normal = [] %}{% set shifted = [] %}{% for rec in records %}{% if rec.employee_id in shift_employees %}{% set shifted = shifted + [rec] %}{% else %}{% set normal = normal + [rec] %}{% endif %}{% endfor %}
+{% set normal = [] %}
+{% set shifted = [] %}
+{% for rec in records %}
+  {% if shift_employees and rec.employee_id in shift_employees %}
+    {% set shifted = shifted + [rec] %}
+  {% else %}
+    {% set normal = normal + [rec] %}
+  {% endif %}
+{% endfor %}
 
 <!-- Stats -->
 {% set total = records|length %}
