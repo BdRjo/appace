@@ -272,43 +272,60 @@ def upload():
         wb = openpyxl.load_workbook(file)
         ws = wb.active
 
-        # FIX: Read raw headers, filter out empty columns but keep index mapping
+        # case-insensitive header → column index map (skip empty columns)
         raw_headers = [str(c.value).strip() if c.value else '' for c in ws[1]]
+        col = {h.lower(): i for i, h in enumerate(raw_headers) if h}
 
-        # Build a case-insensitive header→index map, skipping empty headers
-        col = {}
-        for i, h in enumerate(raw_headers):
-            if h:
-                col[h.lower()] = i
-
-        # FIX: resolve column indices with multiple possible header names
         def _col_idx(names, default):
             for n in names:
-                if n in col:
-                    return col[n]
+                if n.lower() in col:
+                    return col[n.lower()]
             return default
 
-        idx_name       = _col_idx(['name', 'الاسم'], 0)
-        idx_date       = _col_idx(['date', 'التاريخ'], 1)
-        idx_check_in   = _col_idx(['check_in', 'checkin', 'وقت الدخول', 'دخول'], 2)
-        idx_check_out  = _col_idx(['check_out', 'checkout', 'وقت الخروج', 'خروج'], 3)
-        idx_department = _col_idx(['department', 'القسم', 'الإدارة'], -1)
+        idx_name       = _col_idx(['name','الاسم','employee name','employee_name'], 0)
+        idx_date       = _col_idx(['date','التاريخ','record_date','recorddate'], 1)
+        idx_check_in   = _col_idx(['check_in','checkin','check in','وقت الدخول','دخول','time_in'], 2)
+        idx_check_out  = _col_idx(['check_out','checkout','check out','وقت الخروج','خروج','time_out'], 3)
+        idx_department = _col_idx(['department','dept','القسم','الإدارة','الادارة'], -1)
+
+        def _parse_date(v):
+            """Convert any date value to YYYY-MM-DD string."""
+            if v is None: return ''
+            # openpyxl already parsed it as datetime
+            if hasattr(v, 'strftime'):
+                return v.strftime('%Y-%m-%d')
+            s = str(v).strip()
+            if not s or s == 'None': return ''
+            # Excel serial integer (e.g. 46091)
+            if s.isdigit():
+                from datetime import date as _d, timedelta as _td
+                return (_d(1899, 12, 30) + _td(days=int(s))).strftime('%Y-%m-%d')
+            # Common string formats — flexible dd/mm or mm/dd or yyyy-mm-dd
+            for fmt in ('%Y-%m-%d','%d/%m/%Y','%m/%d/%Y','%Y/%m/%d',
+                        '%d-%m-%Y','%m-%d-%Y','%d.%m.%Y','%Y.%m.%d'):
+                try:
+                    return datetime.strptime(s[:10], fmt).strftime('%Y-%m-%d')
+                except ValueError:
+                    continue
+            return s[:10]
 
         added = 0
         errors = []
         for row in ws.iter_rows(min_row=2, values_only=True):
             try:
-                # safe cell read
                 def cell(idx):
-                    if idx < 0 or idx >= len(row):
-                        return ''
+                    if idx < 0 or idx >= len(row): return ''
                     v = row[idx]
-                    return str(v).strip() if v is not None else ''
+                    if v is None: return ''
+                    if hasattr(v, 'strftime'):
+                        # time-only cell
+                        return v.strftime('%H:%M')
+                    return str(v).strip()
 
                 name       = cell(idx_name)
-                rec_date   = cell(idx_date)[:10]
-                check_in   = cell(idx_check_in)
-                check_out  = cell(idx_check_out)
+                rec_date   = _parse_date(row[idx_date] if idx_date < len(row) else None)
+                check_in   = cell(idx_check_in)[:5] if cell(idx_check_in) else ''
+                check_out  = cell(idx_check_out)[:5] if cell(idx_check_out) else ''
                 department = cell(idx_department) if idx_department >= 0 else ''
 
                 if not name or not rec_date:
