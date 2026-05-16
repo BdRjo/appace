@@ -63,6 +63,13 @@ def create_app():
                 ALTER COLUMN user_id DROP NOT NULL
             """))
             conn.commit()
+
+            # EAS department column
+            conn.execute(text("""
+                ALTER TABLE eas_employees
+                ADD COLUMN IF NOT EXISTS department VARCHAR(200)
+            """))
+            conn.commit()
     except Exception as e:
         print(f"⚠️ Column migration: {e}")
 
