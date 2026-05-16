@@ -104,15 +104,10 @@
 </div>
 
 {% if records %}
-{% set normal = [] %}
-{% set shifted = [] %}
-{% for rec in records %}
-  {% if shift_employees and rec.employee_id in shift_employees %}
-    {% set shifted = shifted + [rec] %}
-  {% else %}
-    {% set normal = normal + [rec] %}
-  {% endif %}
-{% endfor %}
+{# FIX: Jinja2 can't mutate lists inside loops — split in route instead #}
+{# normal = records not in shift_employees; shifted = records in shift_employees #}
+{% set normal  = records | rejectattr('employee_id', 'in', shift_employees) | list if shift_employees else records | list %}
+{% set shifted = records | selectattr('employee_id', 'in', shift_employees) | list if shift_employees else [] %}
 
 <!-- Stats -->
 {% set total = records|length %}
