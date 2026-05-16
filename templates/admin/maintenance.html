@@ -132,7 +132,7 @@
                 </div>
                 <div class="col-md-6">
                   <label class="form-label fw-600">{% if current_lang=='en' %}Tagline (Arabic){% else %}الوصف المختصر (عربي){% endif %}</label>
-                  <input type="text" name="brand_tagline" class="form-control" value="{{ mcfg.get('brand_tagline','نظام إدارة الفعاليات') }}">
+                  <input type="text" name="brand_tagline" class="form-control" value="{{ mcfg.get('brand_tagline','نظام الحضور والمقابلات') }}">
                 </div>
                 <div class="col-md-6">
                   <label class="form-label fw-600">Tagline (English)</label>
@@ -691,7 +691,7 @@
             <div class="d-flex align-items-center gap-3">
               <div style="width:36px;height:36px;border-radius:10px;background:{{ mcfg.get('color_accent','#5C9BDE') }};display:flex;align-items:center;justify-content:center;font-size:1.1rem" id="accentPreview">📅</div>
               <div>
-                <div style="color:#fff;font-weight:700;font-size:.9rem">STAP — Applied Event System</div>
+                <div style="color:#fff;font-weight:700;font-size:.9rem">STAP — Student Tracking & Appointments</div>
                 <div style="color:rgba(255,255,255,.6);font-size:.72rem">{% if current_lang=='en' %}Live Preview of System Colors{% else %}معاينة مباشرة لألوان النظام{% endif %}</div>
               </div>
               <div class="ms-auto d-flex gap-2">
