@@ -259,13 +259,14 @@ def upload():
         return render_template('eas/upload.html', config=cfg, groups=groups)
 
     file = request.files.get('file')
+    # group_id now optional — used only for shift_start/late_tolerance defaults
     group_id = request.form.get('group_id', type=int)
-    if not file or not group_id:
-        flash(_t('يرجى اختيار الملف والمجموعة', 'Please select file and group'), 'danger')
+    if not file:
+        flash(_t('يرجى اختيار الملف', 'Please select a file'), 'danger')
         return redirect(url_for('eas.upload'))
 
-    group = db.get(EASGroup, group_id)
-    if not group: abort(404)
+    # reference group for shift settings (optional)
+    ref_group = db.get(EASGroup, group_id) if group_id else None
 
     try:
         import openpyxl
@@ -291,16 +292,13 @@ def upload():
         def _parse_date(v):
             """Convert any date value to YYYY-MM-DD string."""
             if v is None: return ''
-            # openpyxl already parsed it as datetime
             if hasattr(v, 'strftime'):
                 return v.strftime('%Y-%m-%d')
             s = str(v).strip()
             if not s or s == 'None': return ''
-            # Excel serial integer (e.g. 46091)
             if s.isdigit():
                 from datetime import date as _d, timedelta as _td
                 return (_d(1899, 12, 30) + _td(days=int(s))).strftime('%Y-%m-%d')
-            # Common string formats — flexible dd/mm or mm/dd or yyyy-mm-dd
             for fmt in ('%Y-%m-%d','%d/%m/%Y','%m/%d/%Y','%Y/%m/%d',
                         '%d-%m-%Y','%m-%d-%Y','%d.%m.%Y','%Y.%m.%d'):
                 try:
@@ -308,6 +306,32 @@ def upload():
                 except ValueError:
                     continue
             return s[:10]
+
+        # cache: dept_name → EASGroup object  (created on demand)
+        dept_group_cache = {}
+
+        def _get_or_create_group(dept_name):
+            """Return (or create) an EASGroup for the given department name."""
+            key = dept_name.strip() if dept_name else 'General'
+            if key in dept_group_cache:
+                return dept_group_cache[key]
+            grp = db.query(EASGroup).filter(
+                EASGroup.config_id == cfg.id,
+                EASGroup.name == key,
+            ).first()
+            if not grp:
+                grp = EASGroup(
+                    config_id=cfg.id,
+                    name=key,
+                    name_ar=key,
+                    shift_start=ref_group.shift_start if ref_group else '07:30',
+                    shift_end=ref_group.shift_end   if ref_group else '15:00',
+                    late_tolerance=ref_group.late_tolerance if ref_group else 10,
+                )
+                db.add(grp)
+                db.flush()
+            dept_group_cache[key] = grp
+            return grp
 
         added = 0
         errors = []
@@ -318,7 +342,6 @@ def upload():
                     v = row[idx]
                     if v is None: return ''
                     if hasattr(v, 'strftime'):
-                        # time-only cell
                         return v.strftime('%H:%M')
                     return str(v).strip()
 
@@ -331,41 +354,43 @@ def upload():
                 if not name or not rec_date:
                     continue
 
-                # FIX: find or create employee, also update department
+                # auto-create group per department
+                grp = _get_or_create_group(department)
+
+                # find or create employee inside that group
                 emp = db.query(EASEmployee).filter(
-                    EASEmployee.group_id == group_id,
-                    EASEmployee.name == name
+                    EASEmployee.group_id == grp.id,
+                    EASEmployee.name == name,
                 ).first()
                 if not emp:
-                    emp = EASEmployee(group_id=group_id, name=name, department=department)
+                    emp = EASEmployee(group_id=grp.id, name=name, department=department)
                     db.add(emp)
                     db.flush()
                 elif department and not emp.department:
-                    # FIX: backfill department if missing
                     emp.department = department
 
                 # calculate status
                 status = 'present'
                 late_min = 0
-                if check_in and group.shift_start:
+                shift_start = grp.shift_start or '07:30'
+                if check_in:
                     try:
-                        ci = datetime.strptime(check_in[:5], '%H:%M')
-                        sh = datetime.strptime(group.shift_start, '%H:%M')
+                        ci   = datetime.strptime(check_in[:5], '%H:%M')
+                        sh   = datetime.strptime(shift_start, '%H:%M')
                         diff = int((ci - sh).total_seconds() / 60)
-                        if diff > group.late_tolerance:
+                        if diff > grp.late_tolerance:
                             status = 'late'
                             late_min = diff
                     except:
                         pass
-
-                if not check_in:
+                else:
                     status = 'absent'
 
                 rec = EASRecord(
                     employee_id=emp.id,
                     record_date=rec_date,
-                    check_in=check_in[:5] if check_in else None,
-                    check_out=check_out[:5] if check_out else None,
+                    check_in=check_in or None,
+                    check_out=check_out or None,
                     status=status,
                     late_minutes=late_min,
                     source='excel'
