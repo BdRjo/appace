@@ -78,6 +78,15 @@ def create_app():
     except Exception as e:
         print(f"⚠️ SAS v86 migration: {e}")
 
+    # ── Migration: EAS department column ─────────────────────────────────────
+    try:
+        from sqlalchemy import text
+        with get_engine().connect() as conn:
+            conn.execute(text("ALTER TABLE eas_employees ADD COLUMN IF NOT EXISTS department VARCHAR(200)"))
+            conn.commit()
+    except Exception as e:
+        print(f"⚠️ EAS department migration: {e}")
+
     # ── DB session per request ────────────────────────────────────────────────
     @app.before_request
     def open_db():

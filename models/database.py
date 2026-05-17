@@ -1294,6 +1294,7 @@ class EASEmployee(Base):
     email       = Column(String(200))
     phone       = Column(String(50))
     employee_id = Column(String(50))                    # رقم الموظف
+    department  = Column(String(200))                   # القسم / الإدارة
     is_active   = Column(Boolean, default=True)
     created_at  = Column(DateTime, default=datetime.now)
     group       = relationship('EASGroup', back_populates='employees')
