@@ -411,6 +411,70 @@ def upload():
         flash(_t(f'خطأ في الملف: {e}', f'File error: {e}'), 'danger')
         return redirect(url_for('eas.upload'))
 
+# ── Print Page ────────────────────────────────────────
+@eas_bp.route('/print')
+@admin_required
+def print_report():
+    """Dedicated print-friendly page — opens in new tab"""
+    db = get_db()
+    cfg = _get_config()
+    group_id    = request.args.get('group_id', type=int)
+    date_from   = request.args.get('from', '')
+    date_to     = request.args.get('to', '')
+    dept_filter = request.args.get('department', '').strip()
+    use_shift   = request.args.get('use_shift', '')
+    shift_names = request.args.get('shift_names', '')
+    shift_from  = request.args.get('shift_from', '')
+    shift_to    = request.args.get('shift_to', '')
+    shift_tolerance = request.args.get('shift_tolerance', type=int) or 10
+    # depts to include (comma-separated from JS)
+    print_depts = request.args.get('print_depts', '')
+    print_roster = request.args.get('print_roster', '1')
+
+    groups = db.query(EASGroup).filter(EASGroup.config_id == cfg.id).all()
+    group  = db.get(EASGroup, group_id) if group_id else None
+    all_group_ids = [g.id for g in groups]
+
+    shift_name_list = [n.strip() for n in shift_names.splitlines() if n.strip()]
+
+    q = db.query(EASRecord).join(EASEmployee).filter(EASEmployee.group_id.in_(all_group_ids))
+    if group_id and not dept_filter:
+        q = q.filter(EASEmployee.group_id == group_id)
+    if dept_filter:
+        q = q.filter(EASEmployee.department == dept_filter)
+    if date_from: q = q.filter(EASRecord.record_date >= date_from)
+    if date_to:   q = q.filter(EASRecord.record_date <= date_to)
+    records = q.order_by(EASRecord.record_date.desc(), EASEmployee.name).all()
+
+    shift_employee_ids = set()
+    if use_shift and shift_name_list:
+        shift_emps = db.query(EASEmployee).filter(
+            EASEmployee.group_id.in_(all_group_ids),
+            EASEmployee.name.in_(shift_name_list)
+        ).all()
+        shift_employee_ids = {e.id for e in shift_emps}
+
+    normal_records  = [r for r in records if r.employee_id not in shift_employee_ids]
+    shifted_records = [r for r in records if r.employee_id in shift_employee_ids]
+
+    # filter by selected depts for print
+    if print_depts:
+        selected_depts = [d.strip() for d in print_depts.split(',') if d.strip()]
+        normal_records = [r for r in normal_records if (r.employee.department or '') in selected_depts]
+
+    if print_roster != '1':
+        shifted_records = []
+
+    return render_template('eas/print_report.html',
+        config=cfg, group=group,
+        normal_records=normal_records,
+        shifted_records=shifted_records,
+        date_from=date_from, date_to=date_to,
+        dept_filter=dept_filter,
+        shift_from=shift_from, shift_to=shift_to,
+        shift_tolerance=shift_tolerance,
+    )
+
 # ── Employee Search API (autocomplete) ───────────────
 @eas_bp.route('/api/employees/search')
 @admin_required

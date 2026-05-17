@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="{% if current_lang == 'ar' %}ar{% else %}en{% endif %}" dir="{% if current_lang == 'ar' %}rtl{% else %}ltr{% endif %}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<title>{% if current_lang == 'ar' %}تقرير الحضور{% else %}Attendance Report{% endif %}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  @page { size: A4 landscape; margin: 10mm 12mm; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1a1a1a; background: #fff; direction: {% if current_lang == 'ar' %}rtl{% else %}ltr{% endif %}; }
+
+  /* Header */
+  .print-header { text-align: center; border-bottom: 2.5px solid #1e40af; padding-bottom: 10px; margin-bottom: 14px; }
+  .print-header .org { font-size: 16pt; font-weight: 800; color: #1e40af; }
+  .print-header .title { font-size: 13pt; font-weight: 700; margin-top: 4px; }
+  .print-header .meta { font-size: 9pt; color: #555; margin-top: 4px; }
+
+  /* Stats */
+  .stats { display: flex; gap: 10px; margin-bottom: 14px; }
+  .stat { flex: 1; border-radius: 8px; padding: 10px 14px; color: #fff; }
+  .stat .num { font-size: 20pt; font-weight: 800; line-height: 1; }
+  .stat .lbl { font-size: 8pt; opacity: .85; margin-top: 2px; }
+  .stat-blue   { background: linear-gradient(135deg,#1d4ed8,#3b82f6); }
+  .stat-green  { background: linear-gradient(135deg,#059669,#10b981); }
+  .stat-red    { background: linear-gradient(135deg,#dc2626,#ef4444); }
+  .stat-yellow { background: linear-gradient(135deg,#d97706,#f59e0b); }
+
+  /* Tables */
+  .section-title { font-size: 10pt; font-weight: 700; margin-bottom: 6px; padding: 5px 8px; border-radius: 6px; display: flex; align-items: center; gap: 6px; }
+  .section-title.general { background: #eff6ff; color: #1e40af; border-right: 4px solid #1e40af; }
+  .section-title.roster  { background: #fffbeb; color: #92400e; border-right: 4px solid #d97706; margin-top: 16px; }
+  .section-title.absent  { background: #fef2f2; color: #991b1b; border-right: 4px solid #dc2626; margin-top: 16px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 9pt; margin-bottom: 4px; }
+  thead tr { background: #1e40af; color: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  thead.roster-head tr { background: #d97706; }
+  thead.absent-head tr { background: #dc2626; }
+  th { padding: 5px 8px; text-align: start; font-weight: 600; }
+  td { padding: 4px 8px; border-bottom: 1px solid #f0f0f0; }
+  tr:nth-child(even) td { background: #fafafa; }
+
+  .badge { display: inline-block; padding: 2px 7px; border-radius: 20px; font-size: 8pt; font-weight: 600; border: 1px solid transparent; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .badge-present { background: #dcfce7; color: #15803d; border-color: #86efac; }
+  .badge-absent  { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
+  .badge-late    { background: #fef3c7; color: #d97706; border-color: #fde68a; }
+  .badge-roster  { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+
+  .late-min { color: #d97706; font-weight: 700; }
+  .absent-min { color: #dc2626; }
+
+  .rec-present td { border-right: 3px solid #10b981; }
+  .rec-absent  td { border-right: 3px solid #ef4444; }
+  .rec-late    td { border-right: 3px solid #f59e0b; }
+  [dir="ltr"] .rec-present td { border-right: none; border-left: 3px solid #10b981; }
+  [dir="ltr"] .rec-absent  td { border-right: none; border-left: 3px solid #ef4444; }
+  [dir="ltr"] .rec-late    td { border-right: none; border-left: 3px solid #f59e0b; }
+
+  .footer { text-align: center; font-size: 8pt; color: #aaa; margin-top: 16px; border-top: 1px solid #eee; padding-top: 6px; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="print-header">
+  {% if config and config.logo_url %}
+  <img src="{{ config.logo_url }}" style="height:50px;margin-bottom:6px"><br>
+  {% endif %}
+  <div class="org">{{ config.org_name if config and config.org_name else '' }}</div>
+  <div class="title">
+    {% if current_lang == 'ar' %}تقرير حضور الموظفين{% else %}Employee Attendance Report{% endif %}
+  </div>
+  <div class="meta">
+    {% if group %}
+      {% if current_lang == 'ar' %}المجموعة:{% else %}Group:{% endif %} {{ group.name_ar or group.name }}
+    {% endif %}
+    {% if dept_filter %}
+      &nbsp;|&nbsp; {% if current_lang == 'ar' %}الدائرة:{% else %}Department:{% endif %} {{ dept_filter }}
+    {% endif %}
+    {% if date_from or date_to %}
+      &nbsp;|&nbsp; {% if current_lang == 'ar' %}الفترة:{% else %}Period:{% endif %}
+      {{ date_from or '—' }} {% if current_lang == 'ar' %}إلى{% else %}to{% endif %} {{ date_to or '—' }}
+    {% endif %}
+    &nbsp;|&nbsp; {% if current_lang == 'ar' %}تاريخ الطباعة:{% else %}Printed:{% endif %}
+    <span id="pdate"></span>
+  </div>
+</div>
+
+<!-- Stats -->
+{% set all_recs = normal_records + shifted_records %}
+{% set total   = all_recs | length %}
+{% set present = all_recs | selectattr('status','equalto','present') | list | length %}
+{% set absent  = all_recs | selectattr('status','equalto','absent')  | list | length %}
+{% set late    = all_recs | selectattr('status','equalto','late')    | list | length %}
+
+<div class="stats">
+  <div class="stat stat-blue">
+    <div class="num">{{ total }}</div>
+    <div class="lbl">{% if current_lang == 'ar' %}إجمالي السجلات{% else %}Total Records{% endif %}</div>
+  </div>
+  <div class="stat stat-green">
+    <div class="num">{{ present }}</div>
+    <div class="lbl">{% if current_lang == 'ar' %}حاضر{% else %}Present{% endif %}</div>
+  </div>
+  <div class="stat stat-red">
+    <div class="num">{{ absent }}</div>
+    <div class="lbl">{% if current_lang == 'ar' %}غائب{% else %}Absent{% endif %}</div>
+  </div>
+  <div class="stat stat-yellow">
+    <div class="num">{{ late }}</div>
+    <div class="lbl">{% if current_lang == 'ar' %}متأخر{% else %}Late{% endif %}</div>
+  </div>
+</div>
+
+<!-- General Records -->
+{% if normal_records %}
+<div class="section-title general">
+  <span>{% if current_lang == 'ar' %}سجلات الحضور العامة{% else %}General Attendance Records{% endif %}</span>
+  <span style="background:#dbeafe;color:#1e40af;padding:1px 8px;border-radius:20px;font-size:8pt">{{ normal_records|length }}</span>
+</div>
+<table>
+  <thead>
+    <tr>
+      <th>{% if current_lang == 'ar' %}الموظف{% else %}Employee{% endif %}</th>
+      <th>{% if current_lang == 'ar' %}الدائرة{% else %}Department{% endif %}</th>
+      <th>{% if current_lang == 'ar' %}التاريخ{% else %}Date{% endif %}</th>
+      <th>{% if current_lang == 'ar' %}دخول{% else %}Check In{% endif %}</th>
+      <th>{% if current_lang == 'ar' %}خروج{% else %}Check Out{% endif %}</th>
+      <th>{% if current_lang == 'ar' %}الحالة{% else %}Status{% endif %}</th>
+      <th>{% if current_lang == 'ar' %}التأخر{% else %}Late{% endif %}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for rec in normal_records %}
+    {% set cls = 'rec-present' if rec.status=='present' else ('rec-absent' if rec.status=='absent' else 'rec-late') %}
+    <tr class="{{ cls }}">
+      <td><strong>{{ rec.employee.name }}</strong></td>
+      <td>{{ rec.employee.department or '—' }}</td>
+      <td>{{ rec.record_date }}</td>
+      <td>{{ rec.check_in or '—' }}</td>
+      <td>{{ rec.check_out or '—' }}</td>
+      <td>
+        {% if rec.status == 'present' %}<span class="badge badge-present">{% if current_lang == 'ar' %}حاضر{% else %}Present{% endif %}</span>
+        {% elif rec.status == 'absent' %}<span class="badge badge-absent">{% if current_lang == 'ar' %}غائب{% else %}Absent{% endif %}</span>
+        {% else %}<span class="badge badge-late">{% if current_lang == 'ar' %}متأخر{% else %}Late{% endif %}</span>{% endif %}
+      </td>
+      <td>{% if rec.late_minutes %}<span class="late-min">{{ rec.late_minutes }} {% if current_lang == 'ar' %}د{% else %}min{% endif %}</span>{% else %}—{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<!-- Duty Roster -->
+{% if shifted_records %}
+<div class="section-title roster">
+  <span>{% if current_lang == 'ar' %}الكادر المناوب{% else %}Duty Roster{% endif %}</span>
+  <span style="background:#fef3c7;color:#92400e;padding:1px 8px;border-radius:20px;font-size:8pt">{{ shifted_records|length }}</span>
+  {% if shift_from %}&nbsp;|&nbsp; {{ shift_from }}{% if shift_to %} – {{ shift_to }}{% endif %}{% endif %}
+</div>
+<table>
+  <thead class="roster-head">
+    <tr>
+      <th>{% if current_lang == 'ar' %}الموظف{% else %}Employee{% endif %}</th>
+      <th>{% if current_lang == 'ar' %}الدائرة{% else %}Department{% endif %}</th>
+      <th>{% if current_lang == 'ar' %}التاريخ{% else %}Date{% endif %}</th>
+      <th>{% if current_lang == 'ar' %}دخول{% else %}Check In{% endif %}</th>
+      <th>{% if current_lang == 'ar' %}خروج{% else %}Check Out{% endif %}</th>
+      <th>{% if current_lang == 'ar' %}الحالة{% else %}Status{% endif %}</th>
+      <th>{% if current_lang == 'ar' %}التأخر عن المناوبة{% else %}Roster Late{% endif %}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for rec in shifted_records %}
+    {% set shift_late = 0 %}
+    {% if shift_from and rec.check_in and rec.check_in != '—' %}
+      {% set ci_h = rec.check_in[:2]|int %}
+      {% set ci_m = rec.check_in[3:5]|int %}
+      {% set sf_h = shift_from[:2]|int %}
+      {% set sf_m = shift_from[3:5]|int %}
+      {% set shift_late = (ci_h * 60 + ci_m) - (sf_h * 60 + sf_m) %}
+    {% endif %}
+    <tr class="{% if not rec.check_in %}rec-absent{% elif shift_late > shift_tolerance %}rec-late{% else %}rec-present{% endif %}">
+      <td><strong>{{ rec.employee.name }}</strong></td>
+      <td>{{ rec.employee.department or '—' }}</td>
+      <td>{{ rec.record_date }}</td>
+      <td>{{ rec.check_in or '—' }}</td>
+      <td>{{ rec.check_out or '—' }}</td>
+      <td>
+        {% if not rec.check_in %}
+          <span class="badge badge-absent">{% if current_lang == 'ar' %}غائب{% else %}Absent{% endif %}</span>
+        {% elif shift_late > shift_tolerance %}
+          <span class="badge badge-late">{% if current_lang == 'ar' %}متأخر{% else %}Late{% endif %}</span>
+        {% else %}
+          <span class="badge badge-roster">{% if current_lang == 'ar' %}كادر مناوب{% else %}Roster{% endif %}</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if shift_late > 0 %}
+          <span class="late-min">{{ shift_late }} {% if current_lang == 'ar' %}د{% else %}min{% endif %}</span>
+        {% else %}—{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<!-- Footer -->
+<div class="footer">
+  {{ config.org_name if config and config.org_name else '' }}
+  &nbsp;|&nbsp; {% if current_lang == 'ar' %}تم الطباعة في{% else %}Printed on{% endif %} <span id="pdate2"></span>
+</div>
+
+<script>
+  var d = new Date().toLocaleDateString();
+  var p1 = document.getElementById('pdate');
+  var p2 = document.getElementById('pdate2');
+  if(p1) p1.textContent = d;
+  if(p2) p2.textContent = d;
+  window.onload = function(){ window.print(); };
+</script>
+</body>
+</html>

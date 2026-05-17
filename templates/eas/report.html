@@ -526,41 +526,15 @@ function doPrint() {
   var allDepts = Array.from(document.querySelectorAll('.dept-check')).map(function(c){ return c.value; }).filter(function(v){ return v !== '__roster__'; });
   var allSelected = depts.length === allDepts.length;
 
-  // Apply CSS classes to rows
-  document.querySelectorAll('tr.dept-row').forEach(function(tr) {
-    var dept = tr.getAttribute('data-dept') || '';
-    if (!allSelected && depts.indexOf(dept) < 0) {
-      tr.classList.add('print-hidden');
-    } else {
-      tr.classList.remove('print-hidden');
-    }
-  });
+  // Build print URL from current URL params
+  var params = new URLSearchParams(window.location.search);
+  if (!allSelected) params.set('print_depts', depts.join(','));
+  params.set('print_roster', showRoster ? '1' : '0');
 
-  // Roster section
-  var shiftSection = document.querySelector('.shift-section');
-  if (shiftSection) {
-    if (!showRoster) {
-      shiftSection.classList.add('no-print');
-    } else {
-      shiftSection.classList.remove('no-print');
-    }
-  }
+  var printUrl = '/eas/print?' + params.toString();
+  window.open(printUrl, '_blank');
 
-  // Close modal then print
-  var modal = bootstrap.Modal.getInstance(document.getElementById('printModal'));
-  modal.hide();
-
-  // Wait for modal to close, then print
-  document.getElementById('printModal').addEventListener('hidden.bs.modal', function onHidden() {
-    document.getElementById('printModal').removeEventListener('hidden.bs.modal', onHidden);
-    window.print();
-    // Restore after print dialog closes
-    window.addEventListener('afterprint', function onAfterPrint() {
-      window.removeEventListener('afterprint', onAfterPrint);
-      document.querySelectorAll('tr.dept-row').forEach(function(tr){ tr.classList.remove('print-hidden'); });
-      if (shiftSection) shiftSection.classList.remove('no-print');
-    });
-  });
+  bootstrap.Modal.getInstance(document.getElementById('printModal')).hide();
 }
 
 // Set print date
