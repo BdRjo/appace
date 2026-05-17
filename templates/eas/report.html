@@ -101,6 +101,13 @@
                 <label class="form-label small fw-semibold">{% if ar %}نهاية الوردية{% else %}Shift End{% endif %}</label>
                 <input type="time" name="shift_to" class="form-control form-control-sm" value="{{ request.args.get('shift_to','') }}">
               </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-semibold">{% if ar %}تسامح التأخر (دقيقة){% else %}Late Tolerance (min){% endif %}</label>
+                <input type="number" name="shift_tolerance" class="form-control form-control-sm" min="0" max="60"
+                       value="{{ request.args.get('shift_tolerance', shift_tolerance|default(10)) }}">
+              </div>
+              <div class="col-md-12" style="display:none">
+              </div>
               <div class="col-md-6">
                 <label class="form-label small fw-semibold">{% if ar %}أسماء المناوبة (سطر لكل اسم){% else %}Shift Names (one per line){% endif %}</label>
                 <textarea name="shift_names" class="form-control form-control-sm" rows="3"
@@ -222,19 +229,37 @@
           <th>{% if ar %}دخول{% else %}Check In{% endif %}</th>
           <th>{% if ar %}خروج{% else %}Check Out{% endif %}</th>
           <th>{% if ar %}الحالة{% else %}Status{% endif %}</th>
+          <th>{% if ar %}التأخر{% else %}Late{% endif %}</th>
         </tr>
       </thead>
       <tbody>
         {% for rec in shifted %}
+        {% set shift_late = 0 %}
+        {% if shift_from and rec.check_in and rec.check_in != '—' %}
+          {% set ci_h = rec.check_in[:2]|int %}
+          {% set ci_m = rec.check_in[3:5]|int %}
+          {% set sf_h = shift_from[:2]|int %}
+          {% set sf_m = shift_from[3:5]|int %}
+          {% set shift_late = (ci_h * 60 + ci_m) - (sf_h * 60 + sf_m) %}
+        {% endif %}
         <tr>
           <td class="ps-3 fw-semibold">{{ rec.employee.name }}</td>
           <td>{{ rec.record_date }}</td>
           <td>{{ rec.check_in or '—' }}</td>
           <td>{{ rec.check_out or '—' }}</td>
           <td>
-            <span class="badge" style="background:#fef3c7;color:#d97706">
-              {% if ar %}مناوبة{% else %}Shift{% endif %}
-            </span>
+            {% if not rec.check_in %}
+              <span class="badge bg-danger">{% if ar %}غائب{% else %}Absent{% endif %}</span>
+            {% elif shift_late > (shift_tolerance|default(10)|int) %}
+              <span class="badge bg-warning text-dark">{% if ar %}متأخر{% else %}Late{% endif %}</span>
+            {% else %}
+              <span class="badge" style="background:#fef3c7;color:#d97706">{% if ar %}مناوبة{% else %}Shift{% endif %}</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if shift_late > 0 %}
+              <small class="text-warning fw-semibold">{{ shift_late }} {% if ar %}د{% else %}min{% endif %}</small>
+            {% else %}—{% endif %}
           </td>
         </tr>
         {% endfor %}

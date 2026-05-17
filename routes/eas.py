@@ -421,7 +421,8 @@ def employees_search():
     if not q or len(q) < 2:
         return jsonify([])
     query = db.query(EASEmployee).filter(EASEmployee.name.ilike(f'%{q}%'))
-    # search across all groups (one group per department now)
+    if group_id:
+        query = query.filter(EASEmployee.group_id == group_id)
     emps = query.limit(10).all()
     return jsonify([{'id': e.id, 'name': e.name, 'name_en': e.name_en or '',
                      'department': e.department or ''} for e in emps])
@@ -489,11 +490,17 @@ def report():
         ).distinct().all()
         dept_names = sorted([r[0] for r in dept_rows if r[0]])
 
+    # shift tolerance: from form or fallback to group setting
+    shift_tolerance = request.args.get('shift_tolerance', type=int)
+    if shift_tolerance is None:
+        shift_tolerance = group.late_tolerance if group else 10
+
     return render_template('eas/report.html',
         config=cfg, groups=groups, group=group,
         records=records, shift_employees=shift_employee_ids,
         date_from=date_from, date_to=date_to,
         use_shift=use_shift, shift_names=shift_names,
         shift_from=shift_from, shift_to=shift_to,
-        dept_filter=dept_filter, dept_names=dept_names,  # FIX: pass to template
+        shift_tolerance=shift_tolerance,
+        dept_filter=dept_filter, dept_names=dept_names,
     )
