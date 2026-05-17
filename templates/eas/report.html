@@ -14,17 +14,20 @@
 [dir="ltr"] .rec-late    { border-right:none; border-left: 3px solid #f59e0b; }
 .shift-section { background:#fef3c7; border-radius:10px; padding:12px; margin-top:16px; }
 @media print {
+  @page { size: A4 landscape; margin: 12mm 10mm; }
   .no-print { display:none !important; }
   .print-only { display:block !important; }
-  .card { box-shadow:none !important; border:1px solid #ddd !important; }
-  .shift-section { background:#fff9e6 !important; border:1px solid #f59e0b !important; border-radius:6px; padding:8px; }
-  body { font-size:11px; }
-  table { page-break-inside:auto; }
+  .card { box-shadow:none !important; border:1px solid #ddd !important; page-break-inside:avoid; }
+  .shift-section { background:#fff9e6 !important; border:1px solid #f59e0b !important; border-radius:6px; padding:8px; page-break-before:auto; }
+  .absent-section { page-break-before:auto; }
+  body { font-size:10px; }
+  table { page-break-inside:auto; width:100% !important; }
+  thead { display:table-header-group; }
   tr { page-break-inside:avoid; }
-  .badge { border:1px solid #ccc; }
-  /* Dept print filtering via body classes */
+  .badge { border:1px solid #ccc; print-color-adjust:exact; -webkit-print-color-adjust:exact; }
+  .stat-card { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
+  /* Dept print filtering via CSS classes */
   body.hide-roster .shift-section { display:none !important; }
-  body.hide-roster .absent-section { display:none !important; }
   tr.dept-row.print-hidden { display:none !important; }
 }
 </style>
