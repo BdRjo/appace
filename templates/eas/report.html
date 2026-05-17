@@ -22,6 +22,10 @@
   table { page-break-inside:auto; }
   tr { page-break-inside:avoid; }
   .badge { border:1px solid #ccc; }
+  /* Dept print filtering via body classes */
+  body.hide-roster .shift-section { display:none !important; }
+  body.hide-roster .absent-section { display:none !important; }
+  tr.dept-row.print-hidden { display:none !important; }
 }
 </style>
 {% endblock %}
@@ -513,32 +517,47 @@ function toggleAllDepts(cb) {
 }
 
 function doPrint() {
-  var selected = Array.from(document.querySelectorAll('.dept-check:checked')).map(function(c){ return c.value; });
-  var showRoster = selected.indexOf('__roster__') >= 0;
-  selected = selected.filter(function(v){ return v !== '__roster__'; });
+  var checked = Array.from(document.querySelectorAll('.dept-check:checked')).map(function(c){ return c.value; });
+  var showRoster = checked.indexOf('__roster__') >= 0;
+  var depts = checked.filter(function(v){ return v !== '__roster__'; });
+  var allDepts = Array.from(document.querySelectorAll('.dept-check')).map(function(c){ return c.value; }).filter(function(v){ return v !== '__roster__'; });
+  var allSelected = depts.length === allDepts.length;
 
-  // Show/hide rows by dept
+  // Apply CSS classes to rows
   document.querySelectorAll('tr.dept-row').forEach(function(tr) {
     var dept = tr.getAttribute('data-dept') || '';
-    tr.style.display = (selected.length === 0 || selected.indexOf(dept) >= 0) ? '' : 'none';
+    if (!allSelected && depts.indexOf(dept) < 0) {
+      tr.classList.add('print-hidden');
+    } else {
+      tr.classList.remove('print-hidden');
+    }
   });
 
-  // Show/hide shift section
+  // Roster section
   var shiftSection = document.querySelector('.shift-section');
-  if (shiftSection) shiftSection.style.display = showRoster ? '' : 'none';
+  if (shiftSection) {
+    if (!showRoster) {
+      shiftSection.classList.add('no-print');
+    } else {
+      shiftSection.classList.remove('no-print');
+    }
+  }
 
-  // Hide absent section if not in selected (it follows normal rows)
-  var absentSection = document.querySelector('.absent-section');
+  // Close modal then print
+  var modal = bootstrap.Modal.getInstance(document.getElementById('printModal'));
+  modal.hide();
 
-  bootstrap.Modal.getInstance(document.getElementById('printModal')).hide();
-  setTimeout(function(){
+  // Wait for modal to close, then print
+  document.getElementById('printModal').addEventListener('hidden.bs.modal', function onHidden() {
+    document.getElementById('printModal').removeEventListener('hidden.bs.modal', onHidden);
     window.print();
-    // Restore after print
-    setTimeout(function(){
-      document.querySelectorAll('tr.dept-row').forEach(function(tr){ tr.style.display = ''; });
-      if (shiftSection) shiftSection.style.display = '';
-    }, 1000);
-  }, 300);
+    // Restore after print dialog closes
+    window.addEventListener('afterprint', function onAfterPrint() {
+      window.removeEventListener('afterprint', onAfterPrint);
+      document.querySelectorAll('tr.dept-row').forEach(function(tr){ tr.classList.remove('print-hidden'); });
+      if (shiftSection) shiftSection.classList.remove('no-print');
+    });
+  });
 }
 
 // Set print date
