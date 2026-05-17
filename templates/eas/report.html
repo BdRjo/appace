@@ -16,6 +16,11 @@
 @media print {
   .no-print { display:none !important; }
   .card { box-shadow:none !important; border:1px solid #ddd !important; }
+  .shift-section { background:#fff9e6 !important; border:1px solid #f59e0b !important; border-radius:6px; padding:8px; }
+  body { font-size:11px; }
+  table { page-break-inside:auto; }
+  tr { page-break-inside:avoid; }
+  .badge { border:1px solid #ccc; }
 }
 </style>
 {% endblock %}
@@ -267,6 +272,46 @@
     </table>
   </div>
 </div>
+{% endif %}
+
+<!-- Absent / No-Record Report -->
+{% if records %}
+{% set absent_records = records | selectattr('status', 'equalto', 'absent') | list %}
+{% if absent_records %}
+<div class="card border-0 shadow-sm mb-4" style="border-radius:14px">
+  <div class="card-body p-0">
+    <div class="d-flex align-items-center justify-content-between px-4 py-3" style="border-bottom:1px solid #f0f0f0">
+      <h6 class="fw-bold mb-0" style="color:#dc2626">
+        <i class="bi bi-x-circle me-2"></i>
+        {% if ar %}الغائبون{% else %}Absent Employees{% endif %}
+        <span class="badge bg-danger ms-2">{{ absent_records|length }}</span>
+      </h6>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0 bg-white" style="font-size:.85rem">
+        <thead style="background:linear-gradient(90deg,#dc2626,#ef4444);color:#fff">
+          <tr>
+            <th class="ps-3">{% if ar %}الموظف{% else %}Employee{% endif %}</th>
+            <th>{% if ar %}التاريخ{% else %}Date {% endif %}</th>
+            <th>{% if ar %}الدائرة{% else %}Department{% endif %}</th>
+            <th>{% if ar %}الحالة{% else %}Status{% endif %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for rec in absent_records %}
+          <tr>
+            <td class="ps-3 fw-semibold">{{ rec.employee.name }}</td>
+            <td>{{ rec.record_date }}</td>
+            <td>{{ rec.employee.department or '—' }}</td>
+            <td><span class="badge bg-danger">{% if ar %}غائب{% else %}Absent{% endif %}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endif %}
 
 {% else %}
