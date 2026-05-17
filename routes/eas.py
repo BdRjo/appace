@@ -495,9 +495,20 @@ def report():
     if shift_tolerance is None:
         shift_tolerance = group.late_tolerance if group else 10
 
+    # Split records into normal and shifted in Python (Jinja 'in' test unreliable)
+    if shift_employee_ids:
+        normal_records  = [r for r in records if r.employee_id not in shift_employee_ids]
+        shifted_records = [r for r in records if r.employee_id in shift_employee_ids]
+    else:
+        normal_records  = records
+        shifted_records = []
+
     return render_template('eas/report.html',
         config=cfg, groups=groups, group=group,
-        records=records, shift_employees=shift_employee_ids,
+        records=records,
+        normal_records=normal_records,
+        shifted_records=shifted_records,
+        shift_employees=shift_employee_ids,
         date_from=date_from, date_to=date_to,
         use_shift=use_shift, shift_names=shift_names,
         shift_from=shift_from, shift_to=shift_to,
