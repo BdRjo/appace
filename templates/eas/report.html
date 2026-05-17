@@ -64,6 +64,17 @@
         <label class="form-label small fw-semibold">{% if ar %}إلى{% else %}To{% endif %}</label>
         <input type="date" name="to" class="form-control form-control-sm" value="{{ date_to }}">
       </div>
+      {% if dept_names %}
+      <div class="col-md-3">
+        <label class="form-label small fw-semibold">{% if ar %}الدائرة{% else %}Department{% endif %}</label>
+        <select name="department" class="form-select form-select-sm">
+          <option value="">{% if ar %}كل الدوائر{% else %}All Departments{% endif %}</option>
+          {% for d in dept_names %}
+          <option value="{{ d }}" {% if dept_filter == d %}selected{% endif %}>{{ d }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
       <div class="col-md-2">
         <button type="submit" class="btn btn-primary-ars btn-sm w-100">
           <i class="bi bi-funnel me-1"></i>{% if ar %}تطبيق{% else %}Filter{% endif %}
