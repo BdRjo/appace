@@ -111,45 +111,6 @@
   </div>
 </div>
 
-<!-- General Records -->
-{% if normal_records %}
-<div class="section-title general">
-  <span>{% if current_lang == 'ar' %}سجلات الحضور العامة{% else %}General Attendance Records{% endif %}</span>
-  <span style="background:#dbeafe;color:#1e40af;padding:1px 8px;border-radius:20px;font-size:8pt">{{ normal_records|length }}</span>
-</div>
-<table>
-  <thead>
-    <tr>
-      <th>{% if current_lang == 'ar' %}الموظف{% else %}Employee{% endif %}</th>
-      <th>{% if current_lang == 'ar' %}الدائرة{% else %}Department{% endif %}</th>
-      <th>{% if current_lang == 'ar' %}التاريخ{% else %}Date{% endif %}</th>
-      <th>{% if current_lang == 'ar' %}دخول{% else %}Check In{% endif %}</th>
-      <th>{% if current_lang == 'ar' %}خروج{% else %}Check Out{% endif %}</th>
-      <th>{% if current_lang == 'ar' %}الحالة{% else %}Status{% endif %}</th>
-      <th>{% if current_lang == 'ar' %}التأخر{% else %}Late{% endif %}</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for rec in normal_records %}
-    {% set cls = 'rec-present' if rec.status=='present' else ('rec-absent' if rec.status=='absent' else 'rec-late') %}
-    <tr class="{{ cls }}">
-      <td><strong>{{ rec.employee.name }}</strong></td>
-      <td>{{ rec.employee.department or '—' }}</td>
-      <td>{{ rec.record_date }}</td>
-      <td>{{ rec.check_in or '—' }}</td>
-      <td>{{ rec.check_out or '—' }}</td>
-      <td>
-        {% if rec.status == 'present' %}<span class="badge badge-present">{% if current_lang == 'ar' %}حاضر{% else %}Present{% endif %}</span>
-        {% elif rec.status == 'absent' %}<span class="badge badge-absent">{% if current_lang == 'ar' %}غائب{% else %}Absent{% endif %}</span>
-        {% else %}<span class="badge badge-late">{% if current_lang == 'ar' %}متأخر{% else %}Late{% endif %}</span>{% endif %}
-      </td>
-      <td>{% if rec.late_minutes %}<span class="late-min">{{ rec.late_minutes }} {% if current_lang == 'ar' %}د{% else %}min{% endif %}</span>{% else %}—{% endif %}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-{% endif %}
-
 <!-- Duty Roster -->
 {% if shifted_records %}
 <div class="section-title roster">
@@ -199,6 +160,72 @@
           <span class="late-min">{{ shift_late }} {% if current_lang == 'ar' %}د{% else %}min{% endif %}</span>
         {% else %}—{% endif %}
       </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<!-- Absent List -->
+{% set absent_list = normal_records | selectattr('status','equalto','absent') | list %}
+{% if absent_list %}
+<div class="section-title absent">
+  <span>{% if current_lang == 'ar' %}قائمة الغائبين{% else %}Absent List{% endif %}</span>
+  <span style="background:#fee2e2;color:#dc2626;padding:1px 8px;border-radius:20px;font-size:8pt">{{ absent_list|length }}</span>
+</div>
+<table>
+  <thead class="absent-head">
+    <tr>
+      <th>{% if current_lang == 'ar' %}الموظف{% else %}Employee{% endif %}</th>
+      <th>{% if current_lang == 'ar' %}الدائرة{% else %}Department{% endif %}</th>
+      <th>{% if current_lang == 'ar' %}التاريخ{% else %}Date{% endif %}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for rec in absent_list %}
+    <tr class="rec-absent">
+      <td><strong>{{ rec.employee.name }}</strong></td>
+      <td>{{ rec.employee.department or '—' }}</td>
+      <td>{{ rec.record_date }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<!-- General Records -->
+{% if normal_records %}
+<div class="section-title general">
+  <span>{% if current_lang == 'ar' %}سجلات الحضور العامة{% else %}General Attendance Records{% endif %}</span>
+  <span style="background:#dbeafe;color:#1e40af;padding:1px 8px;border-radius:20px;font-size:8pt">{{ normal_records|length }}</span>
+</div>
+<table>
+  <thead>
+    <tr>
+      <th>{% if current_lang == 'ar' %}الموظف{% else %}Employee{% endif %}</th>
+      <th>{% if current_lang == 'ar' %}الدائرة{% else %}Department{% endif %}</th>
+      <th>{% if current_lang == 'ar' %}التاريخ{% else %}Date{% endif %}</th>
+      <th>{% if current_lang == 'ar' %}دخول{% else %}Check In{% endif %}</th>
+      <th>{% if current_lang == 'ar' %}خروج{% else %}Check Out{% endif %}</th>
+      <th>{% if current_lang == 'ar' %}الحالة{% else %}Status{% endif %}</th>
+      <th>{% if current_lang == 'ar' %}التأخر{% else %}Late{% endif %}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for rec in normal_records %}
+    {% set cls = 'rec-present' if rec.status=='present' else ('rec-absent' if rec.status=='absent' else 'rec-late') %}
+    <tr class="{{ cls }}">
+      <td><strong>{{ rec.employee.name }}</strong></td>
+      <td>{{ rec.employee.department or '—' }}</td>
+      <td>{{ rec.record_date }}</td>
+      <td>{{ rec.check_in or '—' }}</td>
+      <td>{{ rec.check_out or '—' }}</td>
+      <td>
+        {% if rec.status == 'present' %}<span class="badge badge-present">{% if current_lang == 'ar' %}حاضر{% else %}Present{% endif %}</span>
+        {% elif rec.status == 'absent' %}<span class="badge badge-absent">{% if current_lang == 'ar' %}غائب{% else %}Absent{% endif %}</span>
+        {% else %}<span class="badge badge-late">{% if current_lang == 'ar' %}متأخر{% else %}Late{% endif %}</span>{% endif %}
+      </td>
+      <td>{% if rec.late_minutes %}<span class="late-min">{{ rec.late_minutes }} {% if current_lang == 'ar' %}د{% else %}min{% endif %}</span>{% else %}—{% endif %}</td>
     </tr>
     {% endfor %}
   </tbody>

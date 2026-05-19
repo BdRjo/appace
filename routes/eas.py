@@ -475,6 +475,41 @@ def print_report():
         shift_tolerance=shift_tolerance,
     )
 
+# ── Send Report by Email ──────────────────────────────
+@eas_bp.route('/send_report', methods=['POST'])
+@admin_required
+def send_report():
+    try:
+        from utils.email_helper import send_email
+    except ImportError:
+        return jsonify({'ok': False, 'error': 'Email not configured'}), 500
+
+    data     = request.get_json() or {}
+    to_email = data.get('email', '').strip()
+    print_url = data.get('url', '').strip()
+    if not to_email:
+        return jsonify({'ok': False, 'error': 'No email'}), 400
+
+    cfg = _get_config()
+    org = getattr(cfg, 'org_name', '') or 'STAP'
+    html = (
+        '<div style="font-family:Arial,sans-serif;direction:rtl;text-align:right;padding:20px">'
+        f'<h2 style="color:#1e40af">{org}</h2>'
+        '<h3>تقرير حضور الموظفين</h3>'
+        '<p>يمكنك مشاهدة التقرير من خلال الرابط التالي:</p>'
+        f'<a href="{print_url}" style="display:inline-block;background:#1e40af;color:#fff;'
+        'padding:10px 20px;border-radius:8px;text-decoration:none">عرض التقرير</a>'
+        '<p style="color:#888;font-size:12px;margin-top:20px">تم الإرسال تلقائياً من نظام STAP</p>'
+        '</div>'
+    )
+    ok = send_email(
+        to_email=to_email,
+        subject=f'تقرير الحضور — {org}',
+        html_body=html,
+        sync=True,
+    )
+    return jsonify({'ok': bool(ok)})
+
 # ── Employee Search API (autocomplete) ───────────────
 @eas_bp.route('/api/employees/search')
 @admin_required

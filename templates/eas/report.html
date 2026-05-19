@@ -548,14 +548,27 @@ function showSendModal() {
 }
 
 function sendReport() {
-  const email = document.getElementById('sendEmail').value;
+  const email = document.getElementById('sendEmail').value.trim();
   if (!email) {
     alert('{% if ar %}يرجى إدخال البريد الإلكتروني{% else %}Please enter email{% endif %}');
     return;
   }
-  // TODO: implement send API call
-  alert('{% if ar %}تم إرسال التقرير{% else %}Report sent{% endif %}');
-  bootstrap.Modal.getInstance(document.getElementById('sendModal')).hide();
+  const params = new URLSearchParams(window.location.search);
+  const printUrl = window.location.origin + '/eas/print?' + params.toString();
+
+  fetch('/eas/send_report', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.content || ''},
+    body: JSON.stringify({email: email, url: printUrl})
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    if (d.ok) {
+      alert('{% if ar %}تم إرسال التقرير بنجاح{% else %}Report sent successfully{% endif %}');
+    } else {
+      alert('{% if ar %}فشل الإرسال: {% else %}Send failed: {% endif %}' + (d.error || ''));
+    }
+    bootstrap.Modal.getInstance(document.getElementById('sendModal')).hide();
 }
 
 function exportPDF() {
