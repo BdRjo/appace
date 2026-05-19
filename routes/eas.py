@@ -435,7 +435,7 @@ def print_report():
     group  = db.get(EASGroup, group_id) if group_id else None
     all_group_ids = [g.id for g in groups]
 
-    shift_name_list = [n.strip() for n in shift_names.splitlines() if n.strip()]
+    shift_name_list = [n.strip() for n in shift_names.replace('\r','').splitlines() if n.strip()]
 
     q = db.query(EASRecord).join(EASEmployee).filter(EASEmployee.group_id.in_(all_group_ids))
     if group_id and not dept_filter:
