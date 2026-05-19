@@ -520,8 +520,6 @@ def employees_search():
     if not q or len(q) < 2:
         return jsonify([])
     query = db.query(EASEmployee).filter(EASEmployee.name.ilike(f'%{q}%'))
-    if group_id:
-        query = query.filter(EASEmployee.group_id == group_id)
     emps = query.limit(10).all()
     return jsonify([{'id': e.id, 'name': e.name, 'name_en': e.name_en or '',
                      'department': e.department or ''} for e in emps])
