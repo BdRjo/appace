@@ -466,12 +466,13 @@ if (shiftTextarea) {
     if (lastLine.length < 2) { hideSuggest(); return; }
     
     var groupId = document.querySelector('[name="group_id"]').value;
-    fetch('/eas/api/employees/search?q=' + encodeURIComponent(lastLine) + '&group_id=' + groupId)
+    fetch('/eas/api/employees/search?q=' + encodeURIComponent(lastLine))
       .then(function(r){ return r.json(); })
       .then(function(data){
         if (!data.length) { hideSuggest(); return; }
         showSuggest(data, lines);
-      });
+      })
+      .catch(function(e){ console.error('search error',e); });
   });
 }
 
