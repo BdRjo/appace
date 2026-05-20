@@ -181,8 +181,8 @@ def fetch():
     # ── read form ────────────────────────────────────────────────────────────
     ip         = request.form.get('ip', '').strip()
     port       = int(request.form.get('port', 4370))
-    password   = int(request.form.get('password', 0))
-    timeout    = int(request.form.get('timeout', 10))
+    password   = int(request.form.get('password') or 0)
+    timeout    = int(request.form.get('timeout') or 10)
     date_from  = request.form.get('date_from', '')
     date_to    = request.form.get('date_to', '')
     group_ids  = request.form.getlist('group_ids', type=int)
