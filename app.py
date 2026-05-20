@@ -129,11 +129,12 @@ def create_app():
     from routes.announcements import announcements_bp
     from routes.interviews    import interviews_bp
     from routes.eas import eas_bp
+    from routes.iface_device import iface_bp
     from routes.sas           import sas_bp
     from routes.mobile_api import mobile_api_bp
     from routes.download_data import dl_bp
 
-    for bp in [auth_bp, admin_bp, api_bp, eas_bp,
+    for bp in [auth_bp, admin_bp, api_bp, eas_bp, iface_bp,
                users_bp, settings_bp, cp_bp,
                announcements_bp, interviews_bp, sas_bp, mobile_api_bp, dl_bp]:
         app.register_blueprint(bp)        
