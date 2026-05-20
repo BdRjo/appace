@@ -180,7 +180,7 @@ def fetch():
 
     # ── read form ────────────────────────────────────────────────────────────
     ip         = request.form.get('ip', '').strip()
-    port       = int(request.form.get('port', 4370))
+    port       = int(request.form.get('port') or 4370)
     password   = int(request.form.get('password') or 0)
     timeout    = int(request.form.get('timeout') or 10)
     date_from  = request.form.get('date_from', '')
