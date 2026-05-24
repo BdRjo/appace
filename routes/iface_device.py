@@ -57,7 +57,7 @@ def _connect_device(ip: str, port: int, password: int = 0, timeout: int = 10):
         raise RuntimeError(
             "pyzk is not installed. Run:  pip install pyzk"
         )
-    zk = ZK(ip, port=port, timeout=timeout, password=password, force_udp=False, ommit_ping=False)
+    zk = ZK(ip, port=port, timeout=timeout, password=password, force_udp=False, ommit_ping=True)
     conn = zk.connect()
     return conn
 
@@ -179,7 +179,10 @@ def fetch():
     cfg = _get_config()
 
     # ── read form ────────────────────────────────────────────────────────────
-    ip         = request.form.get('ip', '').strip()
+    # دعم عدة أجهزة
+    ips_raw    = request.form.get('ip', '').strip()
+    ips        = [i.strip() for i in ips_raw.replace(',', '\n').splitlines() if i.strip()]
+    ip         = ips[0] if ips else ''
     port       = int(request.form.get('port') or 4370)
     password   = int(request.form.get('password') or 0)
     timeout    = int(request.form.get('timeout') or 10)
@@ -232,17 +235,25 @@ def fetch():
         return redirect(url_for('iface_device.index'))
 
     # ── pull attendance logs ──────────────────────────────────────────────────
-    try:
-        attendances = conn.get_attendance()
-    except Exception as exc:
-        conn.disconnect()
-        flash(_t(f'خطأ في قراءة السجلات: {exc}', f'Error reading records: {exc}'), 'danger')
-        return redirect(url_for('iface_device.index'))
-    finally:
+    # جلب من عدة أجهزة
+    attendances = []
+    failed_ips = []
+    for device_ip in ips:
         try:
-            conn.disconnect()
-        except Exception:
-            pass
+            from zk import ZK
+            _zk = ZK(device_ip, port=port, timeout=timeout, password=password, force_udp=False, ommit_ping=True)
+            _conn = _zk.connect()
+            attendances += _conn.get_attendance()
+            _conn.disconnect()
+        except Exception as exc:
+            failed_ips.append(f'{device_ip}: {exc}')
+    
+    if failed_ips:
+        flash(_t(f'تعذر الاتصال بـ: {", ".join(failed_ips)}', f'Could not connect to: {", ".join(failed_ips)}'), 'warning')
+    
+    if not attendances:
+        flash(_t('لم يتم جلب أي سجلات', 'No records fetched'), 'danger')
+        return redirect(url_for('iface_device.index'))
 
     # ── filter by date range & build per-user-per-day buckets ─────────────────
     # Each attendance entry has: user_id (str), timestamp (datetime), status (int), punch (int)
@@ -336,6 +347,49 @@ def fetch():
         db.rollback()
         flash(_t(f'خطأ في حفظ البيانات: {exc}', f'Database error: {exc}'), 'danger')
         return redirect(url_for('iface_device.index'))
+
+    # ── توليد سجلات الغياب للموظفين الذين لم يبصموا ──────────────────────────
+    absent_added = 0
+    from datetime import datetime as _dt, timedelta as _td
+    for grp in groups:
+        work_days_set = set(int(d) for d in (grp.work_days or '1,2,3,4,5').split(',') if d.strip())
+        try:
+            _d_from = _dt.strptime(date_from, '%Y-%m-%d').date()
+            _d_to   = _dt.strptime(date_to,   '%Y-%m-%d').date()
+        except ValueError:
+            continue
+        all_days = []
+        _cur = _d_from
+        while _cur <= _d_to:
+            wd = (_cur.weekday() + 1) % 7
+            if wd in work_days_set:
+                all_days.append(_cur.strftime('%Y-%m-%d'))
+            _cur += _td(days=1)
+
+        emps = db.query(EASEmployee).filter(
+            EASEmployee.group_id == grp.id,
+            EASEmployee.is_active == True,
+        ).all()
+
+        for emp in emps:
+            for day in all_days:
+                exists = db.query(EASRecord).filter(
+                    EASRecord.employee_id == emp.id,
+                    EASRecord.record_date == day,
+                ).first()
+                if not exists:
+                    db.add(EASRecord(
+                        employee_id=emp.id,
+                        record_date=day,
+                        status='absent',
+                        late_minutes=0,
+                        source='auto',
+                    ))
+                    absent_added += 1
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
 
     parts = [_t(f'تم حفظ {added} سجل', f'Saved {added} records')]
     if skipped:
@@ -466,3 +520,55 @@ def report():
         date_to=date_to,
         report_data=report_data,
     )
+
+@iface_bp.route('/import-users', methods=['POST'])
+@admin_required
+def import_users():
+    """جلب المستخدمين من الجهاز وإضافتهم كموظفين"""
+    db = get_db()
+    cfg = _get_config()
+
+    ip       = request.form.get('ip', '').strip()
+    port     = int(request.form.get('port') or 4370)
+    password = int(request.form.get('password') or 0)
+    timeout  = int(request.form.get('timeout') or 10)
+    group_id = request.form.get('group_id', type=int)
+
+    if not ip or not group_id:
+        flash(_t('يرجى إدخال IP واختيار مجموعة', 'Please enter IP and select a group'), 'danger')
+        return redirect(url_for('iface_device.index'))
+
+    group = db.get(EASGroup, group_id)
+    if not group:
+        abort(404)
+
+    try:
+        from zk import ZK
+        zk = ZK(ip, port=port, timeout=timeout, password=password, force_udp=False, ommit_ping=True)
+        conn = zk.connect()
+        users = conn.get_users()
+        conn.disconnect()
+
+        added = 0
+        flash(f'الجهاز عنده {len(users)} مستخدم', 'info')
+        for u in users:
+            if not u.name: continue
+            exists = db.query(EASEmployee).filter(
+                EASEmployee.group_id == group_id,
+                EASEmployee.employee_id == str(u.uid)
+            ).first()
+            if not exists:
+                emp = EASEmployee(
+                    group_id=group_id,
+                    name=u.name,
+                    employee_id=str(u.user_id),
+                )
+                db.add(emp)
+                added += 1
+
+        db.commit()
+        flash(_t(f'تم استيراد {added} موظف من الجهاز', f'Imported {added} employees from device'), 'success')
+    except Exception as e:
+        flash(_t(f'خطأ: {e}', f'Error: {e}'), 'danger')
+
+    return redirect(url_for('iface_device.index'))

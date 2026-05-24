@@ -39,7 +39,8 @@
             <div class="row g-3">
               <div class="col-8">
                 <label class="form-label fw-semibold">{{ 'عنوان IP للجهاز' if ar else 'Device IP Address' }} <span class="text-danger">*</span></label>
-                <input type="text" name="ip" id="ip" class="form-control font-monospace" placeholder="192.168.1.201" value="{{ device.ip }}" required>
+                <textarea name="ip" id="ip" class="form-control font-monospace" placeholder="10.0.60.1&#10;10.0.60.2&#10;10.0.60.3" rows="3" required>{{ device.ip }}</textarea>
+                <div class="form-text">{{ 'سطر لكل جهاز' if ar else 'One IP per line' }}</div>
               </div>
               <div class="col-4">
                 <label class="form-label fw-semibold">{{ 'المنفذ' if ar else 'Port' }}</label>
@@ -126,6 +127,32 @@
           <i class="bi bi-cloud-download me-2"></i>{{ 'جلب البيانات' if ar else 'Fetch Attendance' }}
         </button>
       </form>
+
+      <!-- Import Users Form -->
+      <div class="card shadow-sm mt-3">
+        <div class="card-header"><i class="bi bi-person-plus me-2"></i><strong>{{ 'استيراد الموظفين من الجهاز' if ar else 'Import Employees from Device' }}</strong></div>
+        <div class="card-body">
+          <form method="POST" action="{{ url_for('iface_device.import_users') }}">
+            <input type="hidden" name="ip" id="imp_ip">
+            <input type="hidden" name="port" id="imp_port">
+            <input type="hidden" name="password" id="imp_pass">
+            <input type="hidden" name="timeout" id="imp_timeout">
+            <div class="mb-2">
+              <label class="form-label small fw-semibold">{{ 'المجموعة' if ar else 'Group' }}</label>
+              <select name="group_id" class="form-select form-select-sm" required>
+                <option value="">{{ 'اختر...' if ar else 'Select...' }}</option>
+                {% for grp in groups %}
+                <option value="{{ grp.id }}">{{ grp.name_ar if ar and grp.name_ar else grp.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <button type="submit" class="btn btn-outline-success btn-sm w-100"
+                    onclick="document.getElementById('imp_ip').value=document.getElementById('ip').value;document.getElementById('imp_port').value=document.getElementById('port').value;document.getElementById('imp_pass').value=document.getElementById('password').value;document.getElementById('imp_timeout').value=document.getElementById('timeout').value;">
+              <i class="bi bi-people me-1"></i>{{ 'استيراد الموظفين' if ar else 'Import Employees' }}
+            </button>
+          </form>
+        </div>
+      </div>
     </div>
 
     <div class="col-lg-7">
