@@ -133,7 +133,7 @@ def create_app():
     from routes.sas           import sas_bp
     from routes.reservations  import reservations_bp
     from routes.venues        import venues_bp
-    from routes.locations     import locations_bp
+    from routes.locations     import locations_bp, venues_mgmt_bp
     from routes.contacts      import contacts_bp
     from routes.groups        import groups_bp
     from routes.reports       import reports_bp
@@ -151,7 +151,7 @@ def create_app():
                announcements_bp, interviews_bp, sas_bp,
                reservations_bp, venues_bp, locations_bp, contacts_bp,
                groups_bp, reports_bp, checklists_bp, blocked_bp,
-               ratings_bp, calendar_bp, public_cal_bp, backoffice_bp,
+               ratings_bp, calendar_bp, public_cal_bp, backoffice_bp, venues_mgmt_bp,
                mobile_api_bp, dl_bp]:
         app.register_blueprint(bp)        
 
