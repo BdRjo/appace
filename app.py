@@ -142,7 +142,7 @@ def create_app():
     from routes.ratings       import ratings_bp
     from routes.calendar_view import calendar_bp
     from routes.public_calendar import public_cal_bp
-    from routes.backoffice    import backoffice_bp
+    from routes.backoffice    import bo_bp as backoffice_bp
     from routes.mobile_api import mobile_api_bp
     from routes.download_data import dl_bp
 
