@@ -1,0 +1,576 @@
+{% extends "base.html" %}
+{%- set ar = (current_lang == 'ar') -%}
+
+{% block title %}{% if ar %}تقرير الحضور{% else %}Attendance Report{% endif %}{% endblock %}
+
+{% block extra_css %}
+<style>
+.stat-card { border-radius:12px; padding:18px 20px; color:#fff; }
+.rec-present { border-right: 3px solid #10b981; }
+.rec-absent  { border-right: 3px solid #ef4444; }
+.rec-late    { border-right: 3px solid #f59e0b; }
+[dir="ltr"] .rec-present { border-right:none; border-left: 3px solid #10b981; }
+[dir="ltr"] .rec-absent  { border-right:none; border-left: 3px solid #ef4444; }
+[dir="ltr"] .rec-late    { border-right:none; border-left: 3px solid #f59e0b; }
+.shift-section { background:#fef3c7; border-radius:10px; padding:12px; margin-top:16px; }
+@media print {
+  @page { size: A4 landscape; margin: 12mm 10mm; }
+  .no-print { display:none !important; }
+  .print-only { display:block !important; }
+  .card { box-shadow:none !important; border:1px solid #ddd !important; page-break-inside:avoid; }
+  .shift-section { background:#fff9e6 !important; border:1px solid #f59e0b !important; border-radius:6px; padding:8px; page-break-before:auto; }
+  .absent-section { page-break-before:auto; }
+  body { font-size:10px; }
+  table { page-break-inside:auto; width:100% !important; }
+  thead { display:table-header-group; }
+  tr { page-break-inside:avoid; }
+  .badge { border:1px solid #ccc; print-color-adjust:exact; -webkit-print-color-adjust:exact; }
+  .stat-card { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
+  /* Dept print filtering via CSS classes */
+  body.hide-roster .shift-section { display:none !important; }
+  tr.dept-row.print-hidden { display:none !important; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Print Header - only visible when printing -->
+<div class="print-only" style="display:none">
+  <div style="text-align:center;border-bottom:2px solid #1e40af;padding-bottom:12px;margin-bottom:16px">
+    {% if config and config.logo_url %}
+    <img src="{{ config.logo_url }}" style="height:60px;margin-bottom:8px"><br>
+    {% endif %}
+    <div style="font-size:18px;font-weight:bold;color:#1e40af">
+      {{ config.org_name if config and config.org_name else '' }}
+    </div>
+    <div style="font-size:15px;font-weight:bold;margin-top:6px">
+      {% if ar %}تقرير حضور الموظفين{% else %}Employee Attendance Report{% endif %}
+    </div>
+    <div style="font-size:12px;color:#555;margin-top:4px">
+      {% if group %}
+        {% if ar %}المجموعة:{% else %}Group:{% endif %} {{ group.name_ar or group.name }}
+      {% endif %}
+      {% if dept_filter %}
+        &nbsp;|&nbsp; {% if ar %}الدائرة:{% else %}Department:{% endif %} {{ dept_filter }}
+      {% endif %}
+    </div>
+    <div style="font-size:12px;color:#555;margin-top:2px">
+      {% if date_from or date_to %}
+        {% if ar %}الفترة:{% else %}Period:{% endif %}
+        {{ date_from or '—' }} {% if ar %}إلى{% else %}to{% endif %} {{ date_to or '—' }}
+      {% endif %}
+      &nbsp;|&nbsp;
+      {% if ar %}تاريخ الطباعة:{% else %}Printed:{% endif %}
+      <span id="printDate"></span>
+    </div>
+  </div>
+</div>
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2 no-print">
+  <h4 class="fw-bold mb-0">
+    <i class="bi bi-bar-chart-fill me-2" style="color:var(--primary)"></i>
+    {% if ar %}تقرير حضور الموظفين{% else %}Employee Attendance Report{% endif %}
+  </h4>
+  <div class="d-flex gap-2 flex-wrap">
+    <button onclick="openPrintModal()" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-printer me-1"></i>{% if ar %}طباعة{% else %}Print {% endif %}
+    </button>
+    {% if records %}
+    <button onclick="exportPDF()" class="btn btn-outline-danger btn-sm">
+      <i class="bi bi-file-pdf me-1"></i>PDF
+    </button>
+    <button id="sendBtn" onclick="showSendModal()" class="btn btn-primary-ars btn-sm">
+      <i class="bi bi-send me-1"></i>{% if ar %}إرسال{% else %}Send{% endif %}
+    </button>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="card border-0 shadow-sm mb-4 no-print" style="border-radius:14px">
+  <div class="card-body">
+    <form method="GET" class="row g-3 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label small fw-semibold">{% if ar %}المجموعة{% else %}Group{% endif %}</label>
+        <select name="group_id" class="form-select form-select-sm">
+          <option value="">{% if ar %}كل المجموعات{% else %}All Groups{% endif %}</option>
+          {% for g in groups %}
+          <option value="{{ g.id }}" {% if group and group.id == g.id %}selected{% endif %}>
+            {{ g.name_ar if ar and g.name_ar else g.name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small fw-semibold">{% if ar %}من{% else %}From{% endif %}</label>
+        <input type="date" name="from" class="form-control form-control-sm" value="{{ date_from }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small fw-semibold">{% if ar %}إلى{% else %}To{% endif %}</label>
+        <input type="date" name="to" class="form-control form-control-sm" value="{{ date_to }}">
+      </div>
+      {% if dept_names %}
+      <div class="col-md-3">
+        <label class="form-label small fw-semibold">{% if ar %}الدائرة{% else %}Department{% endif %}</label>
+        <select name="department" class="form-select form-select-sm">
+          <option value="">{% if ar %}كل الدوائر{% else %}All Departments{% endif %}</option>
+          {% for d in dept_names %}
+          <option value="{{ d }}" {% if dept_filter == d %}selected{% endif %}>{{ d }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-primary-ars btn-sm w-100">
+          <i class="bi bi-funnel me-1"></i>{% if ar %}تطبيق{% else %}Filter{% endif %}
+        </button>
+      </div>
+      <div class="col-12">
+        <div class="border rounded p-3" style="background:#fffbeb">
+          <div class="form-check form-switch mb-2">
+            <input class="form-check-input" type="checkbox" id="shiftToggle" name="use_shift"
+                   {% if request.args.get('use_shift') %}checked{% endif %}
+                   onchange="document.getElementById('shiftOptions').style.display=this.checked?'block':'none'">
+            <label class="form-check-label fw-semibold small" for="shiftToggle">
+              <i class="bi bi-moon-stars me-1" style="color:#d97706"></i>
+              {% if ar %}الكادر المناوب{% else %}Duty Roster{% endif %}
+            </label>
+          </div>
+          <div id="shiftOptions" style="display:{% if request.args.get('use_shift') %}block{% else %}none{% endif %}">
+            <div class="row g-2">
+              <div class="col-md-3">
+                <label class="form-label small fw-semibold">{% if ar %}بداية وقت الكادر مناوب{% else %}Roster Start{% endif %}</label>
+                <input type="time" name="shift_from" class="form-control form-control-sm" value="{{ request.args.get('shift_from','') }}">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-semibold">{% if ar %}نهاية وقت الكادر مناوب{% else %}Roster End{% endif %}</label>
+                <input type="time" name="shift_to" class="form-control form-control-sm" value="{{ request.args.get('shift_to','') }}">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-semibold">{% if ar %}تسامح التأخر (دقيقة){% else %}Late Tolerance (min){% endif %}</label>
+                <input type="number" name="shift_tolerance" class="form-control form-control-sm" min="0" max="60"
+                       value="{{ request.args.get('shift_tolerance', shift_tolerance|default(10)) }}">
+              </div>
+              <div class="col-md-12" style="display:none">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">{% if ar %}أسماء الكادر المناوب (سطر لكل اسم){% else %}Duty Roster Names (one per line){% endif %}</label>
+                <textarea name="shift_names" class="form-control form-control-sm" rows="3"
+                          placeholder="{% if ar %}أحمد محمد{% else %}Ahmed Mohammed{% endif %}">{{ request.args.get('shift_names','') }}</textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if records %}
+{# Records split by Python in route for reliability #}
+{% set normal  = normal_records %}
+{% set shifted = shifted_records %}
+
+<!-- Stats -->
+{% set total = records|length %}
+{% set present = records|selectattr('status','eq','present')|list|length %}
+{% set absent = records|selectattr('status','eq','absent')|list|length %}
+{% set late = records|selectattr('status','eq','late')|list|length %}
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#0C67EC,#3D8EF5)">
+      <div style="font-size:1.8rem;font-weight:800">{{ total }}</div>
+      <div style="font-size:.82rem;opacity:.85">{% if ar %}إجمالي السجلات{% else %}Total Records{% endif %}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#10b981,#34d399)">
+      <div style="font-size:1.8rem;font-weight:800">{{ present }}</div>
+      <div style="font-size:.82rem;opacity:.85">{% if ar %}حاضر{% else %}Present{% endif %}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#ef4444,#f87171)">
+      <div style="font-size:1.8rem;font-weight:800">{{ absent }}</div>
+      <div style="font-size:.82rem;opacity:.85">{% if ar %}غائب{% else %}Absent{% endif %}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#f59e0b,#fbbf24)">
+      <div style="font-size:1.8rem;font-weight:800">{{ late }}</div>
+      <div style="font-size:.82rem;opacity:.85">{% if ar %}متأخر{% else %}Late{% endif %}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Main Records Table -->
+<div class="card border-0 shadow-sm mb-4" style="border-radius:14px">
+  <div class="card-header bg-white border-bottom">
+    <h6 class="fw-bold mb-0">
+      <i class="bi bi-table me-2" style="color:var(--primary)"></i>
+      {% if ar %}سجلات الحضور العامة{% else %}General Attendance Records{% endif %}
+      <span class="badge ms-2" style="background:var(--primary-light);color:var(--primary)">{{ normal|length }}</span>
+    </h6>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0" style="font-size:.85rem">
+        <thead style="background:linear-gradient(90deg,var(--primary),var(--primary-dark));color:#fff">
+          <tr>
+            <th class="ps-3">{% if ar %}الموظف{% else %}Employee{% endif %}</th>
+            <th>{% if ar %}التاريخ{% else %}Date{% endif %}</th>
+            <th>{% if ar %}دخول{% else %}Check In{% endif %}</th>
+            <th>{% if ar %}خروج{% else %}Check Out{% endif %}</th>
+            <th>{% if ar %}الحالة{% else %}Status{% endif %}</th>
+            <th>{% if ar %}التأخر{% else %}Late{% endif %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for rec in normal %}
+          {% set cls = 'rec-present' if rec.status=='present' else ('rec-absent' if rec.status=='absent' else 'rec-late') %}
+          <tr class="{{ cls }} dept-row" data-dept="{{ rec.employee.department or '' }}">
+            <td class="ps-3 fw-semibold">{{ rec.employee.name }}</td>
+            <td>{{ rec.record_date }}</td>
+            <td>{{ rec.check_in or '—' }}</td>
+            <td>{{ rec.check_out or '—' }}</td>
+            <td>
+              {% if rec.status == 'present' %}
+              <span class="badge" style="background:#dcfce7;color:#15803d">{% if ar %}حاضر{% else %}Present{% endif %}</span>
+              {% elif rec.status == 'absent' %}
+              <span class="badge" style="background:#fee2e2;color:#dc2626">{% if ar %}غائب{% else %}Absent{% endif %}</span>
+              {% elif rec.status == 'late' %}
+              <span class="badge" style="background:#fef3c7;color:#d97706">{% if ar %}متأخر{% else %}Late{% endif %}</span>
+              {% else %}
+              <span class="badge bg-secondary">{{ rec.status }}</span>
+              {% endif %}
+            </td>
+            <td>{% if rec.late_minutes %}{{ rec.late_minutes }} {% if ar %}د{% else %}min{% endif %}{% else %}—{% endif %}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="text-center text-muted py-4">{% if ar %}لا توجد سجلات{% else %}No records{% endif %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Duty Roster -->
+{% if shifted %}
+<div class="shift-section mb-4">
+  <h6 class="fw-bold mb-3">
+    <i class="bi bi-moon-stars me-2" style="color:#d97706"></i>
+    {% if ar %}الكادر المناوب{% else %}Duty Roster{% endif %}
+    <span class="badge ms-2" style="background:#fef3c7;color:#d97706">{{ shifted|length }}</span>
+  </h6>
+  <div class="table-responsive">
+    <table class="table table-sm table-hover mb-0 bg-white" style="font-size:.85rem;border-radius:10px;overflow:hidden">
+      <thead style="background:linear-gradient(90deg,#d97706,#f59e0b);color:#fff">
+        <tr>
+          <th class="ps-3">{% if ar %}الموظف{% else %}Employee{% endif %}</th>
+          <th>{% if ar %}التاريخ{% else %}Date{% endif %}</th>
+          <th>{% if ar %}دخول{% else %}Check In{% endif %}</th>
+          <th>{% if ar %}خروج{% else %}Check Out{% endif %}</th>
+          <th>{% if ar %}الحالة{% else %}Status{% endif %}</th>
+          <th>{% if ar %}التأخر{% else %}Late{% endif %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rec in shifted %}
+        {% set shift_late = 0 %}
+        {% if shift_from and rec.check_in and rec.check_in != '—' %}
+          {% set ci_h = rec.check_in[:2]|int %}
+          {% set ci_m = rec.check_in[3:5]|int %}
+          {% set sf_h = shift_from[:2]|int %}
+          {% set sf_m = shift_from[3:5]|int %}
+          {% set shift_late = (ci_h * 60 + ci_m) - (sf_h * 60 + sf_m) %}
+        {% endif %}
+        <tr>
+          <td class="ps-3 fw-semibold">{{ rec.employee.name }}</td>
+          <td>{{ rec.record_date }}</td>
+          <td>{{ rec.check_in or '—' }}</td>
+          <td>{{ rec.check_out or '—' }}</td>
+          <td>
+            {% if not rec.check_in %}
+              <span class="badge bg-danger">{% if ar %}غائب{% else %}Absent{% endif %}</span>
+            {% elif shift_late > (shift_tolerance|default(10)|int) %}
+              <span class="badge bg-warning text-dark">{% if ar %}متأخر{% else %}Late{% endif %}</span>
+            {% else %}
+              <span class="badge" style="background:#fef3c7;color:#d97706">{% if ar %}كادر مناوب{% else %}Roster{% endif %}</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if shift_late > 0 %}
+              <small class="text-warning fw-semibold">{{ shift_late }} {% if ar %}د{% else %}min{% endif %}</small>
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Absent / No-Record Report -->
+{% if records %}
+{% set absent_records = records | selectattr('status', 'equalto', 'absent') | list %}
+{% if absent_records %}
+<div class="card border-0 shadow-sm mb-4 absent-section" style="border-radius:14px">
+  <div class="card-body p-0">
+    <div class="d-flex align-items-center justify-content-between px-4 py-3" style="border-bottom:1px solid #f0f0f0">
+      <h6 class="fw-bold mb-0" style="color:#dc2626">
+        <i class="bi bi-x-circle me-2"></i>
+        {% if ar %}الغائبون{% else %}Absent Employees{% endif %}
+        <span class="badge bg-danger ms-2">{{ absent_records|length }}</span>
+      </h6>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0 bg-white" style="font-size:.85rem">
+        <thead style="background:linear-gradient(90deg,#dc2626,#ef4444);color:#fff">
+          <tr>
+            <th class="ps-3">{% if ar %}الموظف{% else %}Employee{% endif %}</th>
+            <th>{% if ar %}التاريخ{% else %}Date {% endif %}</th>
+            <th>{% if ar %}الدائرة{% else %}Department{% endif %}</th>
+            <th>{% if ar %}الحالة{% else %}Status{% endif %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for rec in absent_records %}
+          <tr>
+            <td class="ps-3 fw-semibold">{{ rec.employee.name }}</td>
+            <td>{{ rec.record_date }}</td>
+            <td>{{ rec.employee.department or '—' }}</td>
+            <td><span class="badge bg-danger">{% if ar %}غائب{% else %}Absent{% endif %}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endif %}
+
+{% else %}
+<div class="text-center text-muted py-5">
+  <i class="bi bi-bar-chart" style="font-size:3rem;opacity:.3"></i>
+  <p class="mt-3">{% if ar %}اختر مجموعة وفترة زمنية لعرض التقرير{% else %}Select a group and date range to view report{% endif %}</p>
+</div>
+{% endif %}
+
+<!-- Print Dept Selector Modal -->
+<div class="modal fade no-print" id="printModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content" style="border-radius:14px">
+      <div class="modal-header border-0">
+        <h6 class="modal-title fw-bold">
+          <i class="bi bi-printer me-2" style="color:var(--primary)"></i>
+          {% if ar %}خيارات الطباعة{% else %}Print Options{% endif %}
+        </h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small text-muted mb-3">{% if ar %}اختر الدوائر التي تريد طباعتها{% else %}Select departments to print{% endif %}</p>
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" id="printAll" checked onchange="toggleAllDepts(this)">
+          <label class="form-check-label fw-semibold" for="printAll">{% if ar %}الكل{% else %}All{% endif %}</label>
+        </div>
+        <hr class="my-2">
+        <div id="deptCheckboxes">
+          {% set all_depts = records | map(attribute='employee.department') | select | unique | list %}
+          {% for dept in all_depts | sort %}
+          <div class="form-check mb-1">
+            <input class="form-check-input dept-check" type="checkbox" value="{{ dept }}" id="dept_{{ loop.index }}" checked>
+            <label class="form-check-label" for="dept_{{ loop.index }}">{{ dept or '—' }}</label>
+          </div>
+          {% endfor %}
+          <div class="form-check mb-1">
+            <input class="form-check-input dept-check" type="checkbox" value="__roster__" id="dept_roster" checked>
+            <label class="form-check-label" for="dept_roster">
+              <i class="bi bi-moon-stars me-1" style="color:#d97706"></i>
+              {% if ar %}الكادر المناوب{% else %}Duty Roster{% endif %}
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">
+          {% if ar %}إلغاء{% else %}Cancel{% endif %}
+        </button>
+        <button type="button" class="btn btn-primary-ars btn-sm" onclick="doPrint()">
+          <i class="bi bi-printer me-1"></i>{% if ar %}طباعة{% else %}Print{% endif %}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Send Modal -->
+<div class="modal fade no-print" id="sendModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content" style="border-radius:14px">
+      <div class="modal-header border-0">
+        <h6 class="modal-title fw-bold">
+          <i class="bi bi-send me-2" style="color:var(--primary)"></i>
+          {% if ar %}إرسال التقرير{% else %}Send Report{% endif %}
+        </h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">{% if ar %}إرسال إلى{% else %}Send To{% endif %}</label>
+          <select id="sendTarget" class="form-select form-select-sm">
+            <option value="group">{% if ar %}مجموعة من المستخدمين{% else %}User Group{% endif %}</option>
+            <option value="individual">{% if ar %}فردي{% else %}Individual{% endif %}</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">{% if ar %}البريد الإلكتروني{% else %}Email{% endif %}</label>
+          <input type="email" id="sendEmail" class="form-control form-control-sm"
+                 placeholder="{% if ar %}أدخل البريد...{% else %}Enter email...{% endif %}">
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">{% if ar %}الفترة{% else %}Period{% endif %}</label>
+          <div class="d-flex gap-2">
+            <input type="date" id="sendFrom" class="form-control form-control-sm" value="{{ date_from }}">
+            <span class="align-self-center">—</span>
+            <input type="date" id="sendTo" class="form-control form-control-sm" value="{{ date_to }}">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">
+          {% if ar %}إلغاء{% else %}Cancel{% endif %}
+        </button>
+        <button type="button" class="btn btn-primary-ars btn-sm" onclick="sendReport()">
+          <i class="bi bi-send me-1"></i>{% if ar %}إرسال{% else %}Send{% endif %}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% block extra_js %}
+<script>
+// Autocomplete for shift names textarea
+var shiftTextarea = document.querySelector('[name="shift_names"]');
+var suggestBox = null;
+
+if (shiftTextarea) {
+  shiftTextarea.addEventListener('input', function() {
+    var lines = this.value.split('\n');
+    var lastLine = lines[lines.length - 1].trim();
+    if (lastLine.length < 2) { hideSuggest(); return; }
+    
+    var groupId = document.querySelector('[name="group_id"]').value;
+    fetch('/eas/api/employees/search?q=' + encodeURIComponent(lastLine))
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if (!data.length) { hideSuggest(); return; }
+        showSuggest(data, lines);
+      })
+      .catch(function(e){ console.error('search error',e); });
+  });
+}
+
+function showSuggest(items, lines) {
+  hideSuggest();
+  suggestBox = document.createElement('div');
+  suggestBox.style.cssText = 'background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);z-index:9999;max-height:200px;overflow-y:auto;margin-top:4px;width:100%';
+  items.forEach(function(emp) {
+    var item = document.createElement('div');
+    item.textContent = emp.name;
+    item.textContent = emp.name + (emp.department ? '  (' + emp.department + ')' : '');
+    item.style.cssText = 'padding:10px 14px;cursor:pointer;font-size:.9rem;border-bottom:1px solid #f5f5f5';
+    item.addEventListener('touchstart', function(e){ e.preventDefault(); lines[lines.length-1]=emp.name; shiftTextarea.value=lines.join('\n')+'\n'; hideSuggest(); });
+    item.onclick = function(){ lines[lines.length-1]=emp.name; shiftTextarea.value=lines.join('\n')+'\n'; hideSuggest(); };
+    suggestBox.appendChild(item);
+  });
+  var rect = shiftTextarea.getBoundingClientRect();
+  suggestBox.style.top = (window.scrollY + rect.bottom) + 'px';
+  suggestBox.style.left = rect.left + 'px';
+  shiftTextarea.parentNode.appendChild(suggestBox);
+}
+
+function hideSuggest() {
+  if (suggestBox) { suggestBox.remove(); suggestBox = null; }
+}
+
+document.addEventListener('click', function(e) {
+  if (e.target !== shiftTextarea) hideSuggest();
+});
+
+// Print modal
+function openPrintModal() {
+  {% if records %}
+  new bootstrap.Modal(document.getElementById('printModal')).show();
+  {% else %}
+  window.print();
+  {% endif %}
+}
+
+function toggleAllDepts(cb) {
+  document.querySelectorAll('.dept-check').forEach(function(c){ c.checked = cb.checked; });
+}
+
+function doPrint() {
+  var checked = Array.from(document.querySelectorAll('.dept-check:checked')).map(function(c){ return c.value; });
+  var showRoster = checked.indexOf('__roster__') >= 0;
+  var depts = checked.filter(function(v){ return v !== '__roster__'; });
+  var allDepts = Array.from(document.querySelectorAll('.dept-check')).map(function(c){ return c.value; }).filter(function(v){ return v !== '__roster__'; });
+  var allSelected = depts.length === allDepts.length;
+
+  // Build print URL from current URL params
+  var params = new URLSearchParams(window.location.search);
+  if (!allSelected) params.set('print_depts', depts.join(','));
+  params.set('print_roster', showRoster ? '1' : '0');
+
+  var printUrl = '/eas/print?' + params.toString();
+  window.open(printUrl, '_blank');
+
+  bootstrap.Modal.getInstance(document.getElementById('printModal')).hide();
+}
+
+// Set print date
+document.addEventListener('DOMContentLoaded', function() {
+  var el = document.getElementById('printDate');
+  if (el) el.textContent = new Date().toLocaleDateString();
+});
+
+function showSendModal() {
+  new bootstrap.Modal(document.getElementById('sendModal')).show();
+}
+
+function sendReport() {
+  const email = document.getElementById('sendEmail').value.trim();
+  if (!email) {
+    alert('{% if ar %}يرجى إدخال البريد الإلكتروني{% else %}Please enter email{% endif %}');
+    return;
+  }
+  const params = new URLSearchParams(window.location.search);
+  const printUrl = window.location.origin + '/eas/print?' + params.toString();
+
+  fetch('/eas/send_report', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.content || ''},
+    body: JSON.stringify({email: email, url: printUrl})
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    if (d.ok) {
+      alert('{% if ar %}تم إرسال التقرير بنجاح{% else %}Report sent successfully{% endif %}');
+    } else {
+      alert('{% if ar %}فشل الإرسال: {% else %}Send failed: {% endif %}' + (d.error || ''));
+    }
+    bootstrap.Modal.getInstance(document.getElementById('sendModal')).hide();
+}
+
+function exportPDF() {
+  window.print();
+}
+</script>
+{% endblock %}
+{% endblock %}

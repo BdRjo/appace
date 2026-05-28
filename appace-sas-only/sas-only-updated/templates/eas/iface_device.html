@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{%- set ar = (current_lang == 'ar') -%}
+
+{% block title %}{{ 'iFace 702 — جلب البيانات' if ar else 'iFace 702 — Fetch Attendance' }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+  <div class="d-flex align-items-center gap-3 mb-4">
+    <div class="rounded-3 p-2 d-flex align-items-center justify-content-center"
+         style="background:var(--primary);width:46px;height:46px">
+      <i class="bi bi-fingerprint text-white fs-4"></i>
+    </div>
+    <div>
+      <h4 class="mb-0 fw-bold">{{ 'جهاز iFace 702 — جلب الحضور' if ar else 'iFace 702 Device — Fetch Attendance' }}</h4>
+      <small class="text-muted">{{ 'اتصل بالجهاز واسحب سجلات الحضور حسب المجموعة والفترة الزمنية' if ar else 'Connect to the device and pull attendance records by group and date range' }}</small>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+  <div class="alert alert-{{ cat }} alert-dismissible fade show">
+    {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  {% endfor %}
+  {% endwith %}
+
+  <div class="row g-4">
+    <div class="col-lg-5">
+      <form method="POST" action="{{ url_for('iface_device.fetch') }}" id="fetchForm">
+
+        <div class="card shadow-sm mb-4">
+          <div class="card-header bg-dark text-white d-flex align-items-center gap-2">
+            <i class="bi bi-hdd-network"></i>
+            <strong>{{ 'إعدادات الاتصال' if ar else 'Device Connection' }}</strong>
+            <span id="conn-badge" class="badge ms-auto" style="display:none"></span>
+          </div>
+          <div class="card-body">
+            <div class="row g-3">
+              <div class="col-8">
+                <label class="form-label fw-semibold">{{ 'عنوان IP للجهاز' if ar else 'Device IP Address' }} <span class="text-danger">*</span></label>
+                <textarea name="ip" id="ip" class="form-control font-monospace" placeholder="10.0.60.1&#10;10.0.60.2&#10;10.0.60.3" rows="3" required>{{ device.ip }}</textarea>
+                <div class="form-text">{{ 'سطر لكل جهاز' if ar else 'One IP per line' }}</div>
+              </div>
+              <div class="col-4">
+                <label class="form-label fw-semibold">{{ 'المنفذ' if ar else 'Port' }}</label>
+                <input type="number" name="port" id="port" class="form-control font-monospace" value="{{ device.port or 4370 }}" min="1" max="65535">
+              </div>
+              <div class="col-6">
+                <label class="form-label fw-semibold">{{ 'كلمة مرور الجهاز' if ar else 'Device Password' }}</label>
+                <input type="number" name="password" id="password" class="form-control" value="{{ device.password or 0 }}" min="0">
+                <div class="form-text">{{ '0 إذا لم تُضبط' if ar else '0 if not set' }}</div>
+              </div>
+              <div class="col-6">
+                <label class="form-label fw-semibold">{{ 'مهلة الاتصال (ثانية)' if ar else 'Timeout (sec)' }}</label>
+                <input type="number" name="timeout" id="timeout" class="form-control" value="{{ device.timeout or 10 }}" min="3" max="60">
+              </div>
+            </div>
+            <button type="button" id="testBtn" class="btn btn-outline-secondary btn-sm mt-3 w-100">
+              <span id="testSpinner" class="spinner-border spinner-border-sm me-1 d-none"></span>
+              <i class="bi bi-plug me-1" id="testIcon"></i>
+              {{ 'اختبار الاتصال' if ar else 'Test Connection' }}
+            </button>
+            <div id="testResult" class="mt-2 small d-none"></div>
+          </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+          <div class="card-header d-flex align-items-center gap-2">
+            <i class="bi bi-calendar-range"></i>
+            <strong>{{ 'نطاق التاريخ' if ar else 'Date Range' }}</strong>
+          </div>
+          <div class="card-body">
+            <div class="row g-3">
+              <div class="col-6">
+                <label class="form-label fw-semibold">{{ 'من' if ar else 'From' }} <span class="text-danger">*</span></label>
+                <input type="date" name="date_from" id="date_from" class="form-control" required value="{{ today }}">
+              </div>
+              <div class="col-6">
+                <label class="form-label fw-semibold">{{ 'إلى' if ar else 'To' }} <span class="text-danger">*</span></label>
+                <input type="date" name="date_to" id="date_to" class="form-control" required value="{{ today }}">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+          <div class="card-header d-flex align-items-center gap-2">
+            <i class="bi bi-people"></i>
+            <strong>{{ 'المجموعات' if ar else 'Groups' }}</strong>
+          </div>
+          <div class="card-body p-0">
+            {% if groups %}
+            <div class="list-group list-group-flush" style="max-height:320px;overflow-y:auto">
+              {% for grp in groups %}
+              <label class="list-group-item list-group-item-action d-flex align-items-start gap-2 py-3">
+                <input type="checkbox" name="group_ids" value="{{ grp.id }}" class="form-check-input mt-1 flex-shrink-0">
+                <div class="flex-grow-1">
+                  <div class="fw-semibold">{{ grp.name_ar if ar and grp.name_ar else grp.name }}</div>
+                  <small class="text-secondary">
+                    <i class="bi bi-clock me-1"></i>{{ grp.shift_start or '07:30' }} → {{ grp.shift_end or '15:00' }}
+                    &nbsp;|&nbsp;{{ 'تأخير:' if ar else 'Late:' }} {{ grp.late_tolerance or 10 }}{{ 'د' if ar else 'min' }}
+                    &nbsp;|&nbsp;{{ grp.employees|length }} {{ 'موظف' if ar else 'emp' }}
+                  </small>
+                </div>
+              </label>
+              {% endfor %}
+            </div>
+            {% else %}
+            <div class="p-3 text-muted">{{ 'لا توجد مجموعات' if ar else 'No groups yet' }}</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+          <div class="card-body">
+            <div class="form-check">
+              <input type="checkbox" name="overwrite" value="yes" class="form-check-input" id="overwrite">
+              <label class="form-check-label" for="overwrite">
+                {{ 'استبدال السجلات الموجودة' if ar else 'Overwrite existing records' }}
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" id="submitBtn" class="btn btn-primary-ars w-100">
+          <i class="bi bi-cloud-download me-2"></i>{{ 'جلب البيانات' if ar else 'Fetch Attendance' }}
+        </button>
+      </form>
+
+      <!-- Import Users Form -->
+      <div class="card shadow-sm mt-3">
+        <div class="card-header"><i class="bi bi-person-plus me-2"></i><strong>{{ 'استيراد الموظفين من الجهاز' if ar else 'Import Employees from Device' }}</strong></div>
+        <div class="card-body">
+          <form method="POST" action="{{ url_for('iface_device.import_users') }}">
+            <input type="hidden" name="ip" id="imp_ip">
+            <input type="hidden" name="port" id="imp_port">
+            <input type="hidden" name="password" id="imp_pass">
+            <input type="hidden" name="timeout" id="imp_timeout">
+            <div class="mb-2">
+              <label class="form-label small fw-semibold">{{ 'المجموعة' if ar else 'Group' }}</label>
+              <select name="group_id" class="form-select form-select-sm" required>
+                <option value="">{{ 'اختر...' if ar else 'Select...' }}</option>
+                {% for grp in groups %}
+                <option value="{{ grp.id }}">{{ grp.name_ar if ar and grp.name_ar else grp.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <button type="submit" class="btn btn-outline-success btn-sm w-100"
+                    onclick="document.getElementById('imp_ip').value=document.getElementById('ip').value;document.getElementById('imp_port').value=document.getElementById('port').value;document.getElementById('imp_pass').value=document.getElementById('password').value;document.getElementById('imp_timeout').value=document.getElementById('timeout').value;">
+              <i class="bi bi-people me-1"></i>{{ 'استيراد الموظفين' if ar else 'Import Employees' }}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-7">
+      <div class="alert alert-warning d-flex gap-2">
+        <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1"></i>
+        <div>
+          <strong>{{ 'تنبيه:' if ar else 'Important:' }}</strong>
+          {{ 'تأكد من إدخال رقم الموظف الصحيح بحيث يطابق رقم المستخدم في الجهاز.' if ar else 'Make sure each employee ID matches the user ID enrolled on the device.' }}
+        </div>
+      </div>
+      <div class="card shadow-sm">
+        <div class="card-header"><i class="bi bi-bar-chart-line me-2"></i><strong>{{ 'تقرير' if ar else 'Report' }}</strong></div>
+        <div class="card-body">
+          <a href="{{ url_for('iface_device.report') }}" class="btn btn-outline-primary w-100" id="reportLink">
+            <i class="bi bi-table me-2"></i>{{ 'فتح تقرير المجموعات' if ar else 'Open Groups Report' }}
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const isAr = '{{ current_lang }}' === 'ar';
+  document.getElementById('testBtn').addEventListener('click', async function(){
+    const btn = this;
+    btn.disabled = true;
+    document.getElementById('testSpinner').classList.remove('d-none');
+    const payload = {
+      ip: document.getElementById('ip').value.trim(),
+      port: parseInt(document.getElementById('port').value)||4370,
+      password: parseInt(document.getElementById('password').value)||0,
+      timeout: parseInt(document.getElementById('timeout').value)||10,
+    };
+    try {
+      const resp = await fetch('{{ url_for("iface_device.test_connection") }}', {
+        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
+      });
+      const data = await resp.json();
+      const result = document.getElementById('testResult');
+      result.classList.remove('d-none');
+      if(data.ok){
+        result.className='mt-2 small text-success';
+        result.textContent='✔ '+(isAr?'تم الاتصال بنجاح':'Connected successfully');
+      } else {
+        result.className='mt-2 small text-danger';
+        result.textContent='✖ '+data.message;
+      }
+    } catch(e){
+      document.getElementById('testResult').textContent='✖ '+e.message;
+    } finally {
+      btn.disabled=false;
+      document.getElementById('testSpinner').classList.add('d-none');
+    }
+  });
+
+  document.getElementById('fetchForm').addEventListener('submit', function(){
+    document.getElementById('submitBtn').disabled=true;
+  });
+})();
+</script>
+{% endblock %}

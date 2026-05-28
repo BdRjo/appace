@@ -23,6 +23,7 @@ def create_app():
     app.config['REMEMBER_COOKIE_SECURE'] = is_prod
     # ── CSRF Protection ───────────────────────────────────────────────────────
     app.config['WTF_CSRF_TIME_LIMIT'] = 3600  # 1 hour
+    app.config['WTF_CSRF_HEADERS'] = ['X-CSRFToken']
     app.config['WTF_CSRF_SSL_STRICT'] = False
     app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
     from flask_wtf.csrf import CSRFProtect
@@ -63,15 +64,28 @@ def create_app():
                 ALTER COLUMN user_id DROP NOT NULL
             """))
             conn.commit()
-
-            # EAS department column
-            conn.execute(text("""
-                ALTER TABLE eas_employees
-                ADD COLUMN IF NOT EXISTS department VARCHAR(200)
-            """))
-            conn.commit()
     except Exception as e:
         print(f"⚠️ Column migration: {e}")
+
+    # ── Migration v86: SAS time fields ───────────────────────────────────────
+    try:
+        from sqlalchemy import text
+        with get_engine().connect() as conn:
+            conn.execute(text("ALTER TABLE sas_records ADD COLUMN IF NOT EXISTS all_day INTEGER DEFAULT 1"))
+            conn.execute(text("ALTER TABLE sas_records ADD COLUMN IF NOT EXISTS time_from VARCHAR(10)"))
+            conn.execute(text("ALTER TABLE sas_records ADD COLUMN IF NOT EXISTS time_to VARCHAR(10)"))
+            conn.commit()
+    except Exception as e:
+        print(f"⚠️ SAS v86 migration: {e}")
+
+    # ── Migration: EAS department column ─────────────────────────────────────
+    try:
+        from sqlalchemy import text
+        with get_engine().connect() as conn:
+            conn.execute(text("ALTER TABLE eas_employees ADD COLUMN IF NOT EXISTS department VARCHAR(200)"))
+            conn.commit()
+    except Exception as e:
+        print(f"⚠️ EAS department migration: {e}")
 
     # ── DB session per request ────────────────────────────────────────────────
     @app.before_request
@@ -114,11 +128,13 @@ def create_app():
     from routes.cp            import cp_bp
     from routes.announcements import announcements_bp
     from routes.interviews    import interviews_bp
+    from routes.eas import eas_bp
+    from routes.iface_device import iface_bp
     from routes.sas           import sas_bp
     from routes.mobile_api import mobile_api_bp
     from routes.download_data import dl_bp
 
-    for bp in [auth_bp, admin_bp, api_bp,
+    for bp in [auth_bp, admin_bp, api_bp, eas_bp, iface_bp,
                users_bp, settings_bp, cp_bp,
                announcements_bp, interviews_bp, sas_bp, mobile_api_bp, dl_bp]:
         app.register_blueprint(bp)        

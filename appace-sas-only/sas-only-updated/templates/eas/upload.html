@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{%- set ar = (current_lang == 'ar') -%}
+
+{% block title %}{% if ar %}رفع ملف الحضور{% else %}Upload Attendance{% endif %}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <h4 class="fw-bold mb-0">
+    <i class="bi bi-upload me-2" style="color:var(--primary)"></i>
+    {% if ar %}رفع ملف الحضور{% else %}Upload Attendance File{% endif %}
+  </h4>
+  <a href="{{ url_for('eas.index') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-{{ 'right' if ar else 'left' }} me-1"></i>{% if ar %}رجوع{% else %}Back{% endif %}
+  </a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% for cat, msg in messages %}
+<div class="alert alert-{{ 'success' if cat == 'success' else 'danger' }} alert-dismissible fade show">
+  {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endfor %}
+{% endwith %}
+
+<div class="row g-4">
+  <div class="col-md-7">
+    <div class="card border-0 shadow-sm" style="border-radius:14px">
+      <div class="card-body p-4">
+        <form method="POST" enctype="multipart/form-data">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">{% if ar %}المجموعة{% else %}Group{% endif %} *</label>
+            <select name="group_id" class="form-select" required>
+              <option value="">{% if ar %}اختر مجموعة...{% else %}Select group...{% endif %}</option>
+              {% for g in groups %}
+              <option value="{{ g.id }}">{{ g.name_ar if ar and g.name_ar else g.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-4">
+            <label class="form-label fw-semibold">{% if ar %}ملف Excel{% else %}Excel File{% endif %} *</label>
+            <input type="file" name="file" class="form-control" accept=".xlsx,.xls" required>
+          </div>
+          <button type="submit" class="btn btn-primary-ars w-100">
+            <i class="bi bi-upload me-2"></i>{% if ar %}رفع ومعالجة{% else %}Upload & Process{% endif %}
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-5">
+    <div class="card border-0 shadow-sm h-100" style="border-radius:14px;background:#f8faff">
+      <div class="card-body p-4">
+        <h6 class="fw-bold mb-3"><i class="bi bi-info-circle me-2" style="color:var(--primary)"></i>{% if ar %}تنسيق الملف{% else %}File Format{% endif %}</h6>
+        <p class="small text-muted mb-2">{% if ar %}الأعمدة المطلوبة:{% else %}Required columns:{% endif %}</p>
+        <table class="table table-sm table-bordered small">
+          <thead class="table-light"><tr><th>{% if ar %}العمود{% else %}Column{% endif %}</th><th>{% if ar %}الوصف{% else %}Description{% endif %}</th></tr></thead>
+          <tbody>
+            <tr><td><code>name</code></td><td>{% if ar %}اسم الموظف{% else %}Employee name{% endif %}</td></tr>
+            <tr><td><code>date</code></td><td>{% if ar %}التاريخ (YYYY-MM-DD){% else %}Date (YYYY-MM-DD){% endif %}</td></tr>
+            <tr><td><code>check_in</code></td><td>{% if ar %}وقت الدخول (HH:MM){% else %}Check-in time (HH:MM){% endif %}</td></tr>
+            <tr><td><code>check_out</code></td><td>{% if ar %}وقت الخروج (HH:MM){% else %}Check-out time (HH:MM){% endif %}</td></tr>
+            <tr><td><code>department</code></td><td>{% if ar %}القسم (اختياري){% else %}Department (optional){% endif %}</td></tr>
+          </tbody>
+        </table>
+        <div class="alert alert-info small p-2 mt-2">
+          <i class="bi bi-lightbulb me-1"></i>
+          {% if ar %}النظام يحسب التأخر تلقائياً بناءً على إعدادات المجموعة{% else %}System auto-calculates late arrivals based on group settings{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

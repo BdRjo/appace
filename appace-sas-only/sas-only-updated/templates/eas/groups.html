@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{%- set ar = (current_lang == 'ar') -%}
+
+{% block title %}{% if ar %}مجموعات الموظفين{% else %}Staff Groups{% endif %}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <h4 class="fw-bold mb-0">
+    <i class="bi bi-collection me-2" style="color:var(--primary)"></i>
+    {% if ar %}مجموعات الموظفين{% else %}Staff Groups{% endif %}
+  </h4>
+  <a href="{{ url_for('eas.index') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-{{ 'right' if ar else 'left' }} me-1"></i>{% if ar %}رجوع{% else %}Back{% endif %}
+  </a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% for cat, msg in messages %}
+<div class="alert alert-{{ 'success' if cat == 'success' else 'danger' }} alert-dismissible fade show">
+  {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endfor %}
+{% endwith %}
+
+<!-- Add Group Form -->
+<div class="card border-0 shadow-sm mb-4" style="border-radius:14px">
+  <div class="card-header bg-white border-0 pt-3 pb-0">
+    <h6 class="fw-bold"><i class="bi bi-plus-circle me-2" style="color:var(--primary)"></i>{% if ar %}إضافة مجموعة جديدة{% else %}Add New Group{% endif %}</h6>
+  </div>
+  <div class="card-body">
+    <form method="POST" action="{{ url_for('eas.group_add') }}">
+      <div class="row g-3">
+        <div class="col-md-3">
+          <label class="form-label small fw-semibold">{% if ar %}الاسم (إنجليزي){% else %}Name (English){% endif %} *</label>
+          <input type="text" name="name" class="form-control form-control-sm" required
+                 placeholder="e.g. KG Teachers">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small fw-semibold">{% if ar %}الاسم (عربي){% else %}Name (Arabic){% endif %}</label>
+          <input type="text" name="name_ar" class="form-control form-control-sm" placeholder="مثال: معلمو الروضة">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small fw-semibold">{% if ar %}بداية الدوام{% else %}Shift Start{% endif %}</label>
+          <input type="time" name="shift_start" class="form-control form-control-sm" value="07:30">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small fw-semibold">{% if ar %}نهاية الدوام{% else %}Shift End{% endif %}</label>
+          <input type="time" name="shift_end" class="form-control form-control-sm" value="15:00">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small fw-semibold">{% if ar %}تسامح التأخر (دقيقة){% else %}Late Tolerance (min){% endif %}</label>
+          <input type="number" name="late_tolerance" class="form-control form-control-sm" value="10" min="0" max="60">
+        </div>
+        <div class="col-12">
+          <label class="form-label small fw-semibold">{% if ar %}أيام الدوام{% else %}Work Days{% endif %}</label>
+          <div class="d-flex gap-3 flex-wrap">
+            {% set days_ar = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'] %}
+            {% set days_en = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] %}
+            {% for i in range(7) %}
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="work_days" value="{{ i }}"
+                     id="day{{ i }}" {% if i in [1,2,3,4,5] %}checked{% endif %}>
+              <label class="form-check-label small" for="day{{ i }}">
+                {{ days_ar[i] if ar else days_en[i] }}
+              </label>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="col-12">
+          <button type="submit" class="btn btn-primary-ars btn-sm px-4">
+            <i class="bi bi-plus me-1"></i>{% if ar %}إضافة{% else %}Add{% endif %}
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Groups Table -->
+<div class="card border-0 shadow-sm" style="border-radius:14px">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0" style="font-size:.88rem">
+        <thead style="background:linear-gradient(90deg,var(--primary),var(--primary-dark));color:#fff">
+          <tr>
+            <th class="ps-3">{% if ar %}المجموعة{% else %}Group{% endif %}</th>
+            <th>{% if ar %}الدوام{% else %}Shift{% endif %}</th>
+            <th>{% if ar %}التسامح{% else %}Tolerance{% endif %}</th>
+            <th>{% if ar %}الموظفون{% else %}Staff{% endif %}</th>
+            <th>{% if ar %}أيام الدوام{% else %}Work Days{% endif %}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set days_ar = ['أح','إث','ثل','أر','خم','جم','سب'] %}
+          {% set days_en = ['Su','Mo','Tu','We','Th','Fr','Sa'] %}
+          {% for group in groups %}
+          <tr>
+            <td class="ps-3 fw-semibold">
+              {{ group.name_ar if ar and group.name_ar else group.name }}
+              {% if group.name_ar and not ar %}<br><small class="text-muted">{{ group.name_ar }}</small>{% endif %}
+            </td>
+            <td>{{ group.shift_start }} — {{ group.shift_end }}</td>
+            <td>{{ group.late_tolerance }} {% if ar %}د{% else %}min{% endif %}</td>
+            <td>
+              <a href="{{ url_for('eas.employees', gid=group.id) }}" class="badge text-decoration-none"
+                 style="background:var(--primary-light);color:var(--primary)">
+                {{ group.employees|length }} {% if ar %}موظف{% else %}staff{% endif %}
+              </a>
+            </td>
+            <td>
+              {% for d in group.work_days.split(',') if d %}
+              <span class="badge bg-light text-dark border me-1">{{ days_ar[d|int] if ar else days_en[d|int] }}</span>
+              {% endfor %}
+            </td>
+            <td class="text-end pe-3">
+              <a href="{{ url_for('eas.employees', gid=group.id) }}" class="btn btn-sm btn-outline-primary me-1">
+                <i class="bi bi-people"></i>
+              </a>
+              <form method="POST" action="{{ url_for('eas.group_delete', gid=group.id) }}" class="d-inline"
+                    onsubmit="return confirm('{% if ar %}حذف المجموعة؟{% else %}Delete group?{% endif %}')">
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="text-center text-muted py-4">{% if ar %}لا توجد مجموعات{% else %}No groups{% endif %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

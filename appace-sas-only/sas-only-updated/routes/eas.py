@@ -411,6 +411,105 @@ def upload():
         flash(_t(f'خطأ في الملف: {e}', f'File error: {e}'), 'danger')
         return redirect(url_for('eas.upload'))
 
+# ── Print Page ────────────────────────────────────────
+@eas_bp.route('/print')
+@admin_required
+def print_report():
+    """Dedicated print-friendly page — opens in new tab"""
+    db = get_db()
+    cfg = _get_config()
+    group_id    = request.args.get('group_id', type=int)
+    date_from   = request.args.get('from', '')
+    date_to     = request.args.get('to', '')
+    dept_filter = request.args.get('department', '').strip()
+    use_shift   = request.args.get('use_shift', '')
+    shift_names = request.args.get('shift_names', '')
+    shift_from  = request.args.get('shift_from', '')
+    shift_to    = request.args.get('shift_to', '')
+    shift_tolerance = request.args.get('shift_tolerance', type=int) or 10
+    # depts to include (comma-separated from JS)
+    print_depts = request.args.get('print_depts', '')
+    print_roster = request.args.get('print_roster', '1')
+
+    groups = db.query(EASGroup).filter(EASGroup.config_id == cfg.id).all()
+    group  = db.get(EASGroup, group_id) if group_id else None
+    all_group_ids = [g.id for g in groups]
+
+    shift_name_list = [n.strip() for n in shift_names.replace('\r','').splitlines() if n.strip()]
+
+    q = db.query(EASRecord).join(EASEmployee).filter(EASEmployee.group_id.in_(all_group_ids))
+    if group_id and not dept_filter:
+        q = q.filter(EASEmployee.group_id == group_id)
+    if dept_filter:
+        q = q.filter(EASEmployee.department == dept_filter)
+    if date_from: q = q.filter(EASRecord.record_date >= date_from)
+    if date_to:   q = q.filter(EASRecord.record_date <= date_to)
+    records = q.order_by(EASRecord.record_date.desc(), EASEmployee.name).all()
+
+    shift_employee_ids = set()
+    if use_shift and shift_name_list:
+        shift_emps = db.query(EASEmployee).filter(
+            EASEmployee.group_id.in_(all_group_ids),
+            EASEmployee.name.in_(shift_name_list)
+        ).all()
+        shift_employee_ids = {e.id for e in shift_emps}
+
+    normal_records  = [r for r in records if r.employee_id not in shift_employee_ids]
+    shifted_records = [r for r in records if r.employee_id in shift_employee_ids]
+
+    # filter by selected depts for print
+    if print_depts:
+        selected_depts = [d.strip() for d in print_depts.split(',') if d.strip()]
+        normal_records = [r for r in normal_records if (r.employee.department or '') in selected_depts]
+
+    if print_roster != '1':
+        shifted_records = []
+
+    return render_template('eas/print_report.html',
+        config=cfg, group=group,
+        normal_records=normal_records,
+        shifted_records=shifted_records,
+        date_from=date_from, date_to=date_to,
+        dept_filter=dept_filter,
+        shift_from=shift_from, shift_to=shift_to,
+        shift_tolerance=shift_tolerance,
+    )
+
+# ── Send Report by Email ──────────────────────────────
+@eas_bp.route('/send_report', methods=['POST'])
+@admin_required
+def send_report():
+    try:
+        from utils.email_helper import send_email
+    except ImportError:
+        return jsonify({'ok': False, 'error': 'Email not configured'}), 500
+
+    data     = request.get_json() or {}
+    to_email = data.get('email', '').strip()
+    print_url = data.get('url', '').strip()
+    if not to_email:
+        return jsonify({'ok': False, 'error': 'No email'}), 400
+
+    cfg = _get_config()
+    org = getattr(cfg, 'org_name', '') or 'STAP'
+    html = (
+        '<div style="font-family:Arial,sans-serif;direction:rtl;text-align:right;padding:20px">'
+        f'<h2 style="color:#1e40af">{org}</h2>'
+        '<h3>تقرير حضور الموظفين</h3>'
+        '<p>يمكنك مشاهدة التقرير من خلال الرابط التالي:</p>'
+        f'<a href="{print_url}" style="display:inline-block;background:#1e40af;color:#fff;'
+        'padding:10px 20px;border-radius:8px;text-decoration:none">عرض التقرير</a>'
+        '<p style="color:#888;font-size:12px;margin-top:20px">تم الإرسال تلقائياً من نظام STAP</p>'
+        '</div>'
+    )
+    ok = send_email(
+        to_email=to_email,
+        subject=f'تقرير الحضور — {org}',
+        html_body=html,
+        sync=True,
+    )
+    return jsonify({'ok': bool(ok)})
+
 # ── Employee Search API (autocomplete) ───────────────
 @eas_bp.route('/api/employees/search')
 @admin_required
@@ -421,8 +520,6 @@ def employees_search():
     if not q or len(q) < 2:
         return jsonify([])
     query = db.query(EASEmployee).filter(EASEmployee.name.ilike(f'%{q}%'))
-    if group_id:
-        query = query.filter(EASEmployee.group_id == group_id)
     emps = query.limit(10).all()
     return jsonify([{'id': e.id, 'name': e.name, 'name_en': e.name_en or '',
                      'department': e.department or ''} for e in emps])
@@ -452,11 +549,19 @@ def report():
     shift_employee_ids = set()
     dept_names = []
 
-    if group_id:
-        group = db.get(EASGroup, group_id)
-        q = db.query(EASRecord).join(EASEmployee).filter(EASEmployee.group_id == group_id)
+    all_group_ids = [g.id for g in db.query(EASGroup).filter(EASGroup.config_id == cfg.id).all()]
 
-        # FIX: filter by department
+    if group_id or dept_filter:
+        group = db.get(EASGroup, group_id) if group_id else None
+        q = db.query(EASRecord).join(EASEmployee).filter(
+            EASEmployee.group_id.in_(all_group_ids)
+        )
+
+        # if a specific group selected AND no dept filter, show only that group
+        if group_id and not dept_filter:
+            q = q.filter(EASEmployee.group_id == group_id)
+
+        # filter by department across all groups
         if dept_filter:
             q = q.filter(EASEmployee.department == dept_filter)
 
@@ -467,24 +572,43 @@ def report():
         # فلتر المناوبة بالأسماء
         if use_shift and shift_name_list:
             shift_emps = db.query(EASEmployee).filter(
-                EASEmployee.group_id == group_id,
+                EASEmployee.group_id.in_(all_group_ids),
                 EASEmployee.name.in_(shift_name_list)
             ).all()
             shift_employee_ids = {e.id for e in shift_emps}
 
-        # FIX: get distinct departments for dropdown
+        # get distinct departments across ALL groups in this config
+        # (because auto-upload creates one group per department)
+        all_group_ids = [g.id for g in groups]
         dept_rows = db.query(EASEmployee.department).filter(
-            EASEmployee.group_id == group_id,
+            EASEmployee.group_id.in_(all_group_ids),
             EASEmployee.department.isnot(None),
             EASEmployee.department != '',
         ).distinct().all()
         dept_names = sorted([r[0] for r in dept_rows if r[0]])
 
+    # shift tolerance: from form or fallback to group setting
+    shift_tolerance = request.args.get('shift_tolerance', type=int)
+    if shift_tolerance is None:
+        shift_tolerance = group.late_tolerance if group else 10
+
+    # Split records into normal and shifted in Python (Jinja 'in' test unreliable)
+    if shift_employee_ids:
+        normal_records  = [r for r in records if r.employee_id not in shift_employee_ids]
+        shifted_records = [r for r in records if r.employee_id in shift_employee_ids]
+    else:
+        normal_records  = records
+        shifted_records = []
+
     return render_template('eas/report.html',
         config=cfg, groups=groups, group=group,
-        records=records, shift_employees=shift_employee_ids,
+        records=records,
+        normal_records=normal_records,
+        shifted_records=shifted_records,
+        shift_employees=shift_employee_ids,
         date_from=date_from, date_to=date_to,
         use_shift=use_shift, shift_names=shift_names,
         shift_from=shift_from, shift_to=shift_to,
-        dept_filter=dept_filter, dept_names=dept_names,  # FIX: pass to template
+        shift_tolerance=shift_tolerance,
+        dept_filter=dept_filter, dept_names=dept_names,
     )
