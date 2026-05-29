@@ -1,0 +1,16 @@
+{
+  "pages": {
+    "reservations": {"enabled": true, "features": {"show_page": true, "allow_new": true, "allow_edit": true, "allow_delete": true, "export_pdf_excel": true, "show_required_staff": true}},
+    "venues": {"enabled": true, "features": {"show_page": true, "show_location": true, "show_book_btn": true}},
+    "venues_mgmt": {"enabled": true, "features": {"show_page": true, "allow_add": true, "allow_edit": true}},
+    "contacts": {"enabled": true},
+    "groups": {"enabled": true},
+    "reports": {"enabled": true},
+    "checklists": {"enabled": true},
+    "ratings": {"enabled": true},
+    "calendar": {"enabled": true},
+    "interviews": {"enabled": true},
+    "eas": {"enabled": true},
+    "sas": {"enabled": true}
+  }
+}
