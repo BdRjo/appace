@@ -504,7 +504,7 @@ function hideSuggest() {
 }
 
 document.addEventListener('click', function(e) {
-  if (e.target !== shiftTextarea) hideSuggest();
+  if (suggestBox && !suggestBox.contains(e.target)) hideSuggest();
 });
 
 // Print modal
