@@ -472,22 +472,26 @@ function initShiftToggle() {
   initAutocomplete();
 }
 
+function acInputHandler() {
+  var shiftTextarea = document.querySelector('[name="shift_names"]');
+  if (!shiftTextarea) return;
+  var lines = shiftTextarea.value.split('\n');
+  var lastLine = lines[lines.length - 1].trim();
+  if (lastLine.length < 2) { hideSuggest(); return; }
+  fetch('/eas/api/employees/search?q=' + encodeURIComponent(lastLine))
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      if (!data.length) { hideSuggest(); return; }
+      showSuggest(data, lines, shiftTextarea);
+    })
+    .catch(function(e){ console.error('search error',e); });
+}
+
 function initAutocomplete() {
   var shiftTextarea = document.querySelector('[name="shift_names"]');
-  if (!shiftTextarea || shiftTextarea._acInit) return;
-  shiftTextarea._acInit = true;
-  shiftTextarea.addEventListener('input', function() {
-    var lines = this.value.split('\n');
-    var lastLine = lines[lines.length - 1].trim();
-    if (lastLine.length < 2) { hideSuggest(); return; }
-    fetch('/eas/api/employees/search?q=' + encodeURIComponent(lastLine))
-      .then(function(r){ return r.json(); })
-      .then(function(data){
-        if (!data.length) { hideSuggest(); return; }
-        showSuggest(data, lines, shiftTextarea);
-      })
-      .catch(function(e){ console.error('search error',e); });
-  });
+  if (!shiftTextarea) return;
+  shiftTextarea.removeEventListener('input', acInputHandler);
+  shiftTextarea.addEventListener('input', acInputHandler);
 }
 
 initShiftToggle();
