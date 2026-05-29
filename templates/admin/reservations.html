@@ -12,7 +12,7 @@
       {% endfor %}
     </select>
     <button class="btn btn-primary-ars btn-sm">{{ _('تصفية') }}</button>
-    <a href="{{ url_for('sas.admin_dashboard') }}" class="btn btn-outline-secondary btn-sm">{{ _('إعادة') }}</a>
+    <a href="{{ url_for('reservations.index') }}" class="btn btn-outline-secondary btn-sm">{{ _('إعادة') }}</a>
   </form>
 </div></div>
 <div class="card"><div class="card-body p-0">
@@ -30,18 +30,18 @@
           <td>{{ status_label(r.status) }}</td>
           <td>
             <div class="d-flex gap-1 align-items-center">
-              <a href="{{ url_for('sas.admin_dashboard') }}"
+              <a href="{{ url_for('reservations.index') }}"
                  class="btn btn-sm btn-outline-primary" style="padding:2px 8px"
                  title="{{ _('عرض') }}"><i class="bi bi-eye"></i></a>
               {% if r.status == 'pending' %}
-              <form method="POST" action="{{ url_for('sas.admin_dashboard') }}" style="display:inline"
+              <form method="POST" action="{{ url_for('reservations.index') }}" style="display:inline"
                     onsubmit="return confirm('{% if current_lang=="en" %}Approve this booking?{% else %}الموافقة على هذا الحجز؟{% endif %}')">
                 <input type="hidden" name="note" value="">
                 <button class="btn btn-sm btn-success" style="padding:2px 8px" title="{{ _('موافقة') }}">
                   <i class="bi bi-check-lg"></i>
                 </button>
               </form>
-              <form method="POST" action="{{ url_for('sas.admin_dashboard') }}" style="display:inline"
+              <form method="POST" action="{{ url_for('reservations.index') }}" style="display:inline"
                     onsubmit="return confirm('{% if current_lang=="en" %}Reject this booking?{% else %}رفض هذا الحجز؟{% endif %}')">
                 <input type="hidden" name="reason" value="">
                 <button class="btn btn-sm btn-warning" style="padding:2px 8px" title="{{ _('رفض') }}">
