@@ -131,7 +131,7 @@
           <div class="form-check form-switch mb-2">
             <input class="form-check-input" type="checkbox" id="shiftToggle" name="use_shift"
                    {% if request.args.get('use_shift') %}checked{% endif %}
-                   onchange="document.getElementById('shiftOptions').style.display=this.checked?'block':'none'">
+>
             <label class="form-check-label fw-semibold small" for="shiftToggle">
               <i class="bi bi-moon-stars me-1" style="color:#d97706"></i>
               {% if ar %}الكادر المناوب{% else %}Duty Roster{% endif %}
@@ -455,6 +455,18 @@
 
 {% block extra_js %}
 <script>
+// Shift toggle
+function initShiftToggle() {
+  var cb = document.getElementById('shiftToggle');
+  var opts = document.getElementById('shiftOptions');
+  if (cb && opts) {
+    cb.addEventListener('change', function() {
+      opts.style.display = this.checked ? 'block' : 'none';
+    });
+  }
+}
+initShiftToggle();
+document.addEventListener('htmx:afterSettle', initShiftToggle);
 // Autocomplete for shift names textarea
 var shiftTextarea = document.querySelector('[name="shift_names"]');
 var suggestBox = null;
