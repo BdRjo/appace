@@ -3,8 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no, viewport-fit=cover">
-<meta name="csrf-token" content="{{ csrf_token() }}">
-<title>{% block title %}STAP{% endblock %}</title>
+<title>{% block title %}ARS{% endblock %}</title>
 {% if current_lang == 'en' %}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     {% else %}
@@ -25,7 +24,7 @@
 {% block extra_css %}{% endblock %}
 <style>
 /* ═══════════════════════════════════════════════════
-   STAP Layout — 4 fixed layers, content scrolls alone
+   ARS Layout — 4 fixed layers, content scrolls alone
    1. Sidebar (fixed left/right)
    2. Topbar  (fixed top, after sidebar)
    3. Ticker  (fixed below topbar, full width — NEVER touched by page loads)
@@ -435,43 +434,75 @@ html[dir="rtl"] .ticker-overflow {
     <i class="bi bi-calendar-check" style="font-size:1.4rem;color:#5C9BDE;filter:drop-shadow(0 0 6px rgba(92,155,222,.7))"></i>
     {% endif %}
     <div class="brand-text">
-      <div class="brand-title">{% if current_lang=='en' %}{{ _mcfg.get('brand_name_en','STAP') }}{% else %}{{ _mcfg.get('brand_name','نظام STAP') }}{% endif %}</div>
-      <div class="brand-sub">{% if current_lang=='en' %}{{ _mcfg.get('brand_tagline_en','Student Tracking & Appointments') }}{% else %}{{ _mcfg.get('brand_tagline','نظام الحضور والمقابلات') }}{% endif %}</div>
+      <div class="brand-title">{% if current_lang=='en' %}ARS{% else %}نظام ARS{% endif %}</div>
+      <div class="brand-sub">{% if current_lang=='en' %}Applied Event System{% else %}نظام إدارة الفعاليات{% endif %}</div>
     </div>
   </div>
   <div class="sidebar-scroll" hx-boost="true" hx-target="#contentArea" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#pageLoader" hx-select="#contentArea">
   {% if current_user.is_authenticated %}
   <div class="section-label">{{ _('الرئيسية') }}</div>
-  {% if perms.is_admin_or_manager() %}
   <a href="{{ url_for('admin.dashboard') }}" class="nav-link {% if request.endpoint=='admin.dashboard' %}active{% endif %}">
     <i class="bi bi-speedometer2"></i>{{ _('لوحة التحكم') }}
   </a>
-  {% endif %}
   {% if cp_enabled('calendar') %}
+  <a href="{{ url_for('calendar_view.index') }}" class="nav-link {% if request.blueprint=='calendar_view' %}active{% endif %}">
+    <i class="bi bi-calendar3"></i>{{ _('التقويم') }}
+  </a>
   {% endif %}
+  <div class="section-label">{{ _('الحجوزات') }}</div>
   {% if cp_enabled('reservations') %}
+  <a href="{{ url_for('reservations.index') }}" class="nav-link {% if request.blueprint=='reservations' %}active{% endif %}">
+    <i class="bi bi-journal-text"></i>{{ _('الحجوزات') }}
+  </a>
   {% endif %}
   {% if cp_enabled('venues') %}
+  <a href="{{ url_for('venues.index') }}" class="nav-link {% if request.blueprint=='venues' %}active{% endif %}">
+    <i class="bi bi-building"></i>{{ _('القاعات') }}
+  </a>
   {% endif %}
+  <div class="section-label">{{ _('إضافيات') }}</div>
   {% if cp_enabled('checklists') %}
+  <a href="{{ url_for('checklists.index') }}" class="nav-link" {% if request.blueprint=='checklists' %}active{% endif %}">
+    <i class="bi bi-check2-square"></i>{{ _('قوائم المهام') }}
+  </a>
   {% endif %}
   {% if cp_enabled('contacts') %}
+  <a href="{{ url_for('contacts.index') }}" class="nav-link {% if request.blueprint=='contacts' %}active{% endif %}">
+    <i class="bi bi-person-lines-fill"></i>{{ _('جهات الاتصال') }}
+  </a>
+  <a href="{{ url_for('groups.index') }}" class="nav-link {% if request.blueprint=='groups' %}active{% endif %}">
+    <i class="bi bi-people-fill"></i>{% if current_lang=='en' %}Distribution Groups{% else %}مجموعات التوزيع{% endif %}
+  </a>
   {% endif %}
   {% if current_user.role and current_user.role.name in ('مدير النظام','admin','Admin','مشرف','Manager','manager') %}
   <div class="section-label">{{ _('الإدارة') }}</div>
   {% if cp_enabled('locations') %}
+  <a href="{{ url_for('locations.index') }}" class="nav-link {% if request.blueprint=='locations' %}active{% endif %}">
+    <i class="bi bi-geo-alt"></i>{{ _('المواقع') }}
+  </a>
   {% endif %}
   {% if cp_enabled('venues_mgmt') %}
+  <a href="{{ url_for('venues_mgmt.index') }}" class="nav-link {% if request.blueprint=='venues_mgmt' %}active{% endif %}">
+    <i class="bi bi-building-gear"></i>{{ _('إدارة القاعات') }}
+  </a>
   {% endif %}
   <a href="{{ url_for('users.index') }}" class="nav-link {% if request.blueprint=='users' %}active{% endif %}">
     <i class="bi bi-people"></i>{{ _('المستخدمون') }}
   </a>
   {% if cp_enabled('reports') %}
+  <a href="{{ url_for('reports.index') }}" class="nav-link" {% if request.blueprint=='reports' %}active{% endif %}">
+    <i class="bi bi-bar-chart"></i>{{ _('التقارير') }}
+  </a>
   {% if cp_enabled('reports','rep_compare') %}
+  <a href="{{ url_for('reports.comparison') }}" class="nav-link" {% if request.endpoint=='reports.comparison' %}active{% endif %}">
+    <i class="bi bi-bar-chart-steps"></i>{{ _('المقارنة') }}
+  </a>
   {% endif %}
   {% endif %}
   {% if cp_enabled('blocked') %}
-  {% else %}
+  <a href="{{ url_for('blocked.index') }}" class="nav-link {% if request.blueprint=='blocked' %}active{% endif %}">
+    <i class="bi bi-slash-circle"></i><span>{{ _('حظر فترة') }}
+  </a>
   {% endif %}
   <!-- ✉️ Email Section -->
   <div class="section-label">{% if current_lang=='en' %}📧 Email{% else %}📧 البريد{% endif %}</div>
@@ -494,9 +525,6 @@ html[dir="rtl"] .ticker-overflow {
   </a>
   <a href="/announcements/" class="nav-link {% if request.blueprint=='announcements' %}active{% endif %}">
     <i class="bi bi-megaphone-fill"></i>{% if current_lang=='en' %}Announcements{% else %}الإعلانات{% endif %}
-  </a>
-  <a href="{{ url_for('eas.index') }}" class="nav-link {% if request.blueprint=='eas' %}active{% endif %}" hx-boost="false">
-    <i class="bi bi-person-check"></i>{{ _('حضور الموظفين') if current_lang=='ar' else 'Employee Attendance' }}
   </a>
   <a href="/interviews/admin/" class="nav-link {% if request.blueprint=='interviews' %}active{% endif %}" hx-boost="false">
     <i class="bi bi-people-fill"></i>{% if current_lang=='en' %}Parent Interviews{% else %}مقابلات أولياء الأمور{% endif %}
@@ -532,6 +560,9 @@ html[dir="rtl"] .ticker-overflow {
   </a>
   <a href="{{ url_for('cp.index') }}" class="nav-link {% if request.blueprint=='cp' %}active{% endif %}">
     <i class="bi bi-sliders"></i>{% if current_lang=='en' %}Control Panel{% else %}لوحة التحكم{% endif %}
+  </a>
+  <a href="{{ url_for('backoffice.index') }}" class="nav-link {% if request.blueprint=='backoffice' %}active{% endif %}">
+    <i class="bi bi-database"></i>{% if current_lang=='en' %}Back-Office{% else %}إدارة البيانات{% endif %}
   </a>
   <!-- 📋 Logs Section -->
   <div class="section-label">{% if current_lang=='en' %}📋 Logs{% else %}📋 السجلات{% endif %}</div>
@@ -663,9 +694,9 @@ html[dir="rtl"] .ticker-overflow {
   <footer class="app-footer">
     <div class="footer-brand">
       <i class="bi bi-calendar-check"></i>
-      <strong>STAP</strong>
+      <strong>ARS</strong>
       <span class="footer-sep">|</span>
-      <span>{% if current_lang=='en' %}Student Tracking & Appointments{% else %}نظام الحضور والمقابلات{% endif %}</span>
+      <span>{% if current_lang=='en' %}Applied Event System{% else %}نظام إدارة الفعاليات{% endif %}</span>
       <span class="footer-sep">|</span>
       <a href="#" class="footer-terms" data-bs-toggle="modal" data-bs-target="#aboutModal">
         {% if current_lang=='en' %}About{% else %}عن النظام{% endif %}
@@ -688,7 +719,7 @@ html[dir="rtl"] .ticker-overflow {
       <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
           <div class="modal-header" style="background:linear-gradient(135deg,var(--primary-dark),var(--primary));color:#fff">
-            <h5 class="modal-title"><i class="bi bi-info-circle me-2"></i>{% if current_lang=='en' %}About STAP{% else %}عن نظام STAP{% endif %}</h5>
+            <h5 class="modal-title"><i class="bi bi-info-circle me-2"></i>{% if current_lang=='en' %}About ARS{% else %}عن نظام ARS{% endif %}</h5>
             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body p-4">
@@ -697,15 +728,15 @@ html[dir="rtl"] .ticker-overflow {
               <div style="width:64px;height:64px;background:linear-gradient(135deg,var(--primary),var(--primary-light));border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;box-shadow:0 4px 16px rgba(12,103,236,.3)">
                 <i class="bi bi-calendar-check" style="font-size:1.8rem;color:#fff"></i>
               </div>
-              <h4 style="color:var(--primary);font-weight:800;margin-bottom:4px">STAP</h4>
-              <p style="color:#666;font-size:.88rem;margin:0">{% if current_lang=='en' %}Student Tracking & Appointments{% else %}نظام الحضور والمقابلات التطبيقي{% endif %}</p>
+              <h4 style="color:var(--primary);font-weight:800;margin-bottom:4px">ARS</h4>
+              <p style="color:#666;font-size:.88rem;margin:0">{% if current_lang=='en' %}Applied Event System{% else %}نظام إدارة الفعاليات التطبيقي{% endif %}</p>
             </div>
             {% if current_lang=='en' %}
             <div class="row g-3">
               <div class="col-12">
                 <div style="background:#f0f7ff;border-radius:12px;padding:16px;border-right:4px solid var(--primary)">
-                  <h6 style="color:var(--primary);font-weight:700;margin-bottom:8px"><i class="bi bi-bullseye me-2"></i>What is STAP?</h6>
-                  <p style="font-size:.88rem;color:#444;margin:0">STAP is a comprehensive, bilingual (Arabic/English) student tracking and appointments platform. It enables organizations to manage attendance and appointments, track approvals, assign venues and locations, and generate detailed reports — all from one centralized system.</p>
+                  <h6 style="color:var(--primary);font-weight:700;margin-bottom:8px"><i class="bi bi-bullseye me-2"></i>What is ARS?</h6>
+                  <p style="font-size:.88rem;color:#444;margin:0">ARS is a comprehensive, bilingual (Arabic/English) venue and reservation management platform. It enables organizations to manage booking requests, track approvals, assign venues and locations, and generate detailed reports — all from one centralized system.</p>
                 </div>
               </div>
               <div class="col-md-6">
@@ -736,15 +767,15 @@ html[dir="rtl"] .ticker-overflow {
                 </div>
               </div>
               <div class="col-12 text-center">
-                <p class="text-muted small mb-0"><strong>Version 4.0</strong> &nbsp;·&nbsp; © 2026 STAP</p>
+                <p class="text-muted small mb-0"><strong>Version 4.0</strong> &nbsp;·&nbsp; © 2026 ARS</p>
               </div>
             </div>
             {% else %}
             <div class="row g-3">
               <div class="col-12">
                 <div style="background:#f0f7ff;border-radius:12px;padding:16px;border-right:4px solid var(--primary)">
-                  <h6 style="color:var(--primary);font-weight:700;margin-bottom:8px"><i class="bi bi-bullseye me-2"></i>ما هو نظام STAP؟</h6>
-                  <p style="font-size:.88rem;color:#444;margin:0">نظام STAP هو منصة متكاملة ثنائية اللغة (عربي/إنجليزي) لالحضور والمقابلات والقاعات. يمكّن المؤسسات من إدارة طلبات الحجز، تتبع الموافقات، تعيين القاعات والمواقع، وإنشاء تقارير تفصيلية — كل ذلك من نظام مركزي واحد.</p>
+                  <h6 style="color:var(--primary);font-weight:700;margin-bottom:8px"><i class="bi bi-bullseye me-2"></i>ما هو نظام ARS؟</h6>
+                  <p style="font-size:.88rem;color:#444;margin:0">نظام ARS هو منصة متكاملة ثنائية اللغة (عربي/إنجليزي) لإدارة الحجوزات والقاعات. يمكّن المؤسسات من إدارة طلبات الحجز، تتبع الموافقات، تعيين القاعات والمواقع، وإنشاء تقارير تفصيلية — كل ذلك من نظام مركزي واحد.</p>
                 </div>
               </div>
               <div class="col-md-6">
@@ -775,7 +806,7 @@ html[dir="rtl"] .ticker-overflow {
                 </div>
               </div>
               <div class="col-12 text-center">
-                <p class="text-muted small mb-0"><strong>الإصدار 4.0</strong> &nbsp;·&nbsp; © 2026 STAP</p>
+                <p class="text-muted small mb-0"><strong>الإصدار 4.0</strong> &nbsp;·&nbsp; © 2026 ARS</p>
               </div>
             </div>
             {% endif %}
@@ -796,7 +827,7 @@ html[dir="rtl"] .ticker-overflow {
             {% if current_lang=='en' %}
 
             <h6 class="fw-bold text-primary mb-2"><i class="bi bi-1-circle me-1"></i>Data Collection</h6>
-            <p>STAP collects only the information necessary to manage reservations, including name, email address, phone number, and booking details. No unnecessary personal data is collected.</p>
+            <p>ARS collects only the information necessary to manage reservations, including name, email address, phone number, and booking details. No unnecessary personal data is collected.</p>
 
             <h6 class="fw-bold text-primary mb-2"><i class="bi bi-2-circle me-1"></i>Data Use</h6>
             <p>Your data is used solely for reservation management, system notifications, and service improvement. Your data will never be sold or shared with third parties for commercial purposes.</p>
@@ -805,7 +836,7 @@ html[dir="rtl"] .ticker-overflow {
             <p>All data is stored securely using encryption standards. Access is restricted to authorized users only, and all system activities are logged for security purposes.</p>
 
             <h6 class="fw-bold text-primary mb-2"><i class="bi bi-4-circle me-1"></i>Intellectual Property</h6>
-            <p>STAP — Student Tracking & Appointments and all its components, interfaces, code, and content are the exclusive intellectual property of the system owner. Reproduction, copying, or redistribution of any part of this system is strictly prohibited without prior written permission.</p>
+            <p>ARS — Applied Event System and all its components, interfaces, code, and content are the exclusive intellectual property of the system owner. Reproduction, copying, or redistribution of any part of this system is strictly prohibited without prior written permission.</p>
 
             <h6 class="fw-bold text-primary mb-2"><i class="bi bi-5-circle me-1"></i>User Responsibilities</h6>
             <p>Users are responsible for maintaining the confidentiality of their login credentials. Any misuse of the system, unauthorized access attempts, or violation of these terms may result in immediate account suspension and potential legal action.</p>
@@ -817,22 +848,22 @@ html[dir="rtl"] .ticker-overflow {
             <p>These terms are governed by applicable local laws. Any disputes shall be resolved through the competent judicial authorities.</p>
 
             <div class="mt-3 p-2 rounded" style="background:#EEF4FD;border-right:3px solid var(--primary)">
-              <small class="text-muted">Last updated: 2026 · STAP Student Tracking & Appointments · All rights reserved ©</small>
+              <small class="text-muted">Last updated: 2026 · ARS Applied Event System · All rights reserved ©</small>
             </div>
 
             {% else %}
 
             <h6 class="fw-bold text-primary mb-2"><i class="bi bi-1-circle me-1"></i>جمع البيانات</h6>
-            <p>يجمع نظام STAP فقط المعلومات الضرورية لالحضور والمقابلات، بما يشمل الاسم والبريد الإلكتروني ورقم الهاتف وتفاصيل الحجز. لا يتم جمع أي بيانات شخصية غير ضرورية.</p>
+            <p>يجمع نظام ARS فقط المعلومات الضرورية لإدارة الحجوزات، بما يشمل الاسم والبريد الإلكتروني ورقم الهاتف وتفاصيل الحجز. لا يتم جمع أي بيانات شخصية غير ضرورية.</p>
 
             <h6 class="fw-bold text-primary mb-2"><i class="bi bi-2-circle me-1"></i>استخدام البيانات</h6>
-            <p>تُستخدم بياناتك حصراً لالحضور والمقابلات وإشعارات النظام وتحسين الخدمة. لن يتم بيع بياناتك أو مشاركتها مع أطراف ثالثة لأغراض تجارية بأي حال.</p>
+            <p>تُستخدم بياناتك حصراً لإدارة الحجوزات وإشعارات النظام وتحسين الخدمة. لن يتم بيع بياناتك أو مشاركتها مع أطراف ثالثة لأغراض تجارية بأي حال.</p>
 
             <h6 class="fw-bold text-primary mb-2"><i class="bi bi-3-circle me-1"></i>أمان البيانات</h6>
             <p>تُحفظ جميع البيانات بشكل آمن باستخدام معايير التشفير المعتمدة. لا يمكن الوصول إليها إلا للمستخدمين المخولين، وتُسجَّل جميع أنشطة النظام لأغراض أمنية.</p>
 
             <h6 class="fw-bold text-primary mb-2"><i class="bi bi-4-circle me-1"></i>الملكية الفكرية</h6>
-            <p>نظام STAP — Student Tracking & Appointments وجميع مكوناته وواجهاته وكوده ومحتواه هي الملكية الفكرية الحصرية لمالك النظام. يُحظر تمامًا إعادة إنتاج أي جزء من هذا النظام أو نسخه أو توزيعه دون إذن كتابي مسبق.</p>
+            <p>نظام ARS — Applied Event System وجميع مكوناته وواجهاته وكوده ومحتواه هي الملكية الفكرية الحصرية لمالك النظام. يُحظر تمامًا إعادة إنتاج أي جزء من هذا النظام أو نسخه أو توزيعه دون إذن كتابي مسبق.</p>
 
             <h6 class="fw-bold text-primary mb-2"><i class="bi bi-5-circle me-1"></i>مسؤوليات المستخدم</h6>
             <p>يتحمل المستخدم مسؤولية الحفاظ على سرية بيانات تسجيل الدخول الخاصة به. قد يؤدي أي إساءة في استخدام النظام أو محاولات وصول غير مصرح بها أو انتهاك هذه الشروط إلى تعليق الحساب فورًا واتخاذ الإجراءات القانونية اللازمة.</p>
@@ -844,7 +875,7 @@ html[dir="rtl"] .ticker-overflow {
             <p>تخضع هذه الشروط للقوانين المحلية المعمول بها. تُحسم أي نزاعات عبر الجهات القضائية المختصة.</p>
 
             <div class="mt-3 p-2 rounded" style="background:#EEF4FD;border-right:3px solid var(--primary)">
-              <small class="text-muted">آخر تحديث: 2026 · نظام STAP لالحضور والمقابلات · جميع الحقوق محفوظة ©</small>
+              <small class="text-muted">آخر تحديث: 2026 · نظام ARS لإدارة الحجوزات · جميع الحقوق محفوظة ©</small>
             </div>
 
             {% endif %}
@@ -868,7 +899,7 @@ html[dir="rtl"] .ticker-overflow {
               <div style="color:#fff;font-weight:700;font-size:.95rem;margin-top:4px">
                 {% if current_lang=='en' %}We're here to help!{% else %}نحن هنا لمساعدتك!{% endif %}
               </div>
-              <div style="color:rgba(255,255,255,.75);font-size:.78rem">STAP — Student Tracking & Appointments</div>
+              <div style="color:rgba(255,255,255,.75);font-size:.78rem">ARS — Applied Event System</div>
             </div>
             <div class="p-4 d-flex flex-column gap-3">
               <!-- Email -->
@@ -1464,37 +1495,5 @@ setInterval(()=>{
   </div>
   <div id="notifList" style="max-height:min(340px,60vh);overflow-y:auto;padding:6px 0"></div>
 </div>
-
-<script>
-/* ── CSRF: أضف التوكن تلقائياً لكل نماذج POST وطلبات fetch ── */
-(function(){
-  const token = document.querySelector('meta[name="csrf-token"]')?.content;
-  if(!token) return;
-
-  /* 1. أضف hidden input لكل form عند الإرسال */
-  document.addEventListener('submit', function(e){
-    const form = e.target;
-    if(form.method && form.method.toLowerCase() === 'post'){
-      if(!form.querySelector('input[name="csrf_token"]')){
-        const inp = document.createElement('input');
-        inp.type = 'hidden';
-        inp.name = 'csrf_token';
-        inp.value = token;
-        form.appendChild(inp);
-      }
-    }
-  }, true);
-
-  /* 2. أضف header لكل طلبات fetch POST */
-  const _origFetch = window.fetch;
-  window.fetch = function(url, opts={}){
-    const method = (opts.method||'GET').toUpperCase();
-    if(['POST','PUT','PATCH','DELETE'].includes(method)){
-      opts.headers = Object.assign({'X-CSRFToken': token}, opts.headers||{});
-    }
-    return _origFetch(url, opts);
-  };
-})();
-</script>
 </body>
 </html>
