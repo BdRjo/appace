@@ -492,7 +492,7 @@ html[dir="rtl"] .ticker-overflow {
     <i class="bi bi-bar-chart-line"></i>{{ _('التقارير') }}
   </a>
   {% if cp_enabled('reports','rep_compare') %}
-  <a href="{{ url_for('reports.compare') }}" class="nav-link {% if request.endpoint=='reports.compare' %}active{% endif %}">
+  <a href="{{ url_for('reports.comparison') }}" class="nav-link {% if request.endpoint=='reports.compare' %}active{% endif %}">
     <i class="bi bi-arrow-left-right"></i>{{ _('المقارنة') }}
   </a>
   {% endif %}
