@@ -65,6 +65,7 @@
         <i class="bi bi-printer"></i>{% if ar %}طباعة{% else %}Print{% endif %}
       </button>
       <form method="post" action="{{ url_for('interviews.admin_send_reminders', event_id=ev.id) }}" class="d-inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="toolbar-btn" style="background:#fefce8;color:#a16207;border-color:#fde68a">
           <i class="bi bi-bell"></i>{% if ar %}تذكيرات{% else %}Reminders{% endif %}
         </button>
@@ -238,6 +239,7 @@
               {% if b.status=='confirmed' %}
               <form method="post" action="{{ url_for('interviews.admin_booking_cancel', bid=b.id) }}"
                     onsubmit="return confirm('{% if ar %}إلغاء هذا الحجز؟{% else %}Cancel this booking?{% endif %}')">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-sm rounded-3" style="background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca;font-size:.75rem">
                   <i class="bi bi-x-lg me-1"></i>{% if ar %}إلغاء{% else %}Cancel{% endif %}
                 </button>

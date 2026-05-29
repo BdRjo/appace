@@ -90,6 +90,7 @@
 <div class="card border-0 shadow-sm rounded-4 mb-3">
   <div class="card-body p-3">
     <form method="post" action="{{ url_for('interviews.admin_calendar_import') }}" enctype="multipart/form-data" class="d-flex align-items-center gap-2 flex-wrap">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <i class="bi bi-upload text-primary"></i>
       <span class="fw-600 small">{% if ar %}استيراد فترات محظورة (CSV){% else %}Import Blocked Periods (CSV){% endif %}</span>
       <input type="file" name="csv_file" accept=".csv" class="form-control form-control-sm" style="max-width:250px" required>
@@ -138,6 +139,7 @@
             </button>
             <form method="post" action="{{ url_for('interviews.admin_calendar_delete_slot', slot_id=s.id) }}" style="display:inline"
                   onsubmit="return confirm('{% if ar %}تأكيد الحذف؟{% else %}Delete?{% endif %}')">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button type="submit" class="btn btn-sm btn-outline-danger" style="font-size:.72rem">
                 <i class="bi bi-trash"></i>
               </button>
@@ -148,6 +150,7 @@
               <div class="modal-header border-0"><h6 class="modal-title fw-700">{% if ar %}تعديل الفترة{% else %}Edit Period{% endif %}</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
               <form method="post" action="{{ url_for('interviews.admin_calendar_edit_slot', slot_id=s.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <div class="modal-body">
                 <div class="mb-3"><label class="form-label small fw-600">{% if ar %}التاريخ{% else %}Date{% endif %}</label>
                   <input type="date" name="slot_date" class="form-control" value="{{ s.slot_date }}" required></div>
@@ -192,6 +195,7 @@
   <div class="modal-header border-0"><h6 class="modal-title fw-700">{% if ar %}إضافة فترة محظورة{% else %}Add Blocked Period{% endif %}</h6>
     <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
   <form method="post" action="{{ url_for('interviews.admin_calendar_add_slot') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="modal-body">
     <div class="mb-3"><label class="form-label small fw-600">{% if ar %}التاريخ{% else %}Date{% endif %}</label>
       <input type="date" name="slot_date" class="form-control" required></div>
@@ -219,6 +223,7 @@
   <div class="modal-header border-0"><h6 class="modal-title fw-700">{% if ar %}حظر نطاق تواريخ{% else %}Block Date Range{% endif %}</h6>
     <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
   <form method="post" action="{{ url_for('interviews.admin_calendar_block_period') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="modal-body">
     <div class="row g-2 mb-3">
       <div class="col-6"><label class="form-label small fw-600">{% if ar %}من تاريخ{% else %}From Date{% endif %}</label>

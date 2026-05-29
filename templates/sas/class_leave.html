@@ -41,6 +41,7 @@
     {% if ar %}تسجيل خروج من الحصة{% else %}Record Class Leave{% endif %}
   </h6>
   <form method="POST" action="{{ url_for('sas.class_leave_add', code=staff.staff_code) }}" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="row g-3">
       <!-- Student Search -->
       <div class="col-md-6">
@@ -167,6 +168,7 @@
     <div class="d-flex gap-1">
       {% if not cl.return_time %}
       <form method="POST" action="{{ url_for('sas.class_leave_return', code=staff.staff_code, lid=cl.id) }}" class="d-inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="btn btn-sm" style="background:#ecfeff;color:#0e7490;border:1px solid #22d3ee;border-radius:8px;font-size:.75rem;font-weight:600;padding:4px 10px">
           <i class="bi bi-box-arrow-in-left me-1"></i>{% if ar %}عودة{% else %}Return{% endif %}
         </button>
@@ -174,12 +176,14 @@
       {% endif %}
       {% if cl.status == 'pending' and (staff.role in ('secretary', 'manager')) %}
       <form method="POST" action="{{ url_for('sas.class_leave_approve', code=staff.staff_code, lid=cl.id) }}" class="d-inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="approve">
         <button type="submit" class="btn btn-sm" style="background:#cffafe;color:#164e63;border:1px solid #22d3ee;border-radius:8px;font-size:.75rem;font-weight:600;padding:4px 10px">
           <i class="bi bi-check-lg me-1"></i>{% if ar %}قبول{% else %}Approve{% endif %}
         </button>
       </form>
       <form method="POST" action="{{ url_for('sas.class_leave_approve', code=staff.staff_code, lid=cl.id) }}" class="d-inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="reject">
         <button type="submit" class="btn btn-sm" style="background:#fecaca;color:#991b1b;border:1px solid #f87171;border-radius:8px;font-size:.75rem;font-weight:600;padding:4px 10px">
           <i class="bi bi-x-lg me-1"></i>{% if ar %}رفض{% else %}Reject{% endif %}

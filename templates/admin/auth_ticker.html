@@ -39,6 +39,7 @@
       <div class="card-header"><i class="bi bi-chat-right-text me-2"></i>{% if current_lang=='en' %}Arabic Messages{% else %}الرسائل بالعربي{% endif %}</div>
       <div class="card-body">
         <form method="POST" class="mb-3">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="action" value="add_ar">
           <div class="mb-2 d-flex align-items-center gap-2">
             <div class="form-check form-switch mb-0">
@@ -62,6 +63,7 @@
                 <div style="padding:3px 8px;background:#f8f9fa;border-radius:4px;border-right:3px solid var(--primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ msg|safe }}</div>
               </div>
               <form method="POST" class="ms-1 flex-shrink-0">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="action" value="del_ar">
                 <input type="hidden" name="idx" value="{{ loop.index0 }}">
                 <button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="return confirm(this.dataset.msg)" data-msg="{% if current_lang=='en' %}Delete?{% else %}حذف؟{% endif %}"><i class="bi bi-trash"></i></button>
@@ -82,6 +84,7 @@
       <div class="card-header"><i class="bi bi-chat-right-text me-2"></i>{% if current_lang=='en' %}English Messages{% else %}الرسائل بالإنجليزي{% endif %}</div>
       <div class="card-body">
         <form method="POST" class="mb-3">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="action" value="add_en">
           <div class="mb-2 d-flex align-items-center gap-2">
             <div class="form-check form-switch mb-0">
@@ -104,6 +107,7 @@
                 <div style="padding:3px 8px;background:#f8f9fa;border-radius:4px;border-left:3px solid var(--primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ msg|safe }}</div>
               </div>
               <form method="POST" class="ms-1 flex-shrink-0">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="action" value="del_en">
                 <input type="hidden" name="idx" value="{{ loop.index0 }}">
                 <button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="return confirm(this.dataset.msg)" data-msg="{% if current_lang=='en' %}Delete?{% else %}حذف؟{% endif %}"><i class="bi bi-trash"></i></button>
@@ -124,6 +128,7 @@
       <div class="card-header"><i class="bi bi-palette me-2"></i>{% if current_lang=='en' %}Style Settings{% else %}إعدادات الشكل{% endif %}</div>
       <div class="card-body">
         <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="action" value="style">
           <div class="row g-3 align-items-end">
             <div class="col-6 col-md-2">

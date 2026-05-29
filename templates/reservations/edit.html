@@ -27,6 +27,7 @@
 <div class="card" style="border-radius:16px;border:none;box-shadow:0 2px 16px rgba(12,103,236,.09)">
   <div class="card-body p-4">
     <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="row g-3">
         <div class="col-12">
           <label class="form-label fw-bold">{% if current_lang=='en' %}Booking Title{% else %}عنوان الحجز{% endif %} *</label>

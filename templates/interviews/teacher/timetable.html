@@ -228,6 +228,7 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <form id="changeTimeForm" method="post">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="modal-body">
           <p class="text-muted small mb-3">Move this booking to a different available slot:</p>
           <div class="mb-2 small text-muted" id="ctCurrentInfo"></div>
@@ -258,6 +259,7 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <form id="substituteForm" method="post">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="modal-body">
           <p class="text-muted small mb-3">Transfer <strong id="subParentName"></strong>'s booking to another teacher:</p>
           <div class="mb-3">
@@ -299,6 +301,7 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <form id="mergeForm" method="post" action="{{ url_for('interviews.teacher_merge_bookings', teacher_code=teacher.teacher_code) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="modal-body">
           <p class="text-muted small mb-3">Merge <strong id="mergeParentName"></strong>'s booking (<span id="mergeTime"></span>) with another booking. The second slot will be freed.</p>
           <input type="hidden" name="bid1" id="mergeBid1">

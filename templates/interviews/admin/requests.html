@@ -93,6 +93,7 @@
                     <span class="text-muted">{{ r.reason }}</span>
                   </div>
                   <form method="post" action="{{ url_for('interviews.admin_request_action', rid=r.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="row g-2 mb-3">
                       <div class="col-6">
                         <label class="form-label small fw-bold">{% if ar %}التاريخ{% else %}Date{% endif %}</label>

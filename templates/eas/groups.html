@@ -29,6 +29,7 @@
   </div>
   <div class="card-body">
     <form method="POST" action="{{ url_for('eas.group_add') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="row g-3">
         <div class="col-md-3">
           <label class="form-label small fw-semibold">{% if ar %}الاسم (إنجليزي){% else %}Name (English){% endif %} *</label>
@@ -120,6 +121,7 @@
               </a>
               <form method="POST" action="{{ url_for('eas.group_delete', gid=group.id) }}" class="d-inline"
                     onsubmit="return confirm('{% if ar %}حذف المجموعة؟{% else %}Delete group?{% endif %}')">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-sm btn-outline-danger">
                   <i class="bi bi-trash"></i>
                 </button>

@@ -36,6 +36,7 @@
       </div>
       <div class="card-body">
         <form method="POST" action="{{ url_for('eas.employee_add', gid=group.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="row g-2">
             <div class="col-12">
               <input type="text" name="name" class="form-control form-control-sm" required
@@ -76,6 +77,7 @@
       </div>
       <div class="card-body">
         <form method="POST" action="{{ url_for('eas.employees_import', gid=group.id) }}" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <p class="small text-muted mb-2">
             {% if ar %}الأعمدة المطلوبة: name, name_en, email, phone, employee_id{% else %}Required columns: name, name_en, email, phone, employee_id{% endif %}
           </p>

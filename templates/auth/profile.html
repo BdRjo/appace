@@ -5,6 +5,7 @@
 <div class="card"><div class="card-header"><span>{{ _('تعديل البيانات') }}</div>
 <div class="card-body p-4">
   <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="mb-3">
       <label class="form-label fw-bold">{{ _('الاسم الكامل') }}</label>
       <input type="text" name="full_name" class="form-control" value="{{ user.full_name or '' }}">

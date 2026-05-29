@@ -74,6 +74,7 @@
 </div>
 
 <form method="POST" action="{{ url_for('sas.admin_config_save') }}" enctype="multipart/form-data" class="sas-form" id="configForm">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <!-- General Settings -->
   <div class="sas-card card mb-4">
     <div class="card-header">

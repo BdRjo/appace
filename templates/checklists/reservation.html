@@ -188,6 +188,7 @@
         <i class="bi bi-plus-circle-fill me-2"></i>{{ _('إضافة مهمة جديدة') }}
       </div>
       <form method="POST" id="addForm">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="add_item">
         <div class="mb-2">
           <input type="text" name="content" id="newContent" class="form-control" 
@@ -263,6 +264,7 @@
           {{ _('تطبيق قالب') }}
         </div>
         <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="action" value="apply_template">
           <select name="template_id" class="form-select form-select-sm mb-2">
             {% for t in templates %}

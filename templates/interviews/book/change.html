@@ -46,6 +46,7 @@
 
       {# Available slots #}
       <form method="post" id="changeForm">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         {% for t in teachers %}
         {% if teacher_slots.get(t.id) %}
         <div class="pi-card p-4 mb-3">

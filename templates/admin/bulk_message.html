@@ -21,6 +21,7 @@
   <div class="card-header">{% if current_lang=='en' %}📧 Send Email to Users{% else %}📧 إرسال بريد إلكتروني للمستخدمين{% endif %}</div>
   <div class="card-body">
     <form method="POST" enctype="multipart/form-data" id="msgForm">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="row g-3">
 
         <!-- Subject -->

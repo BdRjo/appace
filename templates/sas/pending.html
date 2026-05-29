@@ -103,10 +103,12 @@
         <span style="font-size:.72rem;color:#9ca3af">{% if ar %}بواسطة{% else %}By{% endif %}: {{ record.staff.name if record.staff else '—' }}</span>
         <div class="sas-action-btns">
           <form method="POST" action="{{ url_for('sas.record_approve', code=staff.staff_code, rid=record.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="action" value="approve">
             <button type="submit" class="sas-approve-btn"><i class="bi bi-check-lg me-1"></i>{% if ar %}اعتماد{% else %}Approve{% endif %}</button>
           </form>
           <form method="POST" action="{{ url_for('sas.record_approve', code=staff.staff_code, rid=record.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="action" value="reject">
             <button type="submit" class="sas-reject-btn"><i class="bi bi-x-lg me-1"></i>{% if ar %}رفض{% else %}Reject{% endif %}</button>
           </form>
@@ -155,10 +157,12 @@
         <span style="font-size:.72rem;color:#9ca3af">{% if ar %}بواسطة{% else %}By{% endif %}: {{ cl.staff.name if cl.staff else '—' }}</span>
         <div class="sas-action-btns">
           <form method="POST" action="{{ url_for('sas.class_leave_approve', code=staff.staff_code, lid=cl.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="action" value="approve">
             <button type="submit" class="sas-approve-btn"><i class="bi bi-check-lg me-1"></i>{% if ar %}قبول{% else %}Approve{% endif %}</button>
           </form>
           <form method="POST" action="{{ url_for('sas.class_leave_approve', code=staff.staff_code, lid=cl.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="action" value="reject">
             <button type="submit" class="sas-reject-btn"><i class="bi bi-x-lg me-1"></i>{% if ar %}رفض{% else %}Reject{% endif %}</button>
           </form>
@@ -193,10 +197,12 @@
         </div>
         <div class="sas-action-btns">
           <form method="POST" action="{{ url_for('sas.holiday_approve', code=staff.staff_code, holiday_id=h.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="action" value="approve">
             <button type="submit" class="sas-approve-btn"><i class="bi bi-check-lg me-1"></i>{% if ar %}اعتماد{% else %}Approve{% endif %}</button>
           </form>
           <form method="POST" action="{{ url_for('sas.holiday_approve', code=staff.staff_code, holiday_id=h.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="action" value="reject">
             <button type="submit" class="sas-reject-btn"><i class="bi bi-x-lg me-1"></i>{% if ar %}رفض{% else %}Reject{% endif %}</button>
           </form>

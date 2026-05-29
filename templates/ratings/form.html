@@ -9,6 +9,7 @@
 <div class="card"><div class="card-header"><span>{{ _('أضف تقييمك') }}</div>
 <div class="card-body p-4">
   <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="mb-4 text-center">
       <label class="form-label fw-bold d-block mb-3">{{ _('تقييمك من 5') }}</label>
       <div class="d-flex justify-content-center gap-2" id="starContainer">

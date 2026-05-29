@@ -27,6 +27,7 @@
         </div>
 
         <form method="post">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="mb-3">
             <label class="pi-label">{% if ar %}الاسم{% else %}Your Name{% endif %} <span class="text-danger">*</span></label>
             <input type="text" name="requester_name" class="pi-input" required>

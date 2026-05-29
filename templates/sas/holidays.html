@@ -122,6 +122,7 @@
   <div class="collapse" id="addHolidayForm">
     <div class="sas-add-holiday-body">
       <form method="POST" action="{{ url_for('sas.holiday_add', code=staff.staff_code) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <!-- no CSRF -->
         <div class="row g-3">
           <!-- Title AR -->
@@ -255,12 +256,14 @@
         <div class="d-flex align-items-center gap-1">
           {% if staff.role == 'manager' and holiday.status|default('pending') == 'pending' %}
           <form method="POST" action="{{ url_for('sas.holiday_approve', code=staff.staff_code, holiday_id=holiday.id) }}" class="d-inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="action" value="approve">
             <button type="submit" class="btn btn-sm" style="background:#cffafe;color:#164e63;border:1px solid #22d3ee;border-radius:8px;font-size:.75rem;font-weight:600;padding:4px 10px">
               <i class="bi bi-check-lg"></i>
             </button>
           </form>
           <form method="POST" action="{{ url_for('sas.holiday_approve', code=staff.staff_code, holiday_id=holiday.id) }}" class="d-inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="action" value="reject">
             <button type="submit" class="btn btn-sm" style="background:#fecaca;color:#991b1b;border:1px solid #f87171;border-radius:8px;font-size:.75rem;font-weight:600;padding:4px 10px">
               <i class="bi bi-x-lg"></i>
@@ -270,6 +273,7 @@
           {% if staff.role == 'manager' %}
           <form method="POST" action="{{ url_for('sas.holiday_delete', code=staff.staff_code, holiday_id=holiday.id) }}"
                 onsubmit="return confirm('{% if ar %}حذف هذه الإجازة؟{% else %}Delete this holiday?{% endif %}')" class="d-inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-sm btn-outline-danger" style="border-radius:8px;font-size:.75rem;padding:4px 10px">
               <i class="bi bi-trash"></i>
             </button>

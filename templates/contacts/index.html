@@ -32,6 +32,7 @@
   <button type="button" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.4);font-weight:700" onclick="selectAll(false)"><i class="bi bi-x-lg me-1"></i>{% if current_lang=='en' %}Clear All{% else %}إلغاء الكل{% endif %}</button>
   <span id="selCount" class="small ms-1" style="color:rgba(255,255,255,.9);font-weight:600"></span>
   <form method="POST" action="{{ url_for('contacts.bulk_delete') }}" id="bulkForm" class="ms-auto" onsubmit="return confirmBulk()">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div id="bulkIds"></div>
     <button type="submit" class="btn btn-sm btn-danger"><i class="bi bi-trash me-1"></i>{% if current_lang=='en' %}Delete Selected{% else %}حذف المحدد{% endif %}</button>
   </form>
@@ -70,6 +71,7 @@
         <a href="{{ url_for('contacts.export_single', cid=c.id) }}" class="btn btn-sm btn-outline-success" title="{% if current_lang=='en' %}Export{% else %}تصدير{% endif %}"><i class="bi bi-filetype-csv"></i></a>
         <form method="POST" action="{{ url_for('contacts.delete', cid=c.id) }}"
               onsubmit="return confirm('{% if current_lang=='en' %}Delete{% else %}حذف{% endif %} {{ c.first_name }}؟')">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="btn btn-sm btn-outline-danger" title="{% if current_lang=='en' %}Delete{% else %}حذف{% endif %}"><i class="bi bi-trash"></i></button>
         </form>
       </div>

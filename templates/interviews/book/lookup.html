@@ -36,6 +36,7 @@
         </p>
 
         <form method="post">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="mb-3" style="text-align:{{ 'right' if ar else 'left' }}">
             <label class="pi-label">{% if ar %}البريد الإلكتروني{% else %}Email Address{% endif %}</label>
             <input type="email" name="email" class="pi-input"
@@ -96,6 +97,7 @@
               </a>
               <form method="post" action="{{ url_for('interviews.book_cancel', booking_ref=b.booking_ref) }}"
                     onsubmit="return confirm('{% if ar %}تأكيد الإلغاء؟{% else %}Cancel?{% endif %}')">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-sm btn-outline-danger w-100" style="font-size:.75rem;border-radius:8px">
                   <i class="bi bi-x-circle me-1"></i>{% if ar %}إلغاء{% else %}Cancel{% endif %}
                 </button>

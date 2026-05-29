@@ -227,6 +227,7 @@
                   <li>
                     <form method="post" action="{{ url_for('interviews.admin_event_delete', event_id=ev.id) }}"
                           onsubmit="return confirm('{% if ar %}حذف هذا الفعالية نهائياً؟{% else %}Delete this event permanently?{% endif %}')">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                       <button type="submit" class="dropdown-item text-danger">
                         <i class="bi bi-trash3"></i> {% if ar %}حذف{% else %}Delete{% endif %}
                       </button>

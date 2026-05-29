@@ -28,6 +28,7 @@
   <div class="row g-4">
     <div class="col-lg-5">
       <form method="POST" action="{{ url_for('iface_device.fetch') }}" id="fetchForm">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
         <div class="card shadow-sm mb-4">
           <div class="card-header bg-dark text-white d-flex align-items-center gap-2">
@@ -133,6 +134,7 @@
         <div class="card-header"><i class="bi bi-person-plus me-2"></i><strong>{{ 'استيراد الموظفين من الجهاز' if ar else 'Import Employees from Device' }}</strong></div>
         <div class="card-body">
           <form method="POST" action="{{ url_for('iface_device.import_users') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="ip" id="imp_ip">
             <input type="hidden" name="port" id="imp_port">
             <input type="hidden" name="password" id="imp_pass">

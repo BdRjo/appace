@@ -166,6 +166,7 @@
 
 <!-- Tab Content -->
 <form id="bulkForm" method="POST" action="{{ url_for('sas.bulk_absent', code=staff.staff_code) }}" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
   <input type="hidden" name="stage_id" value="{{ stage.id }}">
 

@@ -36,6 +36,7 @@
               {% if r.status == 'pending' %}
               <form method="POST" action="{{ url_for('reservations.index') }}" style="display:inline"
                     onsubmit="return confirm('{% if current_lang=="en" %}Approve this booking?{% else %}الموافقة على هذا الحجز؟{% endif %}')">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="note" value="">
                 <button class="btn btn-sm btn-success" style="padding:2px 8px" title="{{ _('موافقة') }}">
                   <i class="bi bi-check-lg"></i>
@@ -43,6 +44,7 @@
               </form>
               <form method="POST" action="{{ url_for('reservations.index') }}" style="display:inline"
                     onsubmit="return confirm('{% if current_lang=="en" %}Reject this booking?{% else %}رفض هذا الحجز؟{% endif %}')">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="reason" value="">
                 <button class="btn btn-sm btn-warning" style="padding:2px 8px" title="{{ _('رفض') }}">
                   <i class="bi bi-x-lg"></i>
@@ -52,6 +54,7 @@
               {% if r.status not in ('cancelled','rejected','completed') %}
               <form method="POST" action="{{ url_for('reservations.cancel', res_id=r.id) }}" style="display:inline"
                     onsubmit="return confirm('{% if current_lang=="en" %}Cancel this booking?{% else %}إلغاء هذا الحجز؟{% endif %}')">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button class="btn btn-sm btn-outline-danger" style="padding:2px 8px" title="{{ _('إلغاء') }}">
                   <i class="bi bi-slash-circle"></i>
                 </button>

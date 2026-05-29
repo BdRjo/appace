@@ -49,6 +49,7 @@
 </div>
 
 <form method="POST" id="tplForm" onsubmit="return prepareSubmit()">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <!-- Language Tabs -->
   <ul class="nav nav-tabs mb-3" role="tablist">
     <li class="nav-item">
@@ -114,6 +115,7 @@
     </button>
     <form method="POST" action="{{ url_for('admin.email_template_reset', key=key) }}" class="d-inline"
           onsubmit="return confirm({{ ('Reset to default template?' if current_lang == 'en' else 'إعادة للقالب الافتراضي؟')|tojson }})">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="btn btn-outline-warning" style="border-radius:10px">
         <i class="bi bi-arrow-counterclockwise me-1"></i>
         {% if current_lang=='en' %}Reset to Default{% else %}إعادة للافتراضي{% endif %}

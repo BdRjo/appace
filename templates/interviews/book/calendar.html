@@ -71,6 +71,7 @@
       </div>
 
       <form method="post" action="{{ url_for('interviews.calendar_public') }}" id="calForm">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         {# Date #}
         <div class="cal-field">
           <label>{% if ar %}التاريخ{% else %}Date{% endif %}<span class="cal-required">*</span></label>

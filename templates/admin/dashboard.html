@@ -115,9 +115,11 @@
             <td>
               <div class="d-flex gap-1">
                 <form method="POST" action="{{ url_for('reservations.index') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button class="btn btn-success btn-sm py-0 px-1" title="{{ _('موافقة') }}"><i class="bi bi-check"></i></button>
                 </form>
                 <form method="POST" action="{{ url_for('reservations.index') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button class="btn btn-danger btn-sm py-0 px-1" title="{{ _('رفض') }}"><i class="bi bi-x"></i></button>
                 </form>
               </div>

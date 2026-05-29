@@ -169,6 +169,7 @@ html[dir="rtl"] .sas-table th.sortable::after { right: auto; left: 6px; }
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <form method="POST" action="{{ url_for('sas.admin_staff_add') }}" id="addStaffForm">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="modal-body">
           <div class="row g-3">
             <div class="col-md-6">
@@ -233,6 +234,7 @@ html[dir="rtl"] .sas-table th.sortable::after { right: auto; left: 6px; }
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <form method="POST" id="editStaffForm">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="modal-body">
           <input type="hidden" name="staff_id" id="editId">
           <div class="row g-3">
@@ -335,6 +337,7 @@ html[dir="rtl"] .sas-table th.sortable::after { right: auto; left: 6px; }
       <div class="modal-footer justify-content-center" style="border-top:1px solid #e5e7eb">
         <button type="button" class="btn btn-sm" style="border:1.5px solid #d1d5db;border-radius:8px;padding:7px 20px;font-weight:600" data-bs-dismiss="modal">{{ 'إلغاء' if ar else 'Cancel' }}</button>
         <form method="POST" id="deleteStaffForm" style="display:inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="btn btn-sm" style="background:#dc2626;color:#fff;border:none;border-radius:8px;padding:7px 20px;font-weight:700">
             <i class="bi bi-trash me-1"></i>{{ 'حذف' if ar else 'Delete' }}
           </button>

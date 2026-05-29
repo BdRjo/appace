@@ -33,6 +33,7 @@
               <i class="bi bi-pencil"></i>
             </a>
             <form method="POST" action="{{ url_for('groups.delete', group_id=g.id) }}" onsubmit="return confirm(this.dataset.msg)" data-msg="{% if current_lang=='en' %}Delete group?{% else %}حذف المجموعة؟{% endif %}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button class="btn btn-xs btn-outline-danger"><i class="bi bi-trash"></i></button>
             </form>
           </div>

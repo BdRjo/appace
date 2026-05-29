@@ -13,6 +13,7 @@
   </div>
   <div class="card-body">
     <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       {% for module, perms in modules.items() %}
       <div class="mb-4">
         <h6 class="fw-bold text-uppercase text-muted border-bottom pb-2 mb-3">

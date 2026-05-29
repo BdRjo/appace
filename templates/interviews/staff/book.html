@@ -72,6 +72,7 @@
       <div class="card-header fw-semibold"><i class="bi bi-person me-2"></i>Parent Details</div>
       <div class="card-body">
         <form method="post">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <!-- Selected slots display -->
           <div id="selected-display" class="mb-3 d-none">
             <div class="alert alert-info p-2 small" id="selected-info">No slots selected</div>

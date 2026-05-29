@@ -11,6 +11,7 @@
       <div class="card-header"><i class="bi bi-file-earmark-csv me-2"></i>{% if current_lang=='en' %}Upload CSV File{% else %}رفع ملف CSV{% endif %}</div>
       <div class="card-body">
         <form method="POST" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="mb-3">
             <input type="file" name="file" class="form-control" accept=".csv" required>
           </div>

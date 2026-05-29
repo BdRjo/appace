@@ -189,6 +189,7 @@ html[dir="rtl"] .sas-table th.sortable::after { right: auto; left: 6px; }
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <form method="POST" action="{{ url_for('sas.admin_student_add') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="modal-body">
           <div class="row g-3">
             <div class="col-md-4">

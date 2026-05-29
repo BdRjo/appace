@@ -12,6 +12,7 @@
     <div class="card">
       <div class="card-body p-4">
         <form method="POST" action="{{ url_for('blocked.edit', bp_id=bp_id) if edit_mode else url_for('blocked.new') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="mb-3">
             <label class="form-label fw-bold">{{ _('القاعة') }}</label>
             <select name="venue_id" class="form-select">

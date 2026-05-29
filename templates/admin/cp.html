@@ -8,6 +8,7 @@
     <p class="text-muted small mb-0">{% if current_lang=='en' %}Manage each page settings, titles and visibility{% else %}أدر إعدادات كل صفحة وعناوينها وإمكانية الوصول إليها{% endif %}</p>
   </div>
   <form method="POST" action="{{ url_for('cp.reset_all') }}" onsubmit="return confirm('Reset ALL page settings?')">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button type="submit" class="btn btn-outline-secondary btn-sm">
       <i class="bi bi-arrow-counterclockwise me-1"></i>{% if current_lang=='en' %}Reset All{% else %}إعادة الكل{% endif %}
     </button>

@@ -62,6 +62,7 @@
           </a>
           <form method="POST" action="{{ url_for('backoffice.row_delete', table_name=table_name, row_id=row[0]) }}"
                 onsubmit="return confirm('Delete row #{{ row[0] }}?')">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn btn-xs btn-outline-danger" title="Delete">
               <i class="bi bi-trash"></i>
             </button>

@@ -163,6 +163,7 @@
                       action="{{ url_for('admin.email_resend', log_id=log.id) }}"
                       style="display:inline"
                       onsubmit="return confirm(this.dataset.msg)">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button class="btn btn-sm btn-outline-primary" style="padding:3px 9px;border-radius:8px"
                           data-msg="{% if current_lang=='en' %}Resend this email?{% else %}إعادة إرسال هذه الرسالة؟{% endif %}"
                           title="{% if current_lang=='en' %}Resend{% else %}إعادة الإرسال{% endif %}">
@@ -182,6 +183,7 @@
                       action="{{ url_for('admin.email_log_delete', log_id=log.id) }}"
                       style="display:inline"
                       onsubmit="return confirm(this.dataset.msg)">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button class="btn btn-sm btn-outline-danger" style="padding:3px 9px;border-radius:8px"
                           data-msg="{% if current_lang=='en' %}Delete this log entry?{% else %}حذف هذا السجل؟{% endif %}"
                           title="{% if current_lang=='en' %}Delete{% else %}حذف{% endif %}">

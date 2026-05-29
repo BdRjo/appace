@@ -146,6 +146,7 @@
   {% endwith %}
 
   <form method="POST" action="{{ url_for('auth.login') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="mb-3">
       <label class="form-label fw-bold small">
         {% if current_lang == 'en' %}Username{% else %}اسم المستخدم{% endif %}

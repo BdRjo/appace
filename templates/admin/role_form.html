@@ -5,6 +5,7 @@
 <div class="card"><div class="card-header">{{ _('إضافة دور جديد') }}</div>
 <div class="card-body p-4">
   <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="mb-3">
       <label class="form-label fw-bold">{{ _('اسم الدور') }}*</label>
       <input type="text" name="name" class="form-control" required

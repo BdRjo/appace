@@ -175,6 +175,7 @@
 <div class="sas-add-record-card">
   <h5><i class="bi bi-plus-circle me-2"></i>{% if ar %}إضافة سجل جديد{% else %}Add New Record{% endif %}</h5>
   <form method="POST" action="{{ url_for('sas.record_add', code=staff.staff_code) }}" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <!-- no CSRF -->
     <input type="hidden" name="student_id" value="{{ student.id }}">
     <div class="row g-3">
@@ -380,6 +381,7 @@
                 <!-- Delete Button -->
                 <form method="POST" action="{{ url_for('sas.record_delete', code=staff.staff_code, rid=record.id) }}"
                       onsubmit="return confirm('{% if ar %}هل أنت متأكد من الحذف؟{% else %}Are you sure you want to delete?{% endif %}')">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <!-- no CSRF -->
                   <button type="submit"
                           class="btn btn-sm btn-outline-danger"
@@ -392,6 +394,7 @@
                 {% if staff.role == 'manager' and record.status == 'pending' %}
                 <!-- Approve -->
                 <form method="POST" action="{{ url_for('sas.record_approve', code=staff.staff_code, rid=record.id) }}" style="display:inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <!-- no CSRF -->
                   <input type="hidden" name="action" value="approve">
                   <button type="submit"
@@ -403,6 +406,7 @@
                 </form>
                 <!-- Reject -->
                 <form method="POST" action="{{ url_for('sas.record_approve', code=staff.staff_code, rid=record.id) }}" style="display:inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <!-- no CSRF -->
                   <input type="hidden" name="action" value="reject">
                   <button type="submit"
@@ -500,6 +504,7 @@
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <form method="POST" action="{{ url_for('sas.record_edit', code=staff.staff_code, rid=record.id) }}" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <!-- no CSRF -->
         <div class="modal-body p-4">
           <div class="mb-3">

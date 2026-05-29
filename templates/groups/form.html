@@ -19,6 +19,7 @@
       </div>
       <div class="card-body">
         <form method="POST" id="groupForm">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="mb-3">
             <label class="form-label fw-bold">{% if current_lang=='en' %}Group Name{% else %}اسم المجموعة{% endif %} *</label>
             <input type="text" name="name" class="form-control" required

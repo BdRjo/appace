@@ -27,6 +27,7 @@
         </div>
 
         <form method="POST" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="mb-4">
             <label class="form-label fw-bold">{% if current_lang=='en' %}Select CSV file{% else %}اختر ملف CSV{% endif %}</label>
             <input type="file" name="csv_file" class="form-control" accept=".csv" required>
