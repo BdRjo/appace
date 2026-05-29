@@ -30,8 +30,14 @@ CONFIG_MAINT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__fi
 @login_required
 @admin_required
 def dashboard():
-    from flask import redirect, url_for
-    return redirect(url_for('sas.admin_dashboard'))
+    from flask import redirect, url_for, request, Response
+    target = url_for('sas.admin_dashboard')
+    # HTMX requests: use HX-Redirect so HTMX does a full page load
+    if request.headers.get('HX-Request'):
+        resp = Response('', status=200)
+        resp.headers['HX-Redirect'] = target
+        return resp
+    return redirect(target)
 
 @admin_bp.route('/dashboard/pdf')
 @login_required
