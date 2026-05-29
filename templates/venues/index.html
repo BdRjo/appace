@@ -19,7 +19,7 @@
         <div class="d-flex gap-2">
           <a href="{{ url_for('venues.detail', venue_id=v.id) }}"
              class="btn btn-sm btn-outline-secondary flex-grow-1">{{ _('عرض') }}</a>
-          <a href="{{ url_for('sas.admin_dashboard') }}?venue_id={{ v.id }}"
+          <a href="{{ url_for('reservations.new') }}?venue_id={{ v.id }}"
              class="btn btn-sm btn-primary-ars flex-grow-1">{{ _('احجز') }}</a>
         </div>
       </div>
