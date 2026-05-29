@@ -126,6 +126,7 @@
     <button type="button" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.4);font-weight:700;white-space:nowrap" onclick="selectAll(false)"><i class="bi bi-x-lg me-1"></i>{{ _('إلغاء الكل') }}</button>
     <span id="selCount" class="small ms-1" style="color:rgba(255,255,255,.9);font-weight:600"></span>
     <form method="POST" action="{{ url_for('reservations.bulk_cancel') }}" id="bulkForm" class="ms-auto d-flex" onsubmit="return confirmBulk()">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div id="bulkIds"></div>
       <button type="submit" class="btn btn-sm btn-danger" style="white-space:nowrap;font-weight:700"><i class="bi bi-trash me-1"></i>{% if current_lang=='en' %}Delete Selected{% else %}حذف المحدد{% endif %}</button>
     </form>
