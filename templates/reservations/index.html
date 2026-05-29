@@ -214,7 +214,16 @@ function updateBulk() {
   const bulkIds = document.getElementById('bulkIds');
   if (bulkIds) bulkIds.innerHTML = [...checks].map(c => `<input type="hidden" name="ids" value="${c.value}">`).join('');
 }
-function confirmBulk() { const n = document.querySelectorAll('.row-check:checked').length; return confirm(LANG_IS_EN ? 'Cancel ' + n + ' reservations?' : 'إلغاء ' + n + ' حجز؟ لا يمكن التراجع.'); }
+function confirmBulk() {
+  const n = document.querySelectorAll('.row-check:checked').length;
+  if(!confirm(LANG_IS_EN ? 'Cancel ' + n + ' reservations?' : 'إلغاء ' + n + ' حجز؟ لا يمكن التراجع.')) return false;
+  const form = document.getElementById('bulkForm');
+  if(!form.querySelector('input[name="csrf_token"]')){
+    const t = document.querySelector('meta[name="csrf-token"]')?.content;
+    if(t){ const inp = document.createElement('input'); inp.type='hidden'; inp.name='csrf_token'; inp.value=t; form.appendChild(inp); }
+  }
+  return true;
+}
 document.querySelectorAll('.row-check').forEach(cb => cb.addEventListener('change', updateBulk));
 </script>
 {% endblock %}
