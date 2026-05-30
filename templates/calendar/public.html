@@ -4,579 +4,422 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{{ 'الجمعية الثقافية العربية' if ar else 'Arab Cultural Society' }}</title>
+<title>{{ 'الروزنامة' if ar else 'Calendar' }}</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.0/font/bootstrap-icons.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#f0f4f8;font-family:Tahoma,'Segoe UI',sans-serif;min-height:100vh}
+:root{
+  --primary:#0C67EC;
+  --primary-light:#eff6ff;
+  --accent:#f59e0b;
+  --text:#1e293b;
+  --muted:#94a3b8;
+  --border:#e2e8f0;
+  --bg:#f4f7fb;
+}
+body{background:var(--bg);font-family:{{ "'Tajawal'" if ar else "'Inter'" }},sans-serif;min-height:100vh;color:var(--text)}
 
 /* NAV */
-.nav{background:linear-gradient(135deg,#0C67EC,#1a78f5);color:#fff;padding:11px 16px;
-  display:flex;align-items:center;justify-content:space-between;gap:8px;
-  position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(12,103,236,.35)}
-.nav-brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:.88rem;min-width:0;flex:1}
-.nav-brand img{height:36px;object-fit:contain;flex-shrink:0;border-radius:4px}
-.nav-brand span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.nav-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
-.btn-nav{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.28);color:#fff;
-  border-radius:8px;padding:6px 11px;font-size:.78rem;font-weight:600;cursor:pointer;
-  text-decoration:none;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
-.btn-book{background:rgba(255,255,255,.28)}
+.nav{background:#fff;padding:0 16px;border-bottom:1px solid var(--border);
+  box-shadow:0 2px 8px rgba(0,0,0,.06);position:sticky;top:0;z-index:100}
+.nav-inner{max-width:900px;margin:auto;display:flex;align-items:center;
+  justify-content:space-between;padding:10px 0;gap:10px}
+.nav-brand{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
+.nav-brand img{height:40px;border-radius:8px;object-fit:contain}
+.nav-brand-text{min-width:0}
+.nav-brand-title{font-weight:800;font-size:.92rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nav-brand-sub{font-size:.7rem;color:var(--muted);white-space:nowrap}
+.nav-actions{display:flex;gap:6px;flex-shrink:0}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:9px;
+  font-size:.8rem;font-weight:700;cursor:pointer;text-decoration:none;border:none;
+  font-family:inherit;transition:.2s;white-space:nowrap}
+.btn-primary{background:var(--primary);color:#fff;box-shadow:0 3px 10px rgba(12,103,236,.3)}
+.btn-primary:hover{background:#0954c5;color:#fff}
+.btn-outline{background:#fff;color:var(--text);border:1.5px solid var(--border)}
+.btn-outline:hover{background:var(--bg);border-color:var(--primary);color:var(--primary)}
+.btn-sm{padding:5px 10px;font-size:.76rem;border-radius:8px}
+.btn-lang{background:var(--bg);color:var(--muted);border:1.5px solid var(--border);
+  padding:5px 11px;border-radius:8px;font-size:.78rem;font-weight:700}
 
-/* FILTERS */
-.filters{padding:12px 16px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;background:#fff;border-bottom:1px solid #e8eef8}
-.badge-v{padding:5px 14px;border-radius:20px;font-size:.78rem;font-weight:600;
-  background:#f0f4ff;color:#0C67EC;border:1.5px solid #d0deff;cursor:pointer;transition:.15s}
-.badge-v.active{background:#0C67EC;color:#fff;border-color:#0C67EC}
+/* MAIN WRAP */
+.wrap{max-width:900px;margin:0 auto;padding:16px}
+
+/* CARD */
+.card{background:#fff;border-radius:16px;border:1px solid var(--border);
+  box-shadow:0 1px 6px rgba(0,0,0,.05);padding:18px;margin-bottom:14px}
+
+/* VENUE FILTER */
+.filter-title{display:flex;align-items:center;gap:7px;font-weight:700;font-size:.88rem;
+  color:var(--text);margin-bottom:10px}
+.hall-btns{display:flex;gap:6px;flex-wrap:wrap}
+.hall-btn{padding:6px 15px;border-radius:20px;border:1.5px solid var(--border);
+  background:#fff;color:var(--text);font-family:inherit;font-size:.8rem;font-weight:700;
+  cursor:pointer;transition:.2s}
+.hall-btn:hover{border-color:var(--primary);color:var(--primary)}
+.hall-btn.active{background:var(--primary);color:#fff;border-color:var(--primary);
+  box-shadow:0 3px 10px rgba(12,103,236,.25)}
 
 /* MONTH NAV */
-.month-nav{background:#fff;padding:16px;display:flex;align-items:center;
-  justify-content:space-between;border-bottom:1px solid #e8eef8}
-.month-btn{background:linear-gradient(135deg,#0C67EC,#3D8EF5);border:none;color:#fff;
-  width:42px;height:42px;border-radius:12px;font-size:1.1rem;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;font-weight:700;
-  transition:.2s;flex-shrink:0;box-shadow:0 4px 12px rgba(12,103,236,.3)}
-.month-btn:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(12,103,236,.4)}
-.month-btn:active{transform:scale(.95)}
-.month-title{text-align:center;flex:1}
-.month-title h2{font-size:1.2rem;font-weight:900;color:#1e293b}
-.month-title p{font-size:.75rem;color:#94a3b8;margin-top:2px}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.cal-nav h2{font-size:1.2rem;font-weight:900;color:var(--primary)}
+.month-btn{background:var(--primary-light);border:none;color:var(--primary);
+  width:38px;height:38px;border-radius:10px;font-size:1rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:.2s}
+.month-btn:hover{background:var(--primary);color:#fff}
 
 /* CALENDAR GRID */
-.cal-grid-wrap{background:#fff;padding:0 12px 16px;max-width:720px;margin:0 auto}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;padding:8px 0}
-.cal-dow-row{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;padding:8px 0 4px}
-.cal-dow{text-align:center;font-size:.65rem;font-weight:800;padding:6px 2px;
-  border-radius:8px;letter-spacing:.03em}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.cal-day-name{text-align:center;font-weight:800;font-size:.72rem;color:var(--muted);
+  padding:7px 2px;text-transform:uppercase;letter-spacing:.03em}
 
-/* هيدر كل يوم بلونه */
-.cal-dow-0{background:linear-gradient(135deg,#ff6b6b,#ee5a24);color:#fff}
-.cal-dow-1{background:linear-gradient(135deg,#a29bfe,#6c5ce7);color:#fff}
-.cal-dow-2{background:linear-gradient(135deg,#26de81,#20bf6b);color:#fff}
-.cal-dow-3{background:linear-gradient(135deg,#45aaf2,#2d98da);color:#fff}
-.cal-dow-4{background:linear-gradient(135deg,#fd79a8,#e84393);color:#fff}
-.cal-dow-5{background:linear-gradient(135deg,#fed330,#f7b731);color:#fff}
-.cal-dow-6{background:linear-gradient(135deg,#fd9644,#e55039);color:#fff}
-
-/* مربعات الأيام */
-.cal-day{
-  aspect-ratio:1;border-radius:12px;display:flex;flex-direction:column;
-  align-items:center;justify-content:flex-start;padding:5px 3px;
-  cursor:pointer;transition:all .2s ease;position:relative;overflow:hidden;
-  border:1.5px solid transparent;
+/* DAY CELLS */
+.cal-cell{
+  min-height:72px;border-radius:10px;border:1.5px solid var(--border);
+  background:#fff;padding:5px;position:relative;cursor:default;
+  transition:all .18s;overflow:hidden;
 }
-.cal-day-num{font-size:.82rem;font-weight:800;line-height:1;margin-top:2px;
-  color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.25);z-index:1}
+.cal-cell.other-month{background:#f9fafb;opacity:.5}
+.cal-cell.past{background:#fafafa;opacity:.7}
+.cal-cell.bookable{cursor:pointer}
+.cal-cell.bookable:hover{
+  border-color:var(--primary);
+  box-shadow:0 4px 16px rgba(12,103,236,.15);
+  transform:translateY(-2px);
+}
+.cal-cell.today{
+  border-color:var(--primary) !important;
+  border-width:2px !important;
+  box-shadow:0 0 0 3px rgba(12,103,236,.1);
+}
+.cal-date{font-size:.8rem;font-weight:800;color:var(--text);margin-bottom:3px;line-height:1}
+.cal-cell.today .cal-date{
+  background:var(--primary);color:#fff;border-radius:50%;
+  width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:.75rem
+}
 
-/* كل يوم بلونه + 3D */
-.cal-day-0{background:linear-gradient(145deg,#ff8a80,#ef5350);
-  box-shadow:0 4px 10px rgba(239,83,80,.35),inset 0 1px 0 rgba(255,255,255,.3)}
-.cal-day-1{background:linear-gradient(145deg,#b39ddb,#7e57c2);
-  box-shadow:0 4px 10px rgba(126,87,194,.35),inset 0 1px 0 rgba(255,255,255,.3)}
-.cal-day-2{background:linear-gradient(145deg,#69f0ae,#26a69a);
-  box-shadow:0 4px 10px rgba(38,166,154,.35),inset 0 1px 0 rgba(255,255,255,.3)}
-.cal-day-3{background:linear-gradient(145deg,#64b5f6,#1e88e5);
-  box-shadow:0 4px 10px rgba(30,136,229,.35),inset 0 1px 0 rgba(255,255,255,.3)}
-.cal-day-4{background:linear-gradient(145deg,#f48fb1,#e91e8c);
-  box-shadow:0 4px 10px rgba(233,30,140,.35),inset 0 1px 0 rgba(255,255,255,.3)}
-.cal-day-5{background:linear-gradient(145deg,#fff176,#fdd835);
-  box-shadow:0 4px 10px rgba(253,216,53,.4),inset 0 1px 0 rgba(255,255,255,.4)}
-.cal-day-5 .cal-day-num{color:#795548;text-shadow:none}
-.cal-day-6{background:linear-gradient(145deg,#ffb74d,#ef6c00);
-  box-shadow:0 4px 10px rgba(239,108,0,.35),inset 0 1px 0 rgba(255,255,255,.3)}
+/* Event indicator */
+.cal-cell.has-approved{background:rgba(209,231,221,.35);border-color:#a3cfbb}
+.cal-cell.has-pending{background:rgba(255,243,205,.4);border-color:#ffe69c}
+.cal-cell.has-blocked{background:rgba(248,215,218,.35);border-color:#f1aeb5}
 
-.cal-day:hover{transform:translateY(-3px) scale(1.04);
-  box-shadow:0 10px 24px rgba(0,0,0,.2)!important;z-index:2}
-.cal-day.today{outline:3px solid #fff;outline-offset:-3px;
-  box-shadow:0 6px 20px rgba(0,0,0,.3)!important;}
-.cal-day.today .cal-day-num{
-  background:rgba(255,255,255,.35);border-radius:6px;padding:1px 6px}
-.cal-day.empty{background:transparent!important;box-shadow:none!important;
-  border:1.5px dashed #e2e8f0;cursor:default}
-.cal-day.empty:hover{transform:none}
+.cal-dots{display:flex;gap:3px;flex-wrap:wrap;margin-top:3px}
+.cal-dot{width:7px;height:7px;border-radius:50%}
+.cal-count{font-size:.6rem;color:var(--muted);font-weight:700;margin-top:2px}
 
-/* نقاط الحجوزات */
-.cal-dots{display:flex;gap:2px;justify-content:center;margin-top:3px;flex-wrap:wrap}
-.cal-dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.85);
-  box-shadow:0 1px 2px rgba(0,0,0,.2)}
-.cal-dot-pending{background:rgba(255,255,255,.5)}
+/* Book btn on hover */
+.book-btn{
+  position:absolute;bottom:3px;left:3px;right:3px;
+  font-size:.63rem;background:var(--primary);color:#fff;
+  border:none;border-radius:6px;padding:3px 4px;
+  cursor:pointer;display:none;font-family:inherit;font-weight:700
+}
+.cal-cell.bookable:hover .book-btn{display:block}
 
 /* LEGEND */
-.cal-legend{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;
-  padding:8px 12px 12px;font-size:.72rem;color:#64748b}
-.cal-legend-item{display:flex;align-items:center;gap:4px;font-weight:600}
-.cal-legend-dot{width:9px;height:9px;border-radius:3px}
-
-/* LIST */
-.list-wrap{padding:12px 16px;max-width:720px;margin:auto}
-.section-date{font-size:.72rem;font-weight:700;color:#0C67EC;letter-spacing:.5px;
-  text-transform:uppercase;padding:10px 0 6px;border-bottom:2px solid #e8f0ff;margin-bottom:6px}
-.booking-card{background:#fff;border-radius:12px;padding:13px 14px;margin-bottom:8px;
-  display:flex;align-items:center;gap:12px;cursor:pointer;
-  box-shadow:0 1px 4px rgba(0,0,0,.06);border:1px solid #f1f5f9;transition:.15s}
-.booking-card:active{background:#f8faff;transform:scale(.99)}
-.booking-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
-.booking-info{flex:1;min-width:0}
-.booking-title{font-size:.88rem;font-weight:700;color:#1e293b;
-  overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-.booking-meta{font-size:.73rem;color:#64748b;margin-top:3px;display:flex;flex-wrap:wrap;gap:6px}
-.booking-meta span{display:flex;align-items:center;gap:3px}
-.booking-arrow{color:#c7d5e8;font-size:1rem;flex-shrink:0}
-.pill{padding:2px 9px;border-radius:20px;font-size:.68rem;font-weight:700}
-.multi-card{border-right:3px solid #7c3aed;background:linear-gradient(to left,#faf5ff,#fff)}
-.multi-badge{background:#ede9fe;color:#7c3aed;padding:2px 8px;border-radius:20px;font-size:.68rem;font-weight:700;display:inline-flex;align-items:center;gap:3px}
-.multi-header{color:#7c3aed!important;border-color:#ede9fe!important}
-.empty-state{text-align:center;padding:50px 20px;color:#94a3b8}
-.empty-state i{font-size:2.5rem;opacity:.4;display:block;margin-bottom:10px}
-.empty-state p{font-size:.88rem}
-.loading-state{text-align:center;padding:50px 20px}
-.spinner{width:34px;height:34px;border:3px solid #e2e8f0;border-top-color:#0C67EC;
-  border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px}
-@keyframes spin{to{transform:rotate(360deg)}}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:.78rem;color:var(--text);font-weight:600}
+.legend-dot{width:12px;height:12px;border-radius:3px}
 
 /* MODAL */
-.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;
-  align-items:flex-end;justify-content:center}
-.overlay.show{display:flex}
-@media(min-width:600px){.overlay{align-items:center;padding:24px}}
-.modal-box{background:#fff;border-radius:22px 22px 0 0;width:100%;max-width:500px;
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);
+  z-index:1000;align-items:flex-end;justify-content:center}
+.modal-overlay.open{display:flex}
+@media(min-width:600px){.modal-overlay{align-items:center;padding:20px}}
+.modal{background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:500px;
   max-height:88vh;overflow-y:auto;box-shadow:0 -6px 30px rgba(0,0,0,.15)}
-@media(min-width:600px){.modal-box{border-radius:18px}}
-.modal-head{background:linear-gradient(135deg,#0C67EC,#3D8EF5);color:#fff;
-  padding:15px 18px;display:flex;align-items:center;justify-content:space-between;
-  border-radius:22px 22px 0 0;position:sticky;top:0}
-@media(min-width:600px){.modal-head{border-radius:18px 18px 0 0}}
-.modal-head h6{margin:0;font-weight:800;font-size:.92rem;display:flex;align-items:center;gap:6px}
-.modal-actions{display:flex;gap:6px}
-.btn-icon{background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;
-  width:32px;height:32px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:.95rem}
-.modal-body{padding:18px}
-.detail-section{margin-bottom:16px}
-.detail-section-title{font-size:.68rem;font-weight:700;color:#94a3b8;letter-spacing:.6px;
-  text-transform:uppercase;margin-bottom:10px}
-.detail-row{display:flex;justify-content:space-between;align-items:flex-start;
-  padding:9px 0;border-bottom:1px solid #f1f5f9;gap:10px;font-size:.84rem}
-.detail-row:last-child{border-bottom:none}
-.detail-label{color:#64748b;font-weight:600;display:flex;align-items:center;gap:5px;
-  white-space:nowrap;flex-shrink:0}
-.detail-val{color:#1e293b;font-weight:500;text-align:end;word-break:break-word}
+@media(min-width:600px){.modal{border-radius:16px}}
+.modal-handle{width:40px;height:4px;border-radius:2px;background:#e2e8f0;margin:12px auto 0}
+.modal-head{padding:16px 18px 12px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between}
+.modal-head h3{font-size:1rem;font-weight:800;color:var(--primary)}
+.modal-close{background:var(--bg);border:none;color:var(--muted);border-radius:8px;
+  width:30px;height:30px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center}
+.modal-body{padding:16px}
+.bk-card{border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px}
+.bk-meta{font-size:.78rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.badge{padding:2px 9px;border-radius:20px;font-size:.68rem;font-weight:800}
+.badge-approved{background:#d1e7dd;color:#0a5c36}
+.badge-pending{background:#fff3cd;color:#664d03}
+.badge-rejected,.badge-cancelled{background:#f8d7da;color:#58151c}
+.empty-msg{text-align:center;padding:20px;color:var(--muted);font-size:.85rem}
+.alert-block{background:#fff5f5;border:1px solid #f1aeb5;border-radius:10px;
+  padding:10px 14px;margin-bottom:10px;font-size:.82rem;color:#842029;display:flex;gap:7px}
 
-@media print{
-  .nav-actions,.filters,.overlay{display:none!important}
-  .nav{position:relative!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .booking-card{box-shadow:none;border:1px solid #ddd}
-  @page{margin:1cm}
+@media(max-width:640px){
+  .cal-cell{min-height:52px}
+  .cal-day-name{font-size:.62rem;padding:5px 1px}
 }
 </style>
 </head>
 <body>
 
 <nav class="nav">
-  <div class="nav-brand">
-    <img src="https://i.postimg.cc/S2W2hXZ6/acs.png" alt="" onerror="this.style.display='none'">
-    <span>{{ 'الجمعية الثقافية العربية' if ar else 'Arab Cultural Society' }}</span>
-  </div>
-  <div class="nav-actions">
-    <button class="btn-nav" onclick="window.print()"><i class="bi bi-printer"></i></button>
-    <a href="/public-calendar/book" class="btn-nav btn-book">
-      <i class="bi bi-calendar-plus"></i><span>{{ 'احجز الآن' if ar else 'Book Now' }}</span>
-    </a>
-    <a href="/set-lang/{{ 'en' if ar else 'ar' }}?next=/public-calendar/" class="btn-nav">{{ 'EN' if ar else 'ع' }}</a>
+  <div class="nav-inner">
+    <div class="nav-brand">
+      <img src="https://i.postimg.cc/S2W2hXZ6/acs.png" alt="" onerror="this.style.display='none'">
+      <div class="nav-brand-text">
+        <div class="nav-brand-title">{{ 'الجمعية الثقافية العربية' if ar else 'Arab Cultural Society' }}</div>
+        <div class="nav-brand-sub">{{ 'نظام حجز القاعات' if ar else 'Venue Booking System' }}</div>
+      </div>
+    </div>
+    <div class="nav-actions">
+      <a href="/public-calendar/book" class="btn btn-primary btn-sm">
+        <i class="bi bi-calendar-plus"></i>{{ 'حجز جديد' if ar else 'Book Now' }}
+      </a>
+      <a href="/public-calendar/booking" class="btn btn-outline btn-sm">
+        <i class="bi bi-search"></i>{{ 'استعلام' if ar else 'Lookup' }}
+      </a>
+      <a href="/set-lang/{{ 'en' if ar else 'ar' }}?next=/public-calendar/" class="btn btn-lang">{{ 'EN' if ar else 'ع' }}</a>
+    </div>
   </div>
 </nav>
 
-{% if venues %}
-<div class="filters">
-  <span style="font-size:.75rem;font-weight:600;color:#64748b;margin-{{ 'left' if ar else 'right' }}:4px">{{ 'القاعة:' if ar else 'Venue:' }}</span>
-  <span class="badge-v active" onclick="setVenue('',this)">{{ 'الكل' if ar else 'All' }}</span>
-  {% for v in venues %}<span class="badge-v" onclick="setVenue('{{ v.id }}',this)">{{ v.name }}</span>{% endfor %}
-</div>
-{% endif %}
+<div class="wrap">
 
-<div class="month-nav">
-  <button class="month-btn" onclick="changeMonth(-1)"><i class="bi bi-chevron-{{ 'right' if ar else 'left' }}"></i></button>
-  <div class="month-title">
-    <h2 id="monthTitle"></h2>
-    <p id="monthSub"></p>
-  </div>
-  <button class="month-btn" onclick="changeMonth(1)"><i class="bi bi-chevron-{{ 'left' if ar else 'right' }}"></i></button>
-</div>
-
-<div class="cal-grid-wrap">
-  <!-- أيام الأسبوع headers -->
-  <div class="cal-dow-row" id="dowRow"></div>
-  <!-- مربعات الأيام -->
-  <div class="cal-grid" id="calGrid"></div>
-  <!-- legend -->
-  <div class="cal-legend">
-    <div class="cal-legend-item">
-      <div class="cal-legend-dot" style="background:#1e88e5"></div>
-      {{ 'معتمد' if ar else 'Approved' }}
+  <!-- Venue Filter -->
+  <div class="card">
+    <div class="filter-title">
+      <i class="bi bi-info-circle" style="color:var(--primary);font-size:1.1rem"></i>
+      {{ 'اختر القاعة لمعرفة التواريخ والأوقات المتاحة' if ar else 'Select a hall to see available dates and times' }}
     </div>
-    <div class="cal-legend-item">
-      <div class="cal-legend-dot" style="background:#fdd835"></div>
-      {{ 'قيد المراجعة' if ar else 'Pending' }}
-    </div>
-    <div class="cal-legend-item">
-      <div class="cal-legend-dot" style="background:#ef5350"></div>
-      {{ 'غير متاح' if ar else 'Unavailable' }}
+    <div class="hall-btns" id="hallBtns">
+      <button class="hall-btn active" onclick="filterVenue('',this)">
+        {{ 'كل القاعات' if ar else 'All Halls' }}
+      </button>
+      {% for v in venues %}
+      <button class="hall-btn" onclick="filterVenue('{{ v.id }}',this)">{{ v.name }}</button>
+      {% endfor %}
     </div>
   </div>
-</div>
 
-<div class="list-wrap" id="listWrap">
-  <div class="loading-state"><div class="spinner"></div></div>
-</div>
+  <!-- Calendar -->
+  <div class="card">
+    <div class="cal-nav">
+      <button class="month-btn" onclick="changeMonth(-1)">
+        <i class="bi bi-chevron-{{ 'right' if ar else 'left' }}"></i>
+      </button>
+      <h2 id="calTitle"></h2>
+      <button class="month-btn" onclick="changeMonth(1)">
+        <i class="bi bi-chevron-{{ 'left' if ar else 'right' }}"></i>
+      </button>
+    </div>
 
-<div class="overlay" id="overlay" onclick="if(event.target===this)closeModal()">
-  <div class="modal-box">
-    <div class="modal-head">
-      <h6><i class="bi bi-calendar-check"></i>{{ 'تفاصيل الحجز' if ar else 'Booking Details' }}</h6>
-      <div class="modal-actions">
-        <button class="btn-icon" onclick="printPDF()" title="PDF"><i class="bi bi-file-earmark-pdf"></i></button>
-        <button class="btn-icon" onclick="closeModal()"><i class="bi bi-x-lg"></i></button>
+    <div id="calGrid" class="cal-grid"></div>
+
+    <div class="legend">
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#d1e7dd;border:1px solid #a3cfbb"></div>
+        <span>{{ 'معتمد' if ar else 'Approved' }}</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#fff3cd;border:1px solid #ffe69c"></div>
+        <span>{{ 'قيد المراجعة' if ar else 'Pending' }}</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#f8d7da;border:1px solid #f1aeb5"></div>
+        <span>{{ 'غير متاح' if ar else 'Unavailable' }}</span>
       </div>
     </div>
-    <div class="modal-body" id="modalBody"><div class="spinner"></div></div>
+  </div>
+
+</div>
+
+<!-- Day Modal -->
+<div class="modal-overlay" id="dayModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-head">
+      <h3 id="modalDate"></h3>
+      <button class="modal-close" onclick="closeModal()"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-body">
+      <div id="modalContent"></div>
+      <div style="margin-top:14px">
+        <a id="modalBookBtn" href="#" class="btn btn-primary" style="width:100%;justify-content:center">
+          <i class="bi bi-calendar-plus"></i>
+          {{ 'احجز هذا اليوم' if ar else 'Book This Day' }}
+        </a>
+      </div>
+    </div>
   </div>
 </div>
 
 <script>
-var IS_AR = {{ 'true' if ar else 'false' }};
-var MONTHS = IS_AR
+var AR = {{ 'true' if ar else 'false' }};
+var MONTHS = AR
   ? ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر']
   : ['January','February','March','April','May','June','July','August','September','October','November','December'];
-var DAYS_SHORT = IS_AR
-  ? ['أحد','اثنين','ثلاثاء','أربعاء','خميس','جمعة','سبت']
-  : ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+var DAYS = AR
+  ? ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت']
+  : ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
 var today = new Date();
-var curYear = today.getFullYear();
+var curYear  = today.getFullYear();
 var curMonth = today.getMonth();
-var venueId = '';
+var venueId  = '';
 var allEvents = [];
-var lastBooking = null;
+var todayStr = curYear+'-'+pad(curMonth+1)+'-'+pad(today.getDate());
 
-function setVenue(vid, el) {
+function pad(n){ return String(n).padStart(2,'0'); }
+
+function filterVenue(vid, el) {
   venueId = vid;
-  document.querySelectorAll('.badge-v').forEach(function(b){b.classList.remove('active');});
-  el.classList.add('active');
-  loadEvents();
+  document.querySelectorAll('.hall-btn').forEach(function(b){ b.classList.remove('active'); });
+  if (el) el.classList.add('active');
+  renderCalendar();
 }
 
 function changeMonth(d) {
   curMonth += d;
-  if (curMonth > 11){curMonth=0;curYear++;}
-  if (curMonth < 0){curMonth=11;curYear--;}
+  if (curMonth > 11){ curMonth=0; curYear++; }
+  if (curMonth < 0){ curMonth=11; curYear--; }
   loadEvents();
 }
 
-function updateHeader() {
-  document.getElementById('monthTitle').textContent = MONTHS[curMonth] + ' ' + curYear;
-  var count = allEvents.length;
-  var sub = IS_AR ? (count + ' حجز هذا الشهر') : (count + ' booking' + (count!==1?'s':'') + ' this month');
-  document.getElementById('monthSub').textContent = sub;
-}
-
 function loadEvents() {
-  var pad = function(n){return String(n).padStart(2,'0');};
   var start = curYear+'-'+pad(curMonth+1)+'-01';
   var lastDay = new Date(curYear, curMonth+1, 0).getDate();
   var end = curYear+'-'+pad(curMonth+1)+'-'+pad(lastDay);
-  document.getElementById('listWrap').innerHTML = '<div class="loading-state"><div class="spinner"></div><p style="color:#94a3b8;font-size:.82rem;margin-top:8px">'+(IS_AR?'جارٍ التحميل...':'Loading...')+'</p></div>';
-  document.getElementById('monthTitle').textContent = MONTHS[curMonth] + ' ' + curYear;
-  document.getElementById('monthSub').textContent = '';
+  document.getElementById('calTitle').textContent = MONTHS[curMonth] + ' ' + curYear;
   fetch('/public-calendar/events?start='+start+'&end='+end+'&venue_id='+venueId)
-    .then(function(r){return r.json();})
+    .then(function(r){ return r.json(); })
     .then(function(data){
       allEvents = data;
-      updateHeader();
-      renderGrid();
-      renderList();
-    })
-    .catch(function(){
-      document.getElementById('listWrap').innerHTML = '<div class="empty-state"><i class="bi bi-wifi-off"></i><p>'+(IS_AR?'تعذر تحميل البيانات':'Failed to load data')+'</p></div>';
+      renderCalendar();
     });
 }
 
-function renderGrid() {
-  var DAYS_AR = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
-  var DAYS_EN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  var DAYS = IS_AR ? DAYS_AR : DAYS_EN;
-
-  // headers
-  var dowRow = document.getElementById('dowRow');
-  if (dowRow) {
-    dowRow.innerHTML = '';
-    for (var d=0; d<7; d++) {
-      var dow = document.createElement('div');
-      dow.className = 'cal-dow cal-dow-' + d;
-      dow.textContent = DAYS[d];
-      dowRow.appendChild(dow);
-    }
-  }
-
-  // grid
+function renderCalendar() {
+  document.getElementById('calTitle').textContent = MONTHS[curMonth] + ' ' + curYear;
   var grid = document.getElementById('calGrid');
-  if (!grid) return;
   grid.innerHTML = '';
 
-  var firstDay = new Date(curYear, curMonth, 1).getDay();
-  var daysInMonth = new Date(curYear, curMonth+1, 0).getDate();
-  var todayStr = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+  // day name headers
+  for (var i=0; i<7; i++) {
+    var dn = document.createElement('div');
+    dn.className = 'cal-day-name';
+    dn.textContent = DAYS[i];
+    grid.appendChild(dn);
+  }
 
-  // map events by day
+  // build day map
   var dayMap = {};
   allEvents.forEach(function(e) {
-    var s = new Date(e.start.substring(0,10)+'T00:00:00');
-    var end = e.end ? new Date(e.end.substring(0,10)+'T00:00:00') : s;
-    for (var d=new Date(s); d<=end; d.setDate(d.getDate()+1)) {
-      var key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-      if (!dayMap[key]) dayMap[key] = [];
-      dayMap[key].push(e);
+    var s = e.start.substring(0,10);
+    var en = e.end ? e.end.substring(0,10) : s;
+    var cur = new Date(s+'T00:00:00');
+    var endD = new Date(en+'T00:00:00');
+    while (cur <= endD) {
+      var k = cur.getFullYear()+'-'+pad(cur.getMonth()+1)+'-'+pad(cur.getDate());
+      if (!dayMap[k]) dayMap[k] = [];
+      dayMap[k].push(e);
+      cur.setDate(cur.getDate()+1);
     }
   });
 
+  var firstDow = new Date(curYear, curMonth, 1).getDay();
+  var daysInMonth = new Date(curYear, curMonth+1, 0).getDate();
+
   // empty cells
-  for (var i=0; i<firstDay; i++) {
-    var empty = document.createElement('div');
-    empty.className = 'cal-day empty';
-    grid.appendChild(empty);
+  for (var i=0; i<firstDow; i++) {
+    var em = document.createElement('div');
+    em.className = 'cal-cell other-month';
+    grid.appendChild(em);
   }
 
   // day cells
   for (var day=1; day<=daysInMonth; day++) {
-    var dateStr = curYear+'-'+String(curMonth+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');
-    var dayOfWeek = new Date(curYear, curMonth, day).getDay();
+    var dateStr = curYear+'-'+pad(curMonth+1)+'-'+pad(day);
+    var dow = new Date(curYear, curMonth, day).getDay();
     var evs = dayMap[dateStr] || [];
+    var isPast = dateStr < todayStr;
+    var isToday = dateStr === todayStr;
+
+    var approved = evs.filter(function(e){ return e.status==='approved'; });
+    var pending  = evs.filter(function(e){ return e.status==='pending'; });
 
     var cell = document.createElement('div');
-    cell.className = 'cal-day cal-day-' + dayOfWeek + (dateStr===todayStr?' today':'');
+    cell.className = 'cal-cell'
+      + (isToday ? ' today' : '')
+      + (isPast ? ' past' : '')
+      + (approved.length ? ' has-approved' : pending.length ? ' has-pending' : '');
 
-    // day number
-    var num = document.createElement('div');
-    num.className = 'cal-day-num';
-    num.textContent = day;
-    cell.appendChild(num);
+    // date number
+    var dateEl = document.createElement('div');
+    dateEl.className = 'cal-date';
+    dateEl.textContent = day;
+    cell.appendChild(dateEl);
 
     // dots
     if (evs.length) {
       var dots = document.createElement('div');
       dots.className = 'cal-dots';
-      var max = Math.min(evs.length, 3);
-      for (var k=0; k<max; k++) {
-        var dot = document.createElement('div');
-        dot.className = 'cal-dot' + (evs[k].status==='pending'?' cal-dot-pending':'');
-        dots.appendChild(dot);
-      }
+      evs.slice(0,4).forEach(function(ev) {
+        var d = document.createElement('div');
+        d.className = 'cal-dot';
+        d.style.background = ev.status==='approved'?'#27ae60':ev.status==='pending'?'#e67e22':'#c0392b';
+        dots.appendChild(d);
+      });
       cell.appendChild(dots);
+      var cnt = document.createElement('div');
+      cnt.className = 'cal-count';
+      cnt.textContent = AR ? (evs.length+' حجز') : (evs.length+' booking'+(evs.length>1?'s':''));
+      cell.appendChild(cnt);
     }
 
-    // click
-    (function(ds, dayEvs) {
-      cell.addEventListener('click', function() { openDayPopup(ds, dayEvs); });
-    })(dateStr, evs);
+    // book btn
+    if (!isPast) {
+      cell.classList.add('bookable');
+      var btn = document.createElement('button');
+      btn.className = 'book-btn';
+      btn.textContent = AR ? '+ احجز' : '+ Book';
+      btn.addEventListener('click', function(dateStr_){ return function(e){ e.stopPropagation(); window.location.href='/public-calendar/book?date='+dateStr_; }; }(dateStr));
+      cell.appendChild(btn);
+    }
 
+    cell.addEventListener('click', function(ds, dayEvs){ return function(){ openDayModal(ds, dayEvs); }; }(dateStr, evs));
     grid.appendChild(cell);
   }
 }
 
-function openDayPopup(dateStr, dayEvs) {
-  var d = new Date(dateStr + 'T00:00:00');
+function openDayModal(dateStr, evs) {
+  var d = new Date(dateStr+'T00:00:00');
   var opts = {weekday:'long', year:'numeric', month:'long', day:'numeric'};
-  var approved = dayEvs.filter(function(e){return e.status==='approved';});
-  var pending  = dayEvs.filter(function(e){return e.status==='pending';});
+  document.getElementById('modalDate').textContent = d.toLocaleDateString(AR?'ar-SA':'en-US', opts);
 
-  var popupHtml = '<div style="padding:20px">';
-  // date
-  popupHtml += '<div style="font-size:.73rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">';
-  popupHtml += d.toLocaleDateString(IS_AR?'ar-SA':'en-US', opts) + '</div>';
-
-  if (!dayEvs.length) {
-    popupHtml += '<div style="font-size:1.05rem;font-weight:800;color:#1e293b;margin-bottom:14px">✅ '+(IS_AR?'هذا اليوم متاح للحجز':'Available for Booking')+'</div>';
-    popupHtml += '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:12px 15px;font-size:.83rem;color:#166534;margin-bottom:14px;display:flex;align-items:center;gap:8px">';
-    popupHtml += '<i class="bi bi-check-circle-fill"></i>'+(IS_AR?'لا توجد حجوزات، بإمكانك الحجز الآن':'No bookings, you can book now')+'</div>';
-  } else {
-    popupHtml += '<div style="font-size:1.05rem;font-weight:800;color:#1e293b;margin-bottom:14px">📅 '+(IS_AR?'يوجد حجوزات':'Has Bookings')+'</div>';
-    if (approved.length)
-      popupHtml += '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:12px 15px;font-size:.83rem;color:#1e40af;margin-bottom:8px;display:flex;align-items:center;gap:8px"><i class="bi bi-check-circle-fill"></i>'+approved.length+' '+(IS_AR?'حجز معتمد':'approved booking(s)')+'</div>';
-    if (pending.length)
-      popupHtml += '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:12px 15px;font-size:.83rem;color:#92400e;margin-bottom:8px;display:flex;align-items:center;gap:8px"><i class="bi bi-clock-fill"></i>'+pending.length+' '+(IS_AR?'قيد المراجعة':'pending')+'</div>';
-  }
-
-  popupHtml += '<a href="/public-calendar/book?date='+dateStr+(venueId?'&venue_id='+venueId:'')+'" style="background:linear-gradient(135deg,#0C67EC,#3D8EF5);color:#fff;border:none;border-radius:12px;padding:12px 20px;font-size:.9rem;font-weight:700;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;margin-bottom:8px;box-shadow:0 4px 16px rgba(12,103,236,.35)"><i class="bi bi-calendar-plus"></i>'+(IS_AR?'احجز هذا اليوم':'Book This Day')+'</a>';
-  popupHtml += '<button onclick="closeModal()" style="background:#f1f5f9;border:1px solid #e2e8f0;color:#64748b;border-radius:12px;padding:10px;font-size:.85rem;font-weight:600;cursor:pointer;width:100%">'+(IS_AR?'إغلاق':'Close')+'</button>';
-  popupHtml += '</div>';
-
-  document.getElementById('modalBody').innerHTML = popupHtml;
-  document.getElementById('overlay').classList.add('show');
-}
-
-function daysBetween(s, e) {
-  var d1 = new Date(s.substring(0,10));
-  var d2 = new Date(e.substring(0,10));
-  return Math.round((d2-d1)/(1000*60*60*24))+1;
-}
-
-function formatDate(dateStr) {
-  var p = dateStr.substring(0,10).split('-');
-  return IS_AR
-    ? (parseInt(p[2]) + ' ' + MONTHS[parseInt(p[1])-1])
-    : (MONTHS[parseInt(p[1])-1] + ' ' + parseInt(p[2]));
-}
-
-function buildCard(e, isMulti) {
-  var dot = e.status==='pending' ? '#F59E0B' : '#0C67EC';
-  var pillCls = e.status==='pending' ? 'pill-pending' : 'pill-approved';
-  var pillLbl = IS_AR ? (e.status==='pending'?'معلق':'معتمد') : (e.status==='pending'?'Pending':'Approved');
-  var meta = '';
-  if (isMulti) {
-    var days = daysBetween(e.start, e.end);
-    var range = IS_AR
-      ? (formatDate(e.start) + ' ← ' + formatDate(e.end) + ' (' + days + ' أيام)')
-      : (formatDate(e.start) + ' → ' + formatDate(e.end) + ' (' + days + ' days)');
-    meta += '<span style="color:#0C67EC;font-weight:600"><i class="bi bi-calendar-range"></i> ' + range + '</span>';
-    if (e.venue_name) meta += '<span><i class="bi bi-building"></i>'+e.venue_name+'</span>';
-    meta += '<span class="pill '+pillCls+'">'+pillLbl+'</span>';
-    meta += '<span class="multi-badge"><i class="bi bi-layers"></i>'+(IS_AR?'حجز ممتد':'Extended')+'</span>';
-  } else {
-    var st = e.start && e.start.length>10 ? e.start.substring(11,16) : '';
-    var et = e.end && e.end.length>10 ? e.end.substring(11,16) : '';
-    if (st) meta += '<span><i class="bi bi-clock"></i>'+st+(et?' — '+et:'')+'</span>';
-    if (e.venue_name) meta += '<span><i class="bi bi-building"></i>'+e.venue_name+'</span>';
-    meta += '<span class="pill '+pillCls+'">'+pillLbl+'</span>';
-  }
-  return '<div class="booking-card'+(isMulti?' multi-card':'')+'" onclick="openModal(\''+e.id+'\')">'+
-    '<div class="booking-dot" style="background:'+dot+'"></div>'+
-    '<div class="booking-info">'+
-      '<div class="booking-title">'+(e.title||'—')+'</div>'+
-      '<div class="booking-meta">'+meta+'</div>'+
-    '</div>'+
-    '<i class="bi bi-chevron-'+(IS_AR?'left':'right')+' booking-arrow"></i>'+
-  '</div>';
-}
-
-function renderList() {
-  if (!allEvents.length) {
-    document.getElementById('listWrap').innerHTML = '<div class="empty-state"><i class="bi bi-calendar-x"></i><p>'+(IS_AR?'لا توجد حجوزات هذا الشهر':'No bookings this month')+'</p></div>';
-    return;
-  }
-
-  var multiDay = [];
-  var byDate = {};
-  var order = [];
-
-  allEvents.forEach(function(e) {
-    var startDate = (e.start||'').substring(0,10);
-    var endDate = (e.end||'').substring(0,10);
-    if (endDate && endDate !== startDate) {
-      multiDay.push(e);
-    } else {
-      if (!byDate[startDate]) { byDate[startDate]=[]; order.push(startDate); }
-      byDate[startDate].push(e);
-    }
-  });
-  order.sort();
-
+  var approved = evs.filter(function(e){ return e.status==='approved'; });
+  var pending  = evs.filter(function(e){ return e.status==='pending'; });
   var html = '';
 
-  if (multiDay.length) {
-    html += '<div class="section-date" style="color:#7c3aed;border-color:#ede9fe"><i class="bi bi-calendar-range" style="margin-left:5px;margin-right:5px"></i>'+(IS_AR?'حجوزات ممتدة':'Extended Bookings')+'</div>';
-    multiDay.forEach(function(e){ html += buildCard(e, true); });
-  }
-
-  order.forEach(function(dateKey) {
-    var parts = dateKey.split('-');
-    var d = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
-    var dayName = DAYS_SHORT[d.getDay()];
-    var dateLabel = IS_AR
-      ? (parseInt(parts[2]) + ' ' + MONTHS[parseInt(parts[1])-1])
-      : (MONTHS[parseInt(parts[1])-1] + ' ' + parseInt(parts[2]));
-    html += '<div class="section-date"><i class="bi bi-calendar3" style="margin-left:5px;margin-right:5px"></i>'+dayName+' — '+dateLabel+'</div>';
-    byDate[dateKey].forEach(function(e){ html += buildCard(e, false); });
-  });
-
-  document.getElementById('listWrap').innerHTML = html;
-}
-
-function openModal(id) {
-  lastBooking = null;
-  document.getElementById('overlay').classList.add('show');
-  document.getElementById('modalBody').innerHTML = '<div class="spinner" style="margin:30px auto"></div>';
-  fetch('/public-calendar/booking/'+id)
-    .then(function(r){return r.json();})
-    .then(function(d){lastBooking=d;renderModal(d);})
-    .catch(function(){
-      document.getElementById('modalBody').innerHTML='<p style="text-align:center;padding:24px;color:#ef4444">'+(IS_AR?'تعذر تحميل البيانات':'Failed to load')+'</p>';
+  if (!evs.length) {
+    html = '<div class="empty-msg"><i class="bi bi-calendar-check" style="font-size:2rem;color:#10b981;display:block;margin-bottom:8px"></i>'+(AR?'لا توجد حجوزات في هذا اليوم':'No bookings for this day')+'</div>';
+  } else {
+    evs.forEach(function(ev) {
+      var statusLabel = {approved:AR?'معتمد':'Approved', pending:AR?'قيد المراجعة':'Pending', rejected:AR?'مرفوض':'Rejected', cancelled:AR?'ملغي':'Cancelled'}[ev.status] || ev.status;
+      html += '<div class="bk-card">';
+      html += '<div class="bk-meta">';
+      if (ev.venue_name) html += '<span><i class="bi bi-building"></i> '+ev.venue_name+'</span>';
+      html += '<span class="badge badge-'+ev.status+'">'+statusLabel+'</span>';
+      html += '</div></div>';
     });
-}
-
-function renderModal(d) {
-  var NA='—';
-  var sc=d.status==='approved'?'pill-approved':'pill-pending';
-  var sl=IS_AR?(d.status==='approved'?'معتمد':'معلق'):(d.status==='approved'?'Approved':'Pending');
-  function row(icon,label,val){
-    return '<div class="detail-row"><span class="detail-label"><i class="bi '+icon+'"></i>'+label+'</span><span class="detail-val">'+val+'</span></div>';
   }
-  var html=
-    '<div class="detail-section">'+
-      row('bi-hash',IS_AR?'رقم الحجز':'Booking No.','<strong style="color:#0C67EC;font-size:.9rem">'+(d.booking_number||NA)+'</strong>')+
-      row('bi-card-text',IS_AR?'العنوان':'Title',d.title||NA)+
-      row('bi-tag',IS_AR?'الحالة':'Status','<span class="pill '+sc+'">'+sl+'</span>')+
-    '</div>'+
-    '<div class="detail-section">'+
-      '<div class="detail-section-title">'+(IS_AR?'الوقت والمكان':'Time & Location')+'</div>'+
-      row('bi-calendar3',IS_AR?'البداية':'Start',d.start_time||NA)+
-      row('bi-calendar3-range',IS_AR?'الانتهاء':'End',d.end_time||NA)+
-      row('bi-building',IS_AR?'القاعة':'Venue',d.venue_name||NA)+
-      (d.location_name?row('bi-geo-alt',IS_AR?'الموقع':'Location',d.location_name):'')+
-    '</div>'+
-    (d.expected_attendees||d.notes?
-      '<div class="detail-section">'+
-        '<div class="detail-section-title">'+(IS_AR?'معلومات إضافية':'Additional Info')+'</div>'+
-        (d.expected_attendees?row('bi-people',IS_AR?'الحضور المتوقع':'Attendees',d.expected_attendees):'')+
-        (d.notes?row('bi-chat-text',IS_AR?'ملاحظات':'Notes',d.notes):'')+
-      '</div>':''
-    );
-  document.getElementById('modalBody').innerHTML=html;
+
+  document.getElementById('modalContent').innerHTML = html;
+
+  var bookBtn = document.getElementById('modalBookBtn');
+  var isPast = dateStr < todayStr;
+  if (!isPast) {
+    bookBtn.href = '/public-calendar/book?date='+dateStr+(venueId?'&venue_id='+venueId:'');
+    bookBtn.style.display = 'flex';
+  } else {
+    bookBtn.style.display = 'none';
+  }
+  document.getElementById('dayModal').classList.add('open');
 }
 
-function closeModal(){document.getElementById('overlay').classList.remove('show');}
-document.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal();});
-
-function loadScript(src){
-  return new Promise(function(resolve,reject){
-    if(document.querySelector('script[src="'+src+'"]')){resolve();return;}
-    var s=document.createElement('script');s.src=src;s.onload=resolve;s.onerror=reject;
-    document.head.appendChild(s);
-  });
-}
-
-function printPDF(){
-  if(!lastBooking)return;
-  var d=lastBooking,NA='—';
-  var rows=[['رقم الحجز',d.booking_number||NA],['العنوان',d.title||NA],
-    ['الحالة',d.status==='approved'?'معتمد':'معلق'],['القاعة',d.venue_name||NA],
-    ['البداية',d.start_time||NA],['الانتهاء',d.end_time||NA]];
-  if(d.expected_attendees)rows.push(['الحضور',d.expected_attendees]);
-  if(d.notes)rows.push(['ملاحظات',d.notes]);
-  var tRows=rows.map(function(r){return '<tr><td style="padding:7px 10px;font-weight:700;color:#0C67EC;border:1px solid #e2e8f0;background:#f8faff;white-space:nowrap">'+r[0]+'</td><td style="padding:7px 10px;border:1px solid #e2e8f0">'+r[1]+'</td></tr>';}).join('');
-  var pDiv=document.createElement('div');
-  pDiv.style.cssText='position:fixed;top:-9999px;left:-9999px;width:750px;padding:36px;background:#fff;direction:rtl;font-family:Tahoma,sans-serif;font-size:13px';
-  pDiv.innerHTML='<div style="display:flex;align-items:center;gap:12px;padding-bottom:12px;border-bottom:3px solid #0C67EC;margin-bottom:18px"><img src="https://i.postimg.cc/S2W2hXZ6/acs.png" style="height:52px;object-fit:contain" crossorigin="anonymous"><div><div style="font-size:16px;font-weight:900;color:#0C67EC">الجمعية الثقافية العربية</div><div style="font-size:11px;color:#64748b">Arab Cultural Society</div><div style="font-size:11px;color:#94a3b8;margin-top:2px">تاريخ الطباعة: '+new Date().toLocaleDateString('ar-SA',{year:'numeric',month:'long',day:'numeric'})+'</div></div></div><h3 style="color:#0C67EC;margin:0 0 12px;font-size:14px">تفاصيل الحجز</h3><table style="width:100%;border-collapse:collapse;font-size:13px">'+tRows+'</table><div style="margin-top:20px;border-top:1px solid #e2e8f0;padding-top:10px;font-size:11px;color:#94a3b8;text-align:center">الجمعية الثقافية العربية — نظام الحضور والمقابلات</div>';
-  document.body.appendChild(pDiv);
-  var fname=(d.booking_number||'booking')+'.pdf';
-  Promise.all([
-    loadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js'),
-    loadScript('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js')
-  ]).then(function(){return html2canvas(pDiv,{scale:2,useCORS:true,backgroundColor:'#fff'});})
-  .then(function(canvas){
-    if(document.body.contains(pDiv))document.body.removeChild(pDiv);
-    var pdf=new window.jspdf.jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
-    pdf.addImage(canvas.toDataURL('image/png'),'PNG',0,0,210,canvas.height*210/canvas.width);
-    pdf.save(fname);
-  }).catch(function(err){if(document.body.contains(pDiv))document.body.removeChild(pDiv);console.error(err);});
-}
+function closeModal() { document.getElementById('dayModal').classList.remove('open'); }
+document.getElementById('dayModal').addEventListener('click', function(e){ if(e.target===this) closeModal(); });
 
 loadEvents();
 </script>
