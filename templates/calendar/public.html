@@ -8,64 +8,271 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.0/font/bootstrap-icons.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css">
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap');
+
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#f0f4f8;font-family:Tahoma,'Segoe UI',sans-serif;min-height:100vh}
-.nav{background:linear-gradient(135deg,#0C67EC,#1a78f5);color:#fff;padding:11px 16px;
-  display:flex;align-items:center;justify-content:space-between;gap:8px;
-  position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(12,103,236,.35)}
-.nav-brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:.88rem;min-width:0;flex:1}
-.nav-brand img{height:36px;object-fit:contain;flex-shrink:0;border-radius:4px}
-.nav-brand span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.nav-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
-.btn-nav{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.28);color:#fff;
-  border-radius:8px;padding:6px 11px;font-size:.78rem;font-weight:600;cursor:pointer;
-  text-decoration:none;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
-.btn-book{background:rgba(255,255,255,.28)}
-.filters{padding:10px 16px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;
-  background:#fff;border-bottom:1px solid #e8eef8}
-.badge-v{padding:5px 14px;border-radius:20px;font-size:.78rem;font-weight:600;
-  background:#f0f4ff;color:#0C67EC;border:1.5px solid #d0deff;cursor:pointer;transition:.15s}
-.badge-v.active{background:#0C67EC;color:#fff;border-color:#0C67EC}
-.cal-wrap{padding:16px;max-width:1000px;margin:auto}
-.cal-box{background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 8px rgba(0,0,0,.07)}
-.fc .fc-toolbar-title{font-size:1.1rem;font-weight:800;color:#1e293b}
-.fc .fc-button{background:#0C67EC!important;border-color:#0C67EC!important;border-radius:8px!important;font-size:.8rem!important}
-.fc .fc-button:hover{background:#0954c5!important}
-.fc .fc-daygrid-day-number{font-size:.82rem;font-weight:600;color:#475569}
-.fc .fc-daygrid-day.fc-day-today{background:#eff6ff!important}
-.fc-event{border-radius:5px!important;font-size:.72rem!important;font-weight:700!important;
-  border:none!important;padding:2px 5px!important;cursor:default!important}
-.fc .fc-daygrid-day{cursor:pointer;transition:.1s}
-.fc .fc-daygrid-day:hover{background:#f0f7ff!important}
-.legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;padding:10px 0;
-  border-top:1px solid #f1f5f9;font-size:.75rem;color:#64748b}
-.legend-item{display:flex;align-items:center;gap:5px;font-weight:600}
-.legend-dot{width:12px;height:12px;border-radius:4px}
+
+body {
+  min-height:100vh;
+  font-family: {{ "'Tajawal'" if ar else "'Inter'" }}, sans-serif;
+  background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+  background-attachment: fixed;
+}
+
+/* Glass utility */
+.glass {
+  background: rgba(255,255,255,0.07);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.15);
+}
+
+/* NAV */
+.nav {
+  padding: 14px 20px;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(15,12,41,0.7);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.nav-brand { display:flex; align-items:center; gap:10px; flex:1; min-width:0; }
+.nav-brand img { height:38px; border-radius:10px; object-fit:contain; flex-shrink:0;
+  box-shadow: 0 2px 12px rgba(99,102,241,.4); }
+.nav-brand span { font-weight:800; font-size:.9rem; color:#fff;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.nav-actions { display:flex; gap:7px; flex-shrink:0; }
+.btn-nav {
+  background: rgba(255,255,255,.1);
+  border: 1px solid rgba(255,255,255,.2);
+  color: #fff; border-radius:10px; padding:7px 13px;
+  font-size:.78rem; font-weight:600; cursor:pointer;
+  text-decoration:none; display:inline-flex; align-items:center; gap:5px;
+  transition:.2s; white-space:nowrap;
+}
+.btn-nav:hover { background: rgba(255,255,255,.2); color:#fff; }
+.btn-book {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border-color: transparent;
+  box-shadow: 0 4px 15px rgba(99,102,241,.4);
+}
+.btn-book:hover { background: linear-gradient(135deg, #4f46e5, #7c3aed); }
+
+/* FILTERS */
+.filters {
+  padding: 12px 20px;
+  display: flex; flex-wrap: wrap; gap: 7px; align-items: center;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+.filter-label { font-size:.72rem; font-weight:700; color:rgba(255,255,255,.5);
+  letter-spacing:.04em; text-transform:uppercase; }
+.badge-v {
+  padding: 5px 15px; border-radius: 20px;
+  font-size: .76rem; font-weight: 700; cursor: pointer; transition: .2s;
+  background: rgba(255,255,255,.08);
+  color: rgba(255,255,255,.7);
+  border: 1px solid rgba(255,255,255,.15);
+}
+.badge-v:hover { background: rgba(255,255,255,.15); color:#fff; }
+.badge-v.active {
+  background: linear-gradient(135deg,#6366f1,#8b5cf6);
+  color: #fff; border-color: transparent;
+  box-shadow: 0 3px 12px rgba(99,102,241,.4);
+}
+
+/* CALENDAR WRAP */
+.cal-wrap { padding: 20px; max-width: 1000px; margin: auto; }
+.cal-box {
+  background: rgba(255,255,255,0.06);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 24px;
+  padding: 20px;
+  box-shadow:
+    0 8px 32px rgba(0,0,0,.4),
+    inset 0 1px 0 rgba(255,255,255,.15);
+}
+
+/* FullCalendar overrides */
+.fc { color: rgba(255,255,255,.9) !important; }
+
+.fc .fc-toolbar { margin-bottom: 16px !important; }
+.fc .fc-toolbar-title {
+  font-size: 1.15rem !important; font-weight: 800 !important;
+  color: #fff !important;
+  text-shadow: 0 2px 8px rgba(99,102,241,.5);
+}
+
+.fc .fc-button {
+  background: rgba(99,102,241,0.3) !important;
+  border: 1px solid rgba(99,102,241,.5) !important;
+  border-radius: 10px !important;
+  font-size: .8rem !important; font-weight: 700 !important;
+  color: #fff !important;
+  backdrop-filter: blur(10px) !important;
+  transition: .2s !important;
+  padding: 6px 14px !important;
+  box-shadow: none !important;
+}
+.fc .fc-button:hover {
+  background: rgba(99,102,241,0.6) !important;
+  border-color: rgba(99,102,241,.8) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(99,102,241,.3) !important;
+}
+.fc .fc-button-active, .fc .fc-button:active {
+  background: linear-gradient(135deg,#6366f1,#8b5cf6) !important;
+  border-color: transparent !important;
+  box-shadow: 0 4px 12px rgba(99,102,241,.4) !important;
+}
+
+/* Day headers */
+.fc .fc-col-header-cell {
+  background: rgba(99,102,241,0.15) !important;
+  border-color: rgba(255,255,255,.08) !important;
+  padding: 8px 0 !important;
+}
+.fc .fc-col-header-cell-cushion {
+  font-size: .75rem !important; font-weight: 700 !important;
+  color: rgba(255,255,255,.7) !important;
+  text-decoration: none !important; text-transform: uppercase; letter-spacing: .05em;
+}
+
+/* Day cells */
+.fc .fc-daygrid-day {
+  background: transparent !important;
+  border-color: rgba(255,255,255,.07) !important;
+  cursor: pointer !important;
+  transition: .2s !important;
+}
+.fc .fc-daygrid-day:hover {
+  background: rgba(99,102,241,0.15) !important;
+}
+.fc .fc-daygrid-day.fc-day-today {
+  background: rgba(99,102,241,0.25) !important;
+}
+.fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
+  background: linear-gradient(135deg,#6366f1,#8b5cf6);
+  color: #fff !important;
+  border-radius: 8px;
+  padding: 2px 7px !important;
+  box-shadow: 0 2px 8px rgba(99,102,241,.5);
+}
+.fc .fc-daygrid-day.fc-day-other { opacity: .3 !important; }
+
+.fc .fc-daygrid-day-number {
+  font-size: .82rem !important; font-weight: 700 !important;
+  color: rgba(255,255,255,.8) !important;
+  text-decoration: none !important;
+  padding: 5px 8px !important;
+}
+
+/* Events */
+.fc-event {
+  border-radius: 6px !important;
+  font-size: .7rem !important; font-weight: 700 !important;
+  border: none !important;
+  padding: 2px 6px !important;
+  cursor: pointer !important;
+}
+
+/* List view */
+.fc .fc-list {
+  background: transparent !important;
+  border-color: rgba(255,255,255,.08) !important;
+}
+.fc .fc-list-day-cushion {
+  background: rgba(99,102,241,0.2) !important;
+  color: #fff !important;
+}
+.fc .fc-list-event:hover td { background: rgba(255,255,255,.05) !important; }
+.fc .fc-list-event-title, .fc .fc-list-event-time { color: rgba(255,255,255,.85) !important; }
+.fc .fc-list-empty { background: transparent !important; color: rgba(255,255,255,.4) !important; }
+.fc .fc-list-day td { border-color: rgba(255,255,255,.08) !important; }
+.fc .fc-list-event td { border-color: rgba(255,255,255,.05) !important; }
+
+/* Scrollbar */
+.fc-scroller::-webkit-scrollbar { width: 4px; }
+.fc-scroller::-webkit-scrollbar-thumb { background: rgba(255,255,255,.2); border-radius: 4px; }
+
+/* LEGEND */
+.legend {
+  display:flex; gap:14px; flex-wrap:wrap; margin-top:14px; padding-top:14px;
+  border-top:1px solid rgba(255,255,255,.08);
+  font-size:.73rem;
+}
+.legend-item { display:flex; align-items:center; gap:6px; font-weight:600; color:rgba(255,255,255,.6); }
+.legend-dot { width:10px; height:10px; border-radius:4px; }
 
 /* POPUP */
-.popup-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;
-  align-items:flex-end;justify-content:center}
-.popup-overlay.show{display:flex}
-@media(min-width:600px){.popup-overlay{align-items:center;padding:24px}}
-.popup-box{background:#fff;border-radius:22px 22px 0 0;width:100%;max-width:460px;
-  padding:20px;box-shadow:0 -6px 30px rgba(0,0,0,.15)}
-@media(min-width:600px){.popup-box{border-radius:18px}}
-.popup-date{font-size:.75rem;color:#94a3b8;font-weight:600;margin-bottom:6px}
-.popup-status{font-size:1rem;font-weight:800;margin-bottom:14px;display:flex;align-items:center;gap:7px}
-.popup-booked-list{margin-bottom:14px}
-.booked-item{background:#f0f4ff;border-radius:8px;padding:9px 12px;margin-bottom:6px;
-  font-size:.83rem;font-weight:600;color:#1e40af;display:flex;align-items:center;gap:7px}
-.btn-book-now{background:#0C67EC;color:#fff;border:none;border-radius:10px;padding:11px 20px;
-  font-size:.88rem;font-weight:700;cursor:pointer;width:100%;display:flex;align-items:center;
-  justify-content:center;gap:7px;text-decoration:none;margin-bottom:8px}
-.btn-book-now:hover{background:#0954c5;color:#fff}
-.btn-close-popup{background:#f1f5f9;color:#64748b;border:none;border-radius:10px;padding:10px;
-  font-size:.85rem;font-weight:600;cursor:pointer;width:100%}
+.popup-overlay {
+  display:none; position:fixed; inset:0;
+  background: rgba(0,0,0,.65);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index:500; align-items:flex-end; justify-content:center;
+}
+.popup-overlay.show { display:flex; }
+@media(min-width:600px){ .popup-overlay{ align-items:center; padding:24px; } }
+
+.popup-box {
+  background: linear-gradient(145deg, rgba(30,27,75,.95), rgba(48,43,99,.95));
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 24px 24px 0 0;
+  width: 100%; max-width: 460px;
+  padding: 24px;
+  box-shadow: 0 -8px 40px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.1);
+}
+@media(min-width:600px){ .popup-box{ border-radius:20px; } }
+
+.popup-handle {
+  width: 40px; height: 4px; border-radius: 2px;
+  background: rgba(255,255,255,.2); margin: 0 auto 18px;
+}
+.popup-date {
+  font-size:.73rem; font-weight:700; color:rgba(255,255,255,.45);
+  letter-spacing:.05em; text-transform:uppercase; margin-bottom:8px;
+}
+.popup-status {
+  font-size:1.05rem; font-weight:800; color:#fff;
+  margin-bottom:16px; display:flex; align-items:center; gap:8px;
+}
+.popup-info-card {
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 12px; padding: 13px 15px;
+  margin-bottom: 16px;
+  font-size: .83rem; font-weight: 600; color: rgba(255,255,255,.8);
+  display: flex; align-items: center; gap: 9px;
+}
+.btn-book-now {
+  background: linear-gradient(135deg,#6366f1,#8b5cf6);
+  color: #fff; border: none; border-radius: 12px;
+  padding: 13px 20px; font-size:.9rem; font-weight:700;
+  cursor:pointer; width:100%; display:flex; align-items:center;
+  justify-content:center; gap:8px; text-decoration:none;
+  margin-bottom:9px;
+  box-shadow: 0 6px 20px rgba(99,102,241,.45);
+  transition:.2s;
+}
+.btn-book-now:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(99,102,241,.6); color:#fff; }
+.btn-close-popup {
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.12);
+  color: rgba(255,255,255,.6); border-radius:12px;
+  padding: 11px; font-size:.85rem; font-weight:600;
+  cursor:pointer; width:100%; transition:.2s;
+}
+.btn-close-popup:hover { background: rgba(255,255,255,.12); color:#fff; }
 
 @media(max-width:600px){
-  .cal-wrap{padding:8px}
-  .cal-box{padding:10px}
-  .fc .fc-toolbar{flex-direction:column;gap:6px}
+  .cal-wrap{ padding:10px; }
+  .cal-box{ padding:12px; }
+  .fc .fc-toolbar{ flex-direction:column; gap:8px; }
 }
 </style>
 </head>
@@ -86,9 +293,7 @@ body{background:#f0f4f8;font-family:Tahoma,'Segoe UI',sans-serif;min-height:100v
 
 {% if venues %}
 <div class="filters">
-  <span style="font-size:.75rem;font-weight:600;color:#64748b;margin-{{ 'left' if ar else 'right' }}:4px">
-    {{ 'القاعة:' if ar else 'Venue:' }}
-  </span>
+  <span class="filter-label">{{ 'القاعة' if ar else 'Venue' }}</span>
   <span class="badge-v active" onclick="setVenue('',this)">{{ 'الكل' if ar else 'All' }}</span>
   {% for v in venues %}
   <span class="badge-v" onclick="setVenue('{{ v.id }}',this)">{{ v.name }}</span>
@@ -101,16 +306,20 @@ body{background:#f0f4f8;font-family:Tahoma,'Segoe UI',sans-serif;min-height:100v
     <div id="calendar"></div>
     <div class="legend">
       <div class="legend-item">
-        <div class="legend-dot" style="background:#3D8EF5"></div>
-        {{ 'محجوز (معتمد)' if ar else 'Booked (Approved)' }}
+        <div class="legend-dot" style="background:linear-gradient(135deg,#3D8EF5,#60a5fa)"></div>
+        {{ 'معتمد' if ar else 'Approved' }}
       </div>
       <div class="legend-item">
-        <div class="legend-dot" style="background:#F59E0B"></div>
+        <div class="legend-dot" style="background:linear-gradient(135deg,#F59E0B,#fcd34d)"></div>
         {{ 'قيد المراجعة' if ar else 'Pending' }}
       </div>
       <div class="legend-item">
-        <div class="legend-dot" style="background:#EF4444"></div>
+        <div class="legend-dot" style="background:linear-gradient(135deg,#EF4444,#f87171)"></div>
         {{ 'غير متاح' if ar else 'Unavailable' }}
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)"></div>
+        {{ 'اليوم' if ar else 'Today' }}
       </div>
     </div>
   </div>
@@ -119,9 +328,10 @@ body{background:#f0f4f8;font-family:Tahoma,'Segoe UI',sans-serif;min-height:100v
 <!-- Day Popup -->
 <div class="popup-overlay" id="dayPopup" onclick="closePopup(event)">
   <div class="popup-box">
+    <div class="popup-handle"></div>
     <div class="popup-date" id="popupDate"></div>
     <div class="popup-status" id="popupStatus"></div>
-    <div class="popup-booked-list" id="popupList"></div>
+    <div id="popupInfo"></div>
     <a id="popupBookBtn" href="#" class="btn-book-now">
       <i class="bi bi-calendar-plus"></i>
       {{ 'احجز هذا اليوم' if ar else 'Book This Day' }}
@@ -146,13 +356,11 @@ function setVenue(vid, el) {
 }
 
 function closePopup(e) {
-  if (e.target === document.getElementById('dayPopup')) {
+  if (e.target === document.getElementById('dayPopup'))
     document.getElementById('dayPopup').classList.remove('show');
-  }
 }
 
 function openDayPopup(dateStr, dayEvents) {
-  var popup = document.getElementById('dayPopup');
   var d = new Date(dateStr + 'T00:00:00');
   var opts = { weekday:'long', year:'numeric', month:'long', day:'numeric' };
   document.getElementById('popupDate').textContent = d.toLocaleDateString(IS_AR ? 'ar-SA' : 'en-US', opts);
@@ -162,79 +370,68 @@ function openDayPopup(dateStr, dayEvents) {
   var blocked  = dayEvents.filter(function(e){ return e.status === 'blocked'; });
 
   var statusEl = document.getElementById('popupStatus');
-  var listEl   = document.getElementById('popupList');
+  var infoEl   = document.getElementById('popupInfo');
   var bookBtn  = document.getElementById('popupBookBtn');
-  listEl.innerHTML = '';
+  infoEl.innerHTML = '';
 
   if (blocked.length) {
-    statusEl.innerHTML = '<span style="color:#EF4444;font-size:1.3rem">🚫</span> ' +
-      (IS_AR ? 'هذا اليوم غير متاح للحجز' : 'This day is unavailable');
+    statusEl.innerHTML = '🚫 ' + (IS_AR ? 'هذا اليوم غير متاح' : 'Day Unavailable');
+    infoEl.innerHTML = '<div class="popup-info-card" style="color:#f87171;border-color:rgba(239,68,68,.3);background:rgba(239,68,68,.1)">' +
+      '<i class="bi bi-x-circle-fill" style="color:#ef4444;font-size:1.1rem"></i>' +
+      (IS_AR ? 'تم تحديد هذا اليوم كغير متاح للحجز' : 'This day has been marked as unavailable') + '</div>';
     bookBtn.style.display = 'none';
   } else if (approved.length || pending.length) {
-    statusEl.innerHTML = '<span style="font-size:1.2rem">📅</span> ' +
-      (IS_AR ? 'يوجد حجوزات في هذا اليوم' : 'This day has bookings');
-    var count = approved.length + pending.length;
-    var msg = IS_AR
-      ? (count + ' حجز' + (approved.length ? ' (' + approved.length + ' معتمد)' : '') + (pending.length ? ' (' + pending.length + ' قيد المراجعة)' : ''))
-      : (count + ' booking(s)' + (approved.length ? ' (' + approved.length + ' approved)' : '') + (pending.length ? ' (' + pending.length + ' pending)' : ''));
-    listEl.innerHTML = '<div class="booked-item"><i class="bi bi-calendar-check"></i>' + msg + '</div>';
+    var total = approved.length + pending.length;
+    statusEl.innerHTML = '📅 ' + (IS_AR ? 'يوجد حجوزات' : 'Has Bookings');
+    var txt = '';
+    if (approved.length)
+      txt += '<div class="popup-info-card" style="border-color:rgba(61,142,245,.3);background:rgba(61,142,245,.1)">' +
+        '<i class="bi bi-check-circle-fill" style="color:#3D8EF5;font-size:1.1rem"></i>' +
+        (IS_AR ? approved.length + ' حجز معتمد' : approved.length + ' approved booking(s)') + '</div>';
+    if (pending.length)
+      txt += '<div class="popup-info-card" style="border-color:rgba(245,158,11,.3);background:rgba(245,158,11,.1)">' +
+        '<i class="bi bi-clock-fill" style="color:#F59E0B;font-size:1.1rem"></i>' +
+        (IS_AR ? pending.length + ' حجز قيد المراجعة' : pending.length + ' pending booking(s)') + '</div>';
+    infoEl.innerHTML = txt;
     bookBtn.style.display = 'flex';
     bookBtn.href = '/public-calendar/book?date=' + dateStr + (currentVenue ? '&venue_id=' + currentVenue : '');
   } else {
-    statusEl.innerHTML = '<span style="color:#10b981;font-size:1.2rem">✅</span> ' +
-      (IS_AR ? 'هذا اليوم متاح للحجز' : 'This day is available');
-    listEl.innerHTML = '';
+    statusEl.innerHTML = '✅ ' + (IS_AR ? 'هذا اليوم متاح للحجز' : 'Available for Booking');
+    infoEl.innerHTML = '<div class="popup-info-card" style="border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.1);color:#6ee7b7">' +
+      '<i class="bi bi-calendar-check-fill" style="color:#10b981;font-size:1.1rem"></i>' +
+      (IS_AR ? 'لا توجد حجوزات في هذا اليوم، بإمكانك الحجز الآن' : 'No bookings on this day — you can book now') + '</div>';
     bookBtn.style.display = 'flex';
     bookBtn.href = '/public-calendar/book?date=' + dateStr + (currentVenue ? '&venue_id=' + currentVenue : '');
   }
 
-  popup.classList.add('show');
+  document.getElementById('dayPopup').classList.add('show');
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-  var calEl = document.getElementById('calendar');
-  var cal = new FullCalendar.Calendar(calEl, {
+  var cal = new FullCalendar.Calendar(document.getElementById('calendar'), {
     locale: IS_AR ? 'ar' : 'en',
     direction: IS_AR ? 'rtl' : 'ltr',
     initialView: 'dayGridMonth',
-    headerToolbar: {
-      start: 'prev,next today',
-      center: 'title',
-      end: 'dayGridMonth,listWeek'
-    },
+    headerToolbar: { start:'prev,next today', center:'title', end:'dayGridMonth,listWeek' },
     buttonText: {
       today: IS_AR ? 'اليوم' : 'Today',
       month: IS_AR ? 'شهر' : 'Month',
       list:  IS_AR ? 'قائمة' : 'List'
     },
-    events: function(info, successCallback, failureCallback) {
-      var url = '/public-calendar/events?start=' + info.startStr + '&end=' + info.endStr;
+    events: function(info, ok, fail) {
+      var url = '/public-calendar/events?start='+info.startStr+'&end='+info.endStr;
       if (currentVenue) url += '&venue_id=' + currentVenue;
       url += '&lang=' + (IS_AR ? 'ar' : 'en');
-      fetch(url)
-        .then(function(r){ return r.json(); })
-        .then(function(data){
-          _allEvents = data;
-          successCallback(data);
-        })
-        .catch(function(){ failureCallback(); });
+      fetch(url).then(function(r){ return r.json(); })
+        .then(function(d){ _allEvents = d; ok(d); }).catch(fail);
     },
     eventClick: function(info) {
       info.jsEvent.preventDefault();
       var dateStr = info.event.startStr.substring(0,10);
-      var dayEvs = _allEvents.filter(function(e){
-        return e.start && e.start.substring(0,10) <= dateStr &&
-               (!e.end || e.end.substring(0,10) >= dateStr);
-      });
-      openDayPopup(dateStr, dayEvs);
+      openDayPopup(dateStr, _getDayEvents(dateStr));
     },
     dateClick: function(info) {
-      var dateStr = info.dateStr;
-      var dayEvs = _allEvents.filter(function(e){
-        return e.start && e.start.substring(0,10) <= dateStr &&
-               (!e.end || e.end.substring(0,10) >= dateStr);
-      });
-      openDayPopup(dateStr, dayEvs);
+      openDayPopup(info.dateStr, _getDayEvents(info.dateStr));
     },
     eventDidMount: function(info) {
       info.el.style.cursor = 'pointer';
@@ -246,6 +443,13 @@ document.addEventListener('DOMContentLoaded', function() {
   cal.render();
   window._cal = cal;
 });
+
+function _getDayEvents(dateStr) {
+  return _allEvents.filter(function(e) {
+    return e.start && e.start.substring(0,10) <= dateStr &&
+      (!e.end || e.end.substring(0,10) >= dateStr);
+  });
+}
 </script>
 </body>
 </html>
