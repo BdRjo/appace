@@ -282,6 +282,42 @@ def booking_detail(res_id):
         return jsonify({'error': 'server error'}), 500
 
 
+
+@public_cal_bp.route('/lookup', methods=['GET','POST'])
+def lookup():
+    from utils.helpers import get_lang
+    lang = get_lang()
+    result = None
+    error  = None
+    query  = ''
+    if request.method == 'POST':
+        query = request.form.get('query','').strip()
+        if query:
+            db = get_db()
+            res = db.query(Reservation).filter(
+                Reservation.booking_number == query
+            ).first()
+            if not res:
+                # try by email
+                from models.database import User
+                user = db.query(User).filter_by(email=query).first()
+                if user:
+                    res = db.query(Reservation).filter_by(user_id=user.id).order_by(Reservation.id.desc()).first()
+            if res:
+                venue = db.query(Venue).filter_by(id=res.venue_id).first() if res.venue_id else None
+                result = {
+                    'booking_number': res.booking_number,
+                    'title':    res.title,
+                    'status':   res.status,
+                    'start':    res.start_time.strftime('%Y-%m-%d %H:%M') if res.start_time else '',
+                    'end':      res.end_time.strftime('%Y-%m-%d %H:%M')   if res.end_time   else '',
+                    'venue':    venue.name if venue else '—',
+                    'notes':    res.approver_notes or '',
+                    'req_notes':res.requester_notes or '',
+                }
+            else:
+                error = 'لم يتم العثور على الحجز' if lang=='ar' else 'Booking not found'
+    return render_template('calendar/lookup.html', result=result, error=error, query=query, lang=lang)
 @public_cal_bp.route('/attachment/<int:att_id>')
 def public_attachment(att_id):
     try:
