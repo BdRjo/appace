@@ -177,6 +177,7 @@
 {% set present = records|selectattr('status','eq','present')|list|length %}
 {% set absent = records|selectattr('status','eq','absent')|list|length %}
 {% set late = records|selectattr('status','eq','late')|list|length %}
+{% set shifted_count = shifted_records|length %}
 
 <div class="row g-3 mb-4">
   <div class="col-6 col-md-3">
@@ -203,6 +204,14 @@
       <div style="font-size:.82rem;opacity:.85">{% if ar %}متأخر{% else %}Late{% endif %}</div>
     </div>
   </div>
+  {% if use_shift %}
+  <div class="col-6 col-md-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#7c3aed,#a78bfa)">
+      <div style="font-size:1.8rem;font-weight:800">{{ shifted_count }}</div>
+      <div style="font-size:.82rem;opacity:.85">{% if ar %}الكادر المناوب{% else %}Duty Roster{% endif %}</div>
+    </div>
+  </div>
+  {% endif %}
 </div>
 
 <!-- Main Records Table -->
