@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{%- set ar = (current_lang == 'ar') -%}
+{% block title %}{{ 'شريط الأخبار' if ar else 'News Ticker' }}{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h1><i class="bi bi-broadcast me-2"></i>{{ 'شريط الأخبار' if ar else 'News Ticker' }}</h1>
+  <a href="{{ url_for('sas.admin_dashboard') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-{{ 'right' if ar else 'left' }} me-1"></i>{{ 'رجوع' if ar else 'Back' }}
+  </a>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="mb-3">
+        <label class="form-label fw-bold">{{ 'نص شريط الأخبار' if ar else 'Ticker Text' }}</label>
+        <textarea name="ticker_text" class="form-control" rows="4"
+          placeholder="{{ 'أدخل النص هنا...' if ar else 'Enter ticker text...' }}">{{ ticker_data.get('text','') if ticker_data else '' }}</textarea>
+        <div class="form-text">{{ 'يمكنك إدخال عدة أسطر، كل سطر يظهر كرسالة منفصلة' if ar else 'You can enter multiple lines, each line appears as a separate message' }}</div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-bold">{{ 'السرعة' if ar else 'Speed' }}</label>
+        <select name="speed" class="form-select form-select-sm w-auto">
+          <option value="slow" {{ 'selected' if ticker_data and ticker_data.get('speed')=='slow' }}>{{ 'بطيء' if ar else 'Slow' }}</option>
+          <option value="normal" {{ 'selected' if not ticker_data or ticker_data.get('speed','normal')=='normal' }}>{{ 'عادي' if ar else 'Normal' }}</option>
+          <option value="fast" {{ 'selected' if ticker_data and ticker_data.get('speed')=='fast' }}>{{ 'سريع' if ar else 'Fast' }}</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary-ars">
+        <i class="bi bi-save me-1"></i>{{ 'حفظ' if ar else 'Save' }}
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}

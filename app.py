@@ -29,7 +29,6 @@ def create_app():
     from flask_wtf.csrf import CSRFProtect
     csrf = CSRFProtect(app)
     # Exempt mobile API from CSRF (uses JWT instead)
-    from routes.mobile_api import mobile_api_bp
     from routes.download_data import dl_bp as _mapi
     csrf.exempt(_mapi)
     # ── Rate Limiter ──────────────────────────────────────────────────────────
@@ -131,28 +130,12 @@ def create_app():
     from routes.eas import eas_bp
     from routes.iface_device import iface_bp
     from routes.sas           import sas_bp
-    from routes.reservations  import reservations_bp
-    from routes.venues        import venues_bp
-    from routes.locations     import locations_bp, venues_mgmt_bp
-    from routes.contacts      import contacts_bp
-    from routes.groups        import groups_bp
-    from routes.reports       import reports_bp
-    from routes.checklists    import checklists_bp
-    from routes.blocked       import blocked_bp
-    from routes.ratings       import ratings_bp
-    from routes.calendar_view import calendar_bp
-    from routes.public_calendar import public_cal_bp
-    from routes.backoffice    import bo_bp as backoffice_bp
     from routes.mobile_api import mobile_api_bp
     from routes.download_data import dl_bp
 
     for bp in [auth_bp, admin_bp, api_bp, eas_bp, iface_bp,
                users_bp, settings_bp, cp_bp,
-               announcements_bp, interviews_bp, sas_bp,
-               reservations_bp, venues_bp, locations_bp, contacts_bp,
-               groups_bp, reports_bp, checklists_bp, blocked_bp,
-               ratings_bp, calendar_bp, public_cal_bp, backoffice_bp, venues_mgmt_bp,
-               mobile_api_bp, dl_bp]:
+               announcements_bp, interviews_bp, sas_bp, mobile_api_bp, dl_bp]:
         app.register_blueprint(bp)        
 
     # Jinja filters

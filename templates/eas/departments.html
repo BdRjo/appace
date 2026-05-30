@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{%- set ar = (current_lang == 'ar') -%}
+{% block title %}{{ 'الأقسام' if ar else 'Departments' }}{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h1><i class="bi bi-diagram-3 me-2"></i>{{ 'أقسام' if ar else 'Departments' }}: {{ group.name }}</h1>
+  <a href="{{ url_for('eas.groups') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-{{ 'right' if ar else 'left' }} me-1"></i>{{ 'رجوع' if ar else 'Back' }}
+  </a>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    {% if dept_names %}
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead><tr>
+          <th>#</th>
+          <th>{{ 'اسم القسم' if ar else 'Department Name' }}</th>
+          <th>{{ 'إجراءات' if ar else 'Actions' }}</th>
+        </tr></thead>
+        <tbody>
+          {% for dept in dept_names %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td><strong>{{ dept }}</strong></td>
+            <td>
+              <form method="POST" action="{{ url_for('eas.department_rename', gid=group.id) }}" class="d-inline-flex gap-2 align-items-center">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="old_name" value="{{ dept }}">
+                <input type="text" name="new_name" class="form-control form-control-sm" style="width:160px"
+                  placeholder="{{ 'الاسم الجديد' if ar else 'New name' }}">
+                <button type="submit" class="btn btn-sm btn-primary-ars">{{ 'تغيير' if ar else 'Rename' }}</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-4">
+      <i class="bi bi-diagram-3" style="font-size:2rem"></i>
+      <p class="mt-2">{{ 'لا توجد أقسام' if ar else 'No departments found' }}</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
