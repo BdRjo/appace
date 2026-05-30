@@ -285,7 +285,7 @@ def booking_detail(res_id):
 
 @public_cal_bp.route('/lookup', methods=['GET','POST'])
 def lookup():
-    from utils.helpers import get_lang
+    from utils.i18n import get_lang
     lang = get_lang()
     result = None
     error  = None
