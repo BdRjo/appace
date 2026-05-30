@@ -170,10 +170,10 @@ def events():
                 color = '#3D8EF5' if r.status == 'approved' else '#F59E0B'
                 result.append({
                     'id':    r.id,
-                    'title': title,
+                    'title': '🔒 ' + ('محجوز' if request.args.get('lang','ar')=='ar' else 'Booked'),
                     'start': r.start_time.isoformat() if r.start_time else '',
                     'end':   r.end_time.isoformat()   if r.end_time   else '',
-                    'color': color,
+                    'color': '#94a3b8' if r.status == 'pending' else '#3D8EF5',
                     'status': r.status,
                 })
             except Exception as e:

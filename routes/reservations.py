@@ -38,8 +38,10 @@ STATUS_CLS = {
 }
 
 def _book_num(db):
-    c = db.query(Reservation).count() + 1
-    return f"STAP-{datetime.now().strftime('%Y%m%d%H%M%S')}-{c:04d}"
+    import secrets, string
+    chars = string.ascii_uppercase + string.digits
+    uid = ''.join(secrets.choice(chars) for _ in range(10))
+    return f"BK-{uid}"
 
 def _conflict(db, venue_id, start, end, exclude_id=None):
     q = db.query(Reservation).filter(
