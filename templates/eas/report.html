@@ -535,6 +535,17 @@ function openPrintModal() {
   {% endif %}
 }
 
+function doPrint() {
+  // hide unchecked departments before printing
+  document.querySelectorAll('.dept-check').forEach(function(cb) {
+    var section = document.getElementById('dept-' + cb.value);
+    if (section) section.style.display = cb.checked ? '' : 'none';
+  });
+  var modal = bootstrap.Modal.getInstance(document.getElementById('printModal'));
+  if (modal) modal.hide();
+  setTimeout(function() { window.print(); }, 300);
+}
+
 function toggleAllDepts(cb) {
   document.querySelectorAll('.dept-check').forEach(function(c) { c.checked = cb.checked; });
 }
