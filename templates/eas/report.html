@@ -361,6 +361,28 @@
 </div>
 {% endif %}
 
+<!-- Send Modal -->
+<div class="modal fade no-print" id="sendModal" tabindex="-1">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title fw-bold"><i class="bi bi-send me-2"></i>{% if ar %}إرسال التقرير{% else %}Send Report{% endif %}</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label small fw-semibold">{% if ar %}البريد الإلكتروني{% else %}Email{% endif %}</label>
+        <input type="email" id="sendEmailInput" class="form-control form-control-sm" placeholder="example@email.com">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">{% if ar %}إلغاء{% else %}Cancel{% endif %}</button>
+        <button type="button" class="btn btn-primary-ars btn-sm" onclick="sendReport()">
+          <i class="bi bi-send me-1"></i>{% if ar %}إرسال{% else %}Send{% endif %}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Print Dept Selector Modal -->
 <div class="modal fade no-print" id="printModal" tabindex="-1">
   <div class="modal-dialog">
@@ -525,6 +547,48 @@ document.addEventListener('input', function(e) {
     })
     .catch(function() { _hideSuggest(); });
 });
+
+// ── Print / PDF / Send ───────────────────────────────────────
+
+function _buildPrintUrl(extraParams) {
+  var params = new URLSearchParams(window.location.search);
+  if (extraParams) Object.keys(extraParams).forEach(function(k){ params.set(k, extraParams[k]); });
+  return '/eas/print?' + params.toString();
+}
+
+function exportPDF() {
+  var url = _buildPrintUrl();
+  window.open(url, '_blank');
+}
+
+function showSendModal() {
+  var modal = new bootstrap.Modal(document.getElementById('sendModal'));
+  modal.show();
+}
+
+function sendReport() {
+  var emailInput = document.getElementById('sendEmailInput');
+  var email = emailInput ? emailInput.value.trim() : '';
+  if (!email) { alert('{% if ar %}أدخل البريد الإلكتروني{% else %}Enter email{% endif %}'); return; }
+  var btn = document.querySelector('#sendModal .btn-primary-ars');
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+  var printUrl = window.location.origin + _buildPrintUrl();
+  var token = document.querySelector('meta[name="csrf-token"]')?.content || '';
+  fetch('/eas/send_report', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': token },
+    body: JSON.stringify({ email: email, url: printUrl })
+  }).then(function(r){ return r.json(); })
+    .then(function(d){
+      if (btn) { btn.disabled = false; btn.textContent = '{% if ar %}إرسال{% else %}Send{% endif %}'; }
+      if (d.ok) {
+        bootstrap.Modal.getInstance(document.getElementById('sendModal')).hide();
+        alert('{% if ar %}تم الإرسال بنجاح{% else %}Sent successfully{% endif %}');
+      } else {
+        alert('Error: ' + (d.error || 'Failed'));
+      }
+    }).catch(function(){ if (btn) btn.disabled = false; alert('Network error'); });
+}
 
 // ── Print ──────────────────────────────────────────────────
 function openPrintModal() {
