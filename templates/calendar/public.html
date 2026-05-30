@@ -28,19 +28,25 @@ body{background:var(--bg);font-family:{{ "'Tajawal'" if ar else "'Inter'" }},san
 .nav-brand{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
 .nav-brand img{height:40px;border-radius:8px;object-fit:contain}
 .nav-brand-text{min-width:0}
-.nav-brand-title{font-weight:800;font-size:.92rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.nav-brand-sub{font-size:.7rem;color:var(--muted);white-space:nowrap}
-.nav-actions{display:flex;gap:6px;flex-shrink:0}
-.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:9px;
-  font-size:.8rem;font-weight:700;cursor:pointer;text-decoration:none;border:none;
+.nav-brand-title{font-weight:800;font-size:.88rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nav-brand-sub{font-size:.68rem;color:var(--muted);white-space:nowrap}
+.nav-actions{display:flex;gap:5px;flex-shrink:0;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:4px;padding:7px 12px;border-radius:9px;
+  font-size:.78rem;font-weight:700;cursor:pointer;text-decoration:none;border:none;
   font-family:inherit;transition:.2s;white-space:nowrap}
 .btn-primary{background:var(--primary);color:#fff;box-shadow:0 3px 10px rgba(12,103,236,.3)}
 .btn-primary:hover{background:#0954c5;color:#fff}
 .btn-outline{background:#fff;color:var(--text);border:1.5px solid var(--border)}
 .btn-outline:hover{background:var(--bg);border-color:var(--primary);color:var(--primary)}
-.btn-sm{padding:5px 10px;font-size:.76rem;border-radius:8px}
+.btn-sm{padding:6px 10px;font-size:.75rem;border-radius:8px}
 .btn-lang{background:var(--bg);color:var(--muted);border:1.5px solid var(--border);
-  padding:5px 11px;border-radius:8px;font-size:.78rem;font-weight:700}
+  padding:5px 9px;border-radius:8px;font-size:.78rem;font-weight:700}
+@media(max-width:480px){
+  .nav-brand-sub{display:none}
+  .btn span{display:none}
+  .btn{padding:7px 9px}
+  .btn-lang{padding:5px 8px}
+}
 
 /* MAIN WRAP */
 .wrap{max-width:900px;margin:0 auto;padding:16px}
@@ -167,7 +173,7 @@ body{background:var(--bg);font-family:{{ "'Tajawal'" if ar else "'Inter'" }},san
       <a href="/public-calendar/book" class="btn btn-primary btn-sm">
         <i class="bi bi-calendar-plus"></i>{{ 'حجز جديد' if ar else 'Book Now' }}
       </a>
-      <a href="/public-calendar/booking" class="btn btn-outline btn-sm">
+      <a href="/public-calendar/book" class="btn btn-outline btn-sm">
         <i class="bi bi-search"></i>{{ 'استعلام' if ar else 'Lookup' }}
       </a>
       <a href="/set-lang/{{ 'en' if ar else 'ar' }}?next=/public-calendar/" class="btn btn-lang">{{ 'EN' if ar else 'ع' }}</a>

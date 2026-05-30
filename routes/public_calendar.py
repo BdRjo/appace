@@ -147,8 +147,9 @@ def events():
     end   = request.args.get('end', '')
     vid   = request.args.get('venue_id', '')
     try:
+        from datetime import timedelta
         start_dt = datetime.fromisoformat(start[:10]) if start else None
-        end_dt   = datetime.fromisoformat(end[:10])   if end   else None
+        end_dt   = datetime.fromisoformat(end[:10]) + timedelta(days=1) if end else None
     except Exception:
         start_dt = end_dt = None
     try:
@@ -157,7 +158,7 @@ def events():
             Reservation.status.in_(['approved', 'pending'])
         )
         if start_dt: q = q.filter(Reservation.end_time   >= start_dt)
-        if end_dt:   q = q.filter(Reservation.start_time <= end_dt)
+        if end_dt:   q = q.filter(Reservation.start_time <  end_dt)
         if vid and vid.isdigit():
             q = q.filter(Reservation.venue_id == int(vid))
 
