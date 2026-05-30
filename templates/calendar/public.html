@@ -10,8 +10,6 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#f0f4f8;font-family:Tahoma,'Segoe UI',sans-serif;min-height:100vh}
-
-/* NAV */
 .nav{background:linear-gradient(135deg,#0C67EC,#1a78f5);color:#fff;padding:11px 16px;
   display:flex;align-items:center;justify-content:space-between;gap:8px;
   position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(12,103,236,.35)}
@@ -23,19 +21,13 @@ body{background:#f0f4f8;font-family:Tahoma,'Segoe UI',sans-serif;min-height:100v
   border-radius:8px;padding:6px 11px;font-size:.78rem;font-weight:600;cursor:pointer;
   text-decoration:none;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
 .btn-book{background:rgba(255,255,255,.28)}
-
-/* FILTERS */
 .filters{padding:10px 16px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;
   background:#fff;border-bottom:1px solid #e8eef8}
 .badge-v{padding:5px 14px;border-radius:20px;font-size:.78rem;font-weight:600;
   background:#f0f4ff;color:#0C67EC;border:1.5px solid #d0deff;cursor:pointer;transition:.15s}
 .badge-v.active{background:#0C67EC;color:#fff;border-color:#0C67EC}
-
-/* CALENDAR WRAPPER */
 .cal-wrap{padding:16px;max-width:1000px;margin:auto}
 .cal-box{background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 8px rgba(0,0,0,.07)}
-
-/* FullCalendar overrides */
 .fc .fc-toolbar-title{font-size:1.1rem;font-weight:800;color:#1e293b}
 .fc .fc-button{background:#0C67EC!important;border-color:#0C67EC!important;border-radius:8px!important;font-size:.8rem!important}
 .fc .fc-button:hover{background:#0954c5!important}
@@ -43,13 +35,32 @@ body{background:#f0f4f8;font-family:Tahoma,'Segoe UI',sans-serif;min-height:100v
 .fc .fc-daygrid-day.fc-day-today{background:#eff6ff!important}
 .fc-event{border-radius:5px!important;font-size:.72rem!important;font-weight:700!important;
   border:none!important;padding:2px 5px!important;cursor:default!important}
-.fc-event-title{font-weight:700}
-
-/* LEGEND */
+.fc .fc-daygrid-day{cursor:pointer;transition:.1s}
+.fc .fc-daygrid-day:hover{background:#f0f7ff!important}
 .legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;padding:10px 0;
   border-top:1px solid #f1f5f9;font-size:.75rem;color:#64748b}
 .legend-item{display:flex;align-items:center;gap:5px;font-weight:600}
 .legend-dot{width:12px;height:12px;border-radius:4px}
+
+/* POPUP */
+.popup-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;
+  align-items:flex-end;justify-content:center}
+.popup-overlay.show{display:flex}
+@media(min-width:600px){.popup-overlay{align-items:center;padding:24px}}
+.popup-box{background:#fff;border-radius:22px 22px 0 0;width:100%;max-width:460px;
+  padding:20px;box-shadow:0 -6px 30px rgba(0,0,0,.15)}
+@media(min-width:600px){.popup-box{border-radius:18px}}
+.popup-date{font-size:.75rem;color:#94a3b8;font-weight:600;margin-bottom:6px}
+.popup-status{font-size:1rem;font-weight:800;margin-bottom:14px;display:flex;align-items:center;gap:7px}
+.popup-booked-list{margin-bottom:14px}
+.booked-item{background:#f0f4ff;border-radius:8px;padding:9px 12px;margin-bottom:6px;
+  font-size:.83rem;font-weight:600;color:#1e40af;display:flex;align-items:center;gap:7px}
+.btn-book-now{background:#0C67EC;color:#fff;border:none;border-radius:10px;padding:11px 20px;
+  font-size:.88rem;font-weight:700;cursor:pointer;width:100%;display:flex;align-items:center;
+  justify-content:center;gap:7px;text-decoration:none;margin-bottom:8px}
+.btn-book-now:hover{background:#0954c5;color:#fff}
+.btn-close-popup{background:#f1f5f9;color:#64748b;border:none;border-radius:10px;padding:10px;
+  font-size:.85rem;font-weight:600;cursor:pointer;width:100%}
 
 @media(max-width:600px){
   .cal-wrap{padding:8px}
@@ -105,12 +116,27 @@ body{background:#f0f4f8;font-family:Tahoma,'Segoe UI',sans-serif;min-height:100v
   </div>
 </div>
 
+<!-- Day Popup -->
+<div class="popup-overlay" id="dayPopup" onclick="closePopup(event)">
+  <div class="popup-box">
+    <div class="popup-date" id="popupDate"></div>
+    <div class="popup-status" id="popupStatus"></div>
+    <div class="popup-booked-list" id="popupList"></div>
+    <a id="popupBookBtn" href="#" class="btn-book-now">
+      <i class="bi bi-calendar-plus"></i>
+      {{ 'احجز هذا اليوم' if ar else 'Book This Day' }}
+    </a>
+    <button class="btn-close-popup" onclick="document.getElementById('dayPopup').classList.remove('show')">
+      {{ 'إغلاق' if ar else 'Close' }}
+    </button>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
-{% if ar %}
-<script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.11/locales/ar.global.min.js"></script>
-{% endif %}
 <script>
 var currentVenue = '';
+var _allEvents = [];
+var IS_AR = {{ 'true' if ar else 'false' }};
 
 function setVenue(vid, el) {
   currentVenue = vid;
@@ -119,11 +145,57 @@ function setVenue(vid, el) {
   if (window._cal) window._cal.refetchEvents();
 }
 
+function closePopup(e) {
+  if (e.target === document.getElementById('dayPopup')) {
+    document.getElementById('dayPopup').classList.remove('show');
+  }
+}
+
+function openDayPopup(dateStr, dayEvents) {
+  var popup = document.getElementById('dayPopup');
+  var d = new Date(dateStr + 'T00:00:00');
+  var opts = { weekday:'long', year:'numeric', month:'long', day:'numeric' };
+  document.getElementById('popupDate').textContent = d.toLocaleDateString(IS_AR ? 'ar-SA' : 'en-US', opts);
+
+  var approved = dayEvents.filter(function(e){ return e.status === 'approved'; });
+  var pending  = dayEvents.filter(function(e){ return e.status === 'pending'; });
+  var blocked  = dayEvents.filter(function(e){ return e.status === 'blocked'; });
+
+  var statusEl = document.getElementById('popupStatus');
+  var listEl   = document.getElementById('popupList');
+  var bookBtn  = document.getElementById('popupBookBtn');
+  listEl.innerHTML = '';
+
+  if (blocked.length) {
+    statusEl.innerHTML = '<span style="color:#EF4444;font-size:1.3rem">🚫</span> ' +
+      (IS_AR ? 'هذا اليوم غير متاح للحجز' : 'This day is unavailable');
+    bookBtn.style.display = 'none';
+  } else if (approved.length || pending.length) {
+    statusEl.innerHTML = '<span style="font-size:1.2rem">📅</span> ' +
+      (IS_AR ? 'يوجد حجوزات في هذا اليوم' : 'This day has bookings');
+    var count = approved.length + pending.length;
+    var msg = IS_AR
+      ? (count + ' حجز' + (approved.length ? ' (' + approved.length + ' معتمد)' : '') + (pending.length ? ' (' + pending.length + ' قيد المراجعة)' : ''))
+      : (count + ' booking(s)' + (approved.length ? ' (' + approved.length + ' approved)' : '') + (pending.length ? ' (' + pending.length + ' pending)' : ''));
+    listEl.innerHTML = '<div class="booked-item"><i class="bi bi-calendar-check"></i>' + msg + '</div>';
+    bookBtn.style.display = 'flex';
+    bookBtn.href = '/public-calendar/book?date=' + dateStr + (currentVenue ? '&venue_id=' + currentVenue : '');
+  } else {
+    statusEl.innerHTML = '<span style="color:#10b981;font-size:1.2rem">✅</span> ' +
+      (IS_AR ? 'هذا اليوم متاح للحجز' : 'This day is available');
+    listEl.innerHTML = '';
+    bookBtn.style.display = 'flex';
+    bookBtn.href = '/public-calendar/book?date=' + dateStr + (currentVenue ? '&venue_id=' + currentVenue : '');
+  }
+
+  popup.classList.add('show');
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   var calEl = document.getElementById('calendar');
   var cal = new FullCalendar.Calendar(calEl, {
-    locale: '{{ "ar" if ar else "en" }}',
-    direction: '{{ "rtl" if ar else "ltr" }}',
+    locale: IS_AR ? 'ar' : 'en',
+    direction: IS_AR ? 'rtl' : 'ltr',
     initialView: 'dayGridMonth',
     headerToolbar: {
       start: 'prev,next today',
@@ -131,31 +203,45 @@ document.addEventListener('DOMContentLoaded', function() {
       end: 'dayGridMonth,listWeek'
     },
     buttonText: {
-      today: '{{ "اليوم" if ar else "Today" }}',
-      month: '{{ "شهر" if ar else "Month" }}',
-      list:  '{{ "قائمة" if ar else "List" }}'
+      today: IS_AR ? 'اليوم' : 'Today',
+      month: IS_AR ? 'شهر' : 'Month',
+      list:  IS_AR ? 'قائمة' : 'List'
     },
     events: function(info, successCallback, failureCallback) {
       var url = '/public-calendar/events?start=' + info.startStr + '&end=' + info.endStr;
       if (currentVenue) url += '&venue_id=' + currentVenue;
-      url += '&lang={{ "ar" if ar else "en" }}';
+      url += '&lang=' + (IS_AR ? 'ar' : 'en');
       fetch(url)
         .then(function(r){ return r.json(); })
-        .then(function(data){ successCallback(data); })
+        .then(function(data){
+          _allEvents = data;
+          successCallback(data);
+        })
         .catch(function(){ failureCallback(); });
     },
     eventClick: function(info) {
-      // لا نعرض تفاصيل — فقط زر الحجز
       info.jsEvent.preventDefault();
+      var dateStr = info.event.startStr.substring(0,10);
+      var dayEvs = _allEvents.filter(function(e){
+        return e.start && e.start.substring(0,10) <= dateStr &&
+               (!e.end || e.end.substring(0,10) >= dateStr);
+      });
+      openDayPopup(dateStr, dayEvs);
+    },
+    dateClick: function(info) {
+      var dateStr = info.dateStr;
+      var dayEvs = _allEvents.filter(function(e){
+        return e.start && e.start.substring(0,10) <= dateStr &&
+               (!e.end || e.end.substring(0,10) >= dateStr);
+      });
+      openDayPopup(dateStr, dayEvs);
     },
     eventDidMount: function(info) {
-      // إزالة الـ cursor pointer لأننا ما نفتح تفاصيل
-      info.el.style.cursor = 'default';
+      info.el.style.cursor = 'pointer';
       info.el.title = '';
     },
     dayMaxEvents: 3,
     height: 'auto',
-    aspectRatio: 1.8,
   });
   cal.render();
   window._cal = cal;
