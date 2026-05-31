@@ -18,11 +18,15 @@
 .legend-dot { width:12px; height:12px; border-radius:50%; display:inline-block; }
 #calendar { border-radius:12px; }
 .fc { font-size:.84rem; }
+.fc .fc-daygrid-body { padding: 4px !important; }
+.fc .fc-scrollgrid { border: none !important; }
+.fc .fc-scrollgrid-section > td { border: none !important; }
+.fc td, .fc th { border: none !important; }
+.fc .fc-daygrid-day-frame { margin: 3px !important; border-radius: 10px !important;
+  border: 1.5px solid #e8eef8 !important; overflow: hidden !important; }
 .fc-daygrid-day {
   transition: all .18s ease !important;
-  background: #fff !important;
-  border-color: #e8eef8 !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 1px 3px rgba(12,103,236,.06) !important;
+  background: transparent !important;
 }
 .fc-daygrid-day:hover {
   background: #f0f6ff !important;
