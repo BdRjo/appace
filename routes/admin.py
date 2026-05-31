@@ -21,7 +21,6 @@ _default_email_cfg = _os.path.join(_data_dir, 'email_config.json') \
     if _os.path.isdir(_data_dir) else \
     _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), 'email_config.json')
 CONFIG_EMAIL = _os.environ.get('EMAIL_CONFIG_PATH', _default_email_cfg)
-CONFIG_MAINT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'maintenance_config.json')
 
 
 # ── Dashboard — مطابق لـ v54 show_dashboard ───────────────────────────────────
@@ -390,20 +389,14 @@ def _save_auth_ticker(cfg):
     _db_set_setting('ticker_auth', cfg)
 
 def _save_maintenance(cfg):
-    with open(CONFIG_MAINT, 'w', encoding='utf-8') as f:
-        json.dump(cfg, f, ensure_ascii=False, indent=2)
+    _db_set_setting('maintenance_config', cfg)
 
 @admin_bp.route('/maintenance', methods=['GET','POST'])
 @login_required
 @admin_required
 def maintenance():
     # قراءة حالة الصيانة
-    try:
-        with open(CONFIG_MAINT) as f:
-            mcfg = json.load(f)
-    except Exception as e:
-        current_app.logger.warning(f"{__name__} error: {e}")
-        mcfg = {'system_suspended': False, 'registration_suspended': False}
+    mcfg = _db_get_setting('maintenance_config') or {'system_suspended': False, 'registration_suspended': False}
 
     db = get_db()
     log_count = db.query(SystemLog).count()
@@ -644,12 +637,7 @@ def optimize():
 @login_required
 @admin_required
 def toggle_maintenance():
-    try:
-        with open(CONFIG_MAINT) as f:
-            mcfg = json.load(f)
-    except Exception as e:
-        current_app.logger.warning(f"{__name__} error: {e}")
-        mcfg = {'system_suspended': False, 'registration_suspended': False}
+    mcfg = _db_get_setting('maintenance_config') or {'system_suspended': False, 'registration_suspended': False}
 
     toggle = request.form.get('toggle','')
     if toggle == 'system':
@@ -657,8 +645,7 @@ def toggle_maintenance():
     elif toggle == 'registration':
         mcfg['registration_suspended'] = not mcfg.get('registration_suspended', False)
 
-    with open(CONFIG_MAINT, 'w') as f:
-        json.dump(mcfg, f)
+    _db_set_setting('maintenance_config', mcfg)
 
     syslog('TOGGLE_MAINTENANCE', f'{toggle}: {mcfg}')
     flash_msg('✅ تم تحديث إعدادات الصيانة', 'success')
