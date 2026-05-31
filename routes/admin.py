@@ -324,62 +324,74 @@ def audit_log():
 
 
 # ── Maintenance — مطابق لـ v54 MaintenanceWindow ─────────────────────────────
-CONFIG_TICKER      = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'ticker_config.json')
-CONFIG_AUTH_TICKER = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'auth_ticker_config.json')
-CONFIG_INTERVIEW_TICKER = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'interview_ticker_config.json')
+# ── Ticker helpers — يتحفظ في قاعدة البيانات بدل JSON files ──────────────────
+
+TICKER_DEFAULTS = {
+    'main': {
+        'feeds_ar': ['مرحباً بكم في نظام STAP لالحضور والمقابلات'],
+        'feeds_en': ['Welcome to STAP Reservation System'],
+        'fg': '#F2C99A', 'bg': '', 'font': 'Tahoma', 'size': 15, 'speed': 35, 'opacity': 0
+    },
+    'auth': {
+        'feeds_ar': ['مرحباً بكم — سجّل دخولك للمتابعة'],
+        'feeds_en': ['Welcome — Please sign in to continue'],
+        'fg': '#ffffff', 'bg': 'transparent', 'font': 'Tajawal', 'size': 14, 'speed': 35
+    },
+    'interview': {
+        'feeds_ar': ['مرحباً بكم في بوابة مقابلات أولياء الأمور'],
+        'feeds_en': ['Welcome to the Parent Interview Portal'],
+        'fg': '#ffffff', 'bg': '#2563eb', 'font': 'Tajawal',
+        'size': 13, 'speed': 35, 'opacity': 80,
+        'logo_url': '', 'logo_size': 28, 'logo_pulse': True,
+        'logo_pulse_speed': 3, 'sep_img_url': '', 'mask_fade': 12
+    }
+}
+
+def _db_get_setting(key):
+    from models.database import get_engine
+    from sqlalchemy import text as _text
+    try:
+        with get_engine().connect() as conn:
+            conn.execute(_text('''CREATE TABLE IF NOT EXISTS app_settings (
+                key VARCHAR(100) PRIMARY KEY, value TEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)'''))
+            conn.commit()
+            row = conn.execute(_text('SELECT value FROM app_settings WHERE key=:k'), {'k': key}).fetchone()
+            return json.loads(row[0]) if row else None
+    except Exception as e:
+        current_app.logger.warning(f'_db_get_setting {key}: {e}')
+        return None
+
+def _db_set_setting(key, value):
+    from models.database import get_engine
+    from sqlalchemy import text as _text
+    try:
+        with get_engine().connect() as conn:
+            conn.execute(_text('''INSERT INTO app_settings (key, value, updated_at)
+                VALUES (:k, :v, NOW())
+                ON CONFLICT (key) DO UPDATE SET value=:v, updated_at=NOW()'''),
+                {'k': key, 'v': json.dumps(value, ensure_ascii=False)})
+            conn.commit()
+    except Exception as e:
+        current_app.logger.warning(f'_db_set_setting {key}: {e}')
 
 def _load_ticker():
-    try:
-        with open(CONFIG_TICKER, encoding='utf-8') as f:
-            return json.load(f)
-    except Exception as e:
-        current_app.logger.warning(f"{__name__} error: {e}")
-        return {
-            'feeds_ar': ['مرحباً بكم في نظام STAP لالحضور والمقابلات'],
-            'feeds_en': ['Welcome to STAP Reservation System'],
-            'fg': '#F2C99A', 'bg': '', 'font': 'Tahoma',
-            'size': 15, 'speed': 35, 'opacity': 0
-        }
+    return _db_get_setting('ticker_main') or TICKER_DEFAULTS['main']
 
 def _load_auth_ticker():
-    try:
-        with open(CONFIG_AUTH_TICKER, encoding='utf-8') as f:
-            return json.load(f)
-    except Exception as e:
-        current_app.logger.warning(f"{__name__} error: {e}")
-        return {
-            'feeds_ar': ['مرحباً بكم — سجّل دخولك للمتابعة'],
-            'feeds_en': ['Welcome — Please sign in to continue'],
-            'fg': '#ffffff', 'bg': 'transparent', 'font': 'Tajawal',
-            'size': 14, 'speed': 35
-        }
-
-def _save_ticker(cfg):
-    with open(CONFIG_TICKER, 'w', encoding='utf-8') as f:
-        json.dump(cfg, f, ensure_ascii=False, indent=2)
+    return _db_get_setting('ticker_auth') or TICKER_DEFAULTS['auth']
 
 def _load_interview_ticker():
-    try:
-        with open(CONFIG_INTERVIEW_TICKER, encoding='utf-8') as f:
-            return json.load(f)
-    except Exception as e:
-        current_app.logger.warning(f"{__name__} error: {e}")
-        return {
-            'feeds_ar': ['مرحباً بكم في بوابة مقابلات أولياء الأمور'],
-            'feeds_en': ['Welcome to the Parent Interview Portal'],
-            'fg': '#ffffff', 'bg': '#2563eb', 'font': 'Tajawal',
-            'size': 13, 'speed': 35, 'opacity': 80,
-            'logo_url': '', 'logo_size': 28, 'logo_pulse': True,
-            'logo_pulse_speed': 3, 'sep_img_url': '', 'mask_fade': 12
-        }
+    return _db_get_setting('ticker_interview') or TICKER_DEFAULTS['interview']
+
+def _save_ticker(cfg):
+    _db_set_setting('ticker_main', cfg)
 
 def _save_interview_ticker(cfg):
-    with open(CONFIG_INTERVIEW_TICKER, 'w', encoding='utf-8') as f:
-        json.dump(cfg, f, ensure_ascii=False, indent=2)
+    _db_set_setting('ticker_interview', cfg)
 
 def _save_auth_ticker(cfg):
-    with open(CONFIG_AUTH_TICKER, 'w', encoding='utf-8') as f:
-        json.dump(cfg, f, ensure_ascii=False, indent=2)
+    _db_set_setting('ticker_auth', cfg)
 
 def _save_maintenance(cfg):
     with open(CONFIG_MAINT, 'w', encoding='utf-8') as f:
