@@ -352,10 +352,6 @@ def _db_get_setting(key):
     from sqlalchemy import text as _text
     try:
         with get_engine().connect() as conn:
-            conn.execute(_text('''CREATE TABLE IF NOT EXISTS app_settings (
-                key VARCHAR(100) PRIMARY KEY, value TEXT,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)'''))
-            conn.commit()
             row = conn.execute(_text('SELECT value FROM app_settings WHERE key=:k'), {'k': key}).fetchone()
             return json.loads(row[0]) if row else None
     except Exception as e:
