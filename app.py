@@ -77,6 +77,8 @@ def create_app():
             conn.commit()
     except Exception as e:
         print(f"⚠️ app_settings migration: {e}")
+    else:
+        print("✅ app_settings table ready")
 
     # ── Migration v86: SAS time fields ───────────────────────────────────────
     try:
