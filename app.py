@@ -29,7 +29,19 @@ def create_app():
     from flask_wtf.csrf import CSRFProtect
     csrf = CSRFProtect(app)
     # Exempt mobile API from CSRF (uses JWT instead)
-    from routes.download_data import dl_bp as _mapi
+    from routes.download_data import dl_bp
+    from routes.calendar_view   import calendar_bp
+    from routes.reservations  import reservations_bp
+    from routes.venues        import venues_bp
+    from routes.locations     import locations_bp, venues_mgmt_bp
+    from routes.contacts      import contacts_bp
+    from routes.groups        import groups_bp
+    from routes.reports       import reports_bp
+    from routes.checklists    import checklists_bp
+    from routes.blocked       import blocked_bp
+    from routes.ratings       import ratings_bp
+    from routes.public_calendar import public_cal_bp
+    from routes.backoffice    import bo_bp as _mapi
     csrf.exempt(_mapi)
     # ── Rate Limiter ──────────────────────────────────────────────────────────
     from utils.limiter import limiter
@@ -65,18 +77,6 @@ def create_app():
             conn.commit()
     except Exception as e:
         print(f"⚠️ Column migration: {e}")
-
-    # ── Migration: app_settings table ───────────────────────────────────────
-    try:
-        from sqlalchemy import text
-        with get_engine().connect() as conn:
-            conn.execute(text('''CREATE TABLE IF NOT EXISTS app_settings (
-                key VARCHAR(100) PRIMARY KEY,
-                value TEXT,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)'''))
-            conn.commit()
-    except Exception as e:
-        print(f"⚠️ app_settings migration: {e}")
 
     # ── Migration v86: SAS time fields ───────────────────────────────────────
     try:
@@ -144,10 +144,26 @@ def create_app():
     from routes.sas           import sas_bp
     from routes.mobile_api import mobile_api_bp
     from routes.download_data import dl_bp
+    from routes.calendar_view   import calendar_bp
+    from routes.reservations  import reservations_bp
+    from routes.venues        import venues_bp
+    from routes.locations     import locations_bp, venues_mgmt_bp
+    from routes.contacts      import contacts_bp
+    from routes.groups        import groups_bp
+    from routes.reports       import reports_bp
+    from routes.checklists    import checklists_bp
+    from routes.blocked       import blocked_bp
+    from routes.ratings       import ratings_bp
+    from routes.public_calendar import public_cal_bp
+    from routes.backoffice    import bo_bp
 
     for bp in [auth_bp, admin_bp, api_bp, eas_bp, iface_bp,
                users_bp, settings_bp, cp_bp,
-               announcements_bp, interviews_bp, sas_bp, mobile_api_bp, dl_bp]:
+               announcements_bp, interviews_bp, sas_bp,
+               calendar_bp, reservations_bp, venues_bp, locations_bp,
+               venues_mgmt_bp, contacts_bp, groups_bp, reports_bp,
+               checklists_bp, blocked_bp, ratings_bp, public_cal_bp,
+               bo_bp, mobile_api_bp, dl_bp]:
         app.register_blueprint(bp)        
 
     # Jinja filters
@@ -275,67 +291,21 @@ def create_app():
                         'font': 'Tahoma', 'size': 15, 'speed': 35, 'bg': default_bg, 'logo_url': '',
                         'logo_size': 28, 'logo_pulse': True, 'logo_pulse_speed': 14,
                         'sep_img_url': '', 'mask_fade': 12, 'interview_mode': 'scroll'}
-        def _db_get_ticker(key):
-            try:
-                from sqlalchemy import text as _t
-                with get_engine().connect() as c:
-                    row = c.execute(_t('SELECT value FROM app_settings WHERE key=:k'), {'k': key}).fetchone()
-                    return json.loads(row[0]) if row else {}
-            except Exception:
-                return {}
-
         def get_ticker_cfg():
-            import json as _json
-            try:
-                from sqlalchemy import text as _t
-                with get_engine().connect() as _c:
-                    _row = _c.execute(_t('SELECT value FROM app_settings WHERE key=:k'), {'k': 'ticker_main'}).fetchone()
-                    if _row:
-                        _cfg_path = os.path.join(os.path.dirname(__file__), '_ticker_main_tmp.json')
-                        open(_cfg_path, 'w').write(_row[0])
-                        return _build_ticker_cfg(_cfg_path,
-                            '', '',
-                            '#F2C99A', '#28559B')
-            except Exception: pass
             return _build_ticker_cfg(
                 os.path.join(os.path.dirname(__file__), 'ticker_config.json'),
-                '', '',
+                'مرحباً بكم في نظام STAP لالحضور والمقابلات', 'Welcome to STAP Reservation System',
                 '#F2C99A', '#28559B')
         def get_auth_ticker_cfg():
-            import json as _json
-            try:
-                from sqlalchemy import text as _t
-                with get_engine().connect() as _c:
-                    _row = _c.execute(_t('SELECT value FROM app_settings WHERE key=:k'), {'k': 'ticker_auth'}).fetchone()
-                    if _row:
-                        _cfg_path = os.path.join(os.path.dirname(__file__), '_ticker_auth_tmp.json')
-                        open(_cfg_path, 'w').write(_row[0])
-                        return _build_ticker_cfg(_cfg_path,
-                            '', '',
-                            '#ffffff', '#1a3a6c')
-            except Exception: pass
             return _build_ticker_cfg(
                 os.path.join(os.path.dirname(__file__), 'auth_ticker_config.json'),
-                '', '',
+                'مرحباً بكم — سجّل دخولك للمتابعة', 'Welcome — Please sign in',
                 '#ffffff', '#1a3a6c')
         def get_interview_ticker_cfg():
-            try:
-                from sqlalchemy import text as _t
-                with get_engine().connect() as _c:
-                    _row = _c.execute(_t('SELECT value FROM app_settings WHERE key=:k'), {'k': 'ticker_interview'}).fetchone()
-                    if _row:
-                        _cfg_path = os.path.join(os.path.dirname(__file__), '_ticker_interview_tmp.json')
-                        open(_cfg_path, 'w').write(_row[0])
-                        cfg = _build_ticker_cfg(_cfg_path,
-                            '', '',
-                            '#ffffff', '#2563eb')
-                    else:
-                        raise Exception('not found')
-            except Exception:
-                cfg = _build_ticker_cfg(
-                    os.path.join(os.path.dirname(__file__), 'interview_ticker_config.json'),
-                    '', '',
-                    '#ffffff', '#2563eb')
+            cfg = _build_ticker_cfg(
+                os.path.join(os.path.dirname(__file__), 'interview_ticker_config.json'),
+                'مرحباً بكم في بوابة مقابلات أولياء الأمور', 'Welcome to the Parent Interview Portal',
+                '#ffffff', '#2563eb')
             # Interview pages have light background — if bg is transparent, darken text
             if cfg['bg'] == 'transparent' and cfg['fg'].lower() in ('#ffffff', '#fff', 'white'):
                 cfg['fg'] = '#1e293b'
