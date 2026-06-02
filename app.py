@@ -291,21 +291,28 @@ def create_app():
                         'font': 'Tahoma', 'size': 15, 'speed': 35, 'bg': default_bg, 'logo_url': '',
                         'logo_size': 28, 'logo_pulse': True, 'logo_pulse_speed': 14,
                         'sep_img_url': '', 'mask_fade': 12, 'interview_mode': 'scroll'}
+        def _db_ticker(key, default_ar, default_en, default_fg, default_bg):
+            try:
+                from sqlalchemy import text as _t
+                import tempfile, json as _j
+                with get_engine().connect() as _c:
+                    _row = _c.execute(_t('SELECT value FROM app_settings WHERE key=:k'), {'k': key}).fetchone()
+                    if _row:
+                        _f = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, encoding='utf-8')
+                        _f.write(_row[0]); _f.flush(); _f.close()
+                        return _build_ticker_cfg(_f.name, default_ar, default_en, default_fg, default_bg)
+            except Exception: pass
+            return _build_ticker_cfg('', default_ar, default_en, default_fg, default_bg)
+
         def get_ticker_cfg():
-            return _build_ticker_cfg(
-                os.path.join(os.path.dirname(__file__), 'ticker_config.json'),
-                'مرحباً بكم في نظام STAP لالحضور والمقابلات', 'Welcome to STAP Reservation System',
-                '#F2C99A', '#28559B')
+            return _db_ticker('ticker_main',
+                '', '', '#F2C99A', '#28559B')
         def get_auth_ticker_cfg():
-            return _build_ticker_cfg(
-                os.path.join(os.path.dirname(__file__), 'auth_ticker_config.json'),
-                'مرحباً بكم — سجّل دخولك للمتابعة', 'Welcome — Please sign in',
-                '#ffffff', '#1a3a6c')
+            return _db_ticker('ticker_auth',
+                '', '', '#ffffff', '#1a3a6c')
         def get_interview_ticker_cfg():
-            cfg = _build_ticker_cfg(
-                os.path.join(os.path.dirname(__file__), 'interview_ticker_config.json'),
-                'مرحباً بكم في بوابة مقابلات أولياء الأمور', 'Welcome to the Parent Interview Portal',
-                '#ffffff', '#2563eb')
+            cfg = _db_ticker('ticker_interview',
+                '', '', '#ffffff', '#2563eb')
             # Interview pages have light background — if bg is transparent, darken text
             if cfg['bg'] == 'transparent' and cfg['fg'].lower() in ('#ffffff', '#fff', 'white'):
                 cfg['fg'] = '#1e293b'
