@@ -96,7 +96,8 @@ def employees():
 @hrs_bp.route('/employees/new', methods=['GET', 'POST'])
 @login_required
 def employee_new():
-    from models.hrs_models import HRSEmployee, HRSDepartment, HRSPosition, User
+    from models.hrs_models import HRSEmployee, HRSDepartment, HRSPosition
+    from models.database import User
     db = _db()
 
     departments = db.query(HRSDepartment).filter_by(is_active=True).order_by(HRSDepartment.name).all()
@@ -203,7 +204,8 @@ def employee_view(emp_id):
 @hrs_bp.route('/employees/<int:emp_id>/edit', methods=['GET', 'POST'])
 @login_required
 def employee_edit(emp_id):
-    from models.hrs_models import HRSEmployee, HRSDepartment, HRSPosition, User
+    from models.hrs_models import HRSEmployee, HRSDepartment, HRSPosition
+    from models.database import User
     db = _db()
     emp = db.query(HRSEmployee).filter_by(id=emp_id).first()
     if not emp:
