@@ -1542,13 +1542,625 @@ class HRSSalarySlip(Base):
 def seed_database(session):
     if session.query(User).count() > 0:
         return
-    print('...')
+    print('🌱 بذر قاعدة البيانات...')
 
-    #
+    # ── الخطوة 1: الصلاحيات ─────────────────────────────────────────────────
     perms_data = [
         ('dashboard_view','عرض لوحة التحكم','رئيسي'),
         ('calendar_view','عرض التقويم','رئيسي'),
         ('locations_view','عرض المواقع','مواقع'),
         ('locations_add','إضافة مواقع','مواقع'),
         ('locations_edit','تعديل مواقع','مواقع'),
-        ('locations_delete',
+        ('locations_delete','حذف مواقع','مواقع'),
+        ('venues_view','عرض القاعات','قاعات'),
+        ('venues_add','إضافة قاعات','قاعات'),
+        ('venues_edit','تعديل قاعات','قاعات'),
+        ('venues_delete','حذف قاعات','قاعات'),
+        ('reservations_view','عرض الحجوزات','حجوزات'),
+        ('reservations_add','إضافة حجوزات','حجوزات'),
+        ('reservations_edit','تعديل حجوزات','حجوزات'),
+        ('reservations_delete','حذف حجوزات','حجوزات'),
+        ('reservations_approve','الموافقة على الحجوزات','حجوزات'),
+        ('users_view','عرض المستخدمين','مستخدمين'),
+        ('users_add','إضافة مستخدمين','مستخدمين'),
+        ('users_edit','تعديل مستخدمين','مستخدمين'),
+        ('users_delete','حذف مستخدمين','مستخدمين'),
+        ('reports_view','عرض التقارير','تقارير'),
+        ('reports_export','تصدير التقارير','تقارير'),
+        ('checklists_view','عرض قوائم المهام','مهام'),
+        ('checklists_add','إضافة قوائم مهام','مهام'),
+        ('checklists_edit','تعديل قوائم مهام','مهام'),
+        ('checklists_delete','حذف قوائم مهام','مهام'),
+        ('contacts_view','عرض جهات الاتصال','اتصال'),
+        ('contacts_add','إضافة جهات اتصال','اتصال'),
+        ('contacts_edit','تعديل جهات اتصال','اتصال'),
+        ('maintenance_access','الوصول للصيانة','إدارة'),
+        ('settings_access','الوصول للإعدادات','إدارة'),
+    ]
+    perm_objs = {}
+    for code, name, module in perms_data:
+        p = Permission(code=code, name=name, module=module, category=module)
+        session.add(p)
+        perm_objs[code] = p
+    session.flush()
+
+    # ── الخطوة 2: الأدوار ───────────────────────────────────────────────────
+    admin_role   = Role(name='مدير النظام', name_en='Admin',   description='كامل الصلاحيات',    is_default=True)
+    manager_role = Role(name='مشرف',        name_en='Manager', description='صلاحيات إشرافية',   is_default=True)
+    user_role    = Role(name='مستخدم',      name_en='User',    description='صلاحيات أساسية',    is_default=True)
+    session.add_all([admin_role, manager_role, user_role])
+    session.flush()
+
+    for p in perm_objs.values():
+        session.add(RolePermission(role_id=admin_role.id, permission_id=p.id,
+            can_view=True, can_add=True, can_edit=True, can_delete=True, can_approve=True))
+    for p in perm_objs.values():
+        session.add(RolePermission(role_id=manager_role.id, permission_id=p.id,
+            can_view=True, can_add='add' in p.code, can_edit='edit' in p.code,
+            can_delete=False, can_approve='approve' in p.code))
+    for code in ['dashboard_view','calendar_view','venues_view','reservations_view',
+                 'reservations_add','checklists_view','reports_view','contacts_view']:
+        if code in perm_objs:
+            session.add(RolePermission(role_id=user_role.id, permission_id=perm_objs[code].id,
+                can_view=True, can_add=(code == 'reservations_add'),
+                can_edit=False, can_delete=False, can_approve=False))
+
+    # ── الخطوة 3: المستخدمون الأساسيون ─────────────────────────────────────
+    def _h(pw): return hashlib.sha256(pw.encode()).hexdigest()
+    session.add(User(username='admin',   email='admin@ars.local',
+        password_hash=_h('admin'),   role_id=admin_role.id,
+        full_name='مدير النظام',  is_verified=True, is_active=True))
+    session.add(User(username='manager', email='manager@ars.local',
+        password_hash=_h('manager'), role_id=manager_role.id,
+        full_name='المشرف العام', is_verified=True, is_active=True))
+    session.add(User(username='user',    email='user@ars.local',
+        password_hash=_h('user'),    role_id=user_role.id,
+        full_name='مستخدم عادي', is_verified=True, is_active=True))
+
+    # ✅ حفظ المستخدمين الأساسيين أولاً — هذا الأهم
+    session.commit()
+    print('✅ تم إنشاء المستخدمين: admin / manager / user')
+
+    # ── الخطوة 4: البيانات التجريبية (اختيارية — لا تؤثر على الدخول) ────────
+    try:
+        from datetime import timedelta
+        admin_user   = session.query(User).filter_by(username='admin').first()
+        manager_user = session.query(User).filter_by(username='manager').first()
+        regular_user = session.query(User).filter_by(username='user').first()
+
+        loc1 = Location(name='المبنى الرئيسي',  name_en='Main Building',    city='الرياض', area='حي الملك عبدالله', is_active=True)
+        loc2 = Location(name='مركز المؤتمرات', name_en='Conference Center', city='الرياض', area='حي السفارات',      is_active=True)
+        session.add_all([loc1, loc2])
+        session.flush()
+
+        venue1 = Venue(name='قاعة الاجتماعات الكبرى',    code='MH-01',  capacity=50,  location_id=loc1.id, is_active=True, requires_approval=True)
+        venue2 = Venue(name='قاعة التدريب A',             code='TR-A',   capacity=20,  location_id=loc1.id, is_active=True, requires_approval=False)
+        venue3 = Venue(name='قاعة المؤتمرات الدولية',   code='CC-INT', capacity=200, location_id=loc2.id, is_active=True, requires_approval=True)
+        session.add_all([venue1, venue2, venue3])
+        session.flush()
+
+        session.commit()
+        print(f'✅ بيانات تجريبية: 3 قاعات + موقعان')
+
+    except Exception as e:
+        session.rollback()
+        print(f'⚠️ البيانات التجريبية فشلت (التطبيق يعمل بشكل طبيعي): {e}')
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PARENT INTERVIEWS MODULE
+# ══════════════════════════════════════════════════════════════════════════════
+
+class PIEvent(Base):
+    """Interview Event (e.g. Term 1 Parent-Teacher Interviews)"""
+    __tablename__ = 'pi_events'
+    id              = Column(Integer, primary_key=True)
+    name            = Column(String(200), nullable=False)
+    event_code      = Column(String(20), unique=True, nullable=False)
+    school_name     = Column(String(200))
+    school_logo_url = Column(String(500))
+    brand_color     = Column(String(10), default='#0d6efd')
+    description     = Column(Text)
+    event_date      = Column(String(200))
+    slot_duration   = Column(Integer, default=5)
+    break_duration  = Column(Integer, default=0)
+    allow_comments  = Column(Boolean, default=True)
+    allow_multiple_children = Column(Boolean, default=False)
+    send_reminders  = Column(Boolean, default=True)
+    reminder_hours  = Column(Integer, default=24)
+    is_active       = Column(Boolean, default=True)
+    is_open         = Column(Boolean, default=True)
+    created_by      = Column(Integer, ForeignKey('users.id'))
+    created_at      = Column(DateTime, default=datetime.now)
+    use_hierarchy   = Column(Boolean, default=True)
+    teachers        = relationship('PITeacher', back_populates='event', cascade='all, delete-orphan')
+    stages          = relationship('PISchoolStage', back_populates='event', cascade='all, delete-orphan')
+    assignments     = relationship('PITeacherAssignment', back_populates='event', cascade='all, delete-orphan')
+    creator         = relationship('User', foreign_keys=[created_by])
+
+class PITeacher(Base):
+    """Teacher participating in an interview event"""
+    __tablename__ = 'pi_teachers'
+    id          = Column(Integer, primary_key=True)
+    event_id    = Column(Integer, ForeignKey('pi_events.id'), nullable=False)
+    name        = Column(String(200), nullable=False)
+    email       = Column(String(200))
+    subjects    = Column(String(500))
+    room        = Column(String(100))
+    teacher_code = Column(String(30))
+    photo_url    = Column(String(500))
+    attachments_json = Column(Text)
+    is_active   = Column(Boolean, default=True)
+    created_at  = Column(DateTime, default=datetime.now)
+    event       = relationship('PIEvent', back_populates='teachers')
+    slots       = relationship('PISlot', back_populates='teacher', cascade='all, delete-orphan')
+
+class PISlot(Base):
+    """Individual time slot for a teacher"""
+    __tablename__ = 'pi_slots'
+    id          = Column(Integer, primary_key=True)
+    teacher_id  = Column(Integer, ForeignKey('pi_teachers.id'), nullable=False)
+    event_id    = Column(Integer, ForeignKey('pi_events.id'), nullable=False)
+    slot_date   = Column(String(20), nullable=False)
+    start_time  = Column(String(10), nullable=False)
+    end_time    = Column(String(10), nullable=False)
+    is_break    = Column(Boolean, default=False)
+    is_booked   = Column(Boolean, default=False)
+    assignment_id = Column(Integer, ForeignKey('pi_teacher_assignments.id'), nullable=True)
+    created_at  = Column(DateTime, default=datetime.now)
+    teacher     = relationship('PITeacher', back_populates='slots')
+    assignment  = relationship('PITeacherAssignment', back_populates='slots')
+    booking     = relationship('PIBooking', back_populates='slot', uselist=False)
+
+class PIBooking(Base):
+    """Parent booking record"""
+    __tablename__ = 'pi_bookings'
+    id              = Column(Integer, primary_key=True)
+    slot_id         = Column(Integer, ForeignKey('pi_slots.id'), nullable=False)
+    event_id        = Column(Integer, ForeignKey('pi_events.id'), nullable=False)
+    booking_ref     = Column(String(30), unique=True, nullable=False)
+    parent_name     = Column(String(200), nullable=False)
+    parent_email    = Column(String(200))
+    parent_phone    = Column(String(50))
+    child_name      = Column(String(200), nullable=False)
+    comment         = Column(Text)
+    session_id      = Column(String(100))
+    booked_by_staff = Column(Boolean, default=False)
+    reminder_sent   = Column(Boolean, default=False)
+    status          = Column(String(20), default='confirmed')
+    cancelled_at    = Column(DateTime)
+    created_at      = Column(DateTime, default=datetime.now)
+    slot            = relationship('PISlot', back_populates='booking')
+    event           = relationship('PIEvent')
+
+class PIAppointmentRequest(Base):
+    """General appointment request — parent requests a meeting, admin assigns"""
+    __tablename__ = 'pi_appointment_requests'
+    id              = Column(Integer, primary_key=True)
+    event_id        = Column(Integer, ForeignKey('pi_events.id'), nullable=False)
+    request_code    = Column(String(30), unique=True, nullable=False)
+    parent_name     = Column(String(200), nullable=False)
+    parent_email    = Column(String(200))
+    parent_phone    = Column(String(50))
+    child_name      = Column(String(200), nullable=False)
+    child_grade     = Column(String(50))
+    reason          = Column(Text, nullable=False)
+    preferred_date  = Column(String(20))
+    preferred_time  = Column(String(20))  # e.g. "morning" / "afternoon" or specific HH:MM
+    status          = Column(String(20), default='pending')  # pending/approved/rejected/amended
+    admin_notes     = Column(Text)
+    assigned_slot_id = Column(Integer, ForeignKey('pi_slots.id'), nullable=True)
+    assigned_date   = Column(String(20))
+    assigned_time   = Column(String(10))
+    approved_by     = Column(Integer, ForeignKey('users.id'), nullable=True)
+    approved_at     = Column(DateTime)
+    created_at      = Column(DateTime, default=datetime.now)
+    event           = relationship('PIEvent')
+    assigned_slot   = relationship('PISlot')
+    approver        = relationship('User', foreign_keys=[approved_by])
+
+class PICalendarSlot(Base):
+    """General appointment calendar — blocked periods / breaks managed by admin"""
+    __tablename__ = 'pi_calendar_slots'
+    id          = Column(Integer, primary_key=True)
+    slot_date   = Column(String(20), nullable=False)
+    start_time  = Column(String(10), nullable=False)
+    end_time    = Column(String(10), nullable=False)
+    status      = Column(String(20), default='available')  # available/blocked
+    note        = Column(Text)
+    created_by  = Column(Integer, ForeignKey('users.id'), nullable=True)
+    created_at  = Column(DateTime, default=datetime.now)
+    creator     = relationship('User', foreign_keys=[created_by])
+    bookings    = relationship('PICalendarBooking', back_populates='slot', cascade='all, delete-orphan')
+
+class PICalendarBooking(Base):
+    """Public appointment request — user picks any time within work hours"""
+    __tablename__ = 'pi_calendar_bookings'
+    id              = Column(Integer, primary_key=True)
+    slot_id         = Column(Integer, ForeignKey('pi_calendar_slots.id'), nullable=True)  # kept for backwards compat
+    booking_date    = Column(String(20))   # date picked by user (YYYY-MM-DD)
+    start_time      = Column(String(10))   # from time picked by user (HH:MM)
+    end_time        = Column(String(10))   # to time picked by user (HH:MM)
+    request_code    = Column(String(30), unique=True, nullable=False)
+    requester_name  = Column(String(200), nullable=False)
+    requester_email = Column(String(200))
+    requester_phone = Column(String(50))
+    person_to_meet  = Column(String(200), nullable=False)
+    reason          = Column(Text, nullable=False)
+    status          = Column(String(20), default='pending')  # pending/approved/rejected
+    admin_notes     = Column(Text)
+    approved_by     = Column(Integer, ForeignKey('users.id'), nullable=True)
+    approved_at     = Column(DateTime)
+    created_at      = Column(DateTime, default=datetime.now)
+    slot            = relationship('PICalendarSlot', back_populates='bookings')
+    approver        = relationship('User', foreign_keys=[approved_by])
+
+# ── Hierarchy models for structured interview events ──────────────────────────
+
+class PISchoolStage(Base):
+    """School stage (e.g. Primary, Middle, High)"""
+    __tablename__ = 'pi_school_stages'
+    id          = Column(Integer, primary_key=True)
+    event_id    = Column(Integer, ForeignKey('pi_events.id'), nullable=False)
+    name        = Column(String(100), nullable=False)
+    name_ar     = Column(String(100))
+    sort_order  = Column(Integer, default=0)
+    created_at  = Column(DateTime, default=datetime.now)
+    event       = relationship('PIEvent', back_populates='stages')
+    classes     = relationship('PISchoolClass', back_populates='stage', cascade='all, delete-orphan',
+                               order_by='PISchoolClass.sort_order')
+
+class PISchoolClass(Base):
+    """Class within a stage (e.g. Grade 1, Grade 2)"""
+    __tablename__ = 'pi_school_classes'
+    id          = Column(Integer, primary_key=True)
+    stage_id    = Column(Integer, ForeignKey('pi_school_stages.id'), nullable=False)
+    event_id    = Column(Integer, ForeignKey('pi_events.id'), nullable=False)
+    name        = Column(String(100), nullable=False)
+    name_ar     = Column(String(100))
+    sort_order  = Column(Integer, default=0)
+    created_at  = Column(DateTime, default=datetime.now)
+    stage       = relationship('PISchoolStage', back_populates='classes')
+    sections    = relationship('PISection', back_populates='school_class', cascade='all, delete-orphan',
+                               order_by='PISection.sort_order')
+
+class PISection(Base):
+    """Section within a class (e.g. A, B, C)"""
+    __tablename__ = 'pi_sections'
+    id          = Column(Integer, primary_key=True)
+    class_id    = Column(Integer, ForeignKey('pi_school_classes.id'), nullable=False)
+    event_id    = Column(Integer, ForeignKey('pi_events.id'), nullable=False)
+    name        = Column(String(20), nullable=False)
+    sort_order  = Column(Integer, default=0)
+    created_at  = Column(DateTime, default=datetime.now)
+    school_class = relationship('PISchoolClass', back_populates='sections')
+    assignments = relationship('PITeacherAssignment', back_populates='section', cascade='all, delete-orphan')
+
+class PITeacherAssignment(Base):
+    """Links a teacher to a specific section+course within an event"""
+    __tablename__ = 'pi_teacher_assignments'
+    id              = Column(Integer, primary_key=True)
+    event_id        = Column(Integer, ForeignKey('pi_events.id'), nullable=False)
+    teacher_id      = Column(Integer, ForeignKey('pi_teachers.id'), nullable=False)
+    section_id      = Column(Integer, ForeignKey('pi_sections.id'), nullable=False)
+    course_name     = Column(String(200), nullable=False)
+    course_name_ar  = Column(String(200))
+    room            = Column(String(100))
+    assignment_code = Column(String(30), unique=True, nullable=False)
+    slot_duration   = Column(Integer)
+    is_active       = Column(Boolean, default=True)
+    created_at      = Column(DateTime, default=datetime.now)
+    event           = relationship('PIEvent', back_populates='assignments')
+    teacher         = relationship('PITeacher')
+    section         = relationship('PISection', back_populates='assignments')
+    slots           = relationship('PISlot', back_populates='assignment')
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SAS — SCHOOL ABSENT SYSTEM
+# ══════════════════════════════════════════════════════════════════════════════
+
+class SASConfig(Base):
+    """Module-level settings for the School Absent System"""
+    __tablename__ = 'sas_configs'
+    id              = Column(Integer, primary_key=True)
+    school_name     = Column(String(200))
+    school_name_en  = Column(String(200))
+    school_logo_b64 = Column(Text)
+    academic_year   = Column(String(20))
+    ticker_json     = Column(Text)          # JSON — same format as interview ticker
+    theme_primary       = Column(String(20), default='#0891b2')
+    theme_primary_dark  = Column(String(20), default='#0e7490')
+    theme_primary_light = Column(String(20), default='#22d3ee')
+    theme_bg            = Column(String(20), default='#ecfeff')
+    is_active       = Column(Boolean, default=True)
+    created_at      = Column(DateTime, default=datetime.now)
+    years           = relationship('SASYear', back_populates='config', cascade='all, delete-orphan',
+                                   order_by='SASYear.order_num')
+    stages          = relationship('SASStage', back_populates='config', cascade='all, delete-orphan')
+    staff           = relationship('SASStaff', back_populates='config', cascade='all, delete-orphan')
+    holidays        = relationship('SASHoliday', back_populates='config', cascade='all, delete-orphan')
+    eas_groups      = relationship('EASGroup', back_populates='config', cascade='all, delete-orphan')
+
+class SASYear(Base):
+    """Educational year (e.g. 2025-2026)"""
+    __tablename__ = 'sas_years'
+    id          = Column(Integer, primary_key=True)
+    config_id   = Column(Integer, ForeignKey('sas_configs.id'), nullable=False)
+    name        = Column(String(100), nullable=False)
+    name_en     = Column(String(100))
+    order_num   = Column(Integer, default=0)
+    is_active   = Column(Boolean, default=True)
+    created_at  = Column(DateTime, default=datetime.now)
+    config      = relationship('SASConfig', back_populates='years')
+    semesters   = relationship('SASSemester', back_populates='year', cascade='all, delete-orphan',
+                               order_by='SASSemester.order_num')
+
+class SASSemester(Base):
+    """Semester within a year (First/Second)"""
+    __tablename__ = 'sas_semesters'
+    id          = Column(Integer, primary_key=True)
+    year_id     = Column(Integer, ForeignKey('sas_years.id'), nullable=False)
+    name        = Column(String(100), nullable=False)
+    name_en     = Column(String(100))
+    order_num   = Column(Integer, default=0)
+    is_active   = Column(Boolean, default=True)
+    created_at  = Column(DateTime, default=datetime.now)
+    year        = relationship('SASYear', back_populates='semesters')
+    stages      = relationship('SASStage', back_populates='semester', cascade='all, delete-orphan',
+                               order_by='SASStage.order_num')
+
+class SASStage(Base):
+    """Educational stage (e.g. KG, Primary, Middle, High)"""
+    __tablename__ = 'sas_stages'
+    id          = Column(Integer, primary_key=True)
+    config_id   = Column(Integer, ForeignKey('sas_configs.id'), nullable=False)
+    semester_id = Column(Integer, ForeignKey('sas_semesters.id'), nullable=True)
+    name        = Column(String(100), nullable=False)
+    name_en     = Column(String(100))
+    order_num   = Column(Integer, default=0)
+    created_at  = Column(DateTime, default=datetime.now)
+    config      = relationship('SASConfig', back_populates='stages')
+    semester    = relationship('SASSemester', back_populates='stages')
+    classes     = relationship('SASClass', back_populates='stage', cascade='all, delete-orphan',
+                               order_by='SASClass.order_num')
+
+class SASClass(Base):
+    """Class within a stage (e.g. Grade 1, Grade 2)"""
+    __tablename__ = 'sas_classes'
+    id          = Column(Integer, primary_key=True)
+    stage_id    = Column(Integer, ForeignKey('sas_stages.id'), nullable=False)
+    name        = Column(String(100), nullable=False)
+    name_en     = Column(String(100))
+    order_num   = Column(Integer, default=0)
+    created_at  = Column(DateTime, default=datetime.now)
+    stage       = relationship('SASStage', back_populates='classes')
+    sections    = relationship('SASSection', back_populates='sas_class', cascade='all, delete-orphan',
+                               order_by='SASSection.order_num')
+
+class SASSection(Base):
+    """Section within a class (e.g. A, B, C)"""
+    __tablename__ = 'sas_sections'
+    id          = Column(Integer, primary_key=True)
+    class_id    = Column(Integer, ForeignKey('sas_classes.id'), nullable=False)
+    name        = Column(String(20), nullable=False)
+    name_en     = Column(String(20))
+    order_num   = Column(Integer, default=0)
+    created_at  = Column(DateTime, default=datetime.now)
+    sas_class   = relationship('SASClass', back_populates='sections')
+    students    = relationship('SASStudent', back_populates='section', cascade='all, delete-orphan')
+
+class SASStudent(Base):
+    """Student record"""
+    __tablename__ = 'sas_students'
+    id              = Column(Integer, primary_key=True)
+    section_id      = Column(Integer, ForeignKey('sas_sections.id'), nullable=False, index=True)
+    student_number  = Column(String(30), index=True)
+    name            = Column(String(200), nullable=False)
+    name_en         = Column(String(200))
+    guardian_name   = Column(String(200))
+    guardian_phone  = Column(String(50))
+    guardian_email  = Column(String(200))
+    is_active       = Column(Boolean, default=True, index=True)
+    created_at      = Column(DateTime, default=datetime.now)
+    section         = relationship('SASSection', back_populates='students')
+    records         = relationship('SASRecord', back_populates='student', cascade='all, delete-orphan')
+
+class SASStaff(Base):
+    """Supervisor / Secretary / Manager"""
+    __tablename__ = 'sas_staff'
+    id          = Column(Integer, primary_key=True)
+    config_id   = Column(Integer, ForeignKey('sas_configs.id'), nullable=False)
+    name        = Column(String(200), nullable=False)
+    name_en     = Column(String(200))
+    email       = Column(String(200))
+    phone       = Column(String(50))
+    staff_code  = Column(String(30), unique=True)
+    role        = Column(String(20), default='supervisor')   # supervisor / secretary / manager
+    stage_id    = Column(Integer, ForeignKey('sas_stages.id'), nullable=True)
+    is_active   = Column(Boolean, default=True)
+    created_at  = Column(DateTime, default=datetime.now)
+    config      = relationship('SASConfig', back_populates='staff')
+    stage       = relationship('SASStage')
+    records_logged = relationship('SASRecord', back_populates='staff', foreign_keys='SASRecord.staff_id')
+
+class SASRecord(Base):
+    """Individual attendance event"""
+    __tablename__ = 'sas_records'
+    __table_args__ = (
+        UniqueConstraint('student_id', 'record_date', 'record_type', name='uq_sas_record_student_date_type'),
+    )
+    id              = Column(Integer, primary_key=True)
+    student_id      = Column(Integer, ForeignKey('sas_students.id'), nullable=False, index=True)
+    staff_id        = Column(Integer, ForeignKey('sas_staff.id'), nullable=False)
+    record_date     = Column(String(20), nullable=False, index=True)        # YYYY-MM-DD
+    record_type     = Column(String(20), nullable=False, index=True)        # absent / late / leave / other
+    status          = Column(String(20), default='pending', index=True)     # pending / approved / rejected
+    all_day         = Column(Integer, default=1)                            # 1=all day, 0=partial
+    time_from       = Column(String(10), nullable=True)                     # HH:MM
+    time_to         = Column(String(10), nullable=True)                     # HH:MM
+    approved_by     = Column(Integer, ForeignKey('sas_staff.id'), nullable=True)
+    approved_at     = Column(DateTime)
+    notes           = Column(Text)
+    notes_en        = Column(Text)
+    attachment_b64  = Column(Text)
+    attachment_name = Column(String(255))
+    created_at      = Column(DateTime, default=datetime.now)
+    updated_at      = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    student         = relationship('SASStudent', back_populates='records')
+    staff           = relationship('SASStaff', back_populates='records_logged', foreign_keys=[staff_id])
+    approver        = relationship('SASStaff', foreign_keys=[approved_by])
+
+class SASHoliday(Base):
+    """Group / bulk holiday entry with approval workflow"""
+    __tablename__ = 'sas_holidays'
+    id          = Column(Integer, primary_key=True)
+    config_id   = Column(Integer, ForeignKey('sas_configs.id'), nullable=False)
+    title       = Column(String(200), nullable=False)
+    title_en    = Column(String(200))
+    start_date  = Column(Date, nullable=False)
+    end_date    = Column(Date, nullable=False)
+    applies_to  = Column(Text)          # JSON — legacy compat
+    scope_type  = Column(String(20), default='school')  # school / stages / classes / sections
+    scope_ids   = Column(Text)          # JSON list of selected IDs (empty = whole school)
+    status      = Column(String(20), default='pending')  # pending / approved / rejected
+    approved_by = Column(Integer, ForeignKey('sas_staff.id'), nullable=True)
+    approved_at = Column(DateTime)
+    created_by  = Column(Integer, ForeignKey('sas_staff.id'), nullable=True)
+    created_at  = Column(DateTime, default=datetime.now)
+    config      = relationship('SASConfig', back_populates='holidays')
+    creator     = relationship('SASStaff', foreign_keys=[created_by])
+    approver    = relationship('SASStaff', foreign_keys=[approved_by])
+
+
+class SASClassLeave(Base):
+    """Track students leaving classroom during the school day"""
+    __tablename__ = 'sas_class_leaves'
+    id              = Column(Integer, primary_key=True)
+    student_id      = Column(Integer, ForeignKey('sas_students.id'), nullable=False, index=True)
+    staff_id        = Column(Integer, ForeignKey('sas_staff.id'), nullable=False)
+    leave_date      = Column(String(20), nullable=False, index=True)        # YYYY-MM-DD
+    leave_time      = Column(String(10))                        # HH:MM
+    return_time     = Column(String(10))                        # HH:MM (null = not returned)
+    leave_type      = Column(String(30), nullable=False)        # library/not_showup/day_leave/counseling/clinic/cafeteria/exam/other
+    custom_type     = Column(String(100))                       # free text when leave_type='other'
+    status          = Column(String(20), default='pending', index=True)     # pending / approved / rejected
+    approved_by     = Column(Integer, ForeignKey('sas_staff.id'), nullable=True)
+    approved_at     = Column(DateTime)
+    notes           = Column(Text)
+    attachment_b64  = Column(Text)
+    attachment_name = Column(String(255))
+    created_at      = Column(DateTime, default=datetime.now)
+    updated_at      = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    student         = relationship('SASStudent')
+    staff           = relationship('SASStaff', foreign_keys=[staff_id])
+    approver        = relationship('SASStaff', foreign_keys=[approved_by])
+
+
+class SASPeriod(Base):
+    """Period/break schedule per stage per day of week"""
+    __tablename__ = 'sas_periods'
+    id          = Column(Integer, primary_key=True)
+    stage_id    = Column(Integer, ForeignKey('sas_stages.id'), nullable=False)
+    day_of_week = Column(Integer, nullable=False)         # 0=Sunday .. 6=Saturday
+    order_num   = Column(Integer, default=0)              # sequence within the day
+    period_type = Column(String(20), default='period')    # period / break
+    label       = Column(String(100))                     # e.g. "الحصة الأولى" or "فرصة"
+    label_en    = Column(String(100))
+    start_time  = Column(String(10), nullable=False)      # HH:MM
+    end_time    = Column(String(10), nullable=False)      # HH:MM
+    created_at  = Column(DateTime, default=datetime.now)
+    stage       = relationship('SASStage')
+
+
+class SASTimetable(Base):
+    """Timetable entry: subject + teacher for a section per period"""
+    __tablename__ = 'sas_timetable'
+    id            = Column(Integer, primary_key=True)
+    section_id    = Column(Integer, ForeignKey('sas_sections.id'), nullable=False)
+    period_id     = Column(Integer, ForeignKey('sas_periods.id'), nullable=False)
+    subject_name  = Column(String(200))                   # e.g. "اللغة العربية"
+    teacher_name  = Column(String(200))                   # e.g. "أ. محمد"
+    notes         = Column(Text)
+    created_at    = Column(DateTime, default=datetime.now)
+    updated_at    = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    section       = relationship('SASSection')
+    period        = relationship('SASPeriod')
+
+
+# ═══════════════════════════════════════════════════
+#  Staff Attendance System (EAS - Employee Attendance)
+# ═══════════════════════════════════════════════════
+
+class EASGroup(Base):
+    """مجموعة الموظفين (ACS Staff, KG Teachers, etc.)"""
+    __tablename__ = 'eas_groups'
+    id          = Column(Integer, primary_key=True)
+    config_id   = Column(Integer, ForeignKey('sas_configs.id'), nullable=False)
+    name        = Column(String(200), nullable=False)   # e.g. "KG Teachers"
+    name_ar     = Column(String(200))                   # e.g. "معلمو الروضة"
+    work_days   = Column(String(20), default='1,2,3,4,5')  # 0=Sun,1=Mon,...,6=Sat
+    shift_start = Column(String(10), default='07:30')   # HH:MM
+    shift_end   = Column(String(10), default='15:00')   # HH:MM
+    late_tolerance = Column(Integer, default=10)        # minutes
+    created_at  = Column(DateTime, default=datetime.now)
+    config      = relationship('SASConfig')
+    employees   = relationship('EASEmployee', back_populates='group', cascade='all, delete-orphan')
+
+
+class EASEmployee(Base):
+    """موظف في مجموعة"""
+    __tablename__ = 'eas_employees'
+    id          = Column(Integer, primary_key=True)
+    group_id    = Column(Integer, ForeignKey('eas_groups.id'), nullable=False)
+    name        = Column(String(200), nullable=False)
+    name_en     = Column(String(200))
+    email       = Column(String(200))
+    phone       = Column(String(50))
+    employee_id = Column(String(50))                    # رقم الموظف
+    department  = Column(String(200))                   # القسم / الإدارة
+    is_active   = Column(Boolean, default=True)
+    created_at  = Column(DateTime, default=datetime.now)
+    group       = relationship('EASGroup', back_populates='employees')
+    records     = relationship('EASRecord', back_populates='employee', cascade='all, delete-orphan')
+
+
+class EASShift(Base):
+    """فترة مناوبة لمجموعة"""
+    __tablename__ = 'eas_shifts'
+    id          = Column(Integer, primary_key=True)
+    group_id    = Column(Integer, ForeignKey('eas_groups.id'), nullable=False)
+    name        = Column(String(200), nullable=False)
+    shift_start = Column(String(10), nullable=False)
+    shift_end   = Column(String(10), nullable=False)
+    created_at  = Column(DateTime, default=datetime.now)
+    group       = relationship('EASGroup')
+    assignments = relationship('EASShiftAssignment', back_populates='shift', cascade='all, delete-orphan')
+
+
+class EASShiftAssignment(Base):
+    """تعيين موظف لمناوبة"""
+    __tablename__ = 'eas_shift_assignments'
+    id          = Column(Integer, primary_key=True)
+    shift_id    = Column(Integer, ForeignKey('eas_shifts.id'), nullable=False)
+    employee_id = Column(Integer, ForeignKey('eas_employees.id'), nullable=False)
+    date        = Column(String(10), nullable=False)    # YYYY-MM-DD
+    created_at  = Column(DateTime, default=datetime.now)
+    shift       = relationship('EASShift', back_populates='assignments')
+    employee    = relationship('EASEmployee')
+
+
+class EASRecord(Base):
+    """سجل حضور موظف (من ملف Excel أو يدوي)"""
+    __tablename__ = 'eas_records'
+    id          = Column(Integer, primary_key=True)
+    employee_id = Column(Integer, ForeignKey('eas_employees.id'), nullable=False)
+    record_date = Column(String(10), nullable=False)    # YYYY-MM-DD
+    check_in    = Column(String(10))                    # HH:MM
+    check_out   = Column(String(10))                    # HH:MM
+    status      = Column(String(20), default='present') # present/absent/late/early_leave
+    late_minutes = Column(Integer, default=0)
+    notes       = Column(Text)
+    source      = Column(String(20), default='excel')   # excel/manual
+    created_at  = Column(DateTime, default=datetime.now)
+    employee    = relationship('EASEmployee', back_populates='records')
