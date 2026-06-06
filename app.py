@@ -98,7 +98,7 @@ def create_app():
     except Exception as e:
         print(f"⚠️ EAS department migration: {e}")
 
-    # HRS Migration
+    # ── Migration: HRS tables ─────────────────────────────────────────────────
     try:
         from sqlalchemy import text
         with get_engine().connect() as conn:
@@ -114,9 +114,9 @@ def create_app():
             conn.execute(text("CREATE TABLE IF NOT EXISTS hrs_salaries (id SERIAL PRIMARY KEY, employee_id INTEGER UNIQUE NOT NULL REFERENCES hrs_employees(id), currency VARCHAR(10) DEFAULT 'JOD', basic_salary INTEGER DEFAULT 0, housing_allowance INTEGER DEFAULT 0, transport_allowance INTEGER DEFAULT 0, food_allowance INTEGER DEFAULT 0, phone_allowance INTEGER DEFAULT 0, other_allowances INTEGER DEFAULT 0, social_security INTEGER DEFAULT 0, income_tax INTEGER DEFAULT 0, other_deductions INTEGER DEFAULT 0, bank_name VARCHAR(200), bank_account VARCHAR(100), iban VARCHAR(50), effective_date DATE, notes TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_by INTEGER REFERENCES users(id))"))
             conn.execute(text("CREATE TABLE IF NOT EXISTS hrs_salary_slips (id SERIAL PRIMARY KEY, employee_id INTEGER NOT NULL REFERENCES hrs_employees(id), month INTEGER NOT NULL, year INTEGER NOT NULL, basic_salary INTEGER DEFAULT 0, housing_allowance INTEGER DEFAULT 0, transport_allowance INTEGER DEFAULT 0, food_allowance INTEGER DEFAULT 0, phone_allowance INTEGER DEFAULT 0, other_allowances INTEGER DEFAULT 0, overtime_amount INTEGER DEFAULT 0, overtime_hours INTEGER DEFAULT 0, social_security INTEGER DEFAULT 0, income_tax INTEGER DEFAULT 0, other_deductions INTEGER DEFAULT 0, leave_deductions INTEGER DEFAULT 0, notes TEXT, status VARCHAR(20) DEFAULT 'draft', issued_at TIMESTAMP, issued_by INTEGER REFERENCES users(id), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(employee_id, month, year))"))
             conn.commit()
-            print('HRS tables ready')
+            print('✅ HRS tables ready')
     except Exception as e:
-        print(f"HRS migration error: {e}")
+        print(f"⚠️ HRS migration: {e}")
 
 
     # ── DB session per request ────────────────────────────────────────────────
@@ -163,7 +163,7 @@ def create_app():
     from routes.eas import eas_bp
     from routes.iface_device import iface_bp
     from routes.sas           import sas_bp
-    from routes.hrs import hrs_bp
+from routes.hrs import hrs_bp
     from routes.mobile_api import mobile_api_bp
     from routes.download_data import dl_bp
     from routes.calendar_view   import calendar_bp
