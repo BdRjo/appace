@@ -1,6 +1,4 @@
-"""
-STAP - قاعدة البيانات الكاملة — مطابقة لـ v54
-"""
+""""""
 import os, hashlib
 try:
     from werkzeug.security import generate_password_hash as _wph
@@ -308,7 +306,7 @@ def get_engine():
     if db_url.startswith('postgres://'): db_url='postgresql://'+db_url[11:]
     if db_url and db_url.startswith('postgresql'):
         _engine=create_engine(db_url,pool_size=10,max_overflow=20,pool_pre_ping=True,pool_recycle=300)
-        print('✅ قاعدة البيانات: PostgreSQL')
+        print('...')
     else:
         db_path=os.environ.get('DB_PATH','ars_venues.db')
         _engine=create_engine(
@@ -706,129 +704,7 @@ class Announcement(Base):
 
 
 class AnnouncementDismissal(Base):
-    """Tracks which users have dismissed which announcements"""
-    __tablename__ = 'announcement_dismissals'
-    id              = Column(Integer, primary_key=True)
-    announcement_id = Column(Integer, ForeignKey('announcements.id', ondelete='CASCADE'))
-    user_id         = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'))
-    dismissed_at    = Column(DateTime, default=datetime.now)
-    announcement    = relationship('Announcement', back_populates='dismissals')
-    user            = relationship('User', foreign_keys=[user_id])
-
-def seed_database(session):
-    if session.query(User).count() > 0:
-        return
-    print('🌱 بذر قاعدة البيانات...')
-
-    # ── الخطوة 1: الصلاحيات ─────────────────────────────────────────────────
-    perms_data = [
-        ('dashboard_view','عرض لوحة التحكم','رئيسي'),
-        ('calendar_view','عرض التقويم','رئيسي'),
-        ('locations_view','عرض المواقع','مواقع'),
-        ('locations_add','إضافة مواقع','مواقع'),
-        ('locations_edit','تعديل مواقع','مواقع'),
-        ('locations_delete','حذف مواقع','مواقع'),
-        ('venues_view','عرض القاعات','قاعات'),
-        ('venues_add','إضافة قاعات','قاعات'),
-        ('venues_edit','تعديل قاعات','قاعات'),
-        ('venues_delete','حذف قاعات','قاعات'),
-        ('reservations_view','عرض الحجوزات','حجوزات'),
-        ('reservations_add','إضافة حجوزات','حجوزات'),
-        ('reservations_edit','تعديل حجوزات','حجوزات'),
-        ('reservations_delete','حذف حجوزات','حجوزات'),
-        ('reservations_approve','الموافقة على الحجوزات','حجوزات'),
-        ('users_view','عرض المستخدمين','مستخدمين'),
-        ('users_add','إضافة مستخدمين','مستخدمين'),
-        ('users_edit','تعديل مستخدمين','مستخدمين'),
-        ('users_delete','حذف مستخدمين','مستخدمين'),
-        ('reports_view','عرض التقارير','تقارير'),
-        ('reports_export','تصدير التقارير','تقارير'),
-        ('checklists_view','عرض قوائم المهام','مهام'),
-        ('checklists_add','إضافة قوائم مهام','مهام'),
-        ('checklists_edit','تعديل قوائم مهام','مهام'),
-        ('checklists_delete','حذف قوائم مهام','مهام'),
-        ('contacts_view','عرض جهات الاتصال','اتصال'),
-        ('contacts_add','إضافة جهات اتصال','اتصال'),
-        ('contacts_edit','تعديل جهات اتصال','اتصال'),
-        ('maintenance_access','الوصول للصيانة','إدارة'),
-        ('settings_access','الوصول للإعدادات','إدارة'),
-    ]
-    perm_objs = {}
-    for code, name, module in perms_data:
-        p = Permission(code=code, name=name, module=module, category=module)
-        session.add(p)
-        perm_objs[code] = p
-    session.flush()
-
-    # ── الخطوة 2: الأدوار ───────────────────────────────────────────────────
-    admin_role   = Role(name='مدير النظام', name_en='Admin',   description='كامل الصلاحيات',    is_default=True)
-    manager_role = Role(name='مشرف',        name_en='Manager', description='صلاحيات إشرافية',   is_default=True)
-    user_role    = Role(name='مستخدم',      name_en='User',    description='صلاحيات أساسية',    is_default=True)
-    session.add_all([admin_role, manager_role, user_role])
-    session.flush()
-
-    for p in perm_objs.values():
-        session.add(RolePermission(role_id=admin_role.id, permission_id=p.id,
-            can_view=True, can_add=True, can_edit=True, can_delete=True, can_approve=True))
-    for p in perm_objs.values():
-        session.add(RolePermission(role_id=manager_role.id, permission_id=p.id,
-            can_view=True, can_add='add' in p.code, can_edit='edit' in p.code,
-            can_delete=False, can_approve='approve' in p.code))
-    for code in ['dashboard_view','calendar_view','venues_view','reservations_view',
-                 'reservations_add','checklists_view','reports_view','contacts_view']:
-        if code in perm_objs:
-            session.add(RolePermission(role_id=user_role.id, permission_id=perm_objs[code].id,
-                can_view=True, can_add=(code == 'reservations_add'),
-                can_edit=False, can_delete=False, can_approve=False))
-
-    # ── الخطوة 3: المستخدمون الأساسيون ─────────────────────────────────────
-    def _h(pw): return hashlib.sha256(pw.encode()).hexdigest()
-    session.add(User(username='admin',   email='admin@ars.local',
-        password_hash=_h('admin'),   role_id=admin_role.id,
-        full_name='مدير النظام',  is_verified=True, is_active=True))
-    session.add(User(username='manager', email='manager@ars.local',
-        password_hash=_h('manager'), role_id=manager_role.id,
-        full_name='المشرف العام', is_verified=True, is_active=True))
-    session.add(User(username='user',    email='user@ars.local',
-        password_hash=_h('user'),    role_id=user_role.id,
-        full_name='مستخدم عادي', is_verified=True, is_active=True))
-
-    # ✅ حفظ المستخدمين الأساسيين أولاً — هذا الأهم
-    session.commit()
-    print('✅ تم إنشاء المستخدمين: admin / manager / user')
-
-    # ── الخطوة 4: البيانات التجريبية (اختيارية — لا تؤثر على الدخول) ────────
-    try:
-        from datetime import timedelta
-        admin_user   = session.query(User).filter_by(username='admin').first()
-        manager_user = session.query(User).filter_by(username='manager').first()
-        regular_user = session.query(User).filter_by(username='user').first()
-
-        loc1 = Location(name='المبنى الرئيسي',  name_en='Main Building',    city='الرياض', area='حي الملك عبدالله', is_active=True)
-        loc2 = Location(name='مركز المؤتمرات', name_en='Conference Center', city='الرياض', area='حي السفارات',      is_active=True)
-        session.add_all([loc1, loc2])
-        session.flush()
-
-        venue1 = Venue(name='قاعة الاجتماعات الكبرى',    code='MH-01',  capacity=50,  location_id=loc1.id, is_active=True, requires_approval=True)
-        venue2 = Venue(name='قاعة التدريب A',             code='TR-A',   capacity=20,  location_id=loc1.id, is_active=True, requires_approval=False)
-        venue3 = Venue(name='قاعة المؤتمرات الدولية',   code='CC-INT', capacity=200, location_id=loc2.id, is_active=True, requires_approval=True)
-        session.add_all([venue1, venue2, venue3])
-        session.flush()
-
-        session.commit()
-        print(f'✅ بيانات تجريبية: 3 قاعات + موقعان')
-
-    except Exception as e:
-        session.rollback()
-        print(f'⚠️ البيانات التجريبية فشلت (التطبيق يعمل بشكل طبيعي): {e}')
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# PARENT INTERVIEWS MODULE
-# ══════════════════════════════════════════════════════════════════════════════
-
-class PIEvent(Base):
-    """Interview Event (e.g. Term 1 Parent-Teacher Interviews)"""
+    """Tracks which users have dismissed which announcements""""""Interview Event (e.g. Term 1 Parent-Teacher Interviews)"""
     __tablename__ = 'pi_events'
     id              = Column(Integer, primary_key=True)
     name            = Column(String(200), nullable=False)
@@ -1241,7 +1117,7 @@ class SASPeriod(Base):
     day_of_week = Column(Integer, nullable=False)         # 0=Sunday .. 6=Saturday
     order_num   = Column(Integer, default=0)              # sequence within the day
     period_type = Column(String(20), default='period')    # period / break
-    label       = Column(String(100))                     # e.g. "الحصة الأولى" or "فرصة"
+    label       = Column(String(100))                     #
     label_en    = Column(String(100))
     start_time  = Column(String(10), nullable=False)      # HH:MM
     end_time    = Column(String(10), nullable=False)      # HH:MM
@@ -1255,8 +1131,8 @@ class SASTimetable(Base):
     id            = Column(Integer, primary_key=True)
     section_id    = Column(Integer, ForeignKey('sas_sections.id'), nullable=False)
     period_id     = Column(Integer, ForeignKey('sas_periods.id'), nullable=False)
-    subject_name  = Column(String(200))                   # e.g. "اللغة العربية"
-    teacher_name  = Column(String(200))                   # e.g. "أ. محمد"
+    subject_name  = Column(String(200))                   #
+    teacher_name  = Column(String(200))                   #
     notes         = Column(Text)
     created_at    = Column(DateTime, default=datetime.now)
     updated_at    = Column(DateTime, default=datetime.now, onupdate=datetime.now)
@@ -1269,12 +1145,12 @@ class SASTimetable(Base):
 # ═══════════════════════════════════════════════════
 
 class EASGroup(Base):
-    """مجموعة الموظفين (ACS Staff, KG Teachers, etc.)"""
+    """"""
     __tablename__ = 'eas_groups'
     id          = Column(Integer, primary_key=True)
     config_id   = Column(Integer, ForeignKey('sas_configs.id'), nullable=False)
     name        = Column(String(200), nullable=False)   # e.g. "KG Teachers"
-    name_ar     = Column(String(200))                   # e.g. "معلمو الروضة"
+    name_ar     = Column(String(200))                   #
     work_days   = Column(String(20), default='1,2,3,4,5')  # 0=Sun,1=Mon,...,6=Sat
     shift_start = Column(String(10), default='07:30')   # HH:MM
     shift_end   = Column(String(10), default='15:00')   # HH:MM
@@ -1285,7 +1161,7 @@ class EASGroup(Base):
 
 
 class EASEmployee(Base):
-    """موظف في مجموعة"""
+    """"""
     __tablename__ = 'eas_employees'
     id          = Column(Integer, primary_key=True)
     group_id    = Column(Integer, ForeignKey('eas_groups.id'), nullable=False)
@@ -1293,8 +1169,8 @@ class EASEmployee(Base):
     name_en     = Column(String(200))
     email       = Column(String(200))
     phone       = Column(String(50))
-    employee_id = Column(String(50))                    # رقم الموظف
-    department  = Column(String(200))                   # القسم / الإدارة
+    employee_id = Column(String(50))                    #
+    department  = Column(String(200))                   #
     is_active   = Column(Boolean, default=True)
     created_at  = Column(DateTime, default=datetime.now)
     group       = relationship('EASGroup', back_populates='employees')
@@ -1302,7 +1178,7 @@ class EASEmployee(Base):
 
 
 class EASShift(Base):
-    """فترة مناوبة لمجموعة"""
+    """"""
     __tablename__ = 'eas_shifts'
     id          = Column(Integer, primary_key=True)
     group_id    = Column(Integer, ForeignKey('eas_groups.id'), nullable=False)
@@ -1315,7 +1191,7 @@ class EASShift(Base):
 
 
 class EASShiftAssignment(Base):
-    """تعيين موظف لمناوبة"""
+    """"""
     __tablename__ = 'eas_shift_assignments'
     id          = Column(Integer, primary_key=True)
     shift_id    = Column(Integer, ForeignKey('eas_shifts.id'), nullable=False)
@@ -1327,7 +1203,7 @@ class EASShiftAssignment(Base):
 
 
 class EASRecord(Base):
-    """سجل حضور موظف (من ملف Excel أو يدوي)"""
+    """"""
     __tablename__ = 'eas_records'
     id          = Column(Integer, primary_key=True)
     employee_id = Column(Integer, ForeignKey('eas_employees.id'), nullable=False)
@@ -1342,18 +1218,18 @@ class EASRecord(Base):
     employee    = relationship('EASEmployee', back_populates='records')
 # ═══════════════════════════════════════════════════════════════
 #  HRS — Human Resources System
-#  أضف هذا الكود في نهاية ملف models/database.py
+#
 # ═══════════════════════════════════════════════════════════════
 
 class HRSDepartment(Base):
-    """الأقسام الإدارية"""
+    """"""
     __tablename__ = 'hrs_departments'
     id          = Column(Integer, primary_key=True)
     name        = Column(String(200), nullable=False)
     name_en     = Column(String(200))
-    code        = Column(String(50), unique=True, nullable=True)   # رمز القسم
-    parent_id   = Column(Integer, ForeignKey('hrs_departments.id'), nullable=True)  # قسم رئيسي
-    manager_id  = Column(Integer, ForeignKey('hrs_employees.id'), nullable=True)    # مدير القسم
+    code        = Column(String(50), unique=True, nullable=True)   #
+    parent_id   = Column(Integer, ForeignKey('hrs_departments.id'), nullable=True)  #
+    manager_id  = Column(Integer, ForeignKey('hrs_employees.id'), nullable=True)    #
     is_active   = Column(Boolean, default=True)
     created_at  = Column(DateTime, default=datetime.now)
     parent      = relationship('HRSDepartment', remote_side='HRSDepartment.id', foreign_keys=[parent_id])
@@ -1362,13 +1238,13 @@ class HRSDepartment(Base):
 
 
 class HRSPosition(Base):
-    """المسميات الوظيفية"""
+    """"""
     __tablename__ = 'hrs_positions'
     id              = Column(Integer, primary_key=True)
     name            = Column(String(200), nullable=False)
     name_en         = Column(String(200))
     department_id   = Column(Integer, ForeignKey('hrs_departments.id'), nullable=True)
-    grade           = Column(String(50))   # الدرجة الوظيفية
+    grade           = Column(String(50))   #
     is_active       = Column(Boolean, default=True)
     created_at      = Column(DateTime, default=datetime.now)
     department      = relationship('HRSDepartment', foreign_keys=[department_id])
@@ -1376,47 +1252,47 @@ class HRSPosition(Base):
 
 
 class HRSEmployee(Base):
-    """ملف الموظف الكامل"""
+    """"""
     __tablename__ = 'hrs_employees'
 
     id              = Column(Integer, primary_key=True)
-    # ── ربط اختياري بحساب المستخدم ─────────────────────────────
+    #
     user_id         = Column(Integer, ForeignKey('users.id'), nullable=True, unique=True)
 
-    # ── معلومات أساسية ──────────────────────────────────────────
-    employee_number = Column(String(50), unique=True, nullable=False)  # رقم الموظف
+    #
+    employee_number = Column(String(50), unique=True, nullable=False)  #
     full_name       = Column(String(200), nullable=False)
     full_name_en    = Column(String(200))
-    national_id     = Column(String(50))                # رقم الهوية / الإقامة
-    nationality     = Column(String(100))               # الجنسية
+    national_id     = Column(String(50))                #
+    nationality     = Column(String(100))               #
     birth_date      = Column(Date)
     gender          = Column(String(10))                # male / female
     marital_status  = Column(String(20))                # single/married/divorced/widowed
     religion        = Column(String(50))
-    photo_b64       = Column(Text)                      # صورة الموظف base64
+    photo_b64       = Column(Text)                      #
 
-    # ── معلومات الوظيفة ─────────────────────────────────────────
+    #
     department_id   = Column(Integer, ForeignKey('hrs_departments.id'), nullable=True, index=True)
     position_id     = Column(Integer, ForeignKey('hrs_positions.id'), nullable=True)
-    direct_manager_id = Column(Integer, ForeignKey('hrs_employees.id'), nullable=True)  # المدير المباشر
+    direct_manager_id = Column(Integer, ForeignKey('hrs_employees.id'), nullable=True)  #
     employment_type = Column(String(30), default='full_time')  # full_time/part_time/contract/intern
-    hire_date       = Column(Date)                      # تاريخ التعيين
-    probation_end   = Column(Date)                      # نهاية فترة التجربة
-    contract_end    = Column(Date)                      # نهاية العقد (للمتعاقدين)
-    work_location   = Column(String(200))               # مكان العمل
+    hire_date       = Column(Date)                      #
+    probation_end   = Column(Date)                      #
+    contract_end    = Column(Date)                      #
+    work_location   = Column(String(200))               #
     work_email      = Column(String(200))
     work_phone      = Column(String(50))
-    extension       = Column(String(20))                # تحويلة
+    extension       = Column(String(20))                #
 
-    # ── معلومات التواصل الشخصية ──────────────────────────────────
+    #
     personal_email  = Column(String(200))
     personal_phone  = Column(String(50))
     address         = Column(Text)
     emergency_contact_name  = Column(String(200))
     emergency_contact_phone = Column(String(50))
-    emergency_contact_rel   = Column(String(100))       # صلة القرابة
+    emergency_contact_rel   = Column(String(100))       #
 
-    # ── الحالة ───────────────────────────────────────────────────
+    #
     status          = Column(String(20), default='active', index=True)
     # active / on_leave / suspended / terminated / resigned
     termination_date    = Column(Date)
@@ -1427,7 +1303,7 @@ class HRSEmployee(Base):
     created_at      = Column(DateTime, default=datetime.now)
     updated_at      = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
-    # ── العلاقات ─────────────────────────────────────────────────
+    #
     user            = relationship('User', foreign_keys=[user_id])
     department      = relationship('HRSDepartment', back_populates='employees',
                                    foreign_keys=[department_id])
@@ -1445,36 +1321,36 @@ class HRSEmployee(Base):
 
 
 class HRSEducation(Base):
-    """الشهادات والتحصيل العلمي"""
+    """"""
     __tablename__ = 'hrs_education'
     id              = Column(Integer, primary_key=True)
     employee_id     = Column(Integer, ForeignKey('hrs_employees.id'), nullable=False, index=True)
     degree          = Column(String(100), nullable=False)
-    # بكالوريوس / ماجستير / دكتوراه / دبلوم / ثانوية / إلخ
-    major           = Column(String(200))               # التخصص
-    institution     = Column(String(300))               # الجامعة / المعهد
-    country         = Column(String(100))               # بلد الدراسة
+    #
+    major           = Column(String(200))               #
+    institution     = Column(String(300))               #
+    country         = Column(String(100))               #
     graduation_year = Column(Integer)
-    grade           = Column(String(50))                # المعدل / التقدير
-    attachment_b64  = Column(Text)                      # نسخة الشهادة
+    grade           = Column(String(50))                #
+    attachment_b64  = Column(Text)                      #
     attachment_name = Column(String(255))
-    is_primary      = Column(Boolean, default=False)    # الشهادة الرئيسية
+    is_primary      = Column(Boolean, default=False)    #
     created_at      = Column(DateTime, default=datetime.now)
     employee        = relationship('HRSEmployee', back_populates='education')
 
 
 class HRSLeaveType(Base):
-    """أنواع الإجازات"""
+    """"""
     __tablename__ = 'hrs_leave_types'
     id              = Column(Integer, primary_key=True)
     name            = Column(String(200), nullable=False)
     name_en         = Column(String(200))
-    code            = Column(String(30), unique=True)   # ANNUAL / SICK / MATERNITY / إلخ
-    days_per_year   = Column(Integer, default=0)        # الرصيد السنوي (0 = غير محدود)
-    is_paid         = Column(Boolean, default=True)     # مدفوعة / غير مدفوعة
-    requires_attachment = Column(Boolean, default=False) # تستلزم مرفقاً
-    min_days        = Column(Integer, default=1)        # أقل مدة
-    max_days        = Column(Integer, default=0)        # أكبر مدة (0 = بلا حد)
+    code            = Column(String(30), unique=True)   #
+    days_per_year   = Column(Integer, default=0)        #
+    is_paid         = Column(Boolean, default=True)     #
+    requires_attachment = Column(Boolean, default=False) #
+    min_days        = Column(Integer, default=1)        #
+    max_days        = Column(Integer, default=0)        #
     gender_specific = Column(String(10), default='all') # all / male / female
     color           = Column(String(20), default='#0C67EC')
     is_active       = Column(Boolean, default=True)
@@ -1484,17 +1360,17 @@ class HRSLeaveType(Base):
 
 
 class HRSLeaveBalance(Base):
-    """رصيد إجازات الموظف لكل نوع"""
+    """"""
     __tablename__ = 'hrs_leave_balances'
     __table_args__ = (UniqueConstraint('employee_id', 'leave_type_id', 'year',
                                        name='uq_hrs_leave_balance'),)
     id              = Column(Integer, primary_key=True)
     employee_id     = Column(Integer, ForeignKey('hrs_employees.id'), nullable=False, index=True)
     leave_type_id   = Column(Integer, ForeignKey('hrs_leave_types.id'), nullable=False)
-    year            = Column(Integer, nullable=False)   # السنة
-    entitled_days   = Column(Integer, default=0)        # الرصيد المستحق
-    used_days       = Column(Integer, default=0)        # المستخدم
-    carried_over    = Column(Integer, default=0)        # المرحّل من السنة السابقة
+    year            = Column(Integer, nullable=False)   #
+    entitled_days   = Column(Integer, default=0)        #
+    used_days       = Column(Integer, default=0)        #
+    carried_over    = Column(Integer, default=0)        #
     created_at      = Column(DateTime, default=datetime.now)
     updated_at      = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     employee        = relationship('HRSEmployee', back_populates='leave_balances')
@@ -1506,19 +1382,19 @@ class HRSLeaveBalance(Base):
 
 
 class HRSApprovalStep(Base):
-    """خطوة في تسلسل الموافقات لقسم معين"""
+    """"""
     __tablename__ = 'hrs_approval_steps'
     id              = Column(Integer, primary_key=True)
     department_id   = Column(Integer, ForeignKey('hrs_departments.id'), nullable=True)
-    # null = ينطبق على جميع الأقسام (افتراضي)
+    #
     leave_type_id   = Column(Integer, ForeignKey('hrs_leave_types.id'), nullable=True)
-    # null = ينطبق على جميع أنواع الإجازات
-    step_order      = Column(Integer, nullable=False, default=1)  # ترتيب الخطوة
+    #
+    step_order      = Column(Integer, nullable=False, default=1)  #
     step_role       = Column(String(50))
     # direct_manager / department_manager / hr_manager / ceo / specific_user
     approver_user_id = Column(Integer, ForeignKey('users.id'), nullable=True)
-    # لو step_role = specific_user
-    step_label      = Column(String(200))      # اسم الخطوة للعرض
+    #
+    step_label      = Column(String(200))      #
     step_label_en   = Column(String(200))
     is_active       = Column(Boolean, default=True)
     created_at      = Column(DateTime, default=datetime.now)
@@ -1528,7 +1404,7 @@ class HRSApprovalStep(Base):
 
 
 class HRSLeaveRequest(Base):
-    """طلب إجازة"""
+    """"""
     __tablename__ = 'hrs_leave_requests'
     id              = Column(Integer, primary_key=True)
     request_number  = Column(String(50), unique=True, nullable=False)
@@ -1541,12 +1417,12 @@ class HRSLeaveRequest(Base):
     attachment_b64  = Column(Text)
     attachment_name = Column(String(255))
     delegate_id     = Column(Integer, ForeignKey('hrs_employees.id'), nullable=True)
-    # من سيتولى مهامه أثناء الإجازة
+    #
 
     status          = Column(String(20), default='pending', index=True)
     # pending / approved / rejected / cancelled
 
-    current_step    = Column(Integer, default=1)        # الخطوة الحالية في التسلسل
+    current_step    = Column(Integer, default=1)        #
     rejection_reason = Column(Text)
 
     created_at      = Column(DateTime, default=datetime.now)
@@ -1561,7 +1437,7 @@ class HRSLeaveRequest(Base):
 
 
 class HRSLeaveApproval(Base):
-    """سجل موافقة/رفض خطوة في طلب إجازة"""
+    """"""
     __tablename__ = 'hrs_leave_approvals'
     id              = Column(Integer, primary_key=True)
     request_id      = Column(Integer, ForeignKey('hrs_leave_requests.id'), nullable=False)
@@ -1576,25 +1452,25 @@ class HRSLeaveApproval(Base):
 
 
 class HRSSalary(Base):
-    """راتب الموظف الأساسي والبدلات"""
+    """"""
     __tablename__ = 'hrs_salaries'
     id              = Column(Integer, primary_key=True)
     employee_id     = Column(Integer, ForeignKey('hrs_employees.id'), nullable=False,
                              unique=True)
     currency        = Column(String(10), default='JOD')
-    basic_salary    = Column(Integer, default=0)        # مخزّن بالفلوس (×1000)
-    housing_allowance   = Column(Integer, default=0)    # بدل سكن
-    transport_allowance = Column(Integer, default=0)    # بدل مواصلات
-    food_allowance      = Column(Integer, default=0)    # بدل وجبات
-    phone_allowance     = Column(Integer, default=0)    # بدل هاتف
-    other_allowances    = Column(Integer, default=0)    # بدلات أخرى
-    social_security     = Column(Integer, default=0)    # اشتراك الضمان الاجتماعي
-    income_tax          = Column(Integer, default=0)    # ضريبة الدخل الثابتة
-    other_deductions    = Column(Integer, default=0)    # خصومات أخرى ثابتة
+    basic_salary    = Column(Integer, default=0)        #
+    housing_allowance   = Column(Integer, default=0)    #
+    transport_allowance = Column(Integer, default=0)    #
+    food_allowance      = Column(Integer, default=0)    #
+    phone_allowance     = Column(Integer, default=0)    #
+    other_allowances    = Column(Integer, default=0)    #
+    social_security     = Column(Integer, default=0)    #
+    income_tax          = Column(Integer, default=0)    #
+    other_deductions    = Column(Integer, default=0)    #
     bank_name       = Column(String(200))
     bank_account    = Column(String(100))
     iban            = Column(String(50))
-    effective_date  = Column(Date)                      # تاريخ تطبيق الراتب
+    effective_date  = Column(Date)                      #
     notes           = Column(Text)
     updated_at      = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     updated_by      = Column(Integer, ForeignKey('users.id'), nullable=True)
@@ -1616,7 +1492,7 @@ class HRSSalary(Base):
 
 
 class HRSSalarySlip(Base):
-    """سليب راتب شهري"""
+    """"""
     __tablename__ = 'hrs_salary_slips'
     __table_args__ = (UniqueConstraint('employee_id', 'month', 'year',
                                        name='uq_hrs_salary_slip'),)
@@ -1624,21 +1500,21 @@ class HRSSalarySlip(Base):
     employee_id     = Column(Integer, ForeignKey('hrs_employees.id'), nullable=False, index=True)
     month           = Column(Integer, nullable=False)   # 1-12
     year            = Column(Integer, nullable=False)
-    # ── البنود المحفوظة وقت الإصدار ──────────────────────────────
+    #
     basic_salary        = Column(Integer, default=0)
     housing_allowance   = Column(Integer, default=0)
     transport_allowance = Column(Integer, default=0)
     food_allowance      = Column(Integer, default=0)
     phone_allowance     = Column(Integer, default=0)
     other_allowances    = Column(Integer, default=0)
-    overtime_amount     = Column(Integer, default=0)    # مبلغ الأوفر تايم
-    overtime_hours      = Column(Integer, default=0)    # ساعات الأوفر تايم
-    # ── الخصومات ─────────────────────────────────────────────────
+    overtime_amount     = Column(Integer, default=0)    #
+    overtime_hours      = Column(Integer, default=0)    #
+    #
     social_security     = Column(Integer, default=0)
     income_tax          = Column(Integer, default=0)
     other_deductions    = Column(Integer, default=0)
-    leave_deductions    = Column(Integer, default=0)    # خصم الإجازات غير المدفوعة
-    # ── الملاحظات والحالة ─────────────────────────────────────────
+    leave_deductions    = Column(Integer, default=0)    #
+    #
     notes           = Column(Text)
     status          = Column(String(20), default='draft')   # draft / issued / paid
     issued_at       = Column(DateTime)
