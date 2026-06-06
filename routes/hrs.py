@@ -32,7 +32,7 @@ def _require_hr():
 @hrs_bp.route('/employees')
 @login_required
 def employees():
-    from models.database import HRSEmployee, HRSDepartment, HRSPosition
+    from models.hrs_models import HRSEmployee, HRSDepartment, HRSPosition
     db = _db()
 
     # Filters
@@ -96,7 +96,7 @@ def employees():
 @hrs_bp.route('/employees/new', methods=['GET', 'POST'])
 @login_required
 def employee_new():
-    from models.database import HRSEmployee, HRSDepartment, HRSPosition, User
+    from models.hrs_models import HRSEmployee, HRSDepartment, HRSPosition, User
     db = _db()
 
     departments = db.query(HRSDepartment).filter_by(is_active=True).order_by(HRSDepartment.name).all()
@@ -176,7 +176,7 @@ def employee_new():
 @hrs_bp.route('/employees/<int:emp_id>')
 @login_required
 def employee_view(emp_id):
-    from models.database import HRSEmployee, HRSEducation, HRSSalary, HRSLeaveBalance, HRSLeaveRequest
+    from models.hrs_models import HRSEmployee, HRSEducation, HRSSalary, HRSLeaveBalance, HRSLeaveRequest
     db = _db()
     emp = db.query(HRSEmployee).filter_by(id=emp_id).first()
     if not emp:
@@ -203,7 +203,7 @@ def employee_view(emp_id):
 @hrs_bp.route('/employees/<int:emp_id>/edit', methods=['GET', 'POST'])
 @login_required
 def employee_edit(emp_id):
-    from models.database import HRSEmployee, HRSDepartment, HRSPosition, User
+    from models.hrs_models import HRSEmployee, HRSDepartment, HRSPosition, User
     db = _db()
     emp = db.query(HRSEmployee).filter_by(id=emp_id).first()
     if not emp:
@@ -329,7 +329,7 @@ def education_delete(emp_id, edu_id):
 @hrs_bp.route('/employees/<int:emp_id>/salary/save', methods=['POST'])
 @login_required
 def salary_save(emp_id):
-    from models.database import HRSEmployee, HRSSalary
+    from models.hrs_models import HRSEmployee, HRSSalary
     db = _db()
     emp = db.query(HRSEmployee).filter_by(id=emp_id).first()
     if not emp:
@@ -378,7 +378,7 @@ def salary_save(emp_id):
 @hrs_bp.route('/leave-requests')
 @login_required
 def leave_requests():
-    from models.database import HRSLeaveRequest, HRSEmployee, HRSLeaveType
+    from models.hrs_models import HRSLeaveRequest, HRSEmployee, HRSLeaveType
     db = _db()
 
     q        = request.args.get('q', '').strip()
@@ -407,7 +407,7 @@ def leave_requests():
                      .offset((page - 1) * per_page)
                      .limit(per_page).all())
 
-    from models.database import HRSDepartment
+    from models.hrs_models import HRSDepartment
     departments = db.query(HRSDepartment).filter_by(is_active=True).order_by(HRSDepartment.name).all()
     leave_types = db.query(HRSLeaveType).filter_by(is_active=True).order_by(HRSLeaveType.name).all()
 
@@ -430,7 +430,7 @@ def leave_requests():
 @hrs_bp.route('/leave-requests/<int:req_id>/action', methods=['POST'])
 @login_required
 def leave_request_action(req_id):
-    from models.database import HRSLeaveRequest, HRSLeaveApproval, HRSLeaveBalance
+    from models.hrs_models import HRSLeaveRequest, HRSLeaveApproval, HRSLeaveBalance
     db = _db()
     req = db.query(HRSLeaveRequest).filter_by(id=req_id).first()
     if not req:
@@ -458,7 +458,7 @@ def leave_request_action(req_id):
         req.rejection_reason = comments
     else:
         # ...
-        from models.database import HRSApprovalStep
+        from models.hrs_models import HRSApprovalStep
         next_step = (db.query(HRSApprovalStep)
                      .filter(
                          HRSApprovalStep.step_order > req.current_step,
@@ -501,7 +501,7 @@ def leave_request_action(req_id):
 @hrs_bp.route('/departments')
 @login_required
 def departments():
-    from models.database import HRSDepartment
+    from models.hrs_models import HRSDepartment
     db = _db()
     depts = db.query(HRSDepartment).order_by(HRSDepartment.name).all()
     return render_template('hrs/departments.html', departments=depts)
@@ -509,7 +509,7 @@ def departments():
 @hrs_bp.route('/departments/save', methods=['POST'])
 @login_required
 def department_save():
-    from models.database import HRSDepartment
+    from models.hrs_models import HRSDepartment
     db = _db()
     f    = request.form
     did  = f.get('dept_id', type=int)
@@ -543,7 +543,7 @@ def department_save():
 @hrs_bp.route('/api/positions')
 @login_required
 def api_positions():
-    from models.database import HRSPosition
+    from models.hrs_models import HRSPosition
     dept_id = request.args.get('dept_id', type=int)
     db = _db()
     q = db.query(HRSPosition).filter_by(is_active=True)
