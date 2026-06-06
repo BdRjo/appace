@@ -163,7 +163,7 @@ def create_app():
     from routes.eas import eas_bp
     from routes.iface_device import iface_bp
     from routes.sas           import sas_bp
-from routes.hrs import hrs_bp
+    from routes.hrs import hrs_bp
     from routes.mobile_api import mobile_api_bp
     from routes.download_data import dl_bp
     from routes.calendar_view   import calendar_bp
