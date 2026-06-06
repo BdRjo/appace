@@ -1,3 +1,8 @@
+from models.database import Base, User
+from sqlalchemy import Column, Integer, String, Boolean, Date, DateTime, Text, UniqueConstraint, ForeignKey
+from sqlalchemy.orm import relationship
+from datetime import datetime
+
 # ═══════════════════════════════════════════════════════════════
 #  HRS — Human Resources System
 #
