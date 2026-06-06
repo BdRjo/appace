@@ -1,0 +1,320 @@
+{% extends "base.html" %}
+{% block title %}{{ _('الموظفون','Employees') }} — HRS{% endblock %}
+
+{% block content %}
+<div class="hrs-wrap">
+
+  {# ── شريط الرأس ── #}
+  <div class="hrs-header">
+    <div class="hrs-header-info">
+      <div class="hrs-header-icon">
+        <i class="bi bi-people-fill"></i>
+      </div>
+      <div>
+        <h1 class="hrs-title">{{ _('إدارة الموظفين','Employee Management') }}</h1>
+        <p class="hrs-subtitle">{{ _('نظام الموارد البشرية','Human Resources System') }}</p>
+      </div>
+    </div>
+    <a href="{{ url_for('hrs.employee_new') }}" class="hrs-btn-primary">
+      <i class="bi bi-plus-lg me-1"></i>
+      {{ _('موظف جديد','New Employee') }}
+    </a>
+  </div>
+
+  {# ── بطاقات الإحصاء ── #}
+  <div class="hrs-stats-row">
+    <div class="hrs-stat-card hrs-stat-total">
+      <div class="hrs-stat-num">{{ stats.total }}</div>
+      <div class="hrs-stat-lbl">{{ _('إجمالي الموظفين','Total Employees') }}</div>
+      <i class="bi bi-people hrs-stat-icon"></i>
+    </div>
+    <div class="hrs-stat-card hrs-stat-active">
+      <div class="hrs-stat-num">{{ stats.active }}</div>
+      <div class="hrs-stat-lbl">{{ _('نشط','Active') }}</div>
+      <i class="bi bi-person-check hrs-stat-icon"></i>
+    </div>
+    <div class="hrs-stat-card hrs-stat-leave">
+      <div class="hrs-stat-num">{{ stats.on_leave }}</div>
+      <div class="hrs-stat-lbl">{{ _('في إجازة','On Leave') }}</div>
+      <i class="bi bi-calendar2-x hrs-stat-icon"></i>
+    </div>
+    <div class="hrs-stat-card hrs-stat-term">
+      <div class="hrs-stat-num">{{ stats.terminated }}</div>
+      <div class="hrs-stat-lbl">{{ _('منتهي الخدمة','Terminated') }}</div>
+      <i class="bi bi-person-dash hrs-stat-icon"></i>
+    </div>
+  </div>
+
+  {# ── شريط البحث والفلاتر ── #}
+  <div class="hrs-filters-card">
+    <form method="get" class="hrs-filters-form">
+      <div class="hrs-filter-group hrs-search-group">
+        <i class="bi bi-search hrs-search-icon"></i>
+        <input type="text" name="q" value="{{ q }}" placeholder="{{ _('بحث باسم أو رقم الموظف...','Search by name or number...') }}" class="hrs-input hrs-search-input">
+      </div>
+      <select name="dept_id" class="hrs-input hrs-select">
+        <option value="">{{ _('كل الأقسام','All Departments') }}</option>
+        {% for d in departments %}
+        <option value="{{ d.id }}" {{ 'selected' if dept_id == d.id }}>{{ d.name }}</option>
+        {% endfor %}
+      </select>
+      <select name="status" class="hrs-input hrs-select">
+        <option value="">{{ _('كل الحالات','All Statuses') }}</option>
+        <option value="active"     {{ 'selected' if status_f=='active' }}>{{ _('نشط','Active') }}</option>
+        <option value="on_leave"   {{ 'selected' if status_f=='on_leave' }}>{{ _('في إجازة','On Leave') }}</option>
+        <option value="suspended"  {{ 'selected' if status_f=='suspended' }}>{{ _('موقوف','Suspended') }}</option>
+        <option value="terminated" {{ 'selected' if status_f=='terminated' }}>{{ _('منتهي','Terminated') }}</option>
+      </select>
+      <select name="emp_type" class="hrs-input hrs-select">
+        <option value="">{{ _('كل الأنواع','All Types') }}</option>
+        <option value="full_time"  {{ 'selected' if emp_type_f=='full_time' }}>{{ _('دوام كامل','Full Time') }}</option>
+        <option value="part_time"  {{ 'selected' if emp_type_f=='part_time' }}>{{ _('دوام جزئي','Part Time') }}</option>
+        <option value="contract"   {{ 'selected' if emp_type_f=='contract' }}>{{ _('متعاقد','Contract') }}</option>
+        <option value="intern"     {{ 'selected' if emp_type_f=='intern' }}>{{ _('متدرب','Intern') }}</option>
+      </select>
+      <button type="submit" class="hrs-btn-filter">
+        <i class="bi bi-funnel-fill me-1"></i>{{ _('فلترة','Filter') }}
+      </button>
+      {% if q or dept_id or status_f or emp_type_f %}
+      <a href="{{ url_for('hrs.employees') }}" class="hrs-btn-clear">
+        <i class="bi bi-x-circle me-1"></i>{{ _('مسح','Clear') }}
+      </a>
+      {% endif %}
+    </form>
+  </div>
+
+  {# ── الجدول ── #}
+  <div class="hrs-table-card">
+    {% if employees %}
+    <div class="hrs-table-header">
+      <span class="hrs-result-count">
+        {{ _('يعرض','Showing') }} {{ employees|length }} {{ _('من','of') }} {{ total }} {{ _('موظف','employees') }}
+      </span>
+      <a href="{{ url_for('hrs.departments') }}" class="hrs-link-sm">
+        <i class="bi bi-diagram-3 me-1"></i>{{ _('إدارة الأقسام','Manage Departments') }}
+      </a>
+    </div>
+
+    <div class="table-responsive">
+      <table class="hrs-table">
+        <thead>
+          <tr>
+            <th>{{ _('الموظف','Employee') }}</th>
+            <th>{{ _('الرقم الوظيفي','Emp. No.') }}</th>
+            <th>{{ _('القسم','Department') }}</th>
+            <th>{{ _('المسمى','Position') }}</th>
+            <th>{{ _('نوع التعيين','Type') }}</th>
+            <th>{{ _('تاريخ التعيين','Hire Date') }}</th>
+            <th>{{ _('الحالة','Status') }}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for emp in employees %}
+          <tr class="hrs-table-row" onclick="location.href='{{ url_for('hrs.employee_view', emp_id=emp.id) }}'">
+            <td>
+              <div class="hrs-emp-cell">
+                <div class="hrs-avatar {% if emp.photo_b64 %}hrs-avatar-photo{% endif %}"
+                     {% if emp.photo_b64 %}style="background-image:url('{{ emp.photo_b64 }}')"{% endif %}>
+                  {% if not emp.photo_b64 %}
+                    {{ emp.full_name[0] if emp.full_name else '?' }}
+                  {% endif %}
+                </div>
+                <div>
+                  <div class="hrs-emp-name">{{ emp.full_name }}</div>
+                  {% if emp.full_name_en %}<div class="hrs-emp-name-en">{{ emp.full_name_en }}</div>{% endif %}
+                  {% if emp.work_email %}<div class="hrs-emp-email">{{ emp.work_email }}</div>{% endif %}
+                </div>
+              </div>
+            </td>
+            <td><span class="hrs-badge-num">{{ emp.employee_number }}</span></td>
+            <td>{{ emp.department.name if emp.department else '—' }}</td>
+            <td>{{ emp.position.name if emp.position else '—' }}</td>
+            <td>
+              {% set type_map = {'full_time': ('دوام كامل','Full Time','info'), 'part_time': ('دوام جزئي','Part Time','secondary'), 'contract': ('متعاقد','Contract','warning'), 'intern': ('متدرب','Intern','light')} %}
+              {% set tm = type_map.get(emp.employment_type, ('—','—','secondary')) %}
+              <span class="hrs-badge hrs-badge-{{ tm[2] }}">{{ _(tm[0], tm[1]) }}</span>
+            </td>
+            <td>{{ emp.hire_date.strftime('%Y-%m-%d') if emp.hire_date else '—' }}</td>
+            <td>
+              {% set st_map = {'active': ('نشط','Active','success'), 'on_leave': ('في إجازة','On Leave','warning'), 'suspended': ('موقوف','Suspended','danger'), 'terminated': ('منتهي','Terminated','secondary'), 'resigned': ('مستقيل','Resigned','dark')} %}
+              {% set sm = st_map.get(emp.status, ('—','—','secondary')) %}
+              <span class="hrs-badge hrs-badge-{{ sm[2] }}">{{ _(sm[0], sm[1]) }}</span>
+            </td>
+            <td onclick="event.stopPropagation()">
+              <div class="hrs-row-actions">
+                <a href="{{ url_for('hrs.employee_view', emp_id=emp.id) }}" class="hrs-action-btn" title="{{ _('عرض','View') }}">
+                  <i class="bi bi-eye"></i>
+                </a>
+                <a href="{{ url_for('hrs.employee_edit', emp_id=emp.id) }}" class="hrs-action-btn" title="{{ _('تعديل','Edit') }}">
+                  <i class="bi bi-pencil"></i>
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# Pagination #}
+    {% if total_pages > 1 %}
+    <div class="hrs-pagination">
+      {% if page > 1 %}
+      <a href="?page={{ page-1 }}&q={{ q }}&dept_id={{ dept_id or '' }}&status={{ status_f }}&emp_type={{ emp_type_f }}" class="hrs-page-btn">
+        <i class="bi bi-chevron-{{ 'right' if current_lang=='ar' else 'left' }}"></i>
+      </a>
+      {% endif %}
+      {% for p in range(1, total_pages+1) %}
+        {% if p == page %}
+        <span class="hrs-page-btn hrs-page-active">{{ p }}</span>
+        {% elif p <= 3 or p >= total_pages-2 or (p >= page-1 and p <= page+1) %}
+        <a href="?page={{ p }}&q={{ q }}&dept_id={{ dept_id or '' }}&status={{ status_f }}&emp_type={{ emp_type_f }}" class="hrs-page-btn">{{ p }}</a>
+        {% elif p == 4 or p == total_pages-3 %}
+        <span class="hrs-page-dots">…</span>
+        {% endif %}
+      {% endfor %}
+      {% if page < total_pages %}
+      <a href="?page={{ page+1 }}&q={{ q }}&dept_id={{ dept_id or '' }}&status={{ status_f }}&emp_type={{ emp_type_f }}" class="hrs-page-btn">
+        <i class="bi bi-chevron-{{ 'left' if current_lang=='ar' else 'right' }}"></i>
+      </a>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="hrs-empty">
+      <i class="bi bi-people hrs-empty-icon"></i>
+      <div class="hrs-empty-title">{{ _('لا يوجد موظفون','No employees found') }}</div>
+      <div class="hrs-empty-sub">{{ _('أضف أول موظف للبدء','Add the first employee to get started') }}</div>
+      <a href="{{ url_for('hrs.employee_new') }}" class="hrs-btn-primary mt-3">
+        <i class="bi bi-plus-lg me-1"></i>{{ _('إضافة موظف','Add Employee') }}
+      </a>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+{# ── CSS ── #}
+<style>
+:root {
+  --hrs-primary:      var(--bs-primary, #0C67EC);
+  --hrs-primary-dark: #0847B0;
+  --hrs-bg:           #F0F5FF;
+  --hrs-card-bg:      #ffffff;
+  --hrs-border:       #e2e8f0;
+  --hrs-text:         #1e293b;
+  --hrs-muted:        #64748b;
+  --hrs-success:      #16a34a;
+  --hrs-warning:      #d97706;
+  --hrs-danger:       #dc2626;
+  --hrs-radius:       14px;
+  --hrs-shadow:       0 2px 12px rgba(12,103,236,.08);
+}
+
+.hrs-wrap { padding: 1.5rem; }
+
+/* Header */
+.hrs-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; margin-bottom:1.5rem; }
+.hrs-header-info { display:flex; align-items:center; gap:1rem; }
+.hrs-header-icon { width:52px; height:52px; border-radius:14px; background:linear-gradient(135deg,var(--hrs-primary),var(--hrs-primary-dark)); display:flex; align-items:center; justify-content:center; color:#fff; font-size:1.4rem; box-shadow:0 4px 14px rgba(12,103,236,.3); }
+.hrs-title { font-size:1.4rem; font-weight:700; color:var(--hrs-text); margin:0; }
+.hrs-subtitle { font-size:.82rem; color:var(--hrs-muted); margin:0; }
+
+/* Buttons */
+.hrs-btn-primary { background:linear-gradient(135deg,var(--hrs-primary),var(--hrs-primary-dark)); color:#fff; border:none; padding:.55rem 1.2rem; border-radius:10px; font-weight:600; font-size:.88rem; text-decoration:none; display:inline-flex; align-items:center; gap:.3rem; transition:.2s; box-shadow:0 3px 10px rgba(12,103,236,.25); }
+.hrs-btn-primary:hover { opacity:.9; color:#fff; transform:translateY(-1px); }
+.hrs-btn-filter { background:var(--hrs-primary); color:#fff; border:none; padding:.5rem 1rem; border-radius:9px; font-size:.85rem; cursor:pointer; display:inline-flex; align-items:center; }
+.hrs-btn-clear { background:#f1f5f9; color:var(--hrs-muted); border:none; padding:.5rem 1rem; border-radius:9px; font-size:.85rem; text-decoration:none; display:inline-flex; align-items:center; }
+.hrs-btn-clear:hover { background:#e2e8f0; color:var(--hrs-text); }
+
+/* Stats */
+.hrs-stats-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:1rem; margin-bottom:1.5rem; }
+.hrs-stat-card { background:var(--hrs-card-bg); border-radius:var(--hrs-radius); padding:1.2rem 1.4rem; box-shadow:var(--hrs-shadow); position:relative; overflow:hidden; border:1px solid var(--hrs-border); }
+.hrs-stat-num { font-size:2rem; font-weight:800; line-height:1; }
+.hrs-stat-lbl { font-size:.78rem; color:var(--hrs-muted); margin-top:.25rem; }
+.hrs-stat-icon { position:absolute; bottom:-6px; right:12px; font-size:3rem; opacity:.08; }
+[dir=ltr] .hrs-stat-icon { right:auto; left:12px; }
+.hrs-stat-total  .hrs-stat-num { color:var(--hrs-primary); }
+.hrs-stat-active .hrs-stat-num { color:var(--hrs-success); }
+.hrs-stat-leave  .hrs-stat-num { color:var(--hrs-warning); }
+.hrs-stat-term   .hrs-stat-num { color:var(--hrs-muted); }
+
+/* Filters */
+.hrs-filters-card { background:var(--hrs-card-bg); border-radius:var(--hrs-radius); padding:1rem 1.2rem; box-shadow:var(--hrs-shadow); margin-bottom:1.25rem; border:1px solid var(--hrs-border); }
+.hrs-filters-form { display:flex; flex-wrap:wrap; gap:.6rem; align-items:center; }
+.hrs-filter-group { position:relative; }
+.hrs-search-group { flex:1 1 260px; }
+.hrs-search-icon { position:absolute; top:50%; transform:translateY(-50%); right:10px; color:var(--hrs-muted); font-size:.9rem; pointer-events:none; }
+[dir=ltr] .hrs-search-icon { right:auto; left:10px; }
+.hrs-input { border:1.5px solid var(--hrs-border); border-radius:9px; padding:.48rem .85rem; font-size:.85rem; color:var(--hrs-text); background:#fff; outline:none; transition:.2s; }
+.hrs-input:focus { border-color:var(--hrs-primary); box-shadow:0 0 0 3px rgba(12,103,236,.12); }
+.hrs-search-input { width:100%; padding-right:2.2rem; }
+[dir=ltr] .hrs-search-input { padding-right:.85rem; padding-left:2.2rem; }
+.hrs-select { min-width:150px; cursor:pointer; }
+
+/* Table Card */
+.hrs-table-card { background:var(--hrs-card-bg); border-radius:var(--hrs-radius); box-shadow:var(--hrs-shadow); border:1px solid var(--hrs-border); overflow:hidden; }
+.hrs-table-header { display:flex; align-items:center; justify-content:space-between; padding:.9rem 1.2rem; border-bottom:1px solid var(--hrs-border); }
+.hrs-result-count { font-size:.82rem; color:var(--hrs-muted); }
+.hrs-link-sm { font-size:.82rem; color:var(--hrs-primary); text-decoration:none; display:inline-flex; align-items:center; }
+.hrs-link-sm:hover { text-decoration:underline; }
+
+.hrs-table { width:100%; border-collapse:collapse; }
+.hrs-table thead th { background:#f8fafc; font-size:.78rem; font-weight:600; color:var(--hrs-muted); padding:.75rem 1rem; text-transform:uppercase; letter-spacing:.04em; border-bottom:1px solid var(--hrs-border); white-space:nowrap; }
+.hrs-table-row { cursor:pointer; transition:.15s; }
+.hrs-table-row:hover { background:#f0f5ff; }
+.hrs-table td { padding:.85rem 1rem; font-size:.86rem; color:var(--hrs-text); border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+.hrs-table tbody tr:last-child td { border-bottom:none; }
+
+/* Avatar */
+.hrs-emp-cell { display:flex; align-items:center; gap:.75rem; }
+.hrs-avatar { width:40px; height:40px; min-width:40px; border-radius:50%; background:linear-gradient(135deg,var(--hrs-primary),var(--hrs-primary-dark)); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:1rem; }
+.hrs-avatar-photo { background-size:cover; background-position:center; }
+.hrs-emp-name { font-weight:600; font-size:.88rem; }
+.hrs-emp-name-en { font-size:.75rem; color:var(--hrs-muted); }
+.hrs-emp-email { font-size:.73rem; color:var(--hrs-muted); }
+
+/* Badges */
+.hrs-badge { padding:.2rem .65rem; border-radius:20px; font-size:.73rem; font-weight:600; display:inline-block; }
+.hrs-badge-success { background:#dcfce7; color:#16a34a; }
+.hrs-badge-warning { background:#fef3c7; color:#d97706; }
+.hrs-badge-danger  { background:#fee2e2; color:#dc2626; }
+.hrs-badge-info    { background:#dbeafe; color:#2563eb; }
+.hrs-badge-secondary { background:#f1f5f9; color:#64748b; }
+.hrs-badge-light   { background:#f8fafc; color:#475569; border:1px solid #e2e8f0; }
+.hrs-badge-dark    { background:#1e293b; color:#f1f5f9; }
+.hrs-badge-num     { background:#eff6ff; color:var(--hrs-primary); padding:.2rem .55rem; border-radius:6px; font-size:.75rem; font-weight:700; font-family:monospace; }
+
+/* Row actions */
+.hrs-row-actions { display:flex; gap:.35rem; justify-content:flex-end; }
+.hrs-action-btn { width:30px; height:30px; border-radius:7px; background:#f1f5f9; color:var(--hrs-muted); display:flex; align-items:center; justify-content:center; font-size:.85rem; text-decoration:none; transition:.15s; }
+.hrs-action-btn:hover { background:var(--hrs-primary); color:#fff; }
+
+/* Pagination */
+.hrs-pagination { display:flex; align-items:center; justify-content:center; gap:.35rem; padding:1rem; }
+.hrs-page-btn { width:34px; height:34px; border-radius:8px; background:#f1f5f9; color:var(--hrs-text); display:flex; align-items:center; justify-content:center; font-size:.82rem; text-decoration:none; transition:.15s; }
+.hrs-page-btn:hover { background:var(--hrs-primary); color:#fff; }
+.hrs-page-active { background:var(--hrs-primary); color:#fff; font-weight:700; }
+.hrs-page-dots { color:var(--hrs-muted); font-size:.9rem; padding:0 .25rem; }
+
+/* Empty */
+.hrs-empty { text-align:center; padding:4rem 2rem; }
+.hrs-empty-icon { font-size:3.5rem; color:#cbd5e1; display:block; margin-bottom:1rem; }
+.hrs-empty-title { font-size:1.1rem; font-weight:600; color:var(--hrs-text); margin-bottom:.4rem; }
+.hrs-empty-sub { font-size:.85rem; color:var(--hrs-muted); }
+
+/* Responsive */
+@media (max-width:768px) {
+  .hrs-wrap { padding:1rem; }
+  .hrs-table thead th:nth-child(4),
+  .hrs-table td:nth-child(4),
+  .hrs-table thead th:nth-child(5),
+  .hrs-table td:nth-child(5),
+  .hrs-table thead th:nth-child(6),
+  .hrs-table td:nth-child(6) { display:none; }
+  .hrs-stats-row { grid-template-columns:repeat(2,1fr); }
+}
+</style>
+{% endblock %}

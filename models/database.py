@@ -1340,3 +1340,324 @@ class EASRecord(Base):
     source      = Column(String(20), default='excel')   # excel/manual
     created_at  = Column(DateTime, default=datetime.now)
     employee    = relationship('EASEmployee', back_populates='records')
+# ═══════════════════════════════════════════════════════════════
+#  HRS — Human Resources System
+#  أضف هذا الكود في نهاية ملف models/database.py
+# ═══════════════════════════════════════════════════════════════
+
+class HRSDepartment(Base):
+    """الأقسام الإدارية"""
+    __tablename__ = 'hrs_departments'
+    id          = Column(Integer, primary_key=True)
+    name        = Column(String(200), nullable=False)
+    name_en     = Column(String(200))
+    code        = Column(String(50), unique=True, nullable=True)   # رمز القسم
+    parent_id   = Column(Integer, ForeignKey('hrs_departments.id'), nullable=True)  # قسم رئيسي
+    manager_id  = Column(Integer, ForeignKey('hrs_employees.id'), nullable=True)    # مدير القسم
+    is_active   = Column(Boolean, default=True)
+    created_at  = Column(DateTime, default=datetime.now)
+    parent      = relationship('HRSDepartment', remote_side='HRSDepartment.id', foreign_keys=[parent_id])
+    employees   = relationship('HRSEmployee', back_populates='department',
+                               foreign_keys='HRSEmployee.department_id')
+
+
+class HRSPosition(Base):
+    """المسميات الوظيفية"""
+    __tablename__ = 'hrs_positions'
+    id              = Column(Integer, primary_key=True)
+    name            = Column(String(200), nullable=False)
+    name_en         = Column(String(200))
+    department_id   = Column(Integer, ForeignKey('hrs_departments.id'), nullable=True)
+    grade           = Column(String(50))   # الدرجة الوظيفية
+    is_active       = Column(Boolean, default=True)
+    created_at      = Column(DateTime, default=datetime.now)
+    department      = relationship('HRSDepartment', foreign_keys=[department_id])
+    employees       = relationship('HRSEmployee', back_populates='position')
+
+
+class HRSEmployee(Base):
+    """ملف الموظف الكامل"""
+    __tablename__ = 'hrs_employees'
+
+    id              = Column(Integer, primary_key=True)
+    # ── ربط اختياري بحساب المستخدم ─────────────────────────────
+    user_id         = Column(Integer, ForeignKey('users.id'), nullable=True, unique=True)
+
+    # ── معلومات أساسية ──────────────────────────────────────────
+    employee_number = Column(String(50), unique=True, nullable=False)  # رقم الموظف
+    full_name       = Column(String(200), nullable=False)
+    full_name_en    = Column(String(200))
+    national_id     = Column(String(50))                # رقم الهوية / الإقامة
+    nationality     = Column(String(100))               # الجنسية
+    birth_date      = Column(Date)
+    gender          = Column(String(10))                # male / female
+    marital_status  = Column(String(20))                # single/married/divorced/widowed
+    religion        = Column(String(50))
+    photo_b64       = Column(Text)                      # صورة الموظف base64
+
+    # ── معلومات الوظيفة ─────────────────────────────────────────
+    department_id   = Column(Integer, ForeignKey('hrs_departments.id'), nullable=True, index=True)
+    position_id     = Column(Integer, ForeignKey('hrs_positions.id'), nullable=True)
+    direct_manager_id = Column(Integer, ForeignKey('hrs_employees.id'), nullable=True)  # المدير المباشر
+    employment_type = Column(String(30), default='full_time')  # full_time/part_time/contract/intern
+    hire_date       = Column(Date)                      # تاريخ التعيين
+    probation_end   = Column(Date)                      # نهاية فترة التجربة
+    contract_end    = Column(Date)                      # نهاية العقد (للمتعاقدين)
+    work_location   = Column(String(200))               # مكان العمل
+    work_email      = Column(String(200))
+    work_phone      = Column(String(50))
+    extension       = Column(String(20))                # تحويلة
+
+    # ── معلومات التواصل الشخصية ──────────────────────────────────
+    personal_email  = Column(String(200))
+    personal_phone  = Column(String(50))
+    address         = Column(Text)
+    emergency_contact_name  = Column(String(200))
+    emergency_contact_phone = Column(String(50))
+    emergency_contact_rel   = Column(String(100))       # صلة القرابة
+
+    # ── الحالة ───────────────────────────────────────────────────
+    status          = Column(String(20), default='active', index=True)
+    # active / on_leave / suspended / terminated / resigned
+    termination_date    = Column(Date)
+    termination_reason  = Column(Text)
+
+    is_active       = Column(Boolean, default=True)
+    notes           = Column(Text)
+    created_at      = Column(DateTime, default=datetime.now)
+    updated_at      = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+    # ── العلاقات ─────────────────────────────────────────────────
+    user            = relationship('User', foreign_keys=[user_id])
+    department      = relationship('HRSDepartment', back_populates='employees',
+                                   foreign_keys=[department_id])
+    position        = relationship('HRSPosition', back_populates='employees')
+    direct_manager  = relationship('HRSEmployee', remote_side='HRSEmployee.id',
+                                   foreign_keys=[direct_manager_id])
+    education       = relationship('HRSEducation', back_populates='employee',
+                                   cascade='all, delete-orphan')
+    salary          = relationship('HRSSalary', back_populates='employee', uselist=False)
+    leave_balances  = relationship('HRSLeaveBalance', back_populates='employee',
+                                   cascade='all, delete-orphan')
+    leave_requests  = relationship('HRSLeaveRequest', back_populates='employee',
+                                   foreign_keys='HRSLeaveRequest.employee_id',
+                                   cascade='all, delete-orphan')
+
+
+class HRSEducation(Base):
+    """الشهادات والتحصيل العلمي"""
+    __tablename__ = 'hrs_education'
+    id              = Column(Integer, primary_key=True)
+    employee_id     = Column(Integer, ForeignKey('hrs_employees.id'), nullable=False, index=True)
+    degree          = Column(String(100), nullable=False)
+    # بكالوريوس / ماجستير / دكتوراه / دبلوم / ثانوية / إلخ
+    major           = Column(String(200))               # التخصص
+    institution     = Column(String(300))               # الجامعة / المعهد
+    country         = Column(String(100))               # بلد الدراسة
+    graduation_year = Column(Integer)
+    grade           = Column(String(50))                # المعدل / التقدير
+    attachment_b64  = Column(Text)                      # نسخة الشهادة
+    attachment_name = Column(String(255))
+    is_primary      = Column(Boolean, default=False)    # الشهادة الرئيسية
+    created_at      = Column(DateTime, default=datetime.now)
+    employee        = relationship('HRSEmployee', back_populates='education')
+
+
+class HRSLeaveType(Base):
+    """أنواع الإجازات"""
+    __tablename__ = 'hrs_leave_types'
+    id              = Column(Integer, primary_key=True)
+    name            = Column(String(200), nullable=False)
+    name_en         = Column(String(200))
+    code            = Column(String(30), unique=True)   # ANNUAL / SICK / MATERNITY / إلخ
+    days_per_year   = Column(Integer, default=0)        # الرصيد السنوي (0 = غير محدود)
+    is_paid         = Column(Boolean, default=True)     # مدفوعة / غير مدفوعة
+    requires_attachment = Column(Boolean, default=False) # تستلزم مرفقاً
+    min_days        = Column(Integer, default=1)        # أقل مدة
+    max_days        = Column(Integer, default=0)        # أكبر مدة (0 = بلا حد)
+    gender_specific = Column(String(10), default='all') # all / male / female
+    color           = Column(String(20), default='#0C67EC')
+    is_active       = Column(Boolean, default=True)
+    created_at      = Column(DateTime, default=datetime.now)
+    balances        = relationship('HRSLeaveBalance', back_populates='leave_type')
+    requests        = relationship('HRSLeaveRequest', back_populates='leave_type')
+
+
+class HRSLeaveBalance(Base):
+    """رصيد إجازات الموظف لكل نوع"""
+    __tablename__ = 'hrs_leave_balances'
+    __table_args__ = (UniqueConstraint('employee_id', 'leave_type_id', 'year',
+                                       name='uq_hrs_leave_balance'),)
+    id              = Column(Integer, primary_key=True)
+    employee_id     = Column(Integer, ForeignKey('hrs_employees.id'), nullable=False, index=True)
+    leave_type_id   = Column(Integer, ForeignKey('hrs_leave_types.id'), nullable=False)
+    year            = Column(Integer, nullable=False)   # السنة
+    entitled_days   = Column(Integer, default=0)        # الرصيد المستحق
+    used_days       = Column(Integer, default=0)        # المستخدم
+    carried_over    = Column(Integer, default=0)        # المرحّل من السنة السابقة
+    created_at      = Column(DateTime, default=datetime.now)
+    updated_at      = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    employee        = relationship('HRSEmployee', back_populates='leave_balances')
+    leave_type      = relationship('HRSLeaveType', back_populates='balances')
+
+    @property
+    def remaining_days(self):
+        return (self.entitled_days + self.carried_over) - self.used_days
+
+
+class HRSApprovalStep(Base):
+    """خطوة في تسلسل الموافقات لقسم معين"""
+    __tablename__ = 'hrs_approval_steps'
+    id              = Column(Integer, primary_key=True)
+    department_id   = Column(Integer, ForeignKey('hrs_departments.id'), nullable=True)
+    # null = ينطبق على جميع الأقسام (افتراضي)
+    leave_type_id   = Column(Integer, ForeignKey('hrs_leave_types.id'), nullable=True)
+    # null = ينطبق على جميع أنواع الإجازات
+    step_order      = Column(Integer, nullable=False, default=1)  # ترتيب الخطوة
+    step_role       = Column(String(50))
+    # direct_manager / department_manager / hr_manager / ceo / specific_user
+    approver_user_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    # لو step_role = specific_user
+    step_label      = Column(String(200))      # اسم الخطوة للعرض
+    step_label_en   = Column(String(200))
+    is_active       = Column(Boolean, default=True)
+    created_at      = Column(DateTime, default=datetime.now)
+    department      = relationship('HRSDepartment', foreign_keys=[department_id])
+    leave_type      = relationship('HRSLeaveType', foreign_keys=[leave_type_id])
+    approver_user   = relationship('User', foreign_keys=[approver_user_id])
+
+
+class HRSLeaveRequest(Base):
+    """طلب إجازة"""
+    __tablename__ = 'hrs_leave_requests'
+    id              = Column(Integer, primary_key=True)
+    request_number  = Column(String(50), unique=True, nullable=False)
+    employee_id     = Column(Integer, ForeignKey('hrs_employees.id'), nullable=False, index=True)
+    leave_type_id   = Column(Integer, ForeignKey('hrs_leave_types.id'), nullable=False)
+    from_date       = Column(Date, nullable=False)
+    to_date         = Column(Date, nullable=False)
+    total_days      = Column(Integer, default=1)
+    reason          = Column(Text)
+    attachment_b64  = Column(Text)
+    attachment_name = Column(String(255))
+    delegate_id     = Column(Integer, ForeignKey('hrs_employees.id'), nullable=True)
+    # من سيتولى مهامه أثناء الإجازة
+
+    status          = Column(String(20), default='pending', index=True)
+    # pending / approved / rejected / cancelled
+
+    current_step    = Column(Integer, default=1)        # الخطوة الحالية في التسلسل
+    rejection_reason = Column(Text)
+
+    created_at      = Column(DateTime, default=datetime.now)
+    updated_at      = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+    employee        = relationship('HRSEmployee', back_populates='leave_requests',
+                                   foreign_keys=[employee_id])
+    leave_type      = relationship('HRSLeaveType', back_populates='requests')
+    delegate        = relationship('HRSEmployee', foreign_keys=[delegate_id])
+    approvals       = relationship('HRSLeaveApproval', back_populates='request',
+                                   cascade='all, delete-orphan', order_by='HRSLeaveApproval.step_order')
+
+
+class HRSLeaveApproval(Base):
+    """سجل موافقة/رفض خطوة في طلب إجازة"""
+    __tablename__ = 'hrs_leave_approvals'
+    id              = Column(Integer, primary_key=True)
+    request_id      = Column(Integer, ForeignKey('hrs_leave_requests.id'), nullable=False)
+    step_order      = Column(Integer, nullable=False)
+    approver_id     = Column(Integer, ForeignKey('users.id'), nullable=False)
+    status          = Column(String(20))               # approved / rejected / pending
+    comments        = Column(Text)
+    action_at       = Column(DateTime)
+    created_at      = Column(DateTime, default=datetime.now)
+    request         = relationship('HRSLeaveRequest', back_populates='approvals')
+    approver        = relationship('User', foreign_keys=[approver_id])
+
+
+class HRSSalary(Base):
+    """راتب الموظف الأساسي والبدلات"""
+    __tablename__ = 'hrs_salaries'
+    id              = Column(Integer, primary_key=True)
+    employee_id     = Column(Integer, ForeignKey('hrs_employees.id'), nullable=False,
+                             unique=True)
+    currency        = Column(String(10), default='JOD')
+    basic_salary    = Column(Integer, default=0)        # مخزّن بالفلوس (×1000)
+    housing_allowance   = Column(Integer, default=0)    # بدل سكن
+    transport_allowance = Column(Integer, default=0)    # بدل مواصلات
+    food_allowance      = Column(Integer, default=0)    # بدل وجبات
+    phone_allowance     = Column(Integer, default=0)    # بدل هاتف
+    other_allowances    = Column(Integer, default=0)    # بدلات أخرى
+    social_security     = Column(Integer, default=0)    # اشتراك الضمان الاجتماعي
+    income_tax          = Column(Integer, default=0)    # ضريبة الدخل الثابتة
+    other_deductions    = Column(Integer, default=0)    # خصومات أخرى ثابتة
+    bank_name       = Column(String(200))
+    bank_account    = Column(String(100))
+    iban            = Column(String(50))
+    effective_date  = Column(Date)                      # تاريخ تطبيق الراتب
+    notes           = Column(Text)
+    updated_at      = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    updated_by      = Column(Integer, ForeignKey('users.id'), nullable=True)
+    employee        = relationship('HRSEmployee', back_populates='salary')
+    updater         = relationship('User', foreign_keys=[updated_by])
+
+    @property
+    def gross_salary(self):
+        return (self.basic_salary + self.housing_allowance + self.transport_allowance +
+                self.food_allowance + self.phone_allowance + self.other_allowances)
+
+    @property
+    def total_deductions(self):
+        return self.social_security + self.income_tax + self.other_deductions
+
+    @property
+    def net_salary(self):
+        return self.gross_salary - self.total_deductions
+
+
+class HRSSalarySlip(Base):
+    """سليب راتب شهري"""
+    __tablename__ = 'hrs_salary_slips'
+    __table_args__ = (UniqueConstraint('employee_id', 'month', 'year',
+                                       name='uq_hrs_salary_slip'),)
+    id              = Column(Integer, primary_key=True)
+    employee_id     = Column(Integer, ForeignKey('hrs_employees.id'), nullable=False, index=True)
+    month           = Column(Integer, nullable=False)   # 1-12
+    year            = Column(Integer, nullable=False)
+    # ── البنود المحفوظة وقت الإصدار ──────────────────────────────
+    basic_salary        = Column(Integer, default=0)
+    housing_allowance   = Column(Integer, default=0)
+    transport_allowance = Column(Integer, default=0)
+    food_allowance      = Column(Integer, default=0)
+    phone_allowance     = Column(Integer, default=0)
+    other_allowances    = Column(Integer, default=0)
+    overtime_amount     = Column(Integer, default=0)    # مبلغ الأوفر تايم
+    overtime_hours      = Column(Integer, default=0)    # ساعات الأوفر تايم
+    # ── الخصومات ─────────────────────────────────────────────────
+    social_security     = Column(Integer, default=0)
+    income_tax          = Column(Integer, default=0)
+    other_deductions    = Column(Integer, default=0)
+    leave_deductions    = Column(Integer, default=0)    # خصم الإجازات غير المدفوعة
+    # ── الملاحظات والحالة ─────────────────────────────────────────
+    notes           = Column(Text)
+    status          = Column(String(20), default='draft')   # draft / issued / paid
+    issued_at       = Column(DateTime)
+    issued_by       = Column(Integer, ForeignKey('users.id'), nullable=True)
+    created_at      = Column(DateTime, default=datetime.now)
+    employee        = relationship('HRSEmployee', foreign_keys=[employee_id])
+    issuer          = relationship('User', foreign_keys=[issued_by])
+
+    @property
+    def gross_salary(self):
+        return (self.basic_salary + self.housing_allowance + self.transport_allowance +
+                self.food_allowance + self.phone_allowance + self.other_allowances +
+                self.overtime_amount)
+
+    @property
+    def total_deductions(self):
+        return (self.social_security + self.income_tax +
+                self.other_deductions + self.leave_deductions)
+
+    @property
+    def net_salary(self):
+        return self.gross_salary - self.total_deductions

@@ -98,6 +98,27 @@ def create_app():
     except Exception as e:
         print(f"⚠️ EAS department migration: {e}")
 
+    # ── Migration: HRS tables ─────────────────────────────────────────────────
+    try:
+        from sqlalchemy import text
+        with get_engine().connect() as conn:
+            conn.execute(text("CREATE TABLE IF NOT EXISTS hrs_departments (id SERIAL PRIMARY KEY, name VARCHAR(200) NOT NULL, name_en VARCHAR(200), code VARCHAR(50) UNIQUE, parent_id INTEGER REFERENCES hrs_departments(id), is_active INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"))
+            conn.execute(text("CREATE TABLE IF NOT EXISTS hrs_positions (id SERIAL PRIMARY KEY, name VARCHAR(200) NOT NULL, name_en VARCHAR(200), department_id INTEGER REFERENCES hrs_departments(id), grade VARCHAR(50), is_active INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"))
+            conn.execute(text("CREATE TABLE IF NOT EXISTS hrs_employees (id SERIAL PRIMARY KEY, user_id INTEGER UNIQUE REFERENCES users(id), employee_number VARCHAR(50) UNIQUE NOT NULL, full_name VARCHAR(200) NOT NULL, full_name_en VARCHAR(200), national_id VARCHAR(50), nationality VARCHAR(100), birth_date DATE, gender VARCHAR(10), marital_status VARCHAR(20), religion VARCHAR(50), photo_b64 TEXT, department_id INTEGER REFERENCES hrs_departments(id), position_id INTEGER REFERENCES hrs_positions(id), direct_manager_id INTEGER REFERENCES hrs_employees(id), employment_type VARCHAR(30) DEFAULT 'full_time', hire_date DATE, probation_end DATE, contract_end DATE, work_location VARCHAR(200), work_email VARCHAR(200), work_phone VARCHAR(50), extension VARCHAR(20), personal_email VARCHAR(200), personal_phone VARCHAR(50), address TEXT, emergency_contact_name VARCHAR(200), emergency_contact_phone VARCHAR(50), emergency_contact_rel VARCHAR(100), status VARCHAR(20) DEFAULT 'active', termination_date DATE, termination_reason TEXT, is_active INTEGER DEFAULT 1, notes TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"))
+            conn.execute(text("CREATE TABLE IF NOT EXISTS hrs_education (id SERIAL PRIMARY KEY, employee_id INTEGER NOT NULL REFERENCES hrs_employees(id) ON DELETE CASCADE, degree VARCHAR(100) NOT NULL, major VARCHAR(200), institution VARCHAR(300), country VARCHAR(100), graduation_year INTEGER, grade VARCHAR(50), attachment_b64 TEXT, attachment_name VARCHAR(255), is_primary INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"))
+            conn.execute(text("CREATE TABLE IF NOT EXISTS hrs_leave_types (id SERIAL PRIMARY KEY, name VARCHAR(200) NOT NULL, name_en VARCHAR(200), code VARCHAR(30) UNIQUE, days_per_year INTEGER DEFAULT 0, is_paid INTEGER DEFAULT 1, requires_attachment INTEGER DEFAULT 0, min_days INTEGER DEFAULT 1, max_days INTEGER DEFAULT 0, gender_specific VARCHAR(10) DEFAULT 'all', color VARCHAR(20) DEFAULT '#0C67EC', is_active INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"))
+            conn.execute(text("CREATE TABLE IF NOT EXISTS hrs_leave_balances (id SERIAL PRIMARY KEY, employee_id INTEGER NOT NULL REFERENCES hrs_employees(id) ON DELETE CASCADE, leave_type_id INTEGER NOT NULL REFERENCES hrs_leave_types(id), year INTEGER NOT NULL, entitled_days INTEGER DEFAULT 0, used_days INTEGER DEFAULT 0, carried_over INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(employee_id, leave_type_id, year))"))
+            conn.execute(text("CREATE TABLE IF NOT EXISTS hrs_approval_steps (id SERIAL PRIMARY KEY, department_id INTEGER REFERENCES hrs_departments(id), leave_type_id INTEGER REFERENCES hrs_leave_types(id), step_order INTEGER NOT NULL DEFAULT 1, step_role VARCHAR(50), approver_user_id INTEGER REFERENCES users(id), step_label VARCHAR(200), step_label_en VARCHAR(200), is_active INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"))
+            conn.execute(text("CREATE TABLE IF NOT EXISTS hrs_leave_requests (id SERIAL PRIMARY KEY, request_number VARCHAR(50) UNIQUE NOT NULL, employee_id INTEGER NOT NULL REFERENCES hrs_employees(id), leave_type_id INTEGER NOT NULL REFERENCES hrs_leave_types(id), from_date DATE NOT NULL, to_date DATE NOT NULL, total_days INTEGER DEFAULT 1, reason TEXT, attachment_b64 TEXT, attachment_name VARCHAR(255), delegate_id INTEGER REFERENCES hrs_employees(id), status VARCHAR(20) DEFAULT 'pending', current_step INTEGER DEFAULT 1, rejection_reason TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"))
+            conn.execute(text("CREATE TABLE IF NOT EXISTS hrs_leave_approvals (id SERIAL PRIMARY KEY, request_id INTEGER NOT NULL REFERENCES hrs_leave_requests(id) ON DELETE CASCADE, step_order INTEGER NOT NULL, approver_id INTEGER NOT NULL REFERENCES users(id), status VARCHAR(20), comments TEXT, action_at TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"))
+            conn.execute(text("CREATE TABLE IF NOT EXISTS hrs_salaries (id SERIAL PRIMARY KEY, employee_id INTEGER UNIQUE NOT NULL REFERENCES hrs_employees(id), currency VARCHAR(10) DEFAULT 'JOD', basic_salary INTEGER DEFAULT 0, housing_allowance INTEGER DEFAULT 0, transport_allowance INTEGER DEFAULT 0, food_allowance INTEGER DEFAULT 0, phone_allowance INTEGER DEFAULT 0, other_allowances INTEGER DEFAULT 0, social_security INTEGER DEFAULT 0, income_tax INTEGER DEFAULT 0, other_deductions INTEGER DEFAULT 0, bank_name VARCHAR(200), bank_account VARCHAR(100), iban VARCHAR(50), effective_date DATE, notes TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_by INTEGER REFERENCES users(id))"))
+            conn.execute(text("CREATE TABLE IF NOT EXISTS hrs_salary_slips (id SERIAL PRIMARY KEY, employee_id INTEGER NOT NULL REFERENCES hrs_employees(id), month INTEGER NOT NULL, year INTEGER NOT NULL, basic_salary INTEGER DEFAULT 0, housing_allowance INTEGER DEFAULT 0, transport_allowance INTEGER DEFAULT 0, food_allowance INTEGER DEFAULT 0, phone_allowance INTEGER DEFAULT 0, other_allowances INTEGER DEFAULT 0, overtime_amount INTEGER DEFAULT 0, overtime_hours INTEGER DEFAULT 0, social_security INTEGER DEFAULT 0, income_tax INTEGER DEFAULT 0, other_deductions INTEGER DEFAULT 0, leave_deductions INTEGER DEFAULT 0, notes TEXT, status VARCHAR(20) DEFAULT 'draft', issued_at TIMESTAMP, issued_by INTEGER REFERENCES users(id), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(employee_id, month, year))"))
+            conn.commit()
+            print('✅ HRS tables ready')
+    except Exception as e:
+        print(f"⚠️ HRS migration: {e}")
+
+
     # ── DB session per request ────────────────────────────────────────────────
     @app.before_request
     def open_db():
@@ -142,6 +163,7 @@ def create_app():
     from routes.eas import eas_bp
     from routes.iface_device import iface_bp
     from routes.sas           import sas_bp
+from routes.hrs import hrs_bp
     from routes.mobile_api import mobile_api_bp
     from routes.download_data import dl_bp
     from routes.calendar_view   import calendar_bp
@@ -163,7 +185,7 @@ def create_app():
                calendar_bp, reservations_bp, venues_bp, locations_bp,
                venues_mgmt_bp, contacts_bp, groups_bp, reports_bp,
                checklists_bp, blocked_bp, ratings_bp, public_cal_bp,
-               bo_bp, mobile_api_bp, dl_bp]:
+               bo_bp, mobile_api_bp, dl_bp, hrs_bp]:
         app.register_blueprint(bp)        
 
     # Jinja filters
