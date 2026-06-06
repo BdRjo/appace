@@ -1537,3 +1537,18 @@ class HRSSalarySlip(Base):
     @property
     def net_salary(self):
         return self.gross_salary - self.total_deductions
+
+
+def seed_database(session):
+    if session.query(User).count() > 0:
+        return
+    print('...')
+
+    #
+    perms_data = [
+        ('dashboard_view','عرض لوحة التحكم','رئيسي'),
+        ('calendar_view','عرض التقويم','رئيسي'),
+        ('locations_view','عرض المواقع','مواقع'),
+        ('locations_add','إضافة مواقع','مواقع'),
+        ('locations_edit','تعديل مواقع','مواقع'),
+        ('locations_delete',
