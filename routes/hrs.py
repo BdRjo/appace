@@ -10,7 +10,7 @@ import json
 
 hrs_bp = Blueprint('hrs', __name__, url_prefix='/hrs')
 
-# ── Helper ─────────────────────────────────────────────────────────────────────
+# Helper────────────────────────────────────────────────────────────────────
 def _t(ar, en=''):
     return en if session.get('lang') == 'en' else ar
 
@@ -18,24 +18,24 @@ def _db():
     return g.db
 
 def _require_hr():
-    """تحقق من صلاحية الموارد البشرية"""
+    """Check HR permissions"""
     from utils.helpers import get_permissions
     perms = get_permissions()
-    # السماح للمسؤولين أو من لديهم دور admin/hr
+    # ...
     if hasattr(current_user, 'role_ref') and current_user.role_ref:
         role_name = (current_user.role_ref.name or '').lower()
         if role_name in ('admin', 'hr', 'superadmin'):
             return True
     return False
 
-# ── قائمة الموظفين ─────────────────────────────────────────────────────────────
+# ...
 @hrs_bp.route('/employees')
 @login_required
 def employees():
     from models.database import HRSEmployee, HRSDepartment, HRSPosition
     db = _db()
 
-    # فلاتر
+    # Filters
     q          = request.args.get('q', '').strip()
     dept_id    = request.args.get('dept_id', '', type=int) or None
     status_f   = request.args.get('status', '')
@@ -71,7 +71,7 @@ def employees():
     departments = db.query(HRSDepartment).filter_by(is_active=True).order_by(HRSDepartment.name).all()
     total_pages = (total + per_page - 1) // per_page
 
-    # إحصاءات سريعة
+    # ...
     stats = {
         'total':      db.query(HRSEmployee).filter_by(is_active=True).count(),
         'active':     db.query(HRSEmployee).filter_by(status='active').count(),
@@ -92,7 +92,7 @@ def employees():
         emp_type_f=emp_type_f,
     )
 
-# ── إضافة موظف ────────────────────────────────────────────────────────────────
+# ...
 @hrs_bp.route('/employees/new', methods=['GET', 'POST'])
 @login_required
 def employee_new():
@@ -107,7 +107,7 @@ def employee_new():
     if request.method == 'POST':
         f = request.form
 
-        # توليد رقم الموظف تلقائياً إذا لم يُدخل
+        # Auto-generate employee number
         emp_number = f.get('employee_number', '').strip()
         if not emp_number:
             last = db.query(func.max(HRSEmployee.employee_number)).scalar()
@@ -149,7 +149,7 @@ def employee_new():
             is_active         = True,
         )
 
-        # صورة الموظف
+        # Employee photo
         photo = request.files.get('photo')
         if photo and photo.filename:
             import base64
@@ -172,7 +172,7 @@ def employee_new():
         action=_t('إضافة موظف جديد', 'Add New Employee')
     )
 
-# ── عرض ملف الموظف ────────────────────────────────────────────────────────────
+# ...
 @hrs_bp.route('/employees/<int:emp_id>')
 @login_required
 def employee_view(emp_id):
@@ -199,7 +199,7 @@ def employee_view(emp_id):
         current_year=current_year,
     )
 
-# ── تعديل موظف ────────────────────────────────────────────────────────────────
+# ...
 @hrs_bp.route('/employees/<int:emp_id>/edit', methods=['GET', 'POST'])
 @login_required
 def employee_edit(emp_id):
@@ -267,7 +267,7 @@ def employee_edit(emp_id):
         action=_t('تعديل بيانات الموظف', 'Edit Employee')
     )
 
-# ── إضافة / تعديل شهادة ───────────────────────────────────────────────────────
+# ...
 @hrs_bp.route('/employees/<int:emp_id>/education/save', methods=['POST'])
 @login_required
 def education_save(emp_id):
@@ -313,7 +313,7 @@ def education_save(emp_id):
 
     return redirect(url_for('hrs.employee_view', emp_id=emp_id) + '#education')
 
-# ── حذف شهادة ─────────────────────────────────────────────────────────────────
+# ...
 @hrs_bp.route('/employees/<int:emp_id>/education/<int:edu_id>/delete', methods=['POST'])
 @login_required
 def education_delete(emp_id, edu_id):
@@ -325,7 +325,7 @@ def education_delete(emp_id, edu_id):
         db.commit()
     return redirect(url_for('hrs.employee_view', emp_id=emp_id) + '#education')
 
-# ── حفظ الراتب ────────────────────────────────────────────────────────────────
+# ...
 @hrs_bp.route('/employees/<int:emp_id>/salary/save', methods=['POST'])
 @login_required
 def salary_save(emp_id):
@@ -374,7 +374,7 @@ def salary_save(emp_id):
 
     return redirect(url_for('hrs.employee_view', emp_id=emp_id) + '#salary')
 
-# ── طلبات الإجازة — قائمة ─────────────────────────────────────────────────────
+# ...
 @hrs_bp.route('/leave-requests')
 @login_required
 def leave_requests():
@@ -426,7 +426,7 @@ def leave_requests():
         q=q, status_f=status_f, dept_id=dept_id,
     )
 
-# ── الموافقة / الرفض على طلب إجازة ───────────────────────────────────────────
+# ...
 @hrs_bp.route('/leave-requests/<int:req_id>/action', methods=['POST'])
 @login_required
 def leave_request_action(req_id):
@@ -442,7 +442,7 @@ def leave_request_action(req_id):
     if action not in ('approve', 'reject'):
         return jsonify({'ok': False, 'msg': 'Invalid action'}), 400
 
-    # سجّل الموافقة
+    # ...
     approval = HRSLeaveApproval(
         request_id  = req.id,
         step_order  = req.current_step,
@@ -457,7 +457,7 @@ def leave_request_action(req_id):
         req.status           = 'rejected'
         req.rejection_reason = comments
     else:
-        # تحقق من وجود خطوات أخرى
+        # ...
         from models.database import HRSApprovalStep
         next_step = (db.query(HRSApprovalStep)
                      .filter(
@@ -473,7 +473,7 @@ def leave_request_action(req_id):
             req.status       = 'pending'
         else:
             req.status = 'approved'
-            # خصم من رصيد الإجازة
+            # ...
             this_year = date.today().year
             bal = (db.query(HRSLeaveBalance)
                    .filter_by(employee_id=req.employee_id,
@@ -497,7 +497,7 @@ def leave_request_action(req_id):
         current_app.logger.exception(f'HRS leave action error: {e}')
         return jsonify({'ok': False, 'msg': str(e)}), 500
 
-# ── الأقسام ────────────────────────────────────────────────────────────────────
+# ...
 @hrs_bp.route('/departments')
 @login_required
 def departments():
@@ -539,7 +539,7 @@ def department_save():
 
     return redirect(url_for('hrs.departments'))
 
-# ── API: مناصب حسب القسم ───────────────────────────────────────────────────────
+# ...
 @hrs_bp.route('/api/positions')
 @login_required
 def api_positions():
@@ -552,7 +552,7 @@ def api_positions():
     data = [{'id': p.id, 'name': p.name} for p in q.order_by(HRSPosition.name).all()]
     return jsonify(data)
 
-# ── Helper: تحليل التاريخ ──────────────────────────────────────────────────────
+# ...
 def _parse_date(val):
     if not val:
         return None
