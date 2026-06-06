@@ -158,18 +158,18 @@ def employee_new():
         db.add(emp)
         try:
             db.commit()
-            flash(_t('تم إضافة الموظف بنجاح', 'Employee added successfully'), 'success')
+            flash(_t('   ', 'Employee added successfully'), 'success')
             return redirect(url_for('hrs.employee_view', emp_id=emp.id))
         except Exception as e:
             db.rollback()
             from flask import current_app
             current_app.logger.exception(f'HRS new employee error: {e}')
-            flash(_t('حدث خطأ، تحقق من البيانات', 'An error occurred'), 'danger')
+            flash(_t('    ', 'An error occurred'), 'danger')
 
     return render_template('hrs/employee_form.html',
         emp=None, departments=departments,
         positions=positions, managers=managers, users=users,
-        action=_t('إضافة موظف جديد', 'Add New Employee')
+        action=_t('  ', 'Add New Employee')
     )
 
 # ...
@@ -180,7 +180,7 @@ def employee_view(emp_id):
     db = _db()
     emp = db.query(HRSEmployee).filter_by(id=emp_id).first()
     if not emp:
-        flash(_t('الموظف غير موجود', 'Employee not found'), 'warning')
+        flash(_t('  ', 'Employee not found'), 'warning')
         return redirect(url_for('hrs.employees'))
 
     current_year = date.today().year
@@ -253,18 +253,18 @@ def employee_edit(emp_id):
 
         try:
             db.commit()
-            flash(_t('تم حفظ التعديلات', 'Changes saved'), 'success')
+            flash(_t('  ', 'Changes saved'), 'success')
             return redirect(url_for('hrs.employee_view', emp_id=emp.id))
         except Exception as e:
             db.rollback()
             from flask import current_app
             current_app.logger.exception(f'HRS edit employee error: {e}')
-            flash(_t('حدث خطأ', 'An error occurred'), 'danger')
+            flash(_t(' ', 'An error occurred'), 'danger')
 
     return render_template('hrs/employee_form.html',
         emp=emp, departments=departments,
         positions=positions, managers=managers, users=users,
-        action=_t('تعديل بيانات الموظف', 'Edit Employee')
+        action=_t('  ', 'Edit Employee')
     )
 
 # ...
@@ -304,12 +304,12 @@ def education_save(emp_id):
 
     try:
         db.commit()
-        flash(_t('تم حفظ الشهادة', 'Education record saved'), 'success')
+        flash(_t('  ', 'Education record saved'), 'success')
     except Exception as e:
         db.rollback()
         from flask import current_app
         current_app.logger.exception(f'HRS education save error: {e}')
-        flash(_t('حدث خطأ', 'An error occurred'), 'danger')
+        flash(_t(' ', 'An error occurred'), 'danger')
 
     return redirect(url_for('hrs.employee_view', emp_id=emp_id) + '#education')
 
@@ -365,12 +365,12 @@ def salary_save(emp_id):
 
     try:
         db.commit()
-        flash(_t('تم حفظ بيانات الراتب', 'Salary saved'), 'success')
+        flash(_t('   ', 'Salary saved'), 'success')
     except Exception as e:
         db.rollback()
         from flask import current_app
         current_app.logger.exception(f'HRS salary save error: {e}')
-        flash(_t('حدث خطأ', 'An error occurred'), 'danger')
+        flash(_t(' ', 'An error occurred'), 'danger')
 
     return redirect(url_for('hrs.employee_view', emp_id=emp_id) + '#salary')
 
@@ -489,7 +489,7 @@ def leave_request_action(req_id):
     try:
         db.commit()
         return jsonify({'ok': True,
-                        'msg': _t('تمت العملية بنجاح', 'Done'),
+                        'msg': _t('  ', 'Done'),
                         'new_status': req.status})
     except Exception as e:
         db.rollback()
@@ -530,12 +530,12 @@ def department_save():
 
     try:
         db.commit()
-        flash(_t('تم الحفظ', 'Saved'), 'success')
+        flash(_t(' ', 'Saved'), 'success')
     except Exception as e:
         db.rollback()
         from flask import current_app
         current_app.logger.exception(f'HRS dept save error: {e}')
-        flash(_t('حدث خطأ', 'Error'), 'danger')
+        flash(_t(' ', 'Error'), 'danger')
 
     return redirect(url_for('hrs.departments'))
 
