@@ -1,0 +1,338 @@
+{% extends "base.html" %}
+{% block title %}{{ action }} — HRS{% endblock %}
+
+{% block content %}
+<div class="hrs-wrap">
+
+  <div class="hrs-header">
+    <div class="hrs-header-info">
+      <div class="hrs-header-icon"><i class="bi bi-person-plus-fill"></i></div>
+      <div>
+        <h1 class="hrs-title">{{ action }}</h1>
+        <p class="hrs-subtitle"><a href="/hrs/employees" class="hrs-back-link"><i class="bi bi-arrow-right me-1"></i>Back to Employees</a></p>
+      </div>
+    </div>
+  </div>
+
+  <form method="post" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <!-- Tabs -->
+    <div class="hrs-tabs">
+      <button type="button" class="hrs-tab active" onclick="showTab('personal')"><i class="bi bi-person me-1"></i>Personal</button>
+      <button type="button" class="hrs-tab" onclick="showTab('work')"><i class="bi bi-briefcase me-1"></i>Work</button>
+      <button type="button" class="hrs-tab" onclick="showTab('contact')"><i class="bi bi-telephone me-1"></i>Contact</button>
+      <button type="button" class="hrs-tab" onclick="showTab('other')"><i class="bi bi-three-dots me-1"></i>Other</button>
+    </div>
+
+    <!-- Personal Tab -->
+    <div id="tab-personal" class="hrs-tab-content active">
+      <div class="hrs-form-card">
+        <h3 class="hrs-section-title">Personal Information</h3>
+        <div class="hrs-form-grid">
+
+          <div class="hrs-field hrs-field-full">
+            <label>Photo</label>
+            <div class="hrs-photo-upload">
+              {% if emp and emp.photo_b64 %}
+              <img src="{{ emp.photo_b64 }}" class="hrs-photo-preview" id="photoPreview">
+              {% else %}
+              <div class="hrs-photo-placeholder" id="photoPreview"><i class="bi bi-person-circle"></i></div>
+              {% endif %}
+              <input type="file" name="photo" accept="image/*" onchange="previewPhoto(this)" class="hrs-file-input">
+            </div>
+          </div>
+
+          <div class="hrs-field">
+            <label>Employee Number</label>
+            <input type="text" name="employee_number" value="{{ emp.employee_number if emp else '' }}" placeholder="Auto-generated" class="hrs-input">
+          </div>
+
+          <div class="hrs-field">
+            <label>Full Name (Arabic) <span class="req">*</span></label>
+            <input type="text" name="full_name" value="{{ emp.full_name if emp else '' }}" required class="hrs-input" dir="auto">
+          </div>
+
+          <div class="hrs-field">
+            <label>Full Name (English)</label>
+            <input type="text" name="full_name_en" value="{{ emp.full_name_en if emp else '' }}" class="hrs-input">
+          </div>
+
+          <div class="hrs-field">
+            <label>National ID</label>
+            <input type="text" name="national_id" value="{{ emp.national_id if emp else '' }}" class="hrs-input">
+          </div>
+
+          <div class="hrs-field">
+            <label>Nationality</label>
+            <input type="text" name="nationality" value="{{ emp.nationality if emp else '' }}" class="hrs-input">
+          </div>
+
+          <div class="hrs-field">
+            <label>Date of Birth</label>
+            <input type="date" name="birth_date" value="{{ emp.birth_date.strftime('%Y-%m-%d') if emp and emp.birth_date else '' }}" class="hrs-input">
+          </div>
+
+          <div class="hrs-field">
+            <label>Gender</label>
+            <select name="gender" class="hrs-input">
+              <option value="">-- Select --</option>
+              <option value="male" {{ 'selected' if emp and emp.gender=='male' }}>Male</option>
+              <option value="female" {{ 'selected' if emp and emp.gender=='female' }}>Female</option>
+            </select>
+          </div>
+
+          <div class="hrs-field">
+            <label>Marital Status</label>
+            <select name="marital_status" class="hrs-input">
+              <option value="">-- Select --</option>
+              <option value="single" {{ 'selected' if emp and emp.marital_status=='single' }}>Single</option>
+              <option value="married" {{ 'selected' if emp and emp.marital_status=='married' }}>Married</option>
+              <option value="divorced" {{ 'selected' if emp and emp.marital_status=='divorced' }}>Divorced</option>
+              <option value="widowed" {{ 'selected' if emp and emp.marital_status=='widowed' }}>Widowed</option>
+            </select>
+          </div>
+
+          <div class="hrs-field">
+            <label>Religion</label>
+            <input type="text" name="religion" value="{{ emp.religion if emp else '' }}" class="hrs-input">
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Work Tab -->
+    <div id="tab-work" class="hrs-tab-content">
+      <div class="hrs-form-card">
+        <h3 class="hrs-section-title">Work Information</h3>
+        <div class="hrs-form-grid">
+
+          <div class="hrs-field">
+            <label>Department</label>
+            <select name="department_id" class="hrs-input" id="deptSelect">
+              <option value="">-- Select --</option>
+              {% for d in departments %}
+              <option value="{{ d.id }}" {{ 'selected' if emp and emp.department_id==d.id }}>{{ d.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="hrs-field">
+            <label>Position</label>
+            <select name="position_id" class="hrs-input" id="posSelect">
+              <option value="">-- Select --</option>
+              {% for p in positions %}
+              <option value="{{ p.id }}" {{ 'selected' if emp and emp.position_id==p.id }}>{{ p.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="hrs-field">
+            <label>Direct Manager</label>
+            <select name="direct_manager_id" class="hrs-input">
+              <option value="">-- None --</option>
+              {% for m in managers %}
+              <option value="{{ m.id }}" {{ 'selected' if emp and emp.direct_manager_id==m.id }}>{{ m.full_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="hrs-field">
+            <label>Employment Type</label>
+            <select name="employment_type" class="hrs-input">
+              <option value="full_time" {{ 'selected' if not emp or emp.employment_type=='full_time' }}>Full Time</option>
+              <option value="part_time" {{ 'selected' if emp and emp.employment_type=='part_time' }}>Part Time</option>
+              <option value="contract" {{ 'selected' if emp and emp.employment_type=='contract' }}>Contract</option>
+              <option value="intern" {{ 'selected' if emp and emp.employment_type=='intern' }}>Intern</option>
+            </select>
+          </div>
+
+          <div class="hrs-field">
+            <label>Hire Date</label>
+            <input type="date" name="hire_date" value="{{ emp.hire_date.strftime('%Y-%m-%d') if emp and emp.hire_date else '' }}" class="hrs-input">
+          </div>
+
+          <div class="hrs-field">
+            <label>Probation End</label>
+            <input type="date" name="probation_end" value="{{ emp.probation_end.strftime('%Y-%m-%d') if emp and emp.probation_end else '' }}" class="hrs-input">
+          </div>
+
+          <div class="hrs-field">
+            <label>Contract End</label>
+            <input type="date" name="contract_end" value="{{ emp.contract_end.strftime('%Y-%m-%d') if emp and emp.contract_end else '' }}" class="hrs-input">
+          </div>
+
+          <div class="hrs-field">
+            <label>Work Location</label>
+            <input type="text" name="work_location" value="{{ emp.work_location if emp else '' }}" class="hrs-input">
+          </div>
+
+          <div class="hrs-field">
+            <label>Work Email</label>
+            <input type="email" name="work_email" value="{{ emp.work_email if emp else '' }}" class="hrs-input">
+          </div>
+
+          <div class="hrs-field">
+            <label>Work Phone</label>
+            <input type="text" name="work_phone" value="{{ emp.work_phone if emp else '' }}" class="hrs-input">
+          </div>
+
+          <div class="hrs-field">
+            <label>Extension</label>
+            <input type="text" name="extension" value="{{ emp.extension if emp else '' }}" class="hrs-input">
+          </div>
+
+          {% if emp %}
+          <div class="hrs-field">
+            <label>Status</label>
+            <select name="status" class="hrs-input">
+              <option value="active" {{ 'selected' if emp.status=='active' }}>Active</option>
+              <option value="on_leave" {{ 'selected' if emp.status=='on_leave' }}>On Leave</option>
+              <option value="suspended" {{ 'selected' if emp.status=='suspended' }}>Suspended</option>
+              <option value="terminated" {{ 'selected' if emp.status=='terminated' }}>Terminated</option>
+              <option value="resigned" {{ 'selected' if emp.status=='resigned' }}>Resigned</option>
+            </select>
+          </div>
+          {% endif %}
+
+          <div class="hrs-field">
+            <label>Link to User Account</label>
+            <select name="user_id" class="hrs-input">
+              <option value="">-- No Account --</option>
+              {% for u in users %}
+              <option value="{{ u.id }}" {{ 'selected' if emp and emp.user_id==u.id }}>{{ u.full_name }} ({{ u.username }})</option>
+              {% endfor %}
+            </select>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Contact Tab -->
+    <div id="tab-contact" class="hrs-tab-content">
+      <div class="hrs-form-card">
+        <h3 class="hrs-section-title">Contact Information</h3>
+        <div class="hrs-form-grid">
+          <div class="hrs-field">
+            <label>Personal Email</label>
+            <input type="email" name="personal_email" value="{{ emp.personal_email if emp else '' }}" class="hrs-input">
+          </div>
+          <div class="hrs-field">
+            <label>Personal Phone</label>
+            <input type="text" name="personal_phone" value="{{ emp.personal_phone if emp else '' }}" class="hrs-input">
+          </div>
+          <div class="hrs-field hrs-field-full">
+            <label>Address</label>
+            <textarea name="address" class="hrs-input hrs-textarea">{{ emp.address if emp else '' }}</textarea>
+          </div>
+        </div>
+
+        <h3 class="hrs-section-title mt-4">Emergency Contact</h3>
+        <div class="hrs-form-grid">
+          <div class="hrs-field">
+            <label>Name</label>
+            <input type="text" name="emergency_contact_name" value="{{ emp.emergency_contact_name if emp else '' }}" class="hrs-input">
+          </div>
+          <div class="hrs-field">
+            <label>Phone</label>
+            <input type="text" name="emergency_contact_phone" value="{{ emp.emergency_contact_phone if emp else '' }}" class="hrs-input">
+          </div>
+          <div class="hrs-field">
+            <label>Relationship</label>
+            <input type="text" name="emergency_contact_rel" value="{{ emp.emergency_contact_rel if emp else '' }}" class="hrs-input">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Other Tab -->
+    <div id="tab-other" class="hrs-tab-content">
+      <div class="hrs-form-card">
+        <h3 class="hrs-section-title">Notes</h3>
+        <div class="hrs-form-grid">
+          <div class="hrs-field hrs-field-full">
+            <label>Notes</label>
+            <textarea name="notes" class="hrs-input hrs-textarea" rows="5">{{ emp.notes if emp else '' }}</textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Submit -->
+    <div class="hrs-form-actions">
+      <a href="/hrs/employees" class="hrs-btn-cancel">Cancel</a>
+      <button type="submit" class="hrs-btn-submit">
+        <i class="bi bi-check-lg me-1"></i>Save Employee
+      </button>
+    </div>
+
+  </form>
+</div>
+
+<style>
+.hrs-wrap { padding: 1.5rem; }
+.hrs-header { display:flex; align-items:center; gap:1rem; margin-bottom:1.5rem; }
+.hrs-header-info { display:flex; align-items:center; gap:1rem; }
+.hrs-header-icon { width:52px; height:52px; border-radius:14px; background:linear-gradient(135deg,#0C67EC,#0847B0); display:flex; align-items:center; justify-content:center; color:#fff; font-size:1.4rem; }
+.hrs-title { font-size:1.3rem; font-weight:700; margin:0; }
+.hrs-back-link { font-size:.82rem; color:#64748b; text-decoration:none; }
+.hrs-back-link:hover { color:#0C67EC; }
+
+.hrs-tabs { display:flex; gap:.4rem; margin-bottom:1rem; flex-wrap:wrap; }
+.hrs-tab { background:#f1f5f9; border:none; padding:.5rem 1rem; border-radius:8px; font-size:.85rem; cursor:pointer; color:#64748b; transition:.15s; }
+.hrs-tab.active { background:#0C67EC; color:#fff; }
+.hrs-tab:hover:not(.active) { background:#e2e8f0; }
+
+.hrs-tab-content { display:none; }
+.hrs-tab-content.active { display:block; }
+
+.hrs-form-card { background:#fff; border-radius:14px; padding:1.5rem; box-shadow:0 2px 12px rgba(12,103,236,.08); border:1px solid #e2e8f0; margin-bottom:1rem; }
+.hrs-section-title { font-size:.95rem; font-weight:700; color:#1e293b; margin-bottom:1rem; padding-bottom:.5rem; border-bottom:1px solid #f1f5f9; }
+
+.hrs-form-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px,1fr)); gap:1rem; }
+.hrs-field { display:flex; flex-direction:column; gap:.3rem; }
+.hrs-field-full { grid-column:1/-1; }
+.hrs-field label { font-size:.8rem; font-weight:600; color:#475569; }
+.hrs-field .req { color:#ef4444; }
+
+.hrs-input { border:1.5px solid #e2e8f0; border-radius:9px; padding:.48rem .85rem; font-size:.85rem; color:#1e293b; background:#fff; outline:none; transition:.2s; width:100%; }
+.hrs-input:focus { border-color:#0C67EC; box-shadow:0 0 0 3px rgba(12,103,236,.12); }
+.hrs-textarea { resize:vertical; min-height:80px; }
+
+.hrs-photo-upload { display:flex; align-items:center; gap:1rem; }
+.hrs-photo-preview { width:80px; height:80px; border-radius:50%; object-fit:cover; border:3px solid #e2e8f0; }
+.hrs-photo-placeholder { width:80px; height:80px; border-radius:50%; background:#f1f5f9; display:flex; align-items:center; justify-content:center; font-size:2.5rem; color:#cbd5e1; }
+.hrs-file-input { font-size:.8rem; color:#64748b; }
+
+.hrs-form-actions { display:flex; justify-content:flex-end; gap:.75rem; padding:1rem 0; }
+.hrs-btn-cancel { background:#f1f5f9; color:#64748b; border:none; padding:.6rem 1.4rem; border-radius:10px; font-size:.88rem; text-decoration:none; display:inline-flex; align-items:center; }
+.hrs-btn-submit { background:linear-gradient(135deg,#0C67EC,#0847B0); color:#fff; border:none; padding:.6rem 1.4rem; border-radius:10px; font-size:.88rem; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; box-shadow:0 3px 10px rgba(12,103,236,.25); }
+.hrs-btn-submit:hover { opacity:.9; }
+
+@media (max-width:600px) {
+  .hrs-form-grid { grid-template-columns:1fr; }
+}
+</style>
+
+<script>
+function showTab(name) {
+  document.querySelectorAll('.hrs-tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.hrs-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+function previewPhoto(input) {
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const preview = document.getElementById('photoPreview');
+      preview.outerHTML = '<img src="' + e.target.result + '" class="hrs-photo-preview" id="photoPreview">';
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+</script>
+{% endblock %}
