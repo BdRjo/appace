@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ _('الموظفون','Employees') }} — HRS{% endblock %}
+{% block title %}Employees — HRS{% endblock %}
 
 {% block content %}
 <div class="hrs-wrap">
@@ -11,13 +11,13 @@
         <i class="bi bi-people-fill"></i>
       </div>
       <div>
-        <h1 class="hrs-title">{{ _('إدارة الموظفين','Employee Management') }}</h1>
-        <p class="hrs-subtitle">{{ _('نظام الموارد البشرية','Human Resources System') }}</p>
+        <h1 class="hrs-title">Employee Management</h1>
+        <p class="hrs-subtitle">Human Resources System</p>
       </div>
     </div>
     <a href="{{ url_for('hrs.employee_new') }}" class="hrs-btn-primary">
       <i class="bi bi-plus-lg me-1"></i>
-      {{ _('موظف جديد','New Employee') }}
+      New Employee
     </a>
   </div>
 
@@ -25,22 +25,22 @@
   <div class="hrs-stats-row">
     <div class="hrs-stat-card hrs-stat-total">
       <div class="hrs-stat-num">{{ stats.total }}</div>
-      <div class="hrs-stat-lbl">{{ _('إجمالي الموظفين','Total Employees') }}</div>
+      <div class="hrs-stat-lbl">Total Employees</div>
       <i class="bi bi-people hrs-stat-icon"></i>
     </div>
     <div class="hrs-stat-card hrs-stat-active">
       <div class="hrs-stat-num">{{ stats.active }}</div>
-      <div class="hrs-stat-lbl">{{ _('نشط','Active') }}</div>
+      <div class="hrs-stat-lbl">Active</div>
       <i class="bi bi-person-check hrs-stat-icon"></i>
     </div>
     <div class="hrs-stat-card hrs-stat-leave">
       <div class="hrs-stat-num">{{ stats.on_leave }}</div>
-      <div class="hrs-stat-lbl">{{ _('في إجازة','On Leave') }}</div>
+      <div class="hrs-stat-lbl">On Leave</div>
       <i class="bi bi-calendar2-x hrs-stat-icon"></i>
     </div>
     <div class="hrs-stat-card hrs-stat-term">
       <div class="hrs-stat-num">{{ stats.terminated }}</div>
-      <div class="hrs-stat-lbl">{{ _('منتهي الخدمة','Terminated') }}</div>
+      <div class="hrs-stat-lbl">Terminated</div>
       <i class="bi bi-person-dash hrs-stat-icon"></i>
     </div>
   </div>
@@ -50,34 +50,34 @@
     <form method="get" class="hrs-filters-form">
       <div class="hrs-filter-group hrs-search-group">
         <i class="bi bi-search hrs-search-icon"></i>
-        <input type="text" name="q" value="{{ q }}" placeholder="{{ _('بحث باسم أو رقم الموظف...','Search by name or number...') }}" class="hrs-input hrs-search-input">
+        <input type="text" name="q" value="{{ q }}" placeholder="Search by name or number..." class="hrs-input hrs-search-input">
       </div>
       <select name="dept_id" class="hrs-input hrs-select">
-        <option value="">{{ _('كل الأقسام','All Departments') }}</option>
+        <option value="">All Departments</option>
         {% for d in departments %}
         <option value="{{ d.id }}" {{ 'selected' if dept_id == d.id }}>{{ d.name }}</option>
         {% endfor %}
       </select>
       <select name="status" class="hrs-input hrs-select">
-        <option value="">{{ _('كل الحالات','All Statuses') }}</option>
-        <option value="active"     {{ 'selected' if status_f=='active' }}>{{ _('نشط','Active') }}</option>
-        <option value="on_leave"   {{ 'selected' if status_f=='on_leave' }}>{{ _('في إجازة','On Leave') }}</option>
-        <option value="suspended"  {{ 'selected' if status_f=='suspended' }}>{{ _('موقوف','Suspended') }}</option>
-        <option value="terminated" {{ 'selected' if status_f=='terminated' }}>{{ _('منتهي','Terminated') }}</option>
+        <option value="">All Statuses</option>
+        <option value="active"     {{ 'selected' if status_f=='active' }}>Active</option>
+        <option value="on_leave"   {{ 'selected' if status_f=='on_leave' }}>On Leave</option>
+        <option value="suspended"  {{ 'selected' if status_f=='suspended' }}>Suspended</option>
+        <option value="terminated" {{ 'selected' if status_f=='terminated' }}>Terminated</option>
       </select>
       <select name="emp_type" class="hrs-input hrs-select">
-        <option value="">{{ _('كل الأنواع','All Types') }}</option>
-        <option value="full_time"  {{ 'selected' if emp_type_f=='full_time' }}>{{ _('دوام كامل','Full Time') }}</option>
-        <option value="part_time"  {{ 'selected' if emp_type_f=='part_time' }}>{{ _('دوام جزئي','Part Time') }}</option>
-        <option value="contract"   {{ 'selected' if emp_type_f=='contract' }}>{{ _('متعاقد','Contract') }}</option>
-        <option value="intern"     {{ 'selected' if emp_type_f=='intern' }}>{{ _('متدرب','Intern') }}</option>
+        <option value="">All Types</option>
+        <option value="full_time"  {{ 'selected' if emp_type_f=='full_time' }}>Full Time</option>
+        <option value="part_time"  {{ 'selected' if emp_type_f=='part_time' }}>Part Time</option>
+        <option value="contract"   {{ 'selected' if emp_type_f=='contract' }}>Contract</option>
+        <option value="intern"     {{ 'selected' if emp_type_f=='intern' }}>Intern</option>
       </select>
       <button type="submit" class="hrs-btn-filter">
-        <i class="bi bi-funnel-fill me-1"></i>{{ _('فلترة','Filter') }}
+        <i class="bi bi-funnel-fill me-1"></i>Filter
       </button>
       {% if q or dept_id or status_f or emp_type_f %}
       <a href="{{ url_for('hrs.employees') }}" class="hrs-btn-clear">
-        <i class="bi bi-x-circle me-1"></i>{{ _('مسح','Clear') }}
+        <i class="bi bi-x-circle me-1"></i>Clear
       </a>
       {% endif %}
     </form>
@@ -88,10 +88,10 @@
     {% if employees %}
     <div class="hrs-table-header">
       <span class="hrs-result-count">
-        {{ _('يعرض','Showing') }} {{ employees|length }} {{ _('من','of') }} {{ total }} {{ _('موظف','employees') }}
+        Showing {{ employees|length }} of {{ total }} employees
       </span>
       <a href="{{ url_for('hrs.departments') }}" class="hrs-link-sm">
-        <i class="bi bi-diagram-3 me-1"></i>{{ _('إدارة الأقسام','Manage Departments') }}
+        <i class="bi bi-diagram-3 me-1"></i>Manage Departments
       </a>
     </div>
 
@@ -99,13 +99,13 @@
       <table class="hrs-table">
         <thead>
           <tr>
-            <th>{{ _('الموظف','Employee') }}</th>
-            <th>{{ _('الرقم الوظيفي','Emp. No.') }}</th>
-            <th>{{ _('القسم','Department') }}</th>
-            <th>{{ _('المسمى','Position') }}</th>
-            <th>{{ _('نوع التعيين','Type') }}</th>
-            <th>{{ _('تاريخ التعيين','Hire Date') }}</th>
-            <th>{{ _('الحالة','Status') }}</th>
+            <th>Employee</th>
+            <th>Emp. No.</th>
+            <th>Department</th>
+            <th>Position</th>
+            <th>Type</th>
+            <th>Hire Date</th>
+            <th>Status</th>
             <th></th>
           </tr>
         </thead>
@@ -143,10 +143,10 @@
             </td>
             <td onclick="event.stopPropagation()">
               <div class="hrs-row-actions">
-                <a href="{{ url_for('hrs.employee_view', emp_id=emp.id) }}" class="hrs-action-btn" title="{{ _('عرض','View') }}">
+                <a href="{{ url_for('hrs.employee_view', emp_id=emp.id) }}" class="hrs-action-btn" title="View">
                   <i class="bi bi-eye"></i>
                 </a>
-                <a href="{{ url_for('hrs.employee_edit', emp_id=emp.id) }}" class="hrs-action-btn" title="{{ _('تعديل','Edit') }}">
+                <a href="{{ url_for('hrs.employee_edit', emp_id=emp.id) }}" class="hrs-action-btn" title="Edit">
                   <i class="bi bi-pencil"></i>
                 </a>
               </div>
@@ -185,10 +185,10 @@
     {% else %}
     <div class="hrs-empty">
       <i class="bi bi-people hrs-empty-icon"></i>
-      <div class="hrs-empty-title">{{ _('لا يوجد موظفون','No employees found') }}</div>
-      <div class="hrs-empty-sub">{{ _('أضف أول موظف للبدء','Add the first employee to get started') }}</div>
+      <div class="hrs-empty-title">No employees found</div>
+      <div class="hrs-empty-sub">Add the first employee to get started</div>
       <a href="{{ url_for('hrs.employee_new') }}" class="hrs-btn-primary mt-3">
-        <i class="bi bi-plus-lg me-1"></i>{{ _('إضافة موظف','Add Employee') }}
+        <i class="bi bi-plus-lg me-1"></i>Add Employee
       </a>
     </div>
     {% endif %}
