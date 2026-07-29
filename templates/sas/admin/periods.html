@@ -43,6 +43,26 @@
 
 /* Copy modal */
 .copy-day-check { width: 16px; height: 16px; accent-color: var(--sas); cursor: pointer; }
+
+/* Class scope selector */
+.scope-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.scope-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 20px;
+  font-size: .8rem; font-weight: 600; text-decoration: none; border: 1.5px solid #e5e7eb;
+  color: #4b5563; background: #fff; transition: all .15s;
+}
+.scope-chip:hover { border-color: var(--sas); color: var(--sas-dark); }
+.scope-chip.active { background: var(--sas); border-color: var(--sas); color: #fff; }
+.scope-chip .dot { width: 7px; height: 7px; border-radius: 50%; background: #f59e0b; flex-shrink: 0; }
+.scope-chip.active .dot { background: #fff; }
+
+/* Apply-to checklist */
+.apply-box {
+  background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 14px; margin-bottom: 14px;
+}
+.apply-box .title { font-size: .82rem; font-weight: 700; color: #374151; margin-bottom: 8px; display: block; }
+.apply-check { display: inline-flex; align-items: center; gap: 6px; font-size: .82rem; margin-inline-end: 14px; margin-bottom: 4px; cursor: pointer; }
+.apply-check input { width: 15px; height: 15px; accent-color: var(--sas); cursor: pointer; }
 </style>
 {% endblock %}
 
@@ -63,7 +83,47 @@
 <div class="mb-3" style="font-size:.82rem;color:#6b7280;background:#f9fafb;padding:8px 14px;border-radius:8px;border:1px solid #e5e7eb">
   <i class="bi bi-info-circle me-1" style="color:var(--sas)"></i>
   {{ 'أضف الحصص والفرص لكل يوم بشكل مستقل. استخدم زر النسخ لنقل جدول يوم إلى أيام أخرى.' if ar else 'Add periods and breaks for each day independently. Use the copy button to duplicate a day\'s schedule to other days.' }}
+  {{ 'الصفوف التي لا يوجد لها جدول خاص تستخدم الجدول الافتراضي المشترك تلقائياً.' if ar else ' Classes without their own schedule automatically use the shared default.' }}
 </div>
+
+{% if classes %}
+<div class="scope-bar">
+  <a href="{{ url_for('sas.admin_periods', stage_id=stage.id) }}" class="scope-chip {{ 'active' if not current_class }}">
+    <i class="bi bi-collection"></i>{{ 'الافتراضي المشترك' if ar else 'Shared Default' }}
+  </a>
+  {% for c in classes %}
+  <a href="{{ url_for('sas.admin_periods', stage_id=stage.id, class_id=c.id) }}"
+     class="scope-chip {{ 'active' if current_class and current_class.id == c.id }}">
+    {% if c.id in override_class_ids %}<span class="dot" title="{{ 'له جدول خاص' if ar else 'Has its own schedule' }}"></span>{% endif %}
+    {{ c.name if ar else (c.name_en or c.name) }}
+  </a>
+  {% endfor %}
+</div>
+
+{% if current_class and current_class.id in override_class_ids %}
+<div class="mb-3">
+  <button type="button" class="btn btn-sm" style="border:1.5px solid #dc2626;color:#dc2626;border-radius:8px;font-size:.78rem;font-weight:600"
+          onclick="resetClassOverride({{ current_class.id }})">
+    <i class="bi bi-arrow-counterclockwise me-1"></i>
+    {{ 'إعادة تعيين هذا الصف للجدول الافتراضي' if ar else 'Reset this class to the default schedule' }}
+  </button>
+</div>
+{% endif %}
+
+<div class="apply-box">
+  <span class="title"><i class="bi bi-check2-square me-1"></i>{{ 'عند الحفظ، طبّق هذا الجدول على:' if ar else 'When saving, apply this schedule to:' }}</span>
+  <label class="apply-check">
+    <input type="checkbox" class="apply-target" value="default" {{ 'checked' if not current_class }}>
+    {{ 'الافتراضي المشترك' if ar else 'Shared Default' }}
+  </label>
+  {% for c in classes %}
+  <label class="apply-check">
+    <input type="checkbox" class="apply-target" value="{{ c.id }}" {{ 'checked' if current_class and current_class.id == c.id }}>
+    {{ c.name if ar else (c.name_en or c.name) }}
+  </label>
+  {% endfor %}
+</div>
+{% endif %}
 
 <div id="scheduleContainer">
 {% for day_num in range(7) %}
@@ -259,9 +319,21 @@ function executeCopy() {
 }
 
 /* ── Save All ── */
+function collectTargets() {
+  var boxes = document.querySelectorAll('.apply-target:checked');
+  var targets = [];
+  boxes.forEach(function (b) { targets.push(b.value); });
+  return targets;
+}
+
 function saveAll() {
   var days = {};
   for (var d = 0; d < 7; d++) { days[d] = collectDay(d); }
+  var targets = collectTargets();
+  if (targets.length === 0) {
+    alert(ar ? 'اختر صفاً واحداً على الأقل لتطبيق الجدول عليه' : 'Select at least one target to apply the schedule to');
+    return;
+  }
 
   var btn = document.querySelector('.btn-sas');
   var origHtml = btn.innerHTML;
@@ -271,7 +343,7 @@ function saveAll() {
   fetch('{{ url_for("sas.admin_periods_save", stage_id=stage.id) }}', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ days: days })
+    body: JSON.stringify({ days: days, targets: targets })
   })
     .then(function (r) { return r.json(); })
     .then(function (d) {
@@ -279,7 +351,7 @@ function saveAll() {
       if (d.ok) {
         btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>' + (ar ? 'تم الحفظ ✓' : 'Saved ✓');
         btn.style.background = '#0e7490';
-        setTimeout(function () { btn.innerHTML = origHtml; btn.style.background = ''; }, 2500);
+        setTimeout(function () { location.reload(); }, 900);
       } else {
         btn.innerHTML = origHtml;
         alert(d.error || (ar ? 'حدث خطأ' : 'Error'));
@@ -290,6 +362,23 @@ function saveAll() {
       btn.innerHTML = origHtml;
       alert(ar ? 'فشل الاتصال بالخادم' : 'Connection error');
     });
+}
+
+var resetUrlTemplate = '{{ url_for("sas.admin_periods_reset_class", stage_id=stage.id, class_id=999999999) }}';
+function resetClassOverride(classId) {
+  if (!confirm(ar ? 'سيتم حذف الجدول الخاص بهذا الصف والعودة للجدول الافتراضي. متابعة؟' : 'This will remove the class\'s own schedule and fall back to the default. Continue?')) return;
+  fetch(resetUrlTemplate.replace('999999999', classId), {
+    method: 'POST'
+  })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d.ok) {
+        window.location = '{{ url_for("sas.admin_periods", stage_id=stage.id) }}';
+      } else {
+        alert(d.error || (ar ? 'حدث خطأ' : 'Error'));
+      }
+    })
+    .catch(function () { alert(ar ? 'فشل الاتصال بالخادم' : 'Connection error'); });
 }
 </script>
 {% endblock %}

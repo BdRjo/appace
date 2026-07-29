@@ -651,6 +651,8 @@ def get_engine():
             ('sas_holidays', 'status',       "VARCHAR(20) DEFAULT 'pending'"),
             ('sas_holidays', 'approved_by',  'INTEGER REFERENCES sas_staff(id)'),
             ('sas_holidays', 'approved_at',  'DATETIME'),
+            # Per-class period overrides (v86) — NULL class_id = stage-wide default schedule
+            ('sas_periods', 'class_id', 'INTEGER REFERENCES sas_classes(id)'),
         ]
         for tbl, col, cdef in safe_cols:
             try:
@@ -1230,10 +1232,17 @@ class SASClassLeave(Base):
 
 
 class SASPeriod(Base):
-    """Period/break schedule per stage per day of week"""
+    """Period/break schedule per stage per day of week.
+
+    class_id is nullable: NULL rows are the stage-wide *default* schedule
+    shared by every class in the stage. A non-null class_id is a per-class
+    *override* used only by that class (e.g. a grade with different facility
+    constraints), and takes precedence over the stage default when both exist.
+    """
     __tablename__ = 'sas_periods'
     id          = Column(Integer, primary_key=True)
     stage_id    = Column(Integer, ForeignKey('sas_stages.id'), nullable=False)
+    class_id    = Column(Integer, ForeignKey('sas_classes.id'), nullable=True)
     day_of_week = Column(Integer, nullable=False)         # 0=Sunday .. 6=Saturday
     order_num   = Column(Integer, default=0)              # sequence within the day
     period_type = Column(String(20), default='period')    # period / break
@@ -1243,6 +1252,7 @@ class SASPeriod(Base):
     end_time    = Column(String(10), nullable=False)      # HH:MM
     created_at  = Column(DateTime, default=datetime.now)
     stage       = relationship('SASStage')
+    sas_class   = relationship('SASClass')
 
 
 class SASTimetable(Base):

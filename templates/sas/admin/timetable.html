@@ -96,7 +96,7 @@ html[dir="rtl"] .tt-table .day-cell { writing-mode: vertical-lr; }
     <button class="btn btn-sm" style="background:#f0f9ff;color:var(--sas-dark);border:none;border-radius:8px;font-weight:600;font-size:.84rem" onclick="window.print()">
       <i class="bi bi-printer me-1"></i>{{ 'طباعة' if ar else 'Print' }}
     </button>
-    <a href="{{ url_for('sas.admin_periods', stage_id=stage.id) }}" class="btn btn-sm" style="background:#ecfeff;color:var(--sas-dark);border:1px solid var(--sas);border-radius:8px;font-weight:600;font-size:.82rem">
+    <a href="{{ url_for('sas.admin_periods', stage_id=stage.id, class_id=cls.id) }}" class="btn btn-sm" style="background:#ecfeff;color:var(--sas-dark);border:1px solid var(--sas);border-radius:8px;font-weight:600;font-size:.82rem">
       <i class="bi bi-clock me-1"></i>{{ 'إعداد الحصص' if ar else 'Periods' }}
     </a>
     <a href="{{ url_for('sas.admin_stages') }}" class="btn btn-sm" style="border:1.5px solid var(--sas);color:var(--sas);border-radius:8px;font-weight:600">
@@ -114,7 +114,7 @@ html[dir="rtl"] .tt-table .day-cell { writing-mode: vertical-lr; }
   <div style="font-size:.84rem;color:#b45309;margin-bottom:14px">
     {{ 'أعدّ الحصص والأوقات أولاً ثم عد لإنشاء الجدول' if ar else 'Please set up periods and times first before creating the timetable' }}
   </div>
-  <a href="{{ url_for('sas.admin_periods', stage_id=stage.id) }}" class="btn-sas" style="display:inline-block;text-decoration:none;padding:8px 28px;border-radius:8px">
+  <a href="{{ url_for('sas.admin_periods', stage_id=stage.id, class_id=cls.id) }}" class="btn-sas" style="display:inline-block;text-decoration:none;padding:8px 28px;border-radius:8px">
     <i class="bi bi-clock me-1"></i>{{ 'إعداد جدول الحصص' if ar else 'Set Up Periods' }}
   </a>
 </div>

@@ -191,10 +191,12 @@ def _leave_type_label(key):
     return pair[0] if get_lang() == 'ar' else pair[1]
 
 
-def _check_period_overlap(db, stage_id, day_of_week, start_time, end_time, exclude_id=None):
-    """Check if a period overlaps with existing periods."""
+def _check_period_overlap(db, stage_id, day_of_week, start_time, end_time, exclude_id=None, class_id=None):
+    """Check if a period overlaps with existing periods in the same scope
+    (stage default when class_id is None, or that class's override)."""
     query = db.query(SASPeriod).filter(
         SASPeriod.stage_id == stage_id,
+        SASPeriod.class_id == class_id,
         SASPeriod.day_of_week == day_of_week,
         SASPeriod.start_time < end_time,
         SASPeriod.end_time > start_time,
@@ -1780,18 +1782,44 @@ def admin_periods(stage_id):
     stage = db.get(SASStage, stage_id)
     if not stage:
         abort(404)
+
+    classes = (
+        db.query(SASClass)
+        .filter(SASClass.stage_id == stage_id)
+        .order_by(SASClass.order_num)
+        .all()
+    )
+
+    # Which classes currently have their own override (vs using the stage default)?
+    override_class_ids = {
+        row[0] for row in
+        db.query(SASPeriod.class_id)
+        .filter(SASPeriod.stage_id == stage_id, SASPeriod.class_id.isnot(None))
+        .distinct()
+        .all()
+    }
+
+    # Resolve requested scope: ?class_id=<id> for an override, absent/blank for the default
+    class_id_param = request.args.get('class_id', type=int)
+    current_class = None
+    if class_id_param:
+        current_class = next((c for c in classes if c.id == class_id_param), None)
+    scope_class_id = current_class.id if current_class else None
+
     periods = (
         db.query(SASPeriod)
-        .filter(SASPeriod.stage_id == stage_id)
+        .filter(SASPeriod.stage_id == stage_id, SASPeriod.class_id == scope_class_id)
         .order_by(SASPeriod.day_of_week, SASPeriod.order_num)
         .all()
     )
-    # Group by day
     by_day = {}
     for p in periods:
         by_day.setdefault(p.day_of_week, []).append(p)
+
     return render_template('sas/admin/periods.html', config=cfg, stage=stage,
-                           by_day=by_day, day_names_ar=DAY_NAMES_AR, day_names_en=DAY_NAMES_EN)
+                           by_day=by_day, day_names_ar=DAY_NAMES_AR, day_names_en=DAY_NAMES_EN,
+                           classes=classes, current_class=current_class,
+                           override_class_ids=override_class_ids)
 
 
 @sas_bp.route('/admin/periods/<int:stage_id>/save', methods=['POST'])
@@ -1804,24 +1832,70 @@ def admin_periods_save(stage_id):
     data = request.get_json(silent=True)
     if not data or 'days' not in data:
         return jsonify({'ok': False, 'error': 'Invalid data'}), 400
+
+    # targets: list of scopes to write this same schedule to in one save.
+    # 'default' -> stage-wide (class_id NULL); an integer -> that class's override.
+    targets = data.get('targets') or ['default']
+    valid_class_ids = {
+        row[0] for row in
+        db.query(SASClass.id).filter(SASClass.stage_id == stage_id).all()
+    }
+    scope_class_ids = []
+    for t in targets:
+        if t == 'default':
+            scope_class_ids.append(None)
+        else:
+            try:
+                cid = int(t)
+            except (TypeError, ValueError):
+                continue
+            if cid in valid_class_ids:
+                scope_class_ids.append(cid)
+    if not scope_class_ids:
+        scope_class_ids = [None]
+
     try:
-        # Delete existing periods for this stage
-        db.query(SASPeriod).filter(SASPeriod.stage_id == stage_id).delete()
-        # Insert new periods
-        for day_num_str, items in data['days'].items():
-            day_num = int(day_num_str)
-            for idx, item in enumerate(items):
-                p = SASPeriod(
-                    stage_id=stage_id,
-                    day_of_week=day_num,
-                    order_num=idx,
-                    period_type=item.get('type', 'period'),
-                    label=item.get('label', ''),
-                    label_en=item.get('label_en', ''),
-                    start_time=item.get('start', ''),
-                    end_time=item.get('end', ''),
-                )
-                db.add(p)
+        for scope_class_id in scope_class_ids:
+            # Delete existing periods for this exact scope only
+            db.query(SASPeriod).filter(
+                SASPeriod.stage_id == stage_id,
+                SASPeriod.class_id == scope_class_id,
+            ).delete()
+            for day_num_str, items in data['days'].items():
+                day_num = int(day_num_str)
+                for idx, item in enumerate(items):
+                    p = SASPeriod(
+                        stage_id=stage_id,
+                        class_id=scope_class_id,
+                        day_of_week=day_num,
+                        order_num=idx,
+                        period_type=item.get('type', 'period'),
+                        label=item.get('label', ''),
+                        label_en=item.get('label_en', ''),
+                        start_time=item.get('start', ''),
+                        end_time=item.get('end', ''),
+                    )
+                    db.add(p)
+        db.commit()
+        return jsonify({'ok': True})
+    except Exception as e:
+        db.rollback()
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@sas_bp.route('/admin/periods/<int:stage_id>/class/<int:class_id>/reset', methods=['POST'])
+@admin_required
+def admin_periods_reset_class(stage_id, class_id):
+    """Remove a class's period override so it falls back to the stage default."""
+    db = get_db()
+    stage = db.get(SASStage, stage_id)
+    if not stage:
+        return jsonify({'ok': False, 'error': 'Stage not found'}), 404
+    try:
+        db.query(SASPeriod).filter(
+            SASPeriod.stage_id == stage_id,
+            SASPeriod.class_id == class_id,
+        ).delete()
         db.commit()
         return jsonify({'ok': True})
     except Exception as e:
@@ -1842,13 +1916,21 @@ def admin_timetable(section_id):
     stage = cls.stage if cls else None
     if not stage:
         abort(404)
-    # Get periods for this stage
+    # Get periods: use this class's own override if it has one, otherwise
+    # fall back to the stage-wide default schedule.
     periods = (
         db.query(SASPeriod)
-        .filter(SASPeriod.stage_id == stage.id)
+        .filter(SASPeriod.stage_id == stage.id, SASPeriod.class_id == cls.id)
         .order_by(SASPeriod.day_of_week, SASPeriod.order_num)
         .all()
     )
+    if not periods:
+        periods = (
+            db.query(SASPeriod)
+            .filter(SASPeriod.stage_id == stage.id, SASPeriod.class_id.is_(None))
+            .order_by(SASPeriod.day_of_week, SASPeriod.order_num)
+            .all()
+        )
     by_day = {}
     for p in periods:
         by_day.setdefault(p.day_of_week, []).append(p)
