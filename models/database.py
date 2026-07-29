@@ -659,7 +659,11 @@ def get_engine():
                 conn.execute(text(f'ALTER TABLE {tbl} ADD COLUMN {col} {cdef}'))
                 conn.commit()
             except Exception:
-                pass  # column already exists
+                conn.rollback()  # column already exists — reset the aborted
+                                  # transaction so the NEXT statement in this
+                                  # loop can still run (Postgres blocks all
+                                  # further commands on a connection after any
+                                  # failed statement until it is rolled back)
     _Session = sessionmaker(bind=_engine, expire_on_commit=False)
     return _engine
 
