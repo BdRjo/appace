@@ -254,6 +254,7 @@ def welcome():
 @sas_bp.route('/login', methods=['GET','POST'])
 def login():
     staff_code = (request.form.get('code') or request.form.get('staff_code') or '').strip()
+    card_role = (request.form.get('role') or '').strip()
     if not staff_code:
         flash(_t('يرجى إدخال الرمز', 'Please enter a code'), 'danger')
         return redirect(url_for('sas.welcome'))
@@ -266,6 +267,14 @@ def login():
 
     if not staff:
         flash(_t('رمز الدخول غير صحيح', 'Invalid staff code'), 'danger')
+        return redirect(url_for('sas.welcome'))
+
+    # The welcome page has a separate login card per role (supervisor/secretary/
+    # manager). Reject a code entered into the wrong card — a supervisor's code
+    # must not be accepted through the "Login as manager" card, etc.
+    if card_role and staff.role != card_role:
+        flash(_t('هذا الرمز لا يعود لهذا النوع من الحسابات. يرجى استخدام البطاقة الصحيحة حسب دورك',
+                  'This code does not belong to this account type. Please use the correct login card for your role'), 'danger')
         return redirect(url_for('sas.welcome'))
 
     return redirect(url_for('sas.portal_home', code=staff.staff_code))
