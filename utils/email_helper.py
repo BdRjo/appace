@@ -805,6 +805,35 @@ def send_reset_code(email: str, code: str, lang: str = 'ar') -> bool:
     return _send(email, '', subj, _html_wrapper(content, subj, lang), txt, sync=True)
 
 
+def send_staff_login_code(email: str, staff_name: str, code: str, portal_url: str = '', lang: str = 'ar') -> bool:
+    """Send an SAS staff member their portal login code (manual send, triggered by admin)."""
+    name = staff_name or email
+    link_html = f'<p style="text-align:center;margin:12px 0 0"><a href="{portal_url}" style="color:#0891b2;font-weight:700;text-decoration:none">{portal_url}</a></p>' if portal_url else ''
+
+    if lang == 'en':
+        content = f"""
+<p style="color:#4a5568;margin:0 0 20px">Hello {name}, here is your STAP portal login code:</p>
+<div style="background:#ecfeff;border:2px dashed #0891b2;border-radius:12px;padding:20px;text-align:center;margin-bottom:20px">
+  <div style="font-size:32px;font-weight:900;letter-spacing:6px;color:#0e7490">{code}</div>
+</div>
+{link_html}
+<p style="color:#999;font-size:12px;margin-top:16px">Keep this code private — do not share it with anyone.</p>"""
+        subj = 'STAP — Your Staff Login Code'
+        txt  = f'Your STAP login code: {code}'
+    else:
+        content = f"""
+<p style="color:#4a5568;margin:0 0 20px">مرحباً {name}، هذا رمز دخولك إلى بوابة النظام (STAP):</p>
+<div style="background:#ecfeff;border:2px dashed #0891b2;border-radius:12px;padding:20px;text-align:center;margin-bottom:20px">
+  <div style="font-size:32px;font-weight:900;letter-spacing:6px;color:#0e7490">{code}</div>
+</div>
+{link_html}
+<p style="color:#999;font-size:12px;margin-top:16px">حافظ على سرية هذا الرمز ولا تشاركه مع أحد.</p>"""
+        subj = 'STAP — رمز دخول الموظف'
+        txt  = f'رمز دخولك: {code}'
+
+    return _send(email, name, subj, _html_wrapper(content, subj, lang), txt, sync=True)
+
+
 def send_verification_code(email: str, code: str, full_name: str = '', lang: str = 'ar') -> bool:
     name = full_name or email
     # Custom template override

@@ -148,7 +148,7 @@ def _month_bounds():
 
 _PERM_MATRIX = {
     'view_own_stage':   {'supervisor', 'secretary', 'manager'},
-    'view_all':         {'secretary', 'manager'},
+    'view_all':         {'manager'},  # secretary/supervisor are confined to their own stage_id (see _enforce_stage_scope)
     'create_record':    {'supervisor', 'secretary', 'manager'},
     'edit_record':      {'manager'},          # Only manager can edit (immutability)
     'delete_record':    {'manager'},
@@ -168,6 +168,37 @@ def _check_perm(staff, action):
     """Return True if staff role is allowed the given action."""
     allowed = _PERM_MATRIX.get(action, set())
     return staff.role in allowed
+
+
+def _staff_stage_ids_or_none(staff):
+    """Return the set of stage IDs this staff member is confined to, or None
+    if they're a manager (unrestricted — sees every region)."""
+    if staff.role == 'manager':
+        return None
+    if staff.stage_id:
+        return {staff.stage_id}
+    return None
+
+
+def _enforce_stage_scope(staff, stage_id):
+    """Abort 403 if this staff member (supervisor or secretary) is assigned
+    to a specific region and is trying to access a different one."""
+    scope = _staff_stage_ids_or_none(staff)
+    if scope is not None and stage_id not in scope:
+        abort(403)
+
+
+def _student_in_scope(db, staff, student):
+    """Abort 403 if the student's region doesn't match this staff member's
+    assigned region (managers are unrestricted)."""
+    scope = _staff_stage_ids_or_none(staff)
+    if scope is None:
+        return
+    stage_id = None
+    if student and student.section and student.section.sas_class:
+        stage_id = student.section.sas_class.stage_id
+    if stage_id not in scope:
+        abort(403)
 
 
 # Class leave type labels (bilingual)
@@ -352,6 +383,7 @@ def stage_students(code, stage_id):
     ).get(stage_id)
     if not stage:
         abort(404)
+    _enforce_stage_scope(staff, stage_id)
 
     section_id = request.args.get('section_id', type=int)
     today = _today_str()
@@ -400,6 +432,7 @@ def student_detail(code, student_id):
     ).get(student_id)
     if not student:
         abort(404)
+    _student_in_scope(db, staff, student)
 
     records = (
         db.query(SASRecord)
@@ -453,6 +486,7 @@ def record_add(code):
     student = db.get(SASStudent, student_id)
     if not student:
         abort(404)
+    _student_in_scope(db, staff, student)
 
     attachment_b64 = None
     attachment_name = None
@@ -619,6 +653,22 @@ def bulk_absent(code):
     if not student_ids:
         flash(_t('لم يتم تحديد طلاب', 'No students selected'), 'danger')
         return redirect(request.referrer or url_for('sas.portal_home', code=code))
+
+    # Drop any student outside this staff member's assigned region
+    # (managers are unrestricted; supervisors/secretaries are confined)
+    scope = _staff_stage_ids_or_none(staff)
+    if scope is not None:
+        in_scope_ids = {
+            row[0] for row in
+            db.query(SASStudent.id)
+            .join(SASSection).join(SASClass)
+            .filter(SASStudent.id.in_(student_ids), SASClass.stage_id.in_(scope))
+            .all()
+        }
+        student_ids = [sid for sid in student_ids if sid in in_scope_ids]
+        if not student_ids:
+            flash(_t('لا يمكنك تسجيل غياب لطلاب خارج منطقتك', 'You cannot record attendance for students outside your assigned region'), 'danger')
+            return redirect(request.referrer or url_for('sas.portal_home', code=code))
 
     # Build notes string with leave reason if provided
     notes_text = ''
@@ -1276,6 +1326,31 @@ def admin_staff_regenerate_code(sid):
     staff.staff_code = code
     db.commit()
     return jsonify({'ok': True, 'new_code': code})
+
+
+# 20f. Manually send a staff member's login code by email
+@sas_bp.route('/admin/staff/<int:sid>/send-code', methods=['POST'])
+@admin_required
+def admin_staff_send_code(sid):
+    """Manually email a staff member their portal login code (never sent automatically)."""
+    db = get_db()
+    staff = db.get(SASStaff, sid)
+    if not staff:
+        return jsonify({'ok': False, 'error': 'not found'}), 404
+    if not staff.email:
+        return jsonify({'ok': False, 'error': _t('لا يوجد بريد إلكتروني لهذا الموظف', 'This staff member has no email on file')}), 400
+
+    from utils.email_helper import send_staff_login_code
+    portal_url = url_for('sas.portal_home', code=staff.staff_code, _external=True)
+    lang = get_lang()
+    try:
+        ok = send_staff_login_code(staff.email, staff.name, staff.staff_code, portal_url, lang)
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+    if not ok:
+        return jsonify({'ok': False, 'error': _t('تعذر إرسال البريد', 'Failed to send email')}), 500
+    return jsonify({'ok': True})
 
 
 # 21. Student list
@@ -2629,6 +2704,7 @@ def class_leave_add(code):
     student = db.get(SASStudent, student_id)
     if not student:
         abort(404)
+    _student_in_scope(db, staff, student)
 
     # Handle file attachment
     attachment_b64 = None

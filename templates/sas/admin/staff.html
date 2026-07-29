@@ -145,6 +145,20 @@ html[dir="rtl"] .sas-table th.sortable::after { right: auto; left: 6px; }
                 <button class="btn btn-sm staff-act" data-action="print" data-id="{{ s.id }}" style="background:#f0f9ff;color:#0e7490;border:none;border-radius:6px;font-size:.78rem;font-weight:600" title="{{ 'طباعة' if ar else 'Print' }}">
                   <i class="bi bi-printer"></i>
                 </button>
+                {% if s.email %}
+                <button class="btn btn-sm staff-act" data-action="send-email" data-id="{{ s.id }}" data-name="{{ s.name }}" style="background:#eff6ff;color:#2563eb;border:none;border-radius:6px;font-size:.78rem;font-weight:600" title="{{ 'إرسال الرمز عبر البريد' if ar else 'Send code by email' }}">
+                  <i class="bi bi-envelope"></i>
+                </button>
+                {% endif %}
+                {% if s.phone %}
+                <a class="btn btn-sm staff-act" data-action="send-whatsapp" data-id="{{ s.id }}"
+                   href="https://wa.me/{{ s.phone|replace('+','')|replace(' ','')|replace('-','') }}?text={{ ('مرحباً ' ~ s.name ~ '، رمز دخولك إلى بوابة النظام هو: ' ~ s.staff_code) | urlencode }}"
+                   target="_blank" rel="noopener"
+                   style="background:#f0fdf4;color:#16a34a;border:none;border-radius:6px;font-size:.78rem;font-weight:600;display:inline-flex;align-items:center;padding:.25rem .5rem"
+                   title="{{ 'إرسال الرمز عبر واتساب' if ar else 'Send code by WhatsApp' }}">
+                  <i class="bi bi-whatsapp"></i>
+                </a>
+                {% endif %}
                 <button class="btn btn-sm staff-act" data-action="delete" data-id="{{ s.id }}" data-name="{{ s.name }}" style="background:#fef2f2;color:#dc2626;border:none;border-radius:6px;font-size:.78rem;font-weight:600" title="{{ 'حذف' if ar else 'Delete' }}">
                   <i class="bi bi-trash"></i>
                 </button>
@@ -355,6 +369,7 @@ try { _sd[{{ sd.id }}] = {{ sd|tojson }}; } catch(e) { console.warn('Staff data 
 var _urlEdit = '{{ url_for("sas.admin_staff_edit", sid=0) }}';
 var _urlDelete = '{{ url_for("sas.admin_staff_delete", sid=0) }}';
 var _urlRegen = '{{ url_for("sas.admin_staff_regenerate_code", sid=0) }}';
+var _urlSendCode = '{{ url_for("sas.admin_staff_send_code", sid=0) }}';
 var _isAr = {{ 'true' if ar else 'false' }};
 function _u(tpl, id){ return tpl.replace('/0/', '/' + id + '/'); }
 
@@ -442,6 +457,22 @@ function regenerateCode(id){
     .catch(function(){ alert('Error'); });
 }
 
+function sendStaffCodeEmail(id, btn){
+  if(!confirm(_isAr ? 'إرسال رمز الدخول عبر البريد الإلكتروني الآن؟' : 'Send the login code by email now?')) return;
+  var origHtml = btn ? btn.innerHTML : '';
+  if(btn){ btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
+  fetch(_u(_urlSendCode, id), {method:'POST'})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(btn){ btn.disabled = false; btn.innerHTML = origHtml; }
+      alert(d.ok ? (_isAr ? 'تم إرسال الرمز بالبريد بنجاح' : 'Code emailed successfully') : (d.error || (_isAr ? 'حدث خطأ' : 'Error')));
+    })
+    .catch(function(){
+      if(btn){ btn.disabled = false; btn.innerHTML = origHtml; }
+      alert(_isAr ? 'فشل الاتصال بالخادم' : 'Connection error');
+    });
+}
+
 function printStaffCard(staff){
   if(!staff) return;
   var roleName = staff.role;
@@ -499,13 +530,15 @@ function printStaffCard(staff){
     // Action buttons
     var actBtn = e.target.closest('.staff-act');
     if(!actBtn) return;
-    e.preventDefault();
     var action = actBtn.getAttribute('data-action');
+    if(action === 'send-whatsapp') return; // let the anchor's href open normally in a new tab
+    e.preventDefault();
     var id = parseInt(actBtn.getAttribute('data-id'));
     var staff = _sd[id];
     if(action === 'edit') editStaff(staff);
     else if(action === 'regenerate') regenerateCode(id);
     else if(action === 'print') printStaffCard(staff);
+    else if(action === 'send-email') sendStaffCodeEmail(id, actBtn);
     else if(action === 'delete') deleteStaff(id, staff ? staff.name : (actBtn.getAttribute('data-name') || ''));
   });
 

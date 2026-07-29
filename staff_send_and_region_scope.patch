@@ -1,0 +1,251 @@
+diff --git a/routes/sas.py b/routes/sas.py
+index 363ef21..0f62116 100644
+--- a/routes/sas.py
++++ b/routes/sas.py
+@@ -148,7 +148,7 @@ def _month_bounds():
+ 
+ _PERM_MATRIX = {
+     'view_own_stage':   {'supervisor', 'secretary', 'manager'},
+-    'view_all':         {'secretary', 'manager'},
++    'view_all':         {'manager'},  # secretary/supervisor are confined to their own stage_id (see _enforce_stage_scope)
+     'create_record':    {'supervisor', 'secretary', 'manager'},
+     'edit_record':      {'manager'},          # Only manager can edit (immutability)
+     'delete_record':    {'manager'},
+@@ -170,6 +170,37 @@ def _check_perm(staff, action):
+     return staff.role in allowed
+ 
+ 
++def _staff_stage_ids_or_none(staff):
++    """Return the set of stage IDs this staff member is confined to, or None
++    if they're a manager (unrestricted — sees every region)."""
++    if staff.role == 'manager':
++        return None
++    if staff.stage_id:
++        return {staff.stage_id}
++    return None
++
++
++def _enforce_stage_scope(staff, stage_id):
++    """Abort 403 if this staff member (supervisor or secretary) is assigned
++    to a specific region and is trying to access a different one."""
++    scope = _staff_stage_ids_or_none(staff)
++    if scope is not None and stage_id not in scope:
++        abort(403)
++
++
++def _student_in_scope(db, staff, student):
++    """Abort 403 if the student's region doesn't match this staff member's
++    assigned region (managers are unrestricted)."""
++    scope = _staff_stage_ids_or_none(staff)
++    if scope is None:
++        return
++    stage_id = None
++    if student and student.section and student.section.sas_class:
++        stage_id = student.section.sas_class.stage_id
++    if stage_id not in scope:
++        abort(403)
++
++
+ # Class leave type labels (bilingual)
+ CLASS_LEAVE_TYPES = {
+     'library':        ('المكتبة', 'Library'),
+@@ -352,6 +383,7 @@ def stage_students(code, stage_id):
+     ).get(stage_id)
+     if not stage:
+         abort(404)
++    _enforce_stage_scope(staff, stage_id)
+ 
+     section_id = request.args.get('section_id', type=int)
+     today = _today_str()
+@@ -400,6 +432,7 @@ def student_detail(code, student_id):
+     ).get(student_id)
+     if not student:
+         abort(404)
++    _student_in_scope(db, staff, student)
+ 
+     records = (
+         db.query(SASRecord)
+@@ -453,6 +486,7 @@ def record_add(code):
+     student = db.get(SASStudent, student_id)
+     if not student:
+         abort(404)
++    _student_in_scope(db, staff, student)
+ 
+     attachment_b64 = None
+     attachment_name = None
+@@ -620,6 +654,22 @@ def bulk_absent(code):
+         flash(_t('لم يتم تحديد طلاب', 'No students selected'), 'danger')
+         return redirect(request.referrer or url_for('sas.portal_home', code=code))
+ 
++    # Drop any student outside this staff member's assigned region
++    # (managers are unrestricted; supervisors/secretaries are confined)
++    scope = _staff_stage_ids_or_none(staff)
++    if scope is not None:
++        in_scope_ids = {
++            row[0] for row in
++            db.query(SASStudent.id)
++            .join(SASSection).join(SASClass)
++            .filter(SASStudent.id.in_(student_ids), SASClass.stage_id.in_(scope))
++            .all()
++        }
++        student_ids = [sid for sid in student_ids if sid in in_scope_ids]
++        if not student_ids:
++            flash(_t('لا يمكنك تسجيل غياب لطلاب خارج منطقتك', 'You cannot record attendance for students outside your assigned region'), 'danger')
++            return redirect(request.referrer or url_for('sas.portal_home', code=code))
++
+     # Build notes string with leave reason if provided
+     notes_text = ''
+     if bulk_leave_reason:
+@@ -1278,6 +1328,31 @@ def admin_staff_regenerate_code(sid):
+     return jsonify({'ok': True, 'new_code': code})
+ 
+ 
++# 20f. Manually send a staff member's login code by email
++@sas_bp.route('/admin/staff/<int:sid>/send-code', methods=['POST'])
++@admin_required
++def admin_staff_send_code(sid):
++    """Manually email a staff member their portal login code (never sent automatically)."""
++    db = get_db()
++    staff = db.get(SASStaff, sid)
++    if not staff:
++        return jsonify({'ok': False, 'error': 'not found'}), 404
++    if not staff.email:
++        return jsonify({'ok': False, 'error': _t('لا يوجد بريد إلكتروني لهذا الموظف', 'This staff member has no email on file')}), 400
++
++    from utils.email_helper import send_staff_login_code
++    portal_url = url_for('sas.portal_home', code=staff.staff_code, _external=True)
++    lang = get_lang()
++    try:
++        ok = send_staff_login_code(staff.email, staff.name, staff.staff_code, portal_url, lang)
++    except Exception as e:
++        return jsonify({'ok': False, 'error': str(e)}), 500
++
++    if not ok:
++        return jsonify({'ok': False, 'error': _t('تعذر إرسال البريد', 'Failed to send email')}), 500
++    return jsonify({'ok': True})
++
++
+ # 21. Student list
+ @sas_bp.route('/admin/students')
+ @admin_required
+@@ -2629,6 +2704,7 @@ def class_leave_add(code):
+     student = db.get(SASStudent, student_id)
+     if not student:
+         abort(404)
++    _student_in_scope(db, staff, student)
+ 
+     # Handle file attachment
+     attachment_b64 = None
+diff --git a/templates/sas/admin/staff.html b/templates/sas/admin/staff.html
+index 0da620c..1ddf5b6 100644
+--- a/templates/sas/admin/staff.html
++++ b/templates/sas/admin/staff.html
+@@ -145,6 +145,20 @@ html[dir="rtl"] .sas-table th.sortable::after { right: auto; left: 6px; }
+                 <button class="btn btn-sm staff-act" data-action="print" data-id="{{ s.id }}" style="background:#f0f9ff;color:#0e7490;border:none;border-radius:6px;font-size:.78rem;font-weight:600" title="{{ 'طباعة' if ar else 'Print' }}">
+                   <i class="bi bi-printer"></i>
+                 </button>
++                {% if s.email %}
++                <button class="btn btn-sm staff-act" data-action="send-email" data-id="{{ s.id }}" data-name="{{ s.name }}" style="background:#eff6ff;color:#2563eb;border:none;border-radius:6px;font-size:.78rem;font-weight:600" title="{{ 'إرسال الرمز عبر البريد' if ar else 'Send code by email' }}">
++                  <i class="bi bi-envelope"></i>
++                </button>
++                {% endif %}
++                {% if s.phone %}
++                <a class="btn btn-sm staff-act" data-action="send-whatsapp" data-id="{{ s.id }}"
++                   href="https://wa.me/{{ s.phone|replace('+','')|replace(' ','')|replace('-','') }}?text={{ ('مرحباً ' ~ s.name ~ '، رمز دخولك إلى بوابة النظام هو: ' ~ s.staff_code) | urlencode }}"
++                   target="_blank" rel="noopener"
++                   style="background:#f0fdf4;color:#16a34a;border:none;border-radius:6px;font-size:.78rem;font-weight:600;display:inline-flex;align-items:center;padding:.25rem .5rem"
++                   title="{{ 'إرسال الرمز عبر واتساب' if ar else 'Send code by WhatsApp' }}">
++                  <i class="bi bi-whatsapp"></i>
++                </a>
++                {% endif %}
+                 <button class="btn btn-sm staff-act" data-action="delete" data-id="{{ s.id }}" data-name="{{ s.name }}" style="background:#fef2f2;color:#dc2626;border:none;border-radius:6px;font-size:.78rem;font-weight:600" title="{{ 'حذف' if ar else 'Delete' }}">
+                   <i class="bi bi-trash"></i>
+                 </button>
+@@ -355,6 +369,7 @@ try { _sd[{{ sd.id }}] = {{ sd|tojson }}; } catch(e) { console.warn('Staff data
+ var _urlEdit = '{{ url_for("sas.admin_staff_edit", sid=0) }}';
+ var _urlDelete = '{{ url_for("sas.admin_staff_delete", sid=0) }}';
+ var _urlRegen = '{{ url_for("sas.admin_staff_regenerate_code", sid=0) }}';
++var _urlSendCode = '{{ url_for("sas.admin_staff_send_code", sid=0) }}';
+ var _isAr = {{ 'true' if ar else 'false' }};
+ function _u(tpl, id){ return tpl.replace('/0/', '/' + id + '/'); }
+ 
+@@ -442,6 +457,22 @@ function regenerateCode(id){
+     .catch(function(){ alert('Error'); });
+ }
+ 
++function sendStaffCodeEmail(id, btn){
++  if(!confirm(_isAr ? 'إرسال رمز الدخول عبر البريد الإلكتروني الآن؟' : 'Send the login code by email now?')) return;
++  var origHtml = btn ? btn.innerHTML : '';
++  if(btn){ btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
++  fetch(_u(_urlSendCode, id), {method:'POST'})
++    .then(function(r){ return r.json(); })
++    .then(function(d){
++      if(btn){ btn.disabled = false; btn.innerHTML = origHtml; }
++      alert(d.ok ? (_isAr ? 'تم إرسال الرمز بالبريد بنجاح' : 'Code emailed successfully') : (d.error || (_isAr ? 'حدث خطأ' : 'Error')));
++    })
++    .catch(function(){
++      if(btn){ btn.disabled = false; btn.innerHTML = origHtml; }
++      alert(_isAr ? 'فشل الاتصال بالخادم' : 'Connection error');
++    });
++}
++
+ function printStaffCard(staff){
+   if(!staff) return;
+   var roleName = staff.role;
+@@ -499,13 +530,15 @@ function printStaffCard(staff){
+     // Action buttons
+     var actBtn = e.target.closest('.staff-act');
+     if(!actBtn) return;
+-    e.preventDefault();
+     var action = actBtn.getAttribute('data-action');
++    if(action === 'send-whatsapp') return; // let the anchor's href open normally in a new tab
++    e.preventDefault();
+     var id = parseInt(actBtn.getAttribute('data-id'));
+     var staff = _sd[id];
+     if(action === 'edit') editStaff(staff);
+     else if(action === 'regenerate') regenerateCode(id);
+     else if(action === 'print') printStaffCard(staff);
++    else if(action === 'send-email') sendStaffCodeEmail(id, actBtn);
+     else if(action === 'delete') deleteStaff(id, staff ? staff.name : (actBtn.getAttribute('data-name') || ''));
+   });
+ 
+diff --git a/utils/email_helper.py b/utils/email_helper.py
+index 5efed85..3a60701 100644
+--- a/utils/email_helper.py
++++ b/utils/email_helper.py
+@@ -805,6 +805,35 @@ def send_reset_code(email: str, code: str, lang: str = 'ar') -> bool:
+     return _send(email, '', subj, _html_wrapper(content, subj, lang), txt, sync=True)
+ 
+ 
++def send_staff_login_code(email: str, staff_name: str, code: str, portal_url: str = '', lang: str = 'ar') -> bool:
++    """Send an SAS staff member their portal login code (manual send, triggered by admin)."""
++    name = staff_name or email
++    link_html = f'<p style="text-align:center;margin:12px 0 0"><a href="{portal_url}" style="color:#0891b2;font-weight:700;text-decoration:none">{portal_url}</a></p>' if portal_url else ''
++
++    if lang == 'en':
++        content = f"""
++<p style="color:#4a5568;margin:0 0 20px">Hello {name}, here is your STAP portal login code:</p>
++<div style="background:#ecfeff;border:2px dashed #0891b2;border-radius:12px;padding:20px;text-align:center;margin-bottom:20px">
++  <div style="font-size:32px;font-weight:900;letter-spacing:6px;color:#0e7490">{code}</div>
++</div>
++{link_html}
++<p style="color:#999;font-size:12px;margin-top:16px">Keep this code private — do not share it with anyone.</p>"""
++        subj = 'STAP — Your Staff Login Code'
++        txt  = f'Your STAP login code: {code}'
++    else:
++        content = f"""
++<p style="color:#4a5568;margin:0 0 20px">مرحباً {name}، هذا رمز دخولك إلى بوابة النظام (STAP):</p>
++<div style="background:#ecfeff;border:2px dashed #0891b2;border-radius:12px;padding:20px;text-align:center;margin-bottom:20px">
++  <div style="font-size:32px;font-weight:900;letter-spacing:6px;color:#0e7490">{code}</div>
++</div>
++{link_html}
++<p style="color:#999;font-size:12px;margin-top:16px">حافظ على سرية هذا الرمز ولا تشاركه مع أحد.</p>"""
++        subj = 'STAP — رمز دخول الموظف'
++        txt  = f'رمز دخولك: {code}'
++
++    return _send(email, name, subj, _html_wrapper(content, subj, lang), txt, sync=True)
++
++
+ def send_verification_code(email: str, code: str, full_name: str = '', lang: str = 'ar') -> bool:
+     name = full_name or email
+     # Custom template override
