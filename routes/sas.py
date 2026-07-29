@@ -172,12 +172,14 @@ def _check_perm(staff, action):
 
 def _staff_stage_ids_or_none(staff):
     """Return the set of stage IDs this staff member is confined to, or None
-    if they're a manager (unrestricted — sees every region)."""
+    if they're a manager (unrestricted — sees every region).
+
+    Fails CLOSED: a non-manager with no stage_id assigned gets an empty set
+    (access to zero regions), never unrestricted access. Every supervisor
+    and secretary must have a stage assigned to see anything."""
     if staff.role == 'manager':
         return None
-    if staff.stage_id:
-        return {staff.stage_id}
-    return None
+    return {staff.stage_id} if staff.stage_id else set()
 
 
 def _enforce_stage_scope(staff, stage_id):
@@ -1155,6 +1157,11 @@ def admin_staff_add():
         flash(_t('يرجى إدخال اسم الموظف', 'Please enter staff name'), 'danger')
         return redirect(url_for('sas.admin_staff'))
 
+    if role in ('supervisor', 'secretary') and not stage_id:
+        flash(_t('يجب تحديد المنطقة/المرحلة لهذا الدور، وإلا لن يتمكن الموظف من الدخول لأي منطقة',
+                  'A region/stage must be selected for this role, otherwise the staff member will have no region access'), 'danger')
+        return redirect(url_for('sas.admin_staff'))
+
     # Generate unique staff code
     code = _gen_staff_code()
     while db.query(SASStaff).filter(SASStaff.staff_code == code).first():
@@ -1196,8 +1203,16 @@ def admin_staff_edit(sid):
     staff.name_en = request.form.get('name_en', staff.name_en).strip()
     staff.email = request.form.get('email', staff.email or '').strip()
     staff.phone = request.form.get('phone', staff.phone or '').strip()
-    staff.role = request.form.get('role', staff.role).strip()
-    staff.stage_id = request.form.get('stage_id', type=int) or staff.stage_id
+    new_role = request.form.get('role', staff.role).strip()
+    new_stage_id = request.form.get('stage_id', type=int) or staff.stage_id
+
+    if new_role in ('supervisor', 'secretary') and not new_stage_id:
+        flash(_t('يجب تحديد المنطقة/المرحلة لهذا الدور، وإلا لن يتمكن الموظف من الدخول لأي منطقة',
+                  'A region/stage must be selected for this role, otherwise the staff member will have no region access'), 'danger')
+        return redirect(url_for('sas.admin_staff'))
+
+    staff.role = new_role
+    staff.stage_id = new_stage_id
     staff.is_active = request.form.get('is_active', '1') == '1'
 
     try:

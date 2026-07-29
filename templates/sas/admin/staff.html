@@ -218,7 +218,7 @@ html[dir="rtl"] .sas-table th.sortable::after { right: auto; left: 6px; }
                 <option value="{{ st.id }}">{{ st.name }}</option>
                 {% endfor %}
               </select>
-              <div class="form-text">{{ 'مطلوب للمشرفين' if ar else 'Required for supervisors' }}</div>
+              <div class="form-text">{{ 'مطلوب للمشرفين والمساعدين الإداريين' if ar else 'Required for supervisors and admin assistants' }}</div>
             </div>
             <div class="col-12">
               <label class="form-label fw-semibold">{{ 'رمز الموظف (يُولّد تلقائياً)' if ar else 'Staff Code (auto-generated)' }}</label>
@@ -282,6 +282,7 @@ html[dir="rtl"] .sas-table th.sortable::after { right: auto; left: 6px; }
                 <option value="{{ st.id }}">{{ st.name }}</option>
                 {% endfor %}
               </select>
+              <div class="form-text">{{ 'مطلوب للمشرفين والمساعدين الإداريين' if ar else 'Required for supervisors and admin assistants' }}</div>
             </div>
             <div class="col-12">
               <label class="form-label fw-semibold">{{ 'رمز الموظف' if ar else 'Staff Code' }}</label>
@@ -376,7 +377,10 @@ function _u(tpl, id){ return tpl.replace('/0/', '/' + id + '/'); }
 function toggleStageField(prefix){
   var role = document.getElementById(prefix+'Role').value;
   var wrap = document.getElementById(prefix+'StageWrap');
-  if(wrap) wrap.style.display = (role === 'supervisor') ? '' : 'none';
+  var needsStage = (role === 'supervisor' || role === 'secretary');
+  if(wrap) wrap.style.display = needsStage ? '' : 'none';
+  var stageSelect = document.getElementById(prefix+'Stage');
+  if(stageSelect) stageSelect.required = needsStage;
 }
 
 function editStaff(staff){
