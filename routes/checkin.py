@@ -15,9 +15,15 @@ from flask import (Blueprint, render_template, redirect, url_for, request,
 
 from utils.helpers import get_db, admin_required
 from utils.i18n import t, get_lang
-from models.database import EventCheckin, EventAttendee
+from models.database import EventCheckin, EventAttendee, SASConfig
 
 checkin_bp = Blueprint('checkin', __name__, url_prefix='/checkin')
+
+
+def _get_school_config():
+    """Reuse the same school config (name/logo) already set up for SAS."""
+    db = get_db()
+    return db.query(SASConfig).first()
 
 
 def _now_amman():
@@ -356,9 +362,10 @@ def public_checkin(event_id):
     event = db.get(EventCheckin, event_id)
     if not event:
         abort(404)
+    cfg = _get_school_config()
 
     if request.method == 'GET':
-        return render_template('checkin/checkin.html', event=event, result=None)
+        return render_template('checkin/checkin.html', event=event, config=cfg, result=None)
 
     code = request.form.get('code', '').strip().upper()
     late_reason = request.form.get('late_reason', '').strip()
@@ -369,11 +376,11 @@ def public_checkin(event_id):
         .first()
     )
     if not attendee:
-        return render_template('checkin/checkin.html', event=event,
+        return render_template('checkin/checkin.html', event=event, config=cfg,
                                 result={'ok': False, 'message': _t('الرمز غير صحيح', 'Invalid code')})
 
     if attendee.status in ('on_time', 'late'):
-        return render_template('checkin/checkin.html', event=event,
+        return render_template('checkin/checkin.html', event=event, config=cfg,
                                 result={'ok': False, 'message': _t('تم تسجيل حضورك مسبقاً', 'You have already checked in')})
 
     now = _now_amman()
@@ -385,24 +392,24 @@ def public_checkin(event_id):
     grace_end_min = end_min + (event.grace_minutes or 0)
 
     if today_str != event.event_date:
-        return render_template('checkin/checkin.html', event=event,
+        return render_template('checkin/checkin.html', event=event, config=cfg,
                                 result={'ok': False, 'message': _t('هذا الرمز غير صالح اليوم', 'This code is not valid today')})
 
     if now_min < early_open_min:
         open_time = f'{early_open_min // 60:02d}:{early_open_min % 60:02d}'
-        return render_template('checkin/checkin.html', event=event,
+        return render_template('checkin/checkin.html', event=event, config=cfg,
                                 result={'ok': False, 'message': _t(f'التسجيل يبدأ الساعة {open_time}', f'Check-in opens at {open_time}')})
 
     if now_min <= end_min:
         attendee.status = 'on_time'
         attendee.checked_in_at = now
         db.commit()
-        return render_template('checkin/checkin.html', event=event,
+        return render_template('checkin/checkin.html', event=event, config=cfg,
                                 result={'ok': True, 'late': False, 'name': attendee.name})
 
     if now_min <= grace_end_min:
         if not late_reason:
-            return render_template('checkin/checkin.html', event=event,
+            return render_template('checkin/checkin.html', event=event, config=cfg,
                                     result={'ok': False, 'need_reason': True, 'code': code,
                                             'message': _t('تجاوزت الوقت المحدد — الرجاء ذكر سبب التأخير',
                                                            'You are past the on-time window — please state a reason for lateness')})
@@ -410,10 +417,10 @@ def public_checkin(event_id):
         attendee.checked_in_at = now
         attendee.late_reason = late_reason
         db.commit()
-        return render_template('checkin/checkin.html', event=event,
+        return render_template('checkin/checkin.html', event=event, config=cfg,
                                 result={'ok': True, 'late': True, 'name': attendee.name})
 
-    return render_template('checkin/checkin.html', event=event,
+    return render_template('checkin/checkin.html', event=event, config=cfg,
                             result={'ok': False, 'expired': True,
                                     'message': _t('انتهت مهلة تسجيل الحضور، تم اعتبارك غائباً عن الاجتماع',
                                                    'The check-in window has closed — you are recorded as absent from the meeting')})

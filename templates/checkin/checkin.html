@@ -28,7 +28,11 @@
 </head>
 <body>
 <div class="card-box">
+  {% if config and config.school_logo_b64 %}
+  <img src="{{ config.school_logo_b64 }}" alt="Logo" style="max-height:64px;max-width:180px;object-fit:contain;margin-bottom:6px">
+  {% else %}
   <i class="bi bi-calendar-check" style="font-size:2rem;color:#0891b2"></i>
+  {% endif %}
   <h1 class="mt-2">{{ event.name }}</h1>
   <div class="sub">
     {{ event.event_date }} &middot; {{ 'من' if ar else 'From' }} {{ event.window_start }} {{ 'إلى' if ar else 'to' }} {{ event.window_end }}
