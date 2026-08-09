@@ -29,7 +29,9 @@
 <body>
 <div class="card-box">
   {% if config and config.school_logo_b64 %}
-  <img src="{{ config.school_logo_b64 }}" alt="Logo" style="max-height:64px;max-width:180px;object-fit:contain;margin-bottom:6px">
+  {%- set _logo = config.school_logo_b64 -%}
+  {%- set _logo_src = _logo if _logo.startswith('data:') else ('data:image/png;base64,' ~ _logo) -%}
+  <img src="{{ _logo_src }}" alt="Logo" style="max-height:64px;max-width:180px;object-fit:contain;margin-bottom:6px">
   {% else %}
   <i class="bi bi-calendar-check" style="font-size:2rem;color:#0891b2"></i>
   {% endif %}

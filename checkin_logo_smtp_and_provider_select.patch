@@ -1,0 +1,237 @@
+diff --git a/templates/admin/settings.html b/templates/admin/settings.html
+index 9fa10ff..ae734c9 100644
+--- a/templates/admin/settings.html
++++ b/templates/admin/settings.html
+@@ -12,10 +12,11 @@
+         <form method="POST">
+           <div class="mb-3">
+             <label class="form-label fw-bold">{{ _('مزود الخدمة') }}</label>
+-            <div class="row g-2">
++            <div class="row g-2" id="providerRow">
+               {% for key, p in providers.items() %}
+               <div class="col-6 col-md-4">
+                 <div class="form-check border rounded p-2 {{ 'bg-primary bg-opacity-10 border-primary' if cfg.provider_key==key else '' }}"
++                     data-provider-box="{{ key }}"
+                      onclick="selectProvider('{{ key }}','{{ p.smtp }}',{{ p.port }})">
+                   <input class="form-check-input" type="radio" name="provider_key"
+                          id="prov_{{ key }}" value="{{ key }}"
+@@ -137,6 +138,17 @@
+ <script>
+ const providerData = {{ providers | tojson }};
+ function selectProvider(key, smtp, port) {
++  // Explicitly select the radio — clicking padding inside the box previously
++  // only changed the visible help text/fields without actually checking the
++  // radio input, so the form could silently submit the OLD provider.
++  const radio = document.getElementById('prov_' + key);
++  if (radio) radio.checked = true;
++  document.querySelectorAll('[data-provider-box]').forEach(box => {
++    const active = box.dataset.providerBox === key;
++    box.classList.toggle('bg-primary', active);
++    box.classList.toggle('bg-opacity-10', active);
++    box.classList.toggle('border-primary', active);
++  });
+   if (smtp && document.getElementById('smtpServer')) document.getElementById('smtpServer').value = smtp;
+   if (document.getElementById('smtpPort')) document.getElementById('smtpPort').value = port || 587;
+   const helps = { {% for k,p in providers.items() %}'{{ k }}': '{{ p.help|replace("'","\\'") }}', {% endfor %} };
+diff --git a/templates/checkin/checkin.html b/templates/checkin/checkin.html
+index a17e4f5..bb636c8 100644
+--- a/templates/checkin/checkin.html
++++ b/templates/checkin/checkin.html
+@@ -29,7 +29,9 @@
+ <body>
+ <div class="card-box">
+   {% if config and config.school_logo_b64 %}
+-  <img src="{{ config.school_logo_b64 }}" alt="Logo" style="max-height:64px;max-width:180px;object-fit:contain;margin-bottom:6px">
++  {%- set _logo = config.school_logo_b64 -%}
++  {%- set _logo_src = _logo if _logo.startswith('data:') else ('data:image/png;base64,' ~ _logo) -%}
++  <img src="{{ _logo_src }}" alt="Logo" style="max-height:64px;max-width:180px;object-fit:contain;margin-bottom:6px">
+   {% else %}
+   <i class="bi bi-calendar-check" style="font-size:2rem;color:#0891b2"></i>
+   {% endif %}
+diff --git a/utils/email_helper.py b/utils/email_helper.py
+index d15b467..747b822 100644
+--- a/utils/email_helper.py
++++ b/utils/email_helper.py
+@@ -351,6 +351,46 @@ def _resolve_template(template_key, lang, variables_dict):
+ def _info_row(label, value, bg='#FAFFFE'):
+     return f'<tr><td style="padding:10px 14px;background:{bg};font-size:13px;color:#6b7c99;width:35%">{label}</td><td style="padding:10px 14px;background:{bg};font-size:13px;color:#2d3748;font-weight:600">{value}</td></tr>'
+ 
++
++def _send_via_smtp(smtp_host, smtp_port, sender_email, sender_password, use_tls,
++                    sender_name, to_email, to_name, subject, html, text):
++    """Send one email over real SMTP (Gmail, Office 365, Outlook, Yahoo,
++    Brevo SMTP relay, or any custom server) — used for every provider other
++    than the Brevo HTTP API."""
++    import smtplib
++    from email.mime.multipart import MIMEMultipart
++    from email.mime.text import MIMEText
++    from email.utils import formataddr
++
++    if not smtp_host:
++        raise ValueError('SMTP server address is missing')
++    if not sender_email:
++        raise ValueError('Sender email is missing')
++
++    msg = MIMEMultipart('alternative')
++    msg['Subject'] = subject
++    msg['From'] = formataddr((sender_name or sender_email, sender_email))
++    msg['To'] = formataddr((to_name or to_email, to_email))
++    msg.attach(MIMEText(text or subject or 'Notification', 'plain', 'utf-8'))
++    msg.attach(MIMEText(html or '', 'html', 'utf-8'))
++
++    smtp_port = int(smtp_port or 587)
++    if smtp_port == 465:
++        # Implicit TLS from the start of the connection
++        with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=15) as server:
++            if sender_password:
++                server.login(sender_email, sender_password)
++            server.sendmail(sender_email, [to_email], msg.as_string())
++    else:
++        with smtplib.SMTP(smtp_host, smtp_port, timeout=15) as server:
++            server.ehlo()
++            if use_tls:
++                server.starttls()
++                server.ehlo()
++            if sender_password:
++                server.login(sender_email, sender_password)
++            server.sendmail(sender_email, [to_email], msg.as_string())
++
+ # ── Send engine ───────────────────────────────────────────────────────────────
+ def _send(to_email, to_name, subject, html, text='', sync=False,
+           email_type='notification', user_id=None):
+@@ -381,11 +421,37 @@ def _send(to_email, to_name, subject, html, text='', sync=False,
+             print(f'EmailLog write error: {le}')
+ 
+     def _do_send():
++        cfg = _get_cfg()
++        provider = cfg.get('provider_key', 'brevo_api')
++        sender_email = cfg.get('sender_email', '')
++        sender_name = cfg.get('sender_name', 'ARS')
++
++        # Any provider other than the Brevo HTTP API goes over real SMTP —
++        # Gmail, Office 365 / Outlook, Outlook.com, Yahoo, Brevo's own SMTP
++        # relay, or a fully custom server.
++        if provider != 'brevo_api':
++            smtp_host = cfg.get('smtp_server', '')
++            smtp_port = cfg.get('smtp_port', 587)
++            sender_password = cfg.get('sender_password', '')
++            use_tls = cfg.get('use_tls', True)
++            if not sender_email:
++                print('Email error: Sender email is missing — configure it in Admin → Email Settings')
++                _log_result('failed', 'Sender email missing')
++                return False
++            try:
++                _send_via_smtp(smtp_host, smtp_port, sender_email, sender_password, use_tls,
++                                sender_name, to_email, to_name, subject, html, text)
++                _log_result('sent')
++                return True
++            except Exception as e:
++                msg = f'SMTP error ({provider}): {e}'
++                print(f'Email error: {msg}')
++                _log_result('failed', msg)
++                return False
++
++        # Brevo HTTP API
+         try:
+-            cfg = _get_cfg()
+-            api_key      = cfg.get('api_key') or cfg.get('brevo_api_key', '')
+-            sender_email = cfg.get('sender_email', '')
+-            sender_name  = cfg.get('sender_name', 'ARS')
++            api_key = cfg.get('api_key') or cfg.get('brevo_api_key', '')
+             if not api_key:
+                 print('Email error: API key is missing — configure it in Admin → Email Settings')
+                 _log_result('failed', 'API key missing')
+@@ -1010,44 +1076,65 @@ def send_employee_reservation_notice_to_email(to_email, to_name, res, requester)
+ 
+ def test_smtp(smtp_host='', smtp_port=587, sender_email='', sender_password='',
+               use_tls=True, brevo_api_key=None, to_email=None, lang='ar') -> tuple:
+-    """Test email — tries provided credentials, falls back to saved config"""
++    """Test email — tries provided credentials, falls back to saved config.
++    Uses real SMTP for Gmail/Office 365/Outlook/Yahoo/Brevo-SMTP/custom, and
++    the Brevo HTTP API only when the Brevo API provider was selected
++    (brevo_api_key is passed as None, not '', when a different provider is
++    selected — the caller in routes/admin.py encodes that distinction)."""
+     import json, urllib.request
+     en = lang == 'en'
+-    try:
+-        api_key   = (brevo_api_key or '').strip()
+-        from_email = (sender_email or '').strip()
+-
+-        if not api_key or not from_email:
+-            cfg = _get_cfg()
+-            if not api_key:
+-                api_key = cfg.get('api_key') or cfg.get('brevo_api_key', '')
+-            if not from_email:
+-                from_email = cfg.get('sender_email', '')
+-
+-        test_to = (to_email or from_email or '').strip()
++    use_smtp = brevo_api_key is None
++    api_key = (brevo_api_key or '').strip()
++    from_email = (sender_email or '').strip()
++    host = (smtp_host or '').strip()
++
++    if not from_email:
++        cfg = _get_cfg()
++        from_email = cfg.get('sender_email', '')
++    if use_smtp and not host:
++        cfg = _get_cfg()
++        host = cfg.get('smtp_server', '')
++    if not use_smtp and not api_key:
++        cfg = _get_cfg()
++        api_key = cfg.get('api_key') or cfg.get('brevo_api_key', '')
++
++    test_to = (to_email or from_email or '').strip()
++
++    if not from_email:
++        return (False, 'Sender Email is missing — enter the sender email and save settings' if en else 'Sender Email مفقود — أدخل بريد المُرسِل واحفظ الإعدادات')
++    if not test_to:
++        return (False, 'No recipient email address' if en else 'لا يوجد بريد للاستلام')
++
++    test_html = _html_wrapper(
++        '<p style="color:#4a5568;text-align:center;font-size:16px">'
++        '✅ Email configuration is working correctly!</p>' if en else
++        '<p style="color:#4a5568;text-align:center;font-size:16px">'
++        '✅ إعدادات البريد الإلكتروني تعمل بشكل صحيح!</p>',
++        'Test', lang)
++    test_text = 'ARS email test successful!' if en else 'ARS email test — تم الإرسال بنجاح!'
++
++    # Real SMTP path — Gmail / Office 365 / Outlook / Yahoo / Brevo SMTP / custom
++    if use_smtp:
++        if not host:
++            return (False, 'SMTP server address is missing' if en else 'عنوان خادم SMTP مفقود')
++        try:
++            _send_via_smtp(host, smtp_port, from_email, sender_password, use_tls,
++                            'ARS Test', test_to, 'ARS Test', 'ARS — Email Test ✅', test_html, test_text)
++            return (True, f'Test email sent successfully to: {test_to}' if en else f'تم إرسال بريد اختباري بنجاح إلى: {test_to}')
++        except Exception as e:
++            return (False, f'SMTP error: {e}' if en else f'خطأ SMTP: {e}')
+ 
++    # Brevo HTTP API path
++    try:
+         if not api_key:
+             return (False, 'API Key is missing — enter your Brevo API Key and save settings first' if en else 'API Key مفقود — أدخل Brevo API Key واحفظ الإعدادات أولاً')
+-        if not from_email:
+-            return (False, 'Sender Email is missing — enter the sender email and save settings' if en else 'Sender Email مفقود — أدخل بريد المُرسِل واحفظ الإعدادات')
+-        if not test_to:
+-            return (False, 'No recipient email address' if en else 'لا يوجد بريد للاستلام')
+ 
+         payload = json.dumps({
+             'sender':      {'name': 'ARS Test', 'email': from_email},
+             'to':          [{'email': test_to, 'name': 'ARS Test'}],
+             'subject':     'ARS — Email Test ✅',
+-            'htmlContent': _html_wrapper(
+-                '<p style="color:#4a5568;text-align:center;font-size:16px">'
+-                '✅ Email configuration is working correctly!</p>'
+-                '<p style="color:#888;text-align:center;font-size:13px">'
+-                'ARS Email configuration is working correctly.</p>' if en else
+-                '<p style="color:#4a5568;text-align:center;font-size:16px">'
+-                '✅ إعدادات البريد الإلكتروني تعمل بشكل صحيح!</p>'
+-                '<p style="color:#888;text-align:center;font-size:13px">'
+-                'ARS Email configuration is working correctly.</p>',
+-                'Test', lang),
+-            'textContent': 'ARS email test successful!' if en else 'ARS email test — تم الإرسال بنجاح!'
++            'htmlContent': test_html,
++            'textContent': test_text,
+         }).encode('utf-8')
+ 
+         req = urllib.request.Request(

@@ -12,10 +12,11 @@
         <form method="POST">
           <div class="mb-3">
             <label class="form-label fw-bold">{{ _('مزود الخدمة') }}</label>
-            <div class="row g-2">
+            <div class="row g-2" id="providerRow">
               {% for key, p in providers.items() %}
               <div class="col-6 col-md-4">
                 <div class="form-check border rounded p-2 {{ 'bg-primary bg-opacity-10 border-primary' if cfg.provider_key==key else '' }}"
+                     data-provider-box="{{ key }}"
                      onclick="selectProvider('{{ key }}','{{ p.smtp }}',{{ p.port }})">
                   <input class="form-check-input" type="radio" name="provider_key"
                          id="prov_{{ key }}" value="{{ key }}"
@@ -137,6 +138,17 @@
 <script>
 const providerData = {{ providers | tojson }};
 function selectProvider(key, smtp, port) {
+  // Explicitly select the radio — clicking padding inside the box previously
+  // only changed the visible help text/fields without actually checking the
+  // radio input, so the form could silently submit the OLD provider.
+  const radio = document.getElementById('prov_' + key);
+  if (radio) radio.checked = true;
+  document.querySelectorAll('[data-provider-box]').forEach(box => {
+    const active = box.dataset.providerBox === key;
+    box.classList.toggle('bg-primary', active);
+    box.classList.toggle('bg-opacity-10', active);
+    box.classList.toggle('border-primary', active);
+  });
   if (smtp && document.getElementById('smtpServer')) document.getElementById('smtpServer').value = smtp;
   if (document.getElementById('smtpPort')) document.getElementById('smtpPort').value = port || 587;
   const helps = { {% for k,p in providers.items() %}'{{ k }}': '{{ p.help|replace("'","\\'") }}', {% endfor %} };
