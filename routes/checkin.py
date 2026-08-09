@@ -272,8 +272,13 @@ def admin_send_codes(event_id):
     lang = get_lang()
     checkin_url = url_for('checkin.public_checkin', event_id=event.id, _external=True)
 
-    only_unsent = request.form.get('only_unsent', '1') == '1'
-    targets = [a for a in event.attendees if (not only_unsent or not a.code_sent) and a.email]
+    selected_ids = request.form.getlist('attendee_ids', type=int)
+    if selected_ids:
+        targets = [a for a in event.attendees if a.id in selected_ids and a.email]
+    else:
+        only_unsent = request.form.get('only_unsent', '1') == '1'
+        targets = [a for a in event.attendees if (not only_unsent or not a.code_sent) and a.email]
+
     sent, failed = 0, 0
     for a in targets:
         try:
@@ -290,10 +295,13 @@ def admin_send_codes(event_id):
             failed += 1
     db.commit()
 
-    no_email_count = sum(1 for a in event.attendees if not a.email)
+    no_email_count = sum(1 for a in (event.attendees if not selected_ids else
+                          [x for x in event.attendees if x.id in selected_ids]) if not a.email)
     msg = _t(f'تم إرسال {sent} رمز بنجاح', f'{sent} codes sent successfully')
     if failed:
         msg += _t(f'، وفشل إرسال {failed}', f', {failed} failed')
+        msg += _t(' — راجع صفحة سجل البريد (Email Logs) لسبب الفشل بالتفصيل',
+                   ' — check the Email Logs page for the detailed reason')
     if no_email_count:
         msg += _t(f' ({no_email_count} بدون بريد إلكتروني)', f' ({no_email_count} with no email)')
     flash(msg, 'success' if not failed else 'warning')

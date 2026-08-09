@@ -1,0 +1,120 @@
+diff --git a/routes/checkin.py b/routes/checkin.py
+index 5a27d0b..4cd7afc 100644
+--- a/routes/checkin.py
++++ b/routes/checkin.py
+@@ -272,8 +272,13 @@ def admin_send_codes(event_id):
+     lang = get_lang()
+     checkin_url = url_for('checkin.public_checkin', event_id=event.id, _external=True)
+ 
+-    only_unsent = request.form.get('only_unsent', '1') == '1'
+-    targets = [a for a in event.attendees if (not only_unsent or not a.code_sent) and a.email]
++    selected_ids = request.form.getlist('attendee_ids', type=int)
++    if selected_ids:
++        targets = [a for a in event.attendees if a.id in selected_ids and a.email]
++    else:
++        only_unsent = request.form.get('only_unsent', '1') == '1'
++        targets = [a for a in event.attendees if (not only_unsent or not a.code_sent) and a.email]
++
+     sent, failed = 0, 0
+     for a in targets:
+         try:
+@@ -290,10 +295,13 @@ def admin_send_codes(event_id):
+             failed += 1
+     db.commit()
+ 
+-    no_email_count = sum(1 for a in event.attendees if not a.email)
++    no_email_count = sum(1 for a in (event.attendees if not selected_ids else
++                          [x for x in event.attendees if x.id in selected_ids]) if not a.email)
+     msg = _t(f'تم إرسال {sent} رمز بنجاح', f'{sent} codes sent successfully')
+     if failed:
+         msg += _t(f'، وفشل إرسال {failed}', f', {failed} failed')
++        msg += _t(' — راجع صفحة سجل البريد (Email Logs) لسبب الفشل بالتفصيل',
++                   ' — check the Email Logs page for the detailed reason')
+     if no_email_count:
+         msg += _t(f' ({no_email_count} بدون بريد إلكتروني)', f' ({no_email_count} with no email)')
+     flash(msg, 'success' if not failed else 'warning')
+diff --git a/templates/checkin/admin/detail.html b/templates/checkin/admin/detail.html
+index 83e64e0..30ae70d 100644
+--- a/templates/checkin/admin/detail.html
++++ b/templates/checkin/admin/detail.html
+@@ -135,11 +135,22 @@
+ 
+ <!-- Attendee list -->
+ <div style="background:#fff;border-radius:12px;padding:0;box-shadow:0 2px 12px rgba(0,0,0,.06)">
++  <form id="selectSendForm" method="POST" action="{{ url_for('checkin.admin_send_codes', event_id=event.id) }}">
++  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2" style="padding:12px 16px">
++    <div style="font-size:.82rem;color:#6b7280">
++      <i class="bi bi-info-circle me-1"></i>{{ 'علّم من تريد ثم اضغط إرسال — أو سيب الكل بدون تحديد لاستخدام الأزرار أعلاه' if ar else 'Check specific people then send — or use the buttons above for everyone' }}
++    </div>
++    <button type="submit" class="btn btn-sm" style="background:#0e7490;color:#fff;border:none;border-radius:8px;font-weight:700;padding:6px 16px"
++            onclick="return document.querySelectorAll('.attendee-check:checked').length > 0 || alert('{{ 'علّم مدعو واحد على الأقل' if ar else 'Select at least one attendee' }}')">
++      <i class="bi bi-send me-1"></i>{{ 'إرسال للمحدَّدين فقط' if ar else 'Send to Selected Only' }}
++    </button>
++  </div>
+   <div class="table-responsive">
+     <table class="table table-hover align-middle mb-0">
+       <thead style="background:#f9fafb">
+         <tr>
+-          <th style="padding:12px 16px">{{ 'الاسم' if ar else 'Name' }}</th>
++          <th style="padding:12px 16px"><input type="checkbox" onclick="document.querySelectorAll('.attendee-check').forEach(c => c.checked = this.checked)"></th>
++          <th>{{ 'الاسم' if ar else 'Name' }}</th>
+           <th>{{ 'البريد' if ar else 'Email' }}</th>
+           <th>{{ 'الرمز' if ar else 'Code' }}</th>
+           <th>{{ 'الحالة' if ar else 'Status' }}</th>
+@@ -152,7 +163,10 @@
+         {% for a in attendees %}
+         {% set st = resolve_status(a) %}
+         <tr>
+-          <td style="padding:10px 16px;font-weight:600">{{ a.name }}</td>
++          <td style="padding:10px 16px">
++            <input type="checkbox" class="attendee-check" name="attendee_ids" value="{{ a.id }}" {{ 'disabled' if not a.email }}>
++          </td>
++          <td style="font-weight:600">{{ a.name }}</td>
+           <td style="font-size:.84rem;direction:ltr;text-align:end">{{ a.email or '-' }}</td>
+           <td style="direction:ltr;text-align:end;font-family:monospace;font-weight:700">{{ a.code }}</td>
+           <td>
+@@ -165,7 +179,7 @@
+           <td style="font-size:.8rem;direction:ltr;text-align:end">{{ a.checked_in_at.strftime('%H:%M') if a.checked_in_at else '-' }}</td>
+           <td style="font-size:.8rem">{{ a.late_reason or '-' }}</td>
+           <td>
+-            <button class="btn btn-sm" style="background:#fef2f2;color:#dc2626;border:none;border-radius:6px"
++            <button type="button" class="btn btn-sm" style="background:#fef2f2;color:#dc2626;border:none;border-radius:6px"
+                     onclick="deleteAttendee('{{ url_for('checkin.admin_attendee_delete', event_id=event.id, aid=a.id) }}')" title="{{ 'حذف' if ar else 'Delete' }}">
+               <i class="bi bi-trash"></i>
+             </button>
+@@ -175,6 +189,7 @@
+       </tbody>
+     </table>
+   </div>
++  </form>
+ </div>
+ 
+ <script>
+diff --git a/templates/checkin/checkin.html b/templates/checkin/checkin.html
+index 1387bbb..ba7b419 100644
+--- a/templates/checkin/checkin.html
++++ b/templates/checkin/checkin.html
+@@ -53,6 +53,7 @@
+       <div style="font-weight:700;font-size:.92rem">{{ result.message }}</div>
+     </div>
+     <form method="POST" class="mt-3 text-start">
++      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+       <input type="hidden" name="code" value="{{ result.code }}">
+       <label style="font-size:.82rem;font-weight:700;color:#6b7280;display:block;margin-bottom:6px">
+         {{ 'سبب التأخير' if ar else 'Reason for lateness' }}
+@@ -69,6 +70,7 @@
+     </div>
+     {% if not result.expired %}
+     <form method="POST" class="mt-3">
++      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+       <input type="text" name="code" class="code-input" maxlength="10" placeholder="{{ 'الرمز' if ar else 'CODE' }}" autofocus required>
+       <button type="submit" class="btn-submit"><i class="bi bi-check2 me-1"></i>{{ 'تسجيل الحضور' if ar else 'Check In' }}</button>
+     </form>
+@@ -76,6 +78,7 @@
+ 
+   {% else %}
+     <form method="POST">
++      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+       <input type="text" name="code" class="code-input" maxlength="10" placeholder="{{ 'الرمز' if ar else 'CODE' }}" autofocus required>
+       <button type="submit" class="btn-submit"><i class="bi bi-check2 me-1"></i>{{ 'تسجيل الحضور' if ar else 'Check In' }}</button>
+     </form>
