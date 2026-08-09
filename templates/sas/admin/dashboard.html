@@ -256,6 +256,23 @@
   </div>
 </div>
 
+<!-- Report Period Presets -->
+<div class="d-flex align-items-center gap-2 flex-wrap mb-2">
+  <span style="font-size:.8rem;font-weight:700;color:#6b7280">{{ 'تقرير جاهز:' if ar else 'Quick report:' }}</span>
+  <a href="{{ url_for('sas.admin_print') }}?date_from={{ today_date }}&date_to={{ today_date }}" target="_blank" class="quick-link">
+    <i class="bi bi-calendar-day"></i>{{ 'يومي' if ar else 'Daily' }}
+  </a>
+  <a href="{{ url_for('sas.admin_print') }}?date_from={{ week_start }}&date_to={{ week_end }}" target="_blank" class="quick-link">
+    <i class="bi bi-calendar-week"></i>{{ 'أسبوعي' if ar else 'Weekly' }}
+  </a>
+  <a href="{{ url_for('sas.admin_print') }}?date_from={{ semester_start }}&date_to={{ semester_end }}" target="_blank" class="quick-link">
+    <i class="bi bi-calendar2-range"></i>{{ 'فصلي (الحالي)' if ar else 'Semester (current)' }}
+  </a>
+  <a href="{{ url_for('sas.admin_print') }}?date_from={{ year_start }}&date_to={{ year_end }}" target="_blank" class="quick-link">
+    <i class="bi bi-calendar3"></i>{{ 'سنوي' if ar else 'Yearly' }}
+  </a>
+</div>
+
 <!-- Quick Links -->
 <div class="d-flex gap-2 flex-wrap mb-3">
   <a href="{{ url_for('sas.admin_print') }}?date_from={{ request.args.get('date_from','') }}&date_to={{ request.args.get('date_to','') }}" target="_blank" class="quick-link">

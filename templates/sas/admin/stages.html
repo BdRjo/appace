@@ -172,6 +172,12 @@
           <i class="bi bi-chevron-down chevron"></i>
           <i class="bi bi-clock-history" style="color:#ca8a04;font-size:.9rem"></i>
           <input type="text" class="semester-name" value="{{ sem.name }}" onclick="event.stopPropagation()" onchange="markUnsaved()" placeholder="{{ 'اسم الفصل الدراسي' if ar else 'Semester name' }}">
+          <div class="d-flex align-items-center gap-1" onclick="event.stopPropagation()" style="font-size:.76rem;color:#6b7280">
+            <span>{{ 'من' if ar else 'From' }}</span>
+            <input type="date" class="semester-start form-control form-control-sm" value="{{ sem.start_date or '' }}" onchange="markUnsaved()" style="width:auto;padding:2px 6px">
+            <span>{{ 'إلى' if ar else 'to' }}</span>
+            <input type="date" class="semester-end form-control form-control-sm" value="{{ sem.end_date or '' }}" onchange="markUnsaved()" style="width:auto;padding:2px 6px">
+          </div>
           <div class="d-flex gap-1" onclick="event.stopPropagation()">
             <button class="move-btn" onclick="moveItem(this.closest('.semester-item'),-1)"><i class="bi bi-arrow-up"></i></button>
             <button class="move-btn" onclick="moveItem(this.closest('.semester-item'),1)"><i class="bi bi-arrow-down"></i></button>
@@ -344,6 +350,12 @@ function addSemester(btn){
         <i class="bi bi-chevron-down chevron" style="transform:rotate(180deg)"></i>
         <i class="bi bi-clock-history" style="color:#ca8a04;font-size:.9rem"></i>
         <input type="text" class="semester-name" value="" onclick="event.stopPropagation()" onchange="markUnsaved()" placeholder="${ar?'اسم الفصل الدراسي':'Semester name'}" autofocus>
+        <div class="d-flex align-items-center gap-1" onclick="event.stopPropagation()" style="font-size:.76rem;color:#6b7280">
+          <span>${ar?'من':'From'}</span>
+          <input type="date" class="semester-start form-control form-control-sm" value="" onchange="markUnsaved()" style="width:auto;padding:2px 6px">
+          <span>${ar?'إلى':'to'}</span>
+          <input type="date" class="semester-end form-control form-control-sm" value="" onchange="markUnsaved()" style="width:auto;padding:2px 6px">
+        </div>
         <div class="d-flex gap-1" onclick="event.stopPropagation()">
           <button class="move-btn" onclick="moveItem(this.closest('.semester-item'),-1)"><i class="bi bi-arrow-up"></i></button>
           <button class="move-btn" onclick="moveItem(this.closest('.semester-item'),1)"><i class="bi bi-arrow-down"></i></button>
@@ -468,10 +480,14 @@ function collectTree(){
     yearEl.querySelectorAll(':scope > .tree-body > .semester-item').forEach((semEl, sei) => {
       const semName = semEl.querySelector('.semester-name').value.trim();
       if(!semName) return;
+      const semStart = semEl.querySelector('.semester-start') ? semEl.querySelector('.semester-start').value : '';
+      const semEnd = semEl.querySelector('.semester-end') ? semEl.querySelector('.semester-end').value : '';
       const sem = {
         id: semEl.dataset.id === 'new' ? null : parseInt(semEl.dataset.id),
         name: semName,
         order: sei + 1,
+        start_date: semStart,
+        end_date: semEnd,
         stages: []
       };
       semEl.querySelectorAll(':scope > .tree-body > .stage-item').forEach((stageEl, si) => {

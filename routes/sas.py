@@ -123,6 +123,35 @@ def _active_year_date_range():
         return (f'{today.year - 1}-09-01', f'{today.year}-08-31')
 
 
+def _active_semester_date_range():
+    """Return (start_date_str, end_date_str) for the CURRENT semester.
+    Prefers a manually-set date range on the active semester (admin-defined
+    in the stages/structure page); falls back to the calendar convention
+    already used by the comparison feature: Semester 1 = September–January,
+    Semester 2 = February–June."""
+    db = get_db()
+    cfg = _get_config()
+    active_semester = (
+        db.query(SASSemester)
+        .join(SASYear)
+        .filter(SASYear.config_id == cfg.id, SASYear.is_active == True, SASSemester.is_active == True)
+        .order_by(SASSemester.order_num)
+        .first()
+    )
+    if active_semester and active_semester.start_date and active_semester.end_date:
+        return (active_semester.start_date, active_semester.end_date)
+
+    today = date.today()
+    year_start, year_end = _active_year_date_range()
+    academic_start_year = int(year_start[:4])  # the "September" year of the active academic year
+    if today.month >= 9 or today.month == 1:
+        # Semester 1: Sep 1 (of academic_start_year) .. Jan 31 (of academic_start_year+1)
+        return (f'{academic_start_year}-09-01', f'{academic_start_year + 1}-01-31')
+    else:
+        # Semester 2: Feb 1 .. Jun 30 (of academic_start_year+1)
+        return (f'{academic_start_year + 1}-02-01', f'{academic_start_year + 1}-06-30')
+
+
 def _week_bounds():
     """Return (monday, sunday) strings for the current ISO week."""
     today = date.today()
@@ -939,26 +968,35 @@ def admin_dashboard():
     week_start, week_end = _week_bounds()
     month_start, month_end = _month_bounds()
     year_start, year_end = _active_year_date_range()
+    semester_start, semester_end = _active_semester_date_range()
 
     total_students = db.query(func.count(SASStudent.id)).filter(
         SASStudent.is_active == True,
     ).scalar() or 0
 
-    today_absences = db.query(func.count(SASRecord.id)).filter(
+    today_absences = today_absent = db.query(func.count(SASRecord.id)).filter(
         SASRecord.record_date == today,
         SASRecord.record_type == 'absent',
     ).scalar() or 0
 
-    week_absences = db.query(func.count(SASRecord.id)).filter(
-        SASRecord.record_date >= week_start,
-        SASRecord.record_date <= week_end,
-        SASRecord.record_type == 'absent',
+    today_late = db.query(func.count(SASRecord.id)).filter(
+        SASRecord.record_date == today,
+        SASRecord.record_type == 'late',
     ).scalar() or 0
 
-    month_absences = db.query(func.count(SASRecord.id)).filter(
+    today_leave = db.query(func.count(SASRecord.id)).filter(
+        SASRecord.record_date == today,
+        SASRecord.record_type == 'leave',
+    ).scalar() or 0
+
+    week_absences = week_total = db.query(func.count(SASRecord.id)).filter(
+        SASRecord.record_date >= week_start,
+        SASRecord.record_date <= week_end,
+    ).scalar() or 0
+
+    month_absences = month_total = db.query(func.count(SASRecord.id)).filter(
         SASRecord.record_date >= month_start,
         SASRecord.record_date <= month_end,
-        SASRecord.record_type == 'absent',
     ).scalar() or 0
 
     # Top 10 absent students
@@ -1043,6 +1081,20 @@ def admin_dashboard():
         'sas/admin/dashboard.html',
         config=cfg,
         total_students=total_students,
+        today_date=today,
+        today_absent=today_absent,
+        today_late=today_late,
+        today_leave=today_leave,
+        week_start=week_start,
+        week_end=week_end,
+        week_total=week_total,
+        month_start=month_start,
+        month_end=month_end,
+        month_total=month_total,
+        semester_start=semester_start,
+        semester_end=semester_end,
+        year_start=year_start,
+        year_end=year_end,
         today_absences=today_absences,
         week_absences=week_absences,
         month_absences=month_absences,
@@ -1764,6 +1816,8 @@ def admin_stages_save():
                     semester.name_en = sem_data.get('name_en', semester.name_en)
                     semester.order_num = sem_idx
                     semester.year_id = year.id
+                    semester.start_date = (sem_data.get('start_date') or '').strip() or None
+                    semester.end_date = (sem_data.get('end_date') or '').strip() or None
                     incoming_semester_ids.add(semester.id)
                 else:
                     semester = SASSemester(
@@ -1771,6 +1825,8 @@ def admin_stages_save():
                         name=sem_data.get('name', ''),
                         name_en=sem_data.get('name_en', ''),
                         order_num=sem_idx,
+                        start_date=(sem_data.get('start_date') or '').strip() or None,
+                        end_date=(sem_data.get('end_date') or '').strip() or None,
                     )
                     db.add(semester)
                     db.flush()

@@ -653,6 +653,9 @@ def get_engine():
             ('sas_holidays', 'approved_at',  'DATETIME'),
             # Per-class period overrides (v86) — NULL class_id = stage-wide default schedule
             ('sas_periods', 'class_id', 'INTEGER REFERENCES sas_classes(id)'),
+            # Manually-set semester date range (v87) — overrides the Sep-Jan/Feb-Jun default
+            ('sas_semesters', 'start_date', 'VARCHAR(10)'),
+            ('sas_semesters', 'end_date',   'VARCHAR(10)'),
         ]
         for tbl, col, cdef in safe_cols:
             try:
@@ -1086,6 +1089,8 @@ class SASSemester(Base):
     name_en     = Column(String(100))
     order_num   = Column(Integer, default=0)
     is_active   = Column(Boolean, default=True)
+    start_date  = Column(String(10))   # YYYY-MM-DD, optional — manually set by admin
+    end_date    = Column(String(10))   # YYYY-MM-DD, optional — manually set by admin
     created_at  = Column(DateTime, default=datetime.now)
     year        = relationship('SASYear', back_populates='semesters')
     stages      = relationship('SASStage', back_populates='semester', cascade='all, delete-orphan',
