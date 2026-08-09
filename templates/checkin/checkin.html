@@ -12,11 +12,11 @@
   body { font-family: {{ "'Tajawal', " if ar }}sans-serif; background: linear-gradient(160deg,#ecfeff,#f0fdfa 60%,#fff); min-height: 100vh;
          display: flex; align-items: center; justify-content: center; padding: 16px; }
   .card-box { max-width: 420px; width: 100%; background: #fff; border-radius: 20px; box-shadow: 0 10px 40px rgba(8,145,178,.14); padding: 32px 26px; text-align: center; }
-  .card-box h1 { font-size: 1.15rem; font-weight: 800; color: #0e7490; margin-bottom: 4px; }
-  .card-box .sub { font-size: .84rem; color: #6b7280; margin-bottom: 22px; }
+  .card-box h1 { font-size: 1.15rem; font-weight: 800; color: #fcad8d; margin-bottom: 4px; }
+  .card-box .sub { font-size: .84rem; color: #142e63; margin-bottom: 22px; }
   .code-input { font-size: 1.6rem; font-weight: 900; letter-spacing: 6px; text-align: center; text-transform: uppercase;
                 border-radius: 12px; border: 2px solid #a5f3fc; padding: 12px; width: 100%; }
-  .code-input:focus { border-color: #0891b2; outline: none; box-shadow: 0 0 0 3px #a5f3fc55; }
+  .code-input:focus { border-color: #c75116; outline: none; box-shadow: 0 0 0 3px #a5f3fc55; }
   .btn-submit { background: linear-gradient(135deg,#06b6d4,#0e7490); color: #fff; border: none; border-radius: 12px;
                 padding: 12px; font-weight: 800; font-size: 1rem; width: 100%; margin-top: 14px; }
   .result-box { border-radius: 14px; padding: 20px; margin-top: 10px; }
@@ -33,7 +33,7 @@
   {%- set _logo_src = _logo if _logo.startswith('data:') else ('data:image/png;base64,' ~ _logo) -%}
   <img src="{{ _logo_src }}" alt="Logo" style="max-height:64px;max-width:180px;object-fit:contain;margin-bottom:6px">
   {% else %}
-  <i class="bi bi-calendar-check" style="font-size:2rem;color:#0891b2"></i>
+  <i class="bi bi-calendar-check" style="font-size:2rem;color:#ff5733"></i>
   {% endif %}
   <h1 class="mt-2">{{ event.name }}</h1>
   <div class="sub">
