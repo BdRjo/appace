@@ -1,39 +1,43 @@
 {% extends "base.html" %}
 {%- set ar = (current_lang == 'ar') -%}
+{%- set is_edit = event is not none -%}
 
-{% block title %}{{ 'فعالية جديدة' if ar else 'New Event' }}{% endblock %}
+{% block title %}{{ ('تعديل الفعالية' if is_edit else 'فعالية جديدة') if ar else (is_edit and 'Edit Event' or 'New Event') }}{% endblock %}
 
 {% block content %}
 <h1 style="font-size:1.3rem;font-weight:700;margin-bottom:16px">
-  <i class="bi bi-calendar-plus me-2" style="color:#0891b2"></i>{{ 'فعالية جديدة' if ar else 'New Event' }}
+  <i class="bi {{ 'bi-pencil-square' if is_edit else 'bi-calendar-plus' }} me-2" style="color:#0891b2"></i>
+  {{ ('تعديل الفعالية' if is_edit else 'فعالية جديدة') if ar else (is_edit and 'Edit Event' or 'New Event') }}
 </h1>
 
-<form method="POST" style="max-width:520px;background:#fff;border-radius:14px;padding:22px;box-shadow:0 2px 12px rgba(0,0,0,.06)">
+<form method="POST" action="{{ url_for('checkin.admin_edit', event_id=event.id) if is_edit else url_for('checkin.admin_new') }}"
+      style="max-width:520px;background:#fff;border-radius:14px;padding:22px;box-shadow:0 2px 12px rgba(0,0,0,.06)">
   <div class="mb-3">
     <label class="form-label fw-semibold">{{ 'اسم الفعالية' if ar else 'Event Name' }}</label>
-    <input type="text" name="name" class="form-control" required placeholder="{{ 'مثال: اجتماع عام لكل الموظفين' if ar else 'e.g. All-staff meeting' }}">
+    <input type="text" name="name" class="form-control" required value="{{ event.name if is_edit else '' }}" placeholder="{{ 'مثال: اجتماع عام لكل الموظفين' if ar else 'e.g. All-staff meeting' }}">
   </div>
   <div class="mb-3">
     <label class="form-label fw-semibold">{{ 'التاريخ' if ar else 'Date' }}</label>
-    <input type="date" name="event_date" class="form-control" required>
+    <input type="date" name="event_date" class="form-control" required value="{{ event.event_date if is_edit else '' }}">
+    {% if is_edit %}<div class="form-text" style="direction:ltr;text-align:end">{{ 'الحالي:' if ar else 'Current:' }} {{ event.event_date }}</div>{% endif %}
   </div>
   <div class="row g-2 mb-3">
     <div class="col-6">
       <label class="form-label fw-semibold">{{ 'من (الحضور بالوقت)' if ar else 'From (on-time)' }}</label>
-      <input type="time" name="window_start" class="form-control" required value="09:00">
+      <input type="time" name="window_start" class="form-control" required value="{{ event.window_start if is_edit else '09:00' }}">
     </div>
     <div class="col-6">
       <label class="form-label fw-semibold">{{ 'إلى' if ar else 'To' }}</label>
-      <input type="time" name="window_end" class="form-control" required value="09:20">
+      <input type="time" name="window_end" class="form-control" required value="{{ event.window_end if is_edit else '09:20' }}">
     </div>
   </div>
   <div class="mb-3">
     <label class="form-label fw-semibold">{{ 'دقائق السماح للمتأخرين' if ar else 'Grace minutes for late arrivals' }}</label>
-    <input type="number" name="grace_minutes" class="form-control" value="5" min="0" max="60" style="max-width:120px">
+    <input type="number" name="grace_minutes" class="form-control" value="{{ event.grace_minutes if is_edit else 5 }}" min="0" max="60" style="max-width:120px">
     <div class="form-text">{{ 'بعد هذه المدة، الرمز يصبح غير فعال ويُعتبر الموظف غائباً' if ar else 'After this, the code stops working and the person is marked absent' }}</div>
   </div>
   <button type="submit" class="btn" style="background:#0891b2;color:#fff;border:none;border-radius:8px;font-weight:700;padding:9px 24px">
-    <i class="bi bi-check2 me-1"></i>{{ 'إنشاء' if ar else 'Create' }}
+    <i class="bi bi-check2 me-1"></i>{{ ('حفظ التعديلات' if is_edit else 'إنشاء') if ar else (is_edit and 'Save Changes' or 'Create') }}
   </button>
 </form>
 {% endblock %}

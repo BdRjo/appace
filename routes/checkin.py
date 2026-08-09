@@ -64,6 +64,30 @@ def admin_list():
     return render_template('checkin/admin/list.html', events=events)
 
 
+def _normalize_date(date_str):
+    """Coerce a date string to canonical YYYY-MM-DD regardless of what
+    format the browser's date picker actually submitted (some older/mobile
+    browsers fall back to free-text entry in local format). Returns None
+    if the string can't be confidently parsed."""
+    date_str = (date_str or '').strip()
+    if not date_str:
+        return None
+    # Already ISO
+    if len(date_str) == 10 and date_str[4] == '-' and date_str[7] == '-':
+        try:
+            datetime.strptime(date_str, '%Y-%m-%d')
+            return date_str
+        except ValueError:
+            pass
+    # Common alternates: DD/MM/YYYY, MM/DD/YYYY, DD-MM-YYYY
+    for fmt in ('%d/%m/%Y', '%m/%d/%Y', '%d-%m-%Y', '%Y/%m/%d'):
+        try:
+            return datetime.strptime(date_str, fmt).strftime('%Y-%m-%d')
+        except ValueError:
+            continue
+    return None
+
+
 @checkin_bp.route('/admin/new', methods=['GET', 'POST'])
 @admin_required
 def admin_new():
@@ -72,13 +96,14 @@ def admin_new():
 
     db = get_db()
     name = request.form.get('name', '').strip()
-    event_date = request.form.get('event_date', '').strip()
+    event_date = _normalize_date(request.form.get('event_date', ''))
     window_start = request.form.get('window_start', '').strip()
     window_end = request.form.get('window_end', '').strip()
     grace_minutes = request.form.get('grace_minutes', type=int) or 5
 
     if not (name and event_date and window_start and window_end):
-        flash(_t('يرجى تعبئة جميع الحقول', 'Please fill in all fields'), 'danger')
+        flash(_t('يرجى تعبئة جميع الحقول بشكل صحيح (تأكد من صيغة التاريخ)',
+                  'Please fill in all fields correctly (check the date format)'), 'danger')
         return redirect(url_for('checkin.admin_new'))
 
     event = EventCheckin(
@@ -89,6 +114,38 @@ def admin_new():
     db.add(event)
     db.commit()
     flash(_t('تم إنشاء الفعالية', 'Event created'), 'success')
+    return redirect(url_for('checkin.admin_detail', event_id=event.id))
+
+
+@checkin_bp.route('/admin/<int:event_id>/edit', methods=['GET', 'POST'])
+@admin_required
+def admin_edit(event_id):
+    db = get_db()
+    event = db.get(EventCheckin, event_id)
+    if not event:
+        abort(404)
+
+    if request.method == 'GET':
+        return render_template('checkin/admin/form.html', event=event)
+
+    name = request.form.get('name', '').strip()
+    event_date = _normalize_date(request.form.get('event_date', ''))
+    window_start = request.form.get('window_start', '').strip()
+    window_end = request.form.get('window_end', '').strip()
+    grace_minutes = request.form.get('grace_minutes', type=int) or 5
+
+    if not (name and event_date and window_start and window_end):
+        flash(_t('يرجى تعبئة جميع الحقول بشكل صحيح (تأكد من صيغة التاريخ)',
+                  'Please fill in all fields correctly (check the date format)'), 'danger')
+        return redirect(url_for('checkin.admin_edit', event_id=event.id))
+
+    event.name = name
+    event.event_date = event_date
+    event.window_start = window_start
+    event.window_end = window_end
+    event.grace_minutes = grace_minutes
+    db.commit()
+    flash(_t('تم حفظ التعديلات', 'Changes saved'), 'success')
     return redirect(url_for('checkin.admin_detail', event_id=event.id))
 
 
