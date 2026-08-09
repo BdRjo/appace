@@ -18,14 +18,126 @@ index 0f3e7a8..b30a8b2 100644
      healthCheckPath: /health
      envVars:
        - key: SECRET_KEY
+diff --git a/routes/checkin.py b/routes/checkin.py
+index 2cdb111..aec47d1 100644
+--- a/routes/checkin.py
++++ b/routes/checkin.py
+@@ -64,6 +64,30 @@ def admin_list():
+     return render_template('checkin/admin/list.html', events=events)
+ 
+ 
++def _normalize_date(date_str):
++    """Coerce a date string to canonical YYYY-MM-DD regardless of what
++    format the browser's date picker actually submitted (some older/mobile
++    browsers fall back to free-text entry in local format). Returns None
++    if the string can't be confidently parsed."""
++    date_str = (date_str or '').strip()
++    if not date_str:
++        return None
++    # Already ISO
++    if len(date_str) == 10 and date_str[4] == '-' and date_str[7] == '-':
++        try:
++            datetime.strptime(date_str, '%Y-%m-%d')
++            return date_str
++        except ValueError:
++            pass
++    # Common alternates: DD/MM/YYYY, MM/DD/YYYY, DD-MM-YYYY
++    for fmt in ('%d/%m/%Y', '%m/%d/%Y', '%d-%m-%Y', '%Y/%m/%d'):
++        try:
++            return datetime.strptime(date_str, fmt).strftime('%Y-%m-%d')
++        except ValueError:
++            continue
++    return None
++
++
+ @checkin_bp.route('/admin/new', methods=['GET', 'POST'])
+ @admin_required
+ def admin_new():
+@@ -72,13 +96,14 @@ def admin_new():
+ 
+     db = get_db()
+     name = request.form.get('name', '').strip()
+-    event_date = request.form.get('event_date', '').strip()
++    event_date = _normalize_date(request.form.get('event_date', ''))
+     window_start = request.form.get('window_start', '').strip()
+     window_end = request.form.get('window_end', '').strip()
+     grace_minutes = request.form.get('grace_minutes', type=int) or 5
+ 
+     if not (name and event_date and window_start and window_end):
+-        flash(_t('يرجى تعبئة جميع الحقول', 'Please fill in all fields'), 'danger')
++        flash(_t('يرجى تعبئة جميع الحقول بشكل صحيح (تأكد من صيغة التاريخ)',
++                  'Please fill in all fields correctly (check the date format)'), 'danger')
+         return redirect(url_for('checkin.admin_new'))
+ 
+     event = EventCheckin(
+@@ -92,6 +117,38 @@ def admin_new():
+     return redirect(url_for('checkin.admin_detail', event_id=event.id))
+ 
+ 
++@checkin_bp.route('/admin/<int:event_id>/edit', methods=['GET', 'POST'])
++@admin_required
++def admin_edit(event_id):
++    db = get_db()
++    event = db.get(EventCheckin, event_id)
++    if not event:
++        abort(404)
++
++    if request.method == 'GET':
++        return render_template('checkin/admin/form.html', event=event)
++
++    name = request.form.get('name', '').strip()
++    event_date = _normalize_date(request.form.get('event_date', ''))
++    window_start = request.form.get('window_start', '').strip()
++    window_end = request.form.get('window_end', '').strip()
++    grace_minutes = request.form.get('grace_minutes', type=int) or 5
++
++    if not (name and event_date and window_start and window_end):
++        flash(_t('يرجى تعبئة جميع الحقول بشكل صحيح (تأكد من صيغة التاريخ)',
++                  'Please fill in all fields correctly (check the date format)'), 'danger')
++        return redirect(url_for('checkin.admin_edit', event_id=event.id))
++
++    event.name = name
++    event.event_date = event_date
++    event.window_start = window_start
++    event.window_end = window_end
++    event.grace_minutes = grace_minutes
++    db.commit()
++    flash(_t('تم حفظ التعديلات', 'Changes saved'), 'success')
++    return redirect(url_for('checkin.admin_detail', event_id=event.id))
++
++
+ @checkin_bp.route('/admin/<int:event_id>')
+ @admin_required
+ def admin_detail(event_id):
 diff --git a/templates/checkin/admin/detail.html b/templates/checkin/admin/detail.html
-index d4a16ae..d04bc7f 100644
+index d4a16ae..8af299b 100644
 --- a/templates/checkin/admin/detail.html
 +++ b/templates/checkin/admin/detail.html
-@@ -24,6 +24,24 @@
+@@ -15,6 +15,9 @@
+     </div>
+   </div>
+   <div class="d-flex gap-2">
++    <a href="{{ url_for('checkin.admin_edit', event_id=event.id) }}" class="btn btn-sm" style="border:1.5px solid #d1d5db;border-radius:8px;font-weight:600">
++      <i class="bi bi-pencil-square me-1"></i>{{ 'تعديل' if ar else 'Edit' }}
++    </a>
+     <a href="{{ url_for('checkin.admin_report', event_id=event.id) }}" target="_blank" class="btn btn-sm" style="border:1.5px solid #d1d5db;border-radius:8px;font-weight:600">
+       <i class="bi bi-file-earmark-text me-1"></i>{{ 'التقرير' if ar else 'Report' }}
+     </a>
+@@ -24,6 +27,35 @@
    </div>
  </div>
  
++<!-- Live monitor toggle -->
++<div class="no-print d-flex align-items-center gap-2 mb-3" style="font-size:.84rem">
++  <label class="d-flex align-items-center gap-1" style="cursor:pointer">
++    <input type="checkbox" id="liveToggle" onchange="toggleLive()">
++    <span class="fw-semibold">{{ 'مراقبة حية (تحديث كل 10 ثواني)' if ar else 'Live monitor (refresh every 10s)' }}</span>
++  </label>
++  <span id="liveStatus" style="color:#0891b2;font-weight:700;display:none">
++    <i class="bi bi-arrow-repeat"></i> <span id="liveCountdown">10</span>{{ 'ث' if ar else 's' }}
++  </span>
++</div>
++
 +<!-- Public check-in link -->
 +<div style="background:#0891b2;border-radius:12px;padding:16px 18px;margin-bottom:18px;color:#fff">
 +  <div style="font-size:.82rem;font-weight:700;opacity:.9;margin-bottom:6px">
@@ -47,10 +159,35 @@ index d4a16ae..d04bc7f 100644
  <!-- Live counts -->
  <div class="row g-2 mb-3">
    <div class="col-6 col-md-3">
-@@ -146,6 +164,11 @@
+@@ -146,6 +178,36 @@
  </div>
  
  <script>
++let _liveTimer = null, _liveCountdown = 10;
++function toggleLive(){
++  const on = document.getElementById('liveToggle').checked;
++  const statusEl = document.getElementById('liveStatus');
++  if(on){
++    statusEl.style.display = 'inline';
++    sessionStorage.setItem('checkinLiveOn', '1');
++    _liveCountdown = 10;
++    if(_liveTimer) clearInterval(_liveTimer);
++    _liveTimer = setInterval(() => {
++      _liveCountdown--;
++      document.getElementById('liveCountdown').textContent = _liveCountdown;
++      if(_liveCountdown <= 0) location.reload();
++    }, 1000);
++  } else {
++    statusEl.style.display = 'none';
++    sessionStorage.removeItem('checkinLiveOn');
++    if(_liveTimer) clearInterval(_liveTimer);
++  }
++}
++if(sessionStorage.getItem('checkinLiveOn') === '1'){
++  document.getElementById('liveToggle').checked = true;
++  toggleLive();
++}
++
 +function copyCheckinUrl(){
 +  const box = document.getElementById('checkinUrlBox');
 +  box.select();
@@ -59,3 +196,60 @@ index d4a16ae..d04bc7f 100644
  function deleteAttendee(url){
    if(!confirm('{{ "حذف هذا المدعو؟" if ar else "Delete this attendee?" }}')) return;
    fetch(url, {method:'POST'})
+diff --git a/templates/checkin/admin/form.html b/templates/checkin/admin/form.html
+index 3684caf..169e177 100644
+--- a/templates/checkin/admin/form.html
++++ b/templates/checkin/admin/form.html
+@@ -1,39 +1,43 @@
+ {% extends "base.html" %}
+ {%- set ar = (current_lang == 'ar') -%}
++{%- set is_edit = event is not none -%}
+ 
+-{% block title %}{{ 'فعالية جديدة' if ar else 'New Event' }}{% endblock %}
++{% block title %}{{ ('تعديل الفعالية' if is_edit else 'فعالية جديدة') if ar else (is_edit and 'Edit Event' or 'New Event') }}{% endblock %}
+ 
+ {% block content %}
+ <h1 style="font-size:1.3rem;font-weight:700;margin-bottom:16px">
+-  <i class="bi bi-calendar-plus me-2" style="color:#0891b2"></i>{{ 'فعالية جديدة' if ar else 'New Event' }}
++  <i class="bi {{ 'bi-pencil-square' if is_edit else 'bi-calendar-plus' }} me-2" style="color:#0891b2"></i>
++  {{ ('تعديل الفعالية' if is_edit else 'فعالية جديدة') if ar else (is_edit and 'Edit Event' or 'New Event') }}
+ </h1>
+ 
+-<form method="POST" style="max-width:520px;background:#fff;border-radius:14px;padding:22px;box-shadow:0 2px 12px rgba(0,0,0,.06)">
++<form method="POST" action="{{ url_for('checkin.admin_edit', event_id=event.id) if is_edit else url_for('checkin.admin_new') }}"
++      style="max-width:520px;background:#fff;border-radius:14px;padding:22px;box-shadow:0 2px 12px rgba(0,0,0,.06)">
+   <div class="mb-3">
+     <label class="form-label fw-semibold">{{ 'اسم الفعالية' if ar else 'Event Name' }}</label>
+-    <input type="text" name="name" class="form-control" required placeholder="{{ 'مثال: اجتماع عام لكل الموظفين' if ar else 'e.g. All-staff meeting' }}">
++    <input type="text" name="name" class="form-control" required value="{{ event.name if is_edit else '' }}" placeholder="{{ 'مثال: اجتماع عام لكل الموظفين' if ar else 'e.g. All-staff meeting' }}">
+   </div>
+   <div class="mb-3">
+     <label class="form-label fw-semibold">{{ 'التاريخ' if ar else 'Date' }}</label>
+-    <input type="date" name="event_date" class="form-control" required>
++    <input type="date" name="event_date" class="form-control" required value="{{ event.event_date if is_edit else '' }}">
++    {% if is_edit %}<div class="form-text" style="direction:ltr;text-align:end">{{ 'الحالي:' if ar else 'Current:' }} {{ event.event_date }}</div>{% endif %}
+   </div>
+   <div class="row g-2 mb-3">
+     <div class="col-6">
+       <label class="form-label fw-semibold">{{ 'من (الحضور بالوقت)' if ar else 'From (on-time)' }}</label>
+-      <input type="time" name="window_start" class="form-control" required value="09:00">
++      <input type="time" name="window_start" class="form-control" required value="{{ event.window_start if is_edit else '09:00' }}">
+     </div>
+     <div class="col-6">
+       <label class="form-label fw-semibold">{{ 'إلى' if ar else 'To' }}</label>
+-      <input type="time" name="window_end" class="form-control" required value="09:20">
++      <input type="time" name="window_end" class="form-control" required value="{{ event.window_end if is_edit else '09:20' }}">
+     </div>
+   </div>
+   <div class="mb-3">
+     <label class="form-label fw-semibold">{{ 'دقائق السماح للمتأخرين' if ar else 'Grace minutes for late arrivals' }}</label>
+-    <input type="number" name="grace_minutes" class="form-control" value="5" min="0" max="60" style="max-width:120px">
++    <input type="number" name="grace_minutes" class="form-control" value="{{ event.grace_minutes if is_edit else 5 }}" min="0" max="60" style="max-width:120px">
+     <div class="form-text">{{ 'بعد هذه المدة، الرمز يصبح غير فعال ويُعتبر الموظف غائباً' if ar else 'After this, the code stops working and the person is marked absent' }}</div>
+   </div>
+   <button type="submit" class="btn" style="background:#0891b2;color:#fff;border:none;border-radius:8px;font-weight:700;padding:9px 24px">
+-    <i class="bi bi-check2 me-1"></i>{{ 'إنشاء' if ar else 'Create' }}
++    <i class="bi bi-check2 me-1"></i>{{ ('حفظ التعديلات' if is_edit else 'إنشاء') if ar else (is_edit and 'Save Changes' or 'Create') }}
+   </button>
+ </form>
+ {% endblock %}
