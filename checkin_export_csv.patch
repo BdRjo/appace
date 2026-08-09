@@ -1,0 +1,59 @@
+diff --git a/routes/checkin.py b/routes/checkin.py
+index 619446a..de62ddd 100644
+--- a/routes/checkin.py
++++ b/routes/checkin.py
+@@ -352,6 +352,40 @@ def admin_report(event_id):
+     return render_template('checkin/admin/report.html', event=event, resolved=resolved, counts=counts)
+ 
+ 
++@checkin_bp.route('/admin/<int:event_id>/export')
++@admin_required
++def admin_export_attendees(event_id):
++    """Export the attendee list (Name, Email, Code, Status) as CSV."""
++    import csv
++    import io
++    from flask import Response
++
++    db = get_db()
++    event = db.get(EventCheckin, event_id)
++    if not event:
++        abort(404)
++    attendees = sorted(event.attendees, key=lambda a: a.name)
++    now = _now_amman()
++    status_labels = {
++        'on_time': 'On Time', 'late': 'Late', 'absent': 'Absent', 'pending': 'Pending',
++    }
++
++    buf = io.StringIO()
++    writer = csv.writer(buf)
++    buf.write('\ufeff')  # BOM so Excel renders Arabic correctly
++    writer.writerow(['Name', 'Email', 'Code', 'Status'])
++    for a in attendees:
++        st = _resolve_status(event, a, now)
++        writer.writerow([a.name, a.email or '', a.code, status_labels.get(st, st)])
++
++    filename = f'checkin_{event.name}_{event.event_date}.csv'.replace(' ', '_')
++    return Response(
++        buf.getvalue(),
++        mimetype='text/csv',
++        headers={'Content-Disposition': f'attachment; filename="{filename}"'},
++    )
++
++
+ # ===========================================================================
+ # PUBLIC CHECK-IN PAGE (no login — attendees use this at the door)
+ # ===========================================================================
+diff --git a/templates/checkin/admin/detail.html b/templates/checkin/admin/detail.html
+index bdda762..7a91fa6 100644
+--- a/templates/checkin/admin/detail.html
++++ b/templates/checkin/admin/detail.html
+@@ -22,6 +22,9 @@
+     <a href="{{ url_for('checkin.admin_report', event_id=event.id) }}" target="_blank" class="btn btn-sm" style="border:1.5px solid #d1d5db;border-radius:8px;font-weight:600">
+       <i class="bi bi-file-earmark-text me-1"></i>{{ 'التقرير' if ar else 'Report' }}
+     </a>
++    <a href="{{ url_for('checkin.admin_export_attendees', event_id=event.id) }}" class="btn btn-sm" style="border:1.5px solid #d1d5db;border-radius:8px;font-weight:600">
++      <i class="bi bi-download me-1"></i>{{ 'تصدير CSV' if ar else 'Export CSV' }}
++    </a>
+     <a href="{{ url_for('checkin.admin_list') }}" class="btn btn-sm" style="border:1.5px solid #d1d5db;border-radius:8px;font-weight:600">
+       <i class="bi bi-arrow-right me-1"></i>{{ 'رجوع' if ar else 'Back' }}
+     </a>

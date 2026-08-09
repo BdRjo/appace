@@ -352,6 +352,40 @@ def admin_report(event_id):
     return render_template('checkin/admin/report.html', event=event, resolved=resolved, counts=counts)
 
 
+@checkin_bp.route('/admin/<int:event_id>/export')
+@admin_required
+def admin_export_attendees(event_id):
+    """Export the attendee list (Name, Email, Code, Status) as CSV."""
+    import csv
+    import io
+    from flask import Response
+
+    db = get_db()
+    event = db.get(EventCheckin, event_id)
+    if not event:
+        abort(404)
+    attendees = sorted(event.attendees, key=lambda a: a.name)
+    now = _now_amman()
+    status_labels = {
+        'on_time': 'On Time', 'late': 'Late', 'absent': 'Absent', 'pending': 'Pending',
+    }
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    buf.write('\ufeff')  # BOM so Excel renders Arabic correctly
+    writer.writerow(['Name', 'Email', 'Code', 'Status'])
+    for a in attendees:
+        st = _resolve_status(event, a, now)
+        writer.writerow([a.name, a.email or '', a.code, status_labels.get(st, st)])
+
+    filename = f'checkin_{event.name}_{event.event_date}.csv'.replace(' ', '_')
+    return Response(
+        buf.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': f'attachment; filename="{filename}"'},
+    )
+
+
 # ===========================================================================
 # PUBLIC CHECK-IN PAGE (no login — attendees use this at the door)
 # ===========================================================================
