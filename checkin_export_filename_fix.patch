@@ -1,0 +1,13 @@
+diff --git a/routes/checkin.py b/routes/checkin.py
+index de62ddd..f850c25 100644
+--- a/routes/checkin.py
++++ b/routes/checkin.py
+@@ -378,7 +378,7 @@ def admin_export_attendees(event_id):
+         st = _resolve_status(event, a, now)
+         writer.writerow([a.name, a.email or '', a.code, status_labels.get(st, st)])
+ 
+-    filename = f'checkin_{event.name}_{event.event_date}.csv'.replace(' ', '_')
++    filename = f'checkin_export_event{event.id}_{event.event_date}.csv'
+     return Response(
+         buf.getvalue(),
+         mimetype='text/csv',

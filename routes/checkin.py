@@ -378,7 +378,7 @@ def admin_export_attendees(event_id):
         st = _resolve_status(event, a, now)
         writer.writerow([a.name, a.email or '', a.code, status_labels.get(st, st)])
 
-    filename = f'checkin_{event.name}_{event.event_date}.csv'.replace(' ', '_')
+    filename = f'checkin_export_event{event.id}_{event.event_date}.csv'
     return Response(
         buf.getvalue(),
         mimetype='text/csv',
