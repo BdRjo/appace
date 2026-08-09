@@ -1,0 +1,36 @@
+diff --git a/routes/sas.py b/routes/sas.py
+index e4e7be3..b984dc2 100644
+--- a/routes/sas.py
++++ b/routes/sas.py
+@@ -359,8 +359,13 @@ def portal_home(code):
+         *cl_filter,
+     ).scalar() or 0
+ 
+-    # All stages with student counts
+-    all_stages = db.query(SASStage).order_by(SASStage.order_num).all()
++    # All stages with student counts — scoped to this staff member's own
++    # region (managers see every stage; supervisors/secretaries see only
++    # the one they're assigned to, since that's all they can access anyway)
++    stages_q = db.query(SASStage).order_by(SASStage.order_num)
++    if staff.role != 'manager':
++        stages_q = stages_q.filter(SASStage.id == staff.stage_id) if staff.stage_id else stages_q.filter(SASStage.id.is_(None))
++    all_stages = stages_q.all()
+     for st in all_stages:
+         st.student_count = db.query(func.count(SASStudent.id)).join(
+             SASSection
+diff --git a/templates/sas/portal_home.html b/templates/sas/portal_home.html
+index b631bc3..b0ff120 100644
+--- a/templates/sas/portal_home.html
++++ b/templates/sas/portal_home.html
+@@ -258,8 +258,9 @@
+     </h6>
+   </div>
+   <div class="d-flex align-items-center gap-2 flex-wrap">
+-    {# quick_absent route does not exist; link to first stage instead #}
+-    <a href="{{ url_for('sas.stage_students', code=staff.staff_code, stage_id=stages[0].id if stages else 0) }}"
++    {# Quick Absence Entry: go to the staff member's own assigned stage.
++       Managers (no fixed stage) fall back to the first stage in the list. #}
++    <a href="{{ url_for('sas.stage_students', code=staff.staff_code, stage_id=staff.stage_id if staff.stage_id else (stages[0].id if stages else 0)) }}"
+        class="btn btn-sm"
+        style="background:var(--sas-primary);color:#fff;border:none;border-radius:10px;font-weight:700;padding:8px 18px;font-size:.84rem">
+       <i class="bi bi-plus-circle me-1"></i>

@@ -258,8 +258,9 @@
     </h6>
   </div>
   <div class="d-flex align-items-center gap-2 flex-wrap">
-    {# quick_absent route does not exist; link to first stage instead #}
-    <a href="{{ url_for('sas.stage_students', code=staff.staff_code, stage_id=stages[0].id if stages else 0) }}"
+    {# Quick Absence Entry: go to the staff member's own assigned stage.
+       Managers (no fixed stage) fall back to the first stage in the list. #}
+    <a href="{{ url_for('sas.stage_students', code=staff.staff_code, stage_id=staff.stage_id if staff.stage_id else (stages[0].id if stages else 0)) }}"
        class="btn btn-sm"
        style="background:var(--sas-primary);color:#fff;border:none;border-radius:10px;font-weight:700;padding:8px 18px;font-size:.84rem">
       <i class="bi bi-plus-circle me-1"></i>

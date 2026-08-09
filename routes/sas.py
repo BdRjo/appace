@@ -359,8 +359,13 @@ def portal_home(code):
         *cl_filter,
     ).scalar() or 0
 
-    # All stages with student counts
-    all_stages = db.query(SASStage).order_by(SASStage.order_num).all()
+    # All stages with student counts — scoped to this staff member's own
+    # region (managers see every stage; supervisors/secretaries see only
+    # the one they're assigned to, since that's all they can access anyway)
+    stages_q = db.query(SASStage).order_by(SASStage.order_num)
+    if staff.role != 'manager':
+        stages_q = stages_q.filter(SASStage.id == staff.stage_id) if staff.stage_id else stages_q.filter(SASStage.id.is_(None))
+    all_stages = stages_q.all()
     for st in all_stages:
         st.student_count = db.query(func.count(SASStudent.id)).join(
             SASSection
