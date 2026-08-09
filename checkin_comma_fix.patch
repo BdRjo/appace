@@ -1,0 +1,18 @@
+diff --git a/routes/checkin.py b/routes/checkin.py
+index aec47d1..5a27d0b 100644
+--- a/routes/checkin.py
++++ b/routes/checkin.py
+@@ -226,8 +226,11 @@ def admin_attendees_add(event_id):
+             line = line.strip()
+             if not line:
+                 continue
+-            # Accept "Name,Email" or "Name<TAB>Email" or just "Name"
+-            parts = [p.strip() for p in line.replace('\t', ',').split(',')]
++            # Accept "Name,Email" or "Name<TAB>Email" or just "Name".
++            # Also normalize the Arabic comma "،" and Arabic semicolon "؛"
++            # (easy to type by mistake on an Arabic keyboard) to a plain comma.
++            normalized = line.replace('\t', ',').replace('،', ',').replace('؛', ',')
++            parts = [p.strip() for p in normalized.split(',')]
+             name = parts[0] if parts else ''
+             email = parts[1] if len(parts) > 1 else ''
+             if name:
