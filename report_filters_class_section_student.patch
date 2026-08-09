@@ -1,0 +1,337 @@
+diff --git a/routes/sas.py b/routes/sas.py
+index 9edebdc..378a81b 100644
+--- a/routes/sas.py
++++ b/routes/sas.py
+@@ -2283,6 +2283,32 @@ def admin_compare():
+     )
+ 
+ 
++def _apply_report_scope(db, query, student_id_col, stage_id=None, class_id=None, section_id=None, student_id=None):
++    """Narrow a SASRecord/SASClassLeave query to a student, a section, a
++    class, or a stage — whichever is the most specific one given. Pass the
++    model's own student_id column (e.g. SASRecord.student_id)."""
++    if student_id:
++        return query.filter(student_id_col == student_id)
++    if section_id:
++        return query.filter(
++            student_id_col.in_(db.query(SASStudent.id).filter(SASStudent.section_id == section_id))
++        )
++    if class_id:
++        return query.filter(
++            student_id_col.in_(
++                db.query(SASStudent.id).join(SASSection).filter(SASSection.class_id == class_id)
++            )
++        )
++    if stage_id:
++        return query.filter(
++            student_id_col.in_(
++                db.query(SASStudent.id).join(SASSection).join(SASClass)
++                .filter(SASClass.stage_id == stage_id)
++            )
++        )
++    return query
++
++
+ # 27. Export records (CSV stream or PDF redirect)
+ @sas_bp.route('/admin/export')
+ @admin_required
+@@ -2292,6 +2318,9 @@ def admin_export():
+     date_from = request.args.get('date_from', '')
+     date_to = request.args.get('date_to', '')
+     stage_id = request.args.get('stage_id', type=int)
++    class_id = request.args.get('class_id', type=int)
++    section_id = request.args.get('section_id', type=int)
++    student_id = request.args.get('student_id', type=int)
+     record_type = request.args.get('record_type', '')
+ 
+     query = db.query(SASRecord).options(
+@@ -2306,15 +2335,7 @@ def admin_export():
+         query = query.filter(SASRecord.record_date <= date_to)
+     if record_type:
+         query = query.filter(SASRecord.record_type == record_type)
+-    if stage_id:
+-        query = query.filter(
+-            SASRecord.student_id.in_(
+-                db.query(SASStudent.id)
+-                .join(SASSection)
+-                .join(SASClass)
+-                .filter(SASClass.stage_id == stage_id)
+-            )
+-        )
++    query = _apply_report_scope(db, query, SASRecord.student_id, stage_id, class_id, section_id, student_id)
+ 
+     records = query.order_by(SASRecord.record_date.desc()).all()
+ 
+@@ -2324,6 +2345,9 @@ def admin_export():
+             date_from=date_from,
+             date_to=date_to,
+             stage_id=stage_id or '',
++            class_id=class_id or '',
++            section_id=section_id or '',
++            student_id=student_id or '',
+             record_type=record_type,
+         ))
+ 
+@@ -2384,7 +2408,11 @@ def admin_print():
+     date_from = request.args.get('date_from', '')
+     date_to = request.args.get('date_to', '')
+     stage_id = request.args.get('stage_id', type=int)
++    class_id = request.args.get('class_id', type=int)
++    section_id = request.args.get('section_id', type=int)
++    student_id = request.args.get('student_id', type=int)
+     record_type = request.args.get('record_type', '')
++    student_q = request.args.get('student_q', '').strip()
+ 
+     query = db.query(SASRecord).options(
+         joinedload(SASRecord.student).joinedload(SASStudent.section)
+@@ -2398,19 +2426,11 @@ def admin_print():
+         query = query.filter(SASRecord.record_date <= date_to)
+     if record_type:
+         query = query.filter(SASRecord.record_type == record_type)
+-    if stage_id:
+-        query = query.filter(
+-            SASRecord.student_id.in_(
+-                db.query(SASStudent.id)
+-                .join(SASSection)
+-                .join(SASClass)
+-                .filter(SASClass.stage_id == stage_id)
+-            )
+-        )
++    query = _apply_report_scope(db, query, SASRecord.student_id, stage_id, class_id, section_id, student_id)
+ 
+     records = query.order_by(SASRecord.record_date.desc()).all()
+ 
+-    # Also fetch class leave records for the same date range
++    # Also fetch class leave records for the same date range/scope
+     cl_query = db.query(SASClassLeave).options(
+         joinedload(SASClassLeave.student).joinedload(SASStudent.section)
+         .joinedload(SASSection.sas_class).joinedload(SASClass.stage),
+@@ -2420,17 +2440,56 @@ def admin_print():
+         cl_query = cl_query.filter(SASClassLeave.leave_date >= date_from)
+     if date_to:
+         cl_query = cl_query.filter(SASClassLeave.leave_date <= date_to)
+-    if stage_id:
+-        cl_query = cl_query.filter(
+-            SASClassLeave.student_id.in_(
+-                db.query(SASStudent.id)
+-                .join(SASSection)
+-                .join(SASClass)
+-                .filter(SASClass.stage_id == stage_id)
+-            )
+-        )
++    cl_query = _apply_report_scope(db, cl_query, SASClassLeave.student_id, stage_id, class_id, section_id, student_id)
+     class_leaves = cl_query.order_by(SASClassLeave.leave_date.desc()).all()
+ 
++    # Data to drive the (non-printable) filter bar: stages + classes + sections
++    # for cascading selects, and a student search if the admin typed a name.
++    stages_list = [{'id': s.id, 'name': s.name, 'name_en': s.name_en}
++                    for s in db.query(SASStage).order_by(SASStage.order_num).all()]
++    classes_list = [{'id': c.id, 'name': c.name, 'name_en': c.name_en, 'stage_id': c.stage_id}
++                     for c in db.query(SASClass).order_by(SASClass.order_num).all()]
++    sections_list = [{'id': sec.id, 'name': sec.name, 'name_en': sec.name_en, 'class_id': sec.class_id}
++                      for sec in db.query(SASSection).order_by(SASSection.order_num).all()]
++
++    student_matches = []
++    if student_q:
++        student_matches = (
++            db.query(SASStudent)
++            .filter(or_(
++                SASStudent.name.contains(student_q),
++                SASStudent.name_en.contains(student_q),
++                SASStudent.student_number.contains(student_q),
++            ))
++            .limit(20)
++            .all()
++        )
++    selected_student = db.get(SASStudent, student_id) if student_id else None
++
++    # Human-readable filters summary shown on the report itself
++    filter_parts = []
++    if selected_student:
++        filter_parts.append((f'الطالب: {selected_student.name}', f'Student: {selected_student.name_en or selected_student.name}'))
++    else:
++        if section_id:
++            sec = db.get(SASSection, section_id)
++            if sec:
++                filter_parts.append((f'الشعبة: {sec.name}', f'Section: {sec.name_en or sec.name}'))
++        elif class_id:
++            cls = db.get(SASClass, class_id)
++            if cls:
++                filter_parts.append((f'الصف: {cls.name}', f'Class: {cls.name_en or cls.name}'))
++        elif stage_id:
++            stg = db.get(SASStage, stage_id)
++            if stg:
++                filter_parts.append((f'المرحلة: {stg.name}', f'Stage: {stg.name_en or stg.name}'))
++    if record_type:
++        rt_labels = {'absent': ('غياب', 'Absent'), 'late': ('تأخر', 'Late'), 'leave': ('استئذان', 'Leave'), 'other': ('أخرى', 'Other')}
++        rt = rt_labels.get(record_type, (record_type, record_type))
++        filter_parts.append((f'النوع: {rt[0]}', f'Type: {rt[1]}'))
++    filters_text_ar = ' | '.join(p[0] for p in filter_parts)
++    filters_text_en = ' | '.join(p[1] for p in filter_parts)
++
+     return render_template(
+         'sas/admin/print_report.html',
+         config=cfg,
+@@ -2440,6 +2499,18 @@ def admin_print():
+         date_from=date_from,
+         date_to=date_to,
+         record_type=record_type,
++        stage_id=stage_id,
++        class_id=class_id,
++        section_id=section_id,
++        student_id=student_id,
++        student_q=student_q,
++        stages_list=stages_list,
++        classes_list=classes_list,
++        sections_list=sections_list,
++        student_matches=student_matches,
++        selected_student=selected_student,
++        filters_text_ar=filters_text_ar,
++        filters_text_en=filters_text_en,
+     )
+ 
+ 
+diff --git a/templates/sas/admin/print_report.html b/templates/sas/admin/print_report.html
+index 64041e9..bc8c94b 100644
+--- a/templates/sas/admin/print_report.html
++++ b/templates/sas/admin/print_report.html
+@@ -117,6 +117,131 @@
+     </a>
+   </div>
+ 
++  <!-- Filter Bar (hidden on print) -->
++  <form method="GET" class="no-print" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:16px">
++    <div class="d-flex flex-wrap gap-2 align-items-end">
++      <div>
++        <label style="font-size:.76rem;font-weight:700;color:#6b7280;display:block;margin-bottom:3px">{{ 'من' if ar else 'From' }}</label>
++        <input type="date" name="date_from" value="{{ date_from or '' }}" class="form-control form-control-sm" style="width:auto">
++      </div>
++      <div>
++        <label style="font-size:.76rem;font-weight:700;color:#6b7280;display:block;margin-bottom:3px">{{ 'إلى' if ar else 'to' }}</label>
++        <input type="date" name="date_to" value="{{ date_to or '' }}" class="form-control form-control-sm" style="width:auto">
++      </div>
++      <div>
++        <label style="font-size:.76rem;font-weight:700;color:#6b7280;display:block;margin-bottom:3px">{{ 'المرحلة' if ar else 'Stage' }}</label>
++        <select name="stage_id" id="filterStage" class="form-select form-select-sm" style="width:auto" onchange="onStageChange()">
++          <option value="">{{ 'الكل' if ar else 'All' }}</option>
++          {% for s in stages_list %}
++          <option value="{{ s.id }}" {{ 'selected' if stage_id == s.id }}>{{ s.name if ar else (s.name_en or s.name) }}</option>
++          {% endfor %}
++        </select>
++      </div>
++      <div>
++        <label style="font-size:.76rem;font-weight:700;color:#6b7280;display:block;margin-bottom:3px">{{ 'الصف' if ar else 'Class' }}</label>
++        <select name="class_id" id="filterClass" class="form-select form-select-sm" style="width:auto" onchange="onClassChange()">
++          <option value="">{{ 'الكل' if ar else 'All' }}</option>
++        </select>
++      </div>
++      <div>
++        <label style="font-size:.76rem;font-weight:700;color:#6b7280;display:block;margin-bottom:3px">{{ 'الشعبة' if ar else 'Section' }}</label>
++        <select name="section_id" id="filterSection" class="form-select form-select-sm" style="width:auto">
++          <option value="">{{ 'الكل' if ar else 'All' }}</option>
++        </select>
++      </div>
++      <div>
++        <label style="font-size:.76rem;font-weight:700;color:#6b7280;display:block;margin-bottom:3px">{{ 'النوع' if ar else 'Type' }}</label>
++        <select name="record_type" class="form-select form-select-sm" style="width:auto">
++          <option value="">{{ 'الكل' if ar else 'All' }}</option>
++          <option value="absent" {{ 'selected' if record_type == 'absent' }}>{{ 'غياب' if ar else 'Absent' }}</option>
++          <option value="late" {{ 'selected' if record_type == 'late' }}>{{ 'تأخر' if ar else 'Late' }}</option>
++          <option value="leave" {{ 'selected' if record_type == 'leave' }}>{{ 'استئذان' if ar else 'Leave' }}</option>
++          <option value="other" {{ 'selected' if record_type == 'other' }}>{{ 'أخرى' if ar else 'Other' }}</option>
++        </select>
++      </div>
++      <div style="min-width:180px">
++        <label style="font-size:.76rem;font-weight:700;color:#6b7280;display:block;margin-bottom:3px">{{ 'طالب (اسم أو رقم)' if ar else 'Student (name or number)' }}</label>
++        <input type="text" name="student_q" value="{{ student_q or '' }}" placeholder="{{ 'اكتب واضغط بحث...' if ar else 'Type and search...' }}" class="form-control form-control-sm">
++      </div>
++      <button type="submit" name="do_search" value="1" class="btn btn-sm" style="background:#0891b2;color:#fff;border:none;border-radius:8px;font-weight:700;padding:7px 16px">
++        <i class="bi bi-funnel me-1"></i>{{ 'بحث' if ar else 'Search' }}
++      </button>
++      {% if student_id %}<input type="hidden" name="student_id" value="{{ student_id }}">{% endif %}
++    </div>
++
++    {% if student_q %}
++    <div style="margin-top:10px">
++      {% if student_matches %}
++      <div style="font-size:.8rem;color:#6b7280;margin-bottom:6px">{{ 'نتائج البحث — اختر طالباً:' if ar else 'Search results — pick a student:' }}</div>
++      <div class="d-flex flex-wrap gap-2">
++        {% for st in student_matches %}
++        <a href="?date_from={{ date_from or '' }}&date_to={{ date_to or '' }}&record_type={{ record_type or '' }}&student_id={{ st.id }}"
++           class="btn btn-sm {{ 'btn-sas' if selected_student and selected_student.id == st.id else '' }}"
++           style="{% if not (selected_student and selected_student.id == st.id) %}border:1.5px solid #d1d5db;color:#374151{% endif %};border-radius:8px;font-size:.8rem">
++          {{ st.name if ar else (st.name_en or st.name) }}{% if st.student_number %} ({{ st.student_number }}){% endif %}
++        </a>
++        {% endfor %}
++      </div>
++      {% else %}
++      <div style="font-size:.8rem;color:#9ca3af">{{ 'لا توجد نتائج' if ar else 'No results' }}</div>
++      {% endif %}
++    </div>
++    {% endif %}
++    {% if selected_student %}
++    <div style="margin-top:10px;font-size:.82rem;color:#0e7490;font-weight:700">
++      <i class="bi bi-person-check me-1"></i>{{ 'التقرير محصور بالطالب:' if ar else 'Report limited to student:' }}
++      {{ selected_student.name if ar else (selected_student.name_en or selected_student.name) }}
++      <a href="?date_from={{ date_from or '' }}&date_to={{ date_to or '' }}&record_type={{ record_type or '' }}" style="color:#dc2626;font-weight:600;margin-inline-start:8px;text-decoration:none">
++        <i class="bi bi-x-circle me-1"></i>{{ 'إلغاء' if ar else 'Clear' }}
++      </a>
++    </div>
++    {% endif %}
++  </form>
++
++  <script>
++    const _allClasses = {{ classes_list|tojson }};
++    const _allSections = {{ sections_list|tojson }};
++    const _initStageId = {{ stage_id or 'null' }};
++    const _initClassId = {{ class_id or 'null' }};
++    const _initSectionId = {{ section_id or 'null' }};
++    const _isAr = {{ 'true' if ar else 'false' }};
++
++    function populateClasses(stageId, selectClassId){
++      const sel = document.getElementById('filterClass');
++      sel.innerHTML = '<option value="">' + (_isAr ? 'الكل' : 'All') + '</option>';
++      _allClasses.filter(c => !stageId || c.stage_id === stageId).forEach(c => {
++        const opt = document.createElement('option');
++        opt.value = c.id;
++        opt.textContent = _isAr ? c.name : (c.name_en || c.name);
++        if(selectClassId && c.id === selectClassId) opt.selected = true;
++        sel.appendChild(opt);
++      });
++    }
++    function populateSections(classId, selectSectionId){
++      const sel = document.getElementById('filterSection');
++      sel.innerHTML = '<option value="">' + (_isAr ? 'الكل' : 'All') + '</option>';
++      _allSections.filter(s => !classId || s.class_id === classId).forEach(s => {
++        const opt = document.createElement('option');
++        opt.value = s.id;
++        opt.textContent = _isAr ? s.name : (s.name_en || s.name);
++        if(selectSectionId && s.id === selectSectionId) opt.selected = true;
++        sel.appendChild(opt);
++      });
++    }
++    function onStageChange(){
++      const stageId = parseInt(document.getElementById('filterStage').value) || null;
++      populateClasses(stageId, null);
++      populateSections(null, null);
++    }
++    function onClassChange(){
++      const classId = parseInt(document.getElementById('filterClass').value) || null;
++      populateSections(classId, null);
++    }
++    // Initial population on page load, preserving any pre-selected values
++    populateClasses(_initStageId, _initClassId);
++    populateSections(_initClassId, _initSectionId);
++  </script>
++
+   <!-- School Header -->
+   <div class="report-header">
+     {% if config.school_logo_b64 %}
+@@ -140,6 +265,7 @@
+   </div>
+ 
+   <!-- Filter Summary -->
++  {% set filters_text = (filters_text_ar if ar else filters_text_en) %}
+   {% if filters_text %}
+   <div class="filter-summary">
+     <i class="bi bi-funnel me-1"></i>{{ 'عوامل التصفية' if ar else 'Filters' }}: {{ filters_text }}

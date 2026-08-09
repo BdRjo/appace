@@ -2283,6 +2283,32 @@ def admin_compare():
     )
 
 
+def _apply_report_scope(db, query, student_id_col, stage_id=None, class_id=None, section_id=None, student_id=None):
+    """Narrow a SASRecord/SASClassLeave query to a student, a section, a
+    class, or a stage — whichever is the most specific one given. Pass the
+    model's own student_id column (e.g. SASRecord.student_id)."""
+    if student_id:
+        return query.filter(student_id_col == student_id)
+    if section_id:
+        return query.filter(
+            student_id_col.in_(db.query(SASStudent.id).filter(SASStudent.section_id == section_id))
+        )
+    if class_id:
+        return query.filter(
+            student_id_col.in_(
+                db.query(SASStudent.id).join(SASSection).filter(SASSection.class_id == class_id)
+            )
+        )
+    if stage_id:
+        return query.filter(
+            student_id_col.in_(
+                db.query(SASStudent.id).join(SASSection).join(SASClass)
+                .filter(SASClass.stage_id == stage_id)
+            )
+        )
+    return query
+
+
 # 27. Export records (CSV stream or PDF redirect)
 @sas_bp.route('/admin/export')
 @admin_required
@@ -2292,6 +2318,9 @@ def admin_export():
     date_from = request.args.get('date_from', '')
     date_to = request.args.get('date_to', '')
     stage_id = request.args.get('stage_id', type=int)
+    class_id = request.args.get('class_id', type=int)
+    section_id = request.args.get('section_id', type=int)
+    student_id = request.args.get('student_id', type=int)
     record_type = request.args.get('record_type', '')
 
     query = db.query(SASRecord).options(
@@ -2306,15 +2335,7 @@ def admin_export():
         query = query.filter(SASRecord.record_date <= date_to)
     if record_type:
         query = query.filter(SASRecord.record_type == record_type)
-    if stage_id:
-        query = query.filter(
-            SASRecord.student_id.in_(
-                db.query(SASStudent.id)
-                .join(SASSection)
-                .join(SASClass)
-                .filter(SASClass.stage_id == stage_id)
-            )
-        )
+    query = _apply_report_scope(db, query, SASRecord.student_id, stage_id, class_id, section_id, student_id)
 
     records = query.order_by(SASRecord.record_date.desc()).all()
 
@@ -2324,6 +2345,9 @@ def admin_export():
             date_from=date_from,
             date_to=date_to,
             stage_id=stage_id or '',
+            class_id=class_id or '',
+            section_id=section_id or '',
+            student_id=student_id or '',
             record_type=record_type,
         ))
 
@@ -2384,7 +2408,11 @@ def admin_print():
     date_from = request.args.get('date_from', '')
     date_to = request.args.get('date_to', '')
     stage_id = request.args.get('stage_id', type=int)
+    class_id = request.args.get('class_id', type=int)
+    section_id = request.args.get('section_id', type=int)
+    student_id = request.args.get('student_id', type=int)
     record_type = request.args.get('record_type', '')
+    student_q = request.args.get('student_q', '').strip()
 
     query = db.query(SASRecord).options(
         joinedload(SASRecord.student).joinedload(SASStudent.section)
@@ -2398,19 +2426,11 @@ def admin_print():
         query = query.filter(SASRecord.record_date <= date_to)
     if record_type:
         query = query.filter(SASRecord.record_type == record_type)
-    if stage_id:
-        query = query.filter(
-            SASRecord.student_id.in_(
-                db.query(SASStudent.id)
-                .join(SASSection)
-                .join(SASClass)
-                .filter(SASClass.stage_id == stage_id)
-            )
-        )
+    query = _apply_report_scope(db, query, SASRecord.student_id, stage_id, class_id, section_id, student_id)
 
     records = query.order_by(SASRecord.record_date.desc()).all()
 
-    # Also fetch class leave records for the same date range
+    # Also fetch class leave records for the same date range/scope
     cl_query = db.query(SASClassLeave).options(
         joinedload(SASClassLeave.student).joinedload(SASStudent.section)
         .joinedload(SASSection.sas_class).joinedload(SASClass.stage),
@@ -2420,16 +2440,55 @@ def admin_print():
         cl_query = cl_query.filter(SASClassLeave.leave_date >= date_from)
     if date_to:
         cl_query = cl_query.filter(SASClassLeave.leave_date <= date_to)
-    if stage_id:
-        cl_query = cl_query.filter(
-            SASClassLeave.student_id.in_(
-                db.query(SASStudent.id)
-                .join(SASSection)
-                .join(SASClass)
-                .filter(SASClass.stage_id == stage_id)
-            )
-        )
+    cl_query = _apply_report_scope(db, cl_query, SASClassLeave.student_id, stage_id, class_id, section_id, student_id)
     class_leaves = cl_query.order_by(SASClassLeave.leave_date.desc()).all()
+
+    # Data to drive the (non-printable) filter bar: stages + classes + sections
+    # for cascading selects, and a student search if the admin typed a name.
+    stages_list = [{'id': s.id, 'name': s.name, 'name_en': s.name_en}
+                    for s in db.query(SASStage).order_by(SASStage.order_num).all()]
+    classes_list = [{'id': c.id, 'name': c.name, 'name_en': c.name_en, 'stage_id': c.stage_id}
+                     for c in db.query(SASClass).order_by(SASClass.order_num).all()]
+    sections_list = [{'id': sec.id, 'name': sec.name, 'name_en': sec.name_en, 'class_id': sec.class_id}
+                      for sec in db.query(SASSection).order_by(SASSection.order_num).all()]
+
+    student_matches = []
+    if student_q:
+        student_matches = (
+            db.query(SASStudent)
+            .filter(or_(
+                SASStudent.name.contains(student_q),
+                SASStudent.name_en.contains(student_q),
+                SASStudent.student_number.contains(student_q),
+            ))
+            .limit(20)
+            .all()
+        )
+    selected_student = db.get(SASStudent, student_id) if student_id else None
+
+    # Human-readable filters summary shown on the report itself
+    filter_parts = []
+    if selected_student:
+        filter_parts.append((f'الطالب: {selected_student.name}', f'Student: {selected_student.name_en or selected_student.name}'))
+    else:
+        if section_id:
+            sec = db.get(SASSection, section_id)
+            if sec:
+                filter_parts.append((f'الشعبة: {sec.name}', f'Section: {sec.name_en or sec.name}'))
+        elif class_id:
+            cls = db.get(SASClass, class_id)
+            if cls:
+                filter_parts.append((f'الصف: {cls.name}', f'Class: {cls.name_en or cls.name}'))
+        elif stage_id:
+            stg = db.get(SASStage, stage_id)
+            if stg:
+                filter_parts.append((f'المرحلة: {stg.name}', f'Stage: {stg.name_en or stg.name}'))
+    if record_type:
+        rt_labels = {'absent': ('غياب', 'Absent'), 'late': ('تأخر', 'Late'), 'leave': ('استئذان', 'Leave'), 'other': ('أخرى', 'Other')}
+        rt = rt_labels.get(record_type, (record_type, record_type))
+        filter_parts.append((f'النوع: {rt[0]}', f'Type: {rt[1]}'))
+    filters_text_ar = ' | '.join(p[0] for p in filter_parts)
+    filters_text_en = ' | '.join(p[1] for p in filter_parts)
 
     return render_template(
         'sas/admin/print_report.html',
@@ -2440,6 +2499,18 @@ def admin_print():
         date_from=date_from,
         date_to=date_to,
         record_type=record_type,
+        stage_id=stage_id,
+        class_id=class_id,
+        section_id=section_id,
+        student_id=student_id,
+        student_q=student_q,
+        stages_list=stages_list,
+        classes_list=classes_list,
+        sections_list=sections_list,
+        student_matches=student_matches,
+        selected_student=selected_student,
+        filters_text_ar=filters_text_ar,
+        filters_text_en=filters_text_en,
     )
 
 
