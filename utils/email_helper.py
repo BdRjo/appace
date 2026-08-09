@@ -805,6 +805,38 @@ def send_reset_code(email: str, code: str, lang: str = 'ar') -> bool:
     return _send(email, '', subj, _html_wrapper(content, subj, lang), txt, sync=True)
 
 
+def send_event_checkin_code(email: str, name: str, code: str, event_name: str, event_date: str,
+                              window_start: str, window_end: str, checkin_url: str = '', lang: str = 'ar') -> bool:
+    """Send an attendee their one-time check-in code for a meeting/event."""
+    display_name = name or email
+    link_html = f'<p style="text-align:center;margin:12px 0 0"><a href="{checkin_url}" style="color:#0891b2;font-weight:700;text-decoration:none">{checkin_url}</a></p>' if checkin_url else ''
+
+    if lang == 'en':
+        content = f"""
+<p style="color:#4a5568;margin:0 0 20px">Hello {display_name}, you're invited to: <strong>{event_name}</strong></p>
+<p style="color:#4a5568;margin:0 0 16px">Date: <strong>{event_date}</strong> — Check-in window: <strong>{window_start} to {window_end}</strong></p>
+<div style="background:#ecfeff;border:2px dashed #0891b2;border-radius:12px;padding:20px;text-align:center;margin-bottom:20px">
+  <div style="font-size:32px;font-weight:900;letter-spacing:6px;color:#0e7490">{code}</div>
+</div>
+{link_html}
+<p style="color:#999;font-size:12px;margin-top:16px">This code is valid only during the check-in window above. Please arrive on time — a short grace period requires stating a reason for lateness.</p>"""
+        subj = f'Check-in code — {event_name}'
+        txt  = f'Your check-in code for {event_name} ({event_date}, {window_start}-{window_end}): {code}'
+    else:
+        content = f"""
+<p style="color:#4a5568;margin:0 0 20px">مرحباً {display_name}، أنت مدعو إلى: <strong>{event_name}</strong></p>
+<p style="color:#4a5568;margin:0 0 16px">التاريخ: <strong>{event_date}</strong> — نافذة تسجيل الحضور: <strong>من {window_start} إلى {window_end}</strong></p>
+<div style="background:#ecfeff;border:2px dashed #0891b2;border-radius:12px;padding:20px;text-align:center;margin-bottom:20px">
+  <div style="font-size:32px;font-weight:900;letter-spacing:6px;color:#0e7490">{code}</div>
+</div>
+{link_html}
+<p style="color:#999;font-size:12px;margin-top:16px">هذا الرمز صالح فقط خلال نافذة التسجيل أعلاه. الرجاء الحضور بالوقت المحدد — بعد انتهاء الوقت بفترة سماح قصيرة سيُطلب منك ذكر سبب التأخير.</p>"""
+        subj = f'رمز تسجيل الحضور — {event_name}'
+        txt  = f'رمز تسجيل حضورك لـ {event_name} ({event_date}, {window_start}-{window_end}): {code}'
+
+    return _send(email, display_name, subj, _html_wrapper(content, subj, lang), txt, sync=True)
+
+
 def send_staff_login_code(email: str, staff_name: str, code: str, portal_url: str = '', lang: str = 'ar') -> bool:
     """Send an SAS staff member their portal login code (manual send, triggered by admin)."""
     name = staff_name or email

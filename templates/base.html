@@ -536,6 +536,9 @@ html[dir="rtl"] .ticker-overflow {
   <a href="/interviews/admin/" class="nav-link {% if request.blueprint=='interviews' %}active{% endif %}" hx-boost="false">
     <i class="bi bi-people-fill"></i>{% if current_lang=='en' %}Parent Interviews{% else %}مقابلات أولياء الأمور{% endif %}
   </a>
+  <a href="{{ url_for('checkin.admin_list') }}" class="nav-link {% if request.blueprint=='checkin' %}active{% endif %}" hx-boost="false">
+    <i class="bi bi-calendar-check"></i>{% if current_lang=='en' %}Event Check-in{% else %}تسجيل حضور الفعاليات{% endif %}
+  </a>
   <!-- SAS — Student Attendance Management -->
   <div class="section-label">{% if current_lang=='en' %}📋 Attendance{% else %}📋 إدارة الدوام{% endif %}</div>
   <a href="{{ url_for('sas.admin_dashboard') }}" class="nav-link {% if request.endpoint=='sas.admin_dashboard' %}active{% endif %}" hx-boost="false">

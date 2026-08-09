@@ -1277,3 +1277,36 @@ class SASTimetable(Base):
     updated_at    = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     section       = relationship('SASSection')
     period        = relationship('SASPeriod')
+
+
+# ===========================================================================
+# EVENT CHECK-IN (meeting attendance via time-windowed emailed codes)
+# ===========================================================================
+
+class EventCheckin(Base):
+    """An event/meeting that attendees check into with a one-time code."""
+    __tablename__ = 'event_checkins'
+    id            = Column(Integer, primary_key=True)
+    name          = Column(String(200), nullable=False)
+    event_date    = Column(String(10), nullable=False)   # YYYY-MM-DD
+    window_start  = Column(String(5), nullable=False)    # HH:MM — on-time opens
+    window_end    = Column(String(5), nullable=False)    # HH:MM — on-time closes / late window opens
+    grace_minutes = Column(Integer, default=5)           # extra minutes after window_end still allowed, with a reason
+    created_at    = Column(DateTime, default=datetime.now)
+    attendees     = relationship('EventAttendee', back_populates='event', cascade='all, delete-orphan')
+
+
+class EventAttendee(Base):
+    """One invited person for an EventCheckin, with their unique code and result."""
+    __tablename__ = 'event_attendees'
+    id             = Column(Integer, primary_key=True)
+    event_id       = Column(Integer, ForeignKey('event_checkins.id'), nullable=False)
+    name           = Column(String(200), nullable=False)
+    email          = Column(String(200))
+    code           = Column(String(20), nullable=False)
+    status         = Column(String(20), default='pending')   # pending / on_time / late / absent
+    checked_in_at  = Column(DateTime)
+    late_reason    = Column(Text)
+    code_sent      = Column(Boolean, default=False)
+    created_at     = Column(DateTime, default=datetime.now)
+    event          = relationship('EventCheckin', back_populates='attendees')

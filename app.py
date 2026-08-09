@@ -120,13 +120,15 @@ def create_app():
     from routes.sas           import sas_bp
     from routes.mobile_api import mobile_api_bp
     from routes.download_data import dl_bp
+    from routes.checkin       import checkin_bp
 
     for bp in [auth_bp, reservations_bp, venues_bp, admin_bp, api_bp,
                locations_bp, venues_mgmt_bp, users_bp, reports_bp,
                contacts_bp, checklists_bp, blocked_bp, ratings_bp,
                calendar_bp, settings_bp, cp_bp, bo_bp, groups_bp,
                public_cal_bp,
-               announcements_bp, interviews_bp, sas_bp, mobile_api_bp, dl_bp]:
+               announcements_bp, interviews_bp, sas_bp, mobile_api_bp, dl_bp,
+               checkin_bp]:
         app.register_blueprint(bp)        
 
     # Jinja filters

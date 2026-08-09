@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{%- set ar = (current_lang == 'ar') -%}
+
+{% block title %}{{ 'تسجيل حضور الفعاليات' if ar else 'Event Check-in' }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <h1 style="font-size:1.3rem;font-weight:700;margin:0">
+    <i class="bi bi-calendar-check me-2" style="color:#0891b2"></i>{{ 'تسجيل حضور الفعاليات' if ar else 'Event Check-in' }}
+  </h1>
+  <a href="{{ url_for('checkin.admin_new') }}" class="btn btn-sm" style="background:#0891b2;color:#fff;border:none;border-radius:8px;font-weight:700;padding:8px 18px">
+    <i class="bi bi-plus-circle me-1"></i>{{ 'فعالية جديدة' if ar else 'New Event' }}
+  </a>
+</div>
+
+{% if events %}
+<div class="table-responsive">
+  <table class="table table-hover align-middle" style="background:#fff;border-radius:12px;overflow:hidden">
+    <thead style="background:#f0f9ff">
+      <tr>
+        <th>{{ 'الاسم' if ar else 'Name' }}</th>
+        <th>{{ 'التاريخ' if ar else 'Date' }}</th>
+        <th>{{ 'النافذة' if ar else 'Window' }}</th>
+        <th>{{ 'المدعوين' if ar else 'Attendees' }}</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in events %}
+      <tr>
+        <td style="font-weight:600">{{ e.name }}</td>
+        <td style="direction:ltr;text-align:end">{{ e.event_date }}</td>
+        <td style="direction:ltr;text-align:end">{{ e.window_start }} - {{ e.window_end }}</td>
+        <td>{{ e.attendees|length }}</td>
+        <td>
+          <a href="{{ url_for('checkin.admin_detail', event_id=e.id) }}" class="btn btn-sm" style="background:#ecfeff;color:#0e7490;border:none;border-radius:6px;font-weight:600">
+            {{ 'إدارة' if ar else 'Manage' }}
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="text-center text-muted" style="padding:40px">{{ 'لا توجد فعاليات بعد' if ar else 'No events yet' }}</div>
+{% endif %}
+{% endblock %}

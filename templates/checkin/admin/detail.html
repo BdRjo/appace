@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{%- set ar = (current_lang == 'ar') -%}
+
+{% block title %}{{ event.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+  <div>
+    <h1 style="font-size:1.3rem;font-weight:700;margin:0">
+      <i class="bi bi-calendar-check me-2" style="color:#0891b2"></i>{{ event.name }}
+    </h1>
+    <div style="font-size:.84rem;color:#6b7280;margin-top:4px">
+      {{ event.event_date }} &middot; {{ 'من' if ar else 'From' }} {{ event.window_start }} {{ 'إلى' if ar else 'to' }} {{ event.window_end }}
+      &middot; {{ 'سماح' if ar else 'Grace' }} {{ event.grace_minutes }} {{ 'د' if ar else 'min' }}
+    </div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('checkin.admin_report', event_id=event.id) }}" target="_blank" class="btn btn-sm" style="border:1.5px solid #d1d5db;border-radius:8px;font-weight:600">
+      <i class="bi bi-file-earmark-text me-1"></i>{{ 'التقرير' if ar else 'Report' }}
+    </a>
+    <a href="{{ url_for('checkin.admin_list') }}" class="btn btn-sm" style="border:1.5px solid #d1d5db;border-radius:8px;font-weight:600">
+      <i class="bi bi-arrow-right me-1"></i>{{ 'رجوع' if ar else 'Back' }}
+    </a>
+  </div>
+</div>
+
+<!-- Live counts -->
+<div class="row g-2 mb-3">
+  <div class="col-6 col-md-3">
+    <div style="background:#ecfdf5;border-radius:12px;padding:14px;text-align:center">
+      <div style="font-size:1.5rem;font-weight:900;color:#047857">{{ counts.on_time }}</div>
+      <div style="font-size:.78rem;color:#065f46;font-weight:600">{{ 'حضروا بالوقت' if ar else 'On Time' }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div style="background:#fffbeb;border-radius:12px;padding:14px;text-align:center">
+      <div style="font-size:1.5rem;font-weight:900;color:#92400e">{{ counts.late }}</div>
+      <div style="font-size:.78rem;color:#92400e;font-weight:600">{{ 'متأخرون' if ar else 'Late' }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div style="background:#fef2f2;border-radius:12px;padding:14px;text-align:center">
+      <div style="font-size:1.5rem;font-weight:900;color:#b91c1c">{{ counts.absent }}</div>
+      <div style="font-size:.78rem;color:#b91c1c;font-weight:600">{{ 'غائبون' if ar else 'Absent' }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div style="background:#f3f4f6;border-radius:12px;padding:14px;text-align:center">
+      <div style="font-size:1.5rem;font-weight:900;color:#4b5563">{{ counts.pending }}</div>
+      <div style="font-size:.78rem;color:#4b5563;font-weight:600">{{ 'بانتظار الموعد' if ar else 'Not Yet Due' }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Add attendees -->
+<div style="background:#fff;border-radius:12px;padding:18px;box-shadow:0 2px 12px rgba(0,0,0,.06);margin-bottom:18px">
+  <h6 class="fw-bold mb-2"><i class="bi bi-person-plus me-1"></i>{{ 'إضافة مدعوين' if ar else 'Add Attendees' }}</h6>
+  <form method="POST" action="{{ url_for('checkin.admin_attendees_add', event_id=event.id) }}" enctype="multipart/form-data">
+    <div class="mb-2">
+      <label class="form-label fw-semibold" style="font-size:.85rem">{{ 'رفع ملف (Excel أو CSV)' if ar else 'Upload File (Excel or CSV)' }}</label>
+      <input type="file" name="file" accept=".xlsx,.xls,.csv" class="form-control form-control-sm">
+      <div class="form-text">{{ 'عمود أول: الاسم، عمود ثاني: البريد الإلكتروني. سطر العنوان (إن وجد) يُتجاهل تلقائياً.' if ar else 'Column A: name, Column B: email. A header row (if present) is skipped automatically.' }}</div>
+    </div>
+    <div class="text-center my-2" style="font-size:.78rem;color:#9ca3af">{{ 'أو' if ar else 'or' }}</div>
+    <div class="mb-2">
+      <label class="form-label fw-semibold" style="font-size:.85rem">{{ 'لصق يدوي' if ar else 'Paste Manually' }}</label>
+      <div class="form-text mb-1">
+        {{ 'سطر لكل شخص: الاسم، البريد الإلكتروني (يفصل بينهم فاصلة)' if ar else 'One person per line: Name, Email' }}
+      </div>
+      <textarea name="bulk_text" rows="4" class="form-control" placeholder="{{ 'أحمد محمد, ahmad@example.com' if ar else 'Ahmad Mohammad, ahmad@example.com' }}"></textarea>
+    </div>
+    <button type="submit" class="btn btn-sm mt-1" style="background:#0891b2;color:#fff;border:none;border-radius:8px;font-weight:700;padding:7px 18px">
+      <i class="bi bi-plus-circle me-1"></i>{{ 'إضافة' if ar else 'Add' }}
+    </button>
+  </form>
+</div>
+
+<!-- Send codes -->
+<div style="background:#fff;border-radius:12px;padding:18px;box-shadow:0 2px 12px rgba(0,0,0,.06);margin-bottom:18px">
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+      <h6 class="fw-bold mb-1"><i class="bi bi-envelope me-1"></i>{{ 'إرسال رموز الدخول' if ar else 'Send Check-in Codes' }}</h6>
+      <div style="font-size:.8rem;color:#6b7280">
+        {{ attendees|selectattr('code_sent')|list|length }} / {{ attendees|length }} {{ 'تم الإرسال لهم' if ar else 'sent' }}
+      </div>
+    </div>
+    <div class="d-flex gap-2">
+      <form method="POST" action="{{ url_for('checkin.admin_send_codes', event_id=event.id) }}">
+        <input type="hidden" name="only_unsent" value="1">
+        <button type="submit" class="btn btn-sm" style="background:#0891b2;color:#fff;border:none;border-radius:8px;font-weight:700;padding:7px 18px">
+          <i class="bi bi-send me-1"></i>{{ 'إرسال لمن لم يُرسل له' if ar else 'Send to Unsent' }}
+        </button>
+      </form>
+      <form method="POST" action="{{ url_for('checkin.admin_send_codes', event_id=event.id) }}" onsubmit="return confirm('{{ 'إعادة الإرسال للجميع؟' if ar else 'Resend to everyone?' }}')">
+        <input type="hidden" name="only_unsent" value="0">
+        <button type="submit" class="btn btn-sm" style="border:1.5px solid #d1d5db;border-radius:8px;font-weight:600;padding:7px 18px">
+          <i class="bi bi-arrow-repeat me-1"></i>{{ 'إعادة الإرسال للجميع' if ar else 'Resend All' }}
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Attendee list -->
+<div style="background:#fff;border-radius:12px;padding:0;box-shadow:0 2px 12px rgba(0,0,0,.06)">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead style="background:#f9fafb">
+        <tr>
+          <th style="padding:12px 16px">{{ 'الاسم' if ar else 'Name' }}</th>
+          <th>{{ 'البريد' if ar else 'Email' }}</th>
+          <th>{{ 'الرمز' if ar else 'Code' }}</th>
+          <th>{{ 'الحالة' if ar else 'Status' }}</th>
+          <th>{{ 'وقت الوصول' if ar else 'Checked in' }}</th>
+          <th>{{ 'سبب التأخير' if ar else 'Late reason' }}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in attendees %}
+        {% set st = resolve_status(a) %}
+        <tr>
+          <td style="padding:10px 16px;font-weight:600">{{ a.name }}</td>
+          <td style="font-size:.84rem;direction:ltr;text-align:end">{{ a.email or '-' }}</td>
+          <td style="direction:ltr;text-align:end;font-family:monospace;font-weight:700">{{ a.code }}</td>
+          <td>
+            {% if st == 'on_time' %}<span style="color:#047857;font-weight:700"><i class="bi bi-check-circle-fill me-1"></i>{{ 'حضر بالوقت' if ar else 'On time' }}</span>
+            {% elif st == 'late' %}<span style="color:#92400e;font-weight:700"><i class="bi bi-clock-history me-1"></i>{{ 'متأخر' if ar else 'Late' }}</span>
+            {% elif st == 'absent' %}<span style="color:#b91c1c;font-weight:700"><i class="bi bi-x-circle-fill me-1"></i>{{ 'غائب' if ar else 'Absent' }}</span>
+            {% else %}<span style="color:#6b7280"><i class="bi bi-hourglass-split me-1"></i>{{ 'بالانتظار' if ar else 'Pending' }}</span>
+            {% endif %}
+          </td>
+          <td style="font-size:.8rem;direction:ltr;text-align:end">{{ a.checked_in_at.strftime('%H:%M') if a.checked_in_at else '-' }}</td>
+          <td style="font-size:.8rem">{{ a.late_reason or '-' }}</td>
+          <td>
+            <button class="btn btn-sm" style="background:#fef2f2;color:#dc2626;border:none;border-radius:6px"
+                    onclick="deleteAttendee('{{ url_for('checkin.admin_attendee_delete', event_id=event.id, aid=a.id) }}')" title="{{ 'حذف' if ar else 'Delete' }}">
+              <i class="bi bi-trash"></i>
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+function deleteAttendee(url){
+  if(!confirm('{{ "حذف هذا المدعو؟" if ar else "Delete this attendee?" }}')) return;
+  fetch(url, {method:'POST'})
+    .then(r => r.json()).then(d => { if(d.ok) location.reload(); });
+}
+</script>
+{% endblock %}
