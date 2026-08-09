@@ -8,7 +8,7 @@ checks in is reported as absent.
 """
 import random
 import string
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from flask import (Blueprint, render_template, redirect, url_for, request,
                     flash, jsonify, abort, session)
@@ -18,6 +18,21 @@ from utils.i18n import t, get_lang
 from models.database import EventCheckin, EventAttendee
 
 checkin_bp = Blueprint('checkin', __name__, url_prefix='/checkin')
+
+
+def _now_amman():
+    """Current wall-clock time in Jordan (Asia/Amman, UTC+3, no DST) as a
+    naive datetime — regardless of what timezone the server's OS clock is
+    actually set to. Falls back to a fixed UTC+3 offset if the IANA
+    timezone database isn't available on the server (some minimal
+    deployment images omit it). Naive on purpose: matches the naive
+    DateTime columns already used throughout this module."""
+    try:
+        from zoneinfo import ZoneInfo
+        aware = datetime.now(ZoneInfo('Asia/Amman'))
+    except Exception:
+        aware = datetime.now(timezone.utc) + timedelta(hours=3)
+    return aware.replace(tzinfo=None)
 
 
 def _t(ar_text, en_text):
@@ -41,7 +56,7 @@ def _resolve_status(event, attendee, now=None):
     grace window has closed, without needing a background job."""
     if attendee.status in ('on_time', 'late'):
         return attendee.status
-    now = now or datetime.now()
+    now = now or _now_amman()
     today_str = now.strftime('%Y-%m-%d')
     grace_end_min = _hhmm_to_minutes(event.window_end) + (event.grace_minutes or 0)
     now_min = now.hour * 60 + now.minute
@@ -164,7 +179,7 @@ def admin_detail(event_id):
     if not event:
         abort(404)
     attendees = sorted(event.attendees, key=lambda a: a.name)
-    now = datetime.now()
+    now = _now_amman()
     counts = {'on_time': 0, 'late': 0, 'absent': 0, 'pending': 0}
     for a in attendees:
         counts[_resolve_status(event, a, now)] += 1
@@ -323,7 +338,7 @@ def admin_report(event_id):
     if not event:
         abort(404)
     attendees = sorted(event.attendees, key=lambda a: a.name)
-    now = datetime.now()
+    now = _now_amman()
     resolved = [(a, _resolve_status(event, a, now)) for a in attendees]
     counts = {'on_time': 0, 'late': 0, 'absent': 0, 'pending': 0}
     for _, st in resolved:
@@ -361,7 +376,7 @@ def public_checkin(event_id):
         return render_template('checkin/checkin.html', event=event,
                                 result={'ok': False, 'message': _t('تم تسجيل حضورك مسبقاً', 'You have already checked in')})
 
-    now = datetime.now()
+    now = _now_amman()
     today_str = now.strftime('%Y-%m-%d')
     now_min = now.hour * 60 + now.minute
     start_min = _hhmm_to_minutes(event.window_start)
