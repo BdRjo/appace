@@ -1,5 +1,27 @@
---- a/templates/checkin/admin/detail.html	2026-08-09 17:06:46.598948704 +0000
-+++ b/templates/checkin/admin/detail.html	2026-08-09 17:06:46.600749326 +0000
+diff --git a/Procfile b/Procfile
+index 23f7f36..ca4bbce 100644
+--- a/Procfile
++++ b/Procfile
+@@ -1 +1 @@
+-web: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120
++web: gunicorn app:app --bind 0.0.0.0:$PORT --workers 3 --timeout 120
+diff --git a/render.yaml b/render.yaml
+index 0f3e7a8..b30a8b2 100644
+--- a/render.yaml
++++ b/render.yaml
+@@ -3,7 +3,7 @@ services:
+     name: ars-reservation-system
+     runtime: python
+     buildCommand: pip install -r requirements.txt
+-    startCommand: python -m gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --preload
++    startCommand: python -m gunicorn app:app --bind 0.0.0.0:$PORT --workers 3 --timeout 120
+     healthCheckPath: /health
+     envVars:
+       - key: SECRET_KEY
+diff --git a/templates/checkin/admin/detail.html b/templates/checkin/admin/detail.html
+index d4a16ae..d04bc7f 100644
+--- a/templates/checkin/admin/detail.html
++++ b/templates/checkin/admin/detail.html
 @@ -24,6 +24,24 @@
    </div>
  </div>
