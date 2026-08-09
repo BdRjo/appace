@@ -656,6 +656,8 @@ def get_engine():
             # Manually-set semester date range (v87) — overrides the Sep-Jan/Feb-Jun default
             ('sas_semesters', 'start_date', 'VARCHAR(10)'),
             ('sas_semesters', 'end_date',   'VARCHAR(10)'),
+            # Configurable early check-in allowance (v88)
+            ('event_checkins', 'early_minutes', 'INTEGER DEFAULT 15'),
         ]
         for tbl, col, cdef in safe_cols:
             try:
@@ -1292,6 +1294,7 @@ class EventCheckin(Base):
     window_start  = Column(String(5), nullable=False)    # HH:MM — on-time opens
     window_end    = Column(String(5), nullable=False)    # HH:MM — on-time closes / late window opens
     grace_minutes = Column(Integer, default=5)           # extra minutes after window_end still allowed, with a reason
+    early_minutes = Column(Integer, default=15)           # minutes before window_start still counted as on-time
     created_at    = Column(DateTime, default=datetime.now)
     attendees     = relationship('EventAttendee', back_populates='event', cascade='all, delete-orphan')
 

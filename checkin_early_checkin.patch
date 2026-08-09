@@ -1,0 +1,110 @@
+diff --git a/models/database.py b/models/database.py
+index a8420c2..707b697 100644
+--- a/models/database.py
++++ b/models/database.py
+@@ -656,6 +656,8 @@ def get_engine():
+             # Manually-set semester date range (v87) — overrides the Sep-Jan/Feb-Jun default
+             ('sas_semesters', 'start_date', 'VARCHAR(10)'),
+             ('sas_semesters', 'end_date',   'VARCHAR(10)'),
++            # Configurable early check-in allowance (v88)
++            ('event_checkins', 'early_minutes', 'INTEGER DEFAULT 15'),
+         ]
+         for tbl, col, cdef in safe_cols:
+             try:
+@@ -1292,6 +1294,7 @@ class EventCheckin(Base):
+     window_start  = Column(String(5), nullable=False)    # HH:MM — on-time opens
+     window_end    = Column(String(5), nullable=False)    # HH:MM — on-time closes / late window opens
+     grace_minutes = Column(Integer, default=5)           # extra minutes after window_end still allowed, with a reason
++    early_minutes = Column(Integer, default=15)           # minutes before window_start still counted as on-time
+     created_at    = Column(DateTime, default=datetime.now)
+     attendees     = relationship('EventAttendee', back_populates='event', cascade='all, delete-orphan')
+ 
+diff --git a/routes/checkin.py b/routes/checkin.py
+index 4cd7afc..e5640cb 100644
+--- a/routes/checkin.py
++++ b/routes/checkin.py
+@@ -100,6 +100,9 @@ def admin_new():
+     window_start = request.form.get('window_start', '').strip()
+     window_end = request.form.get('window_end', '').strip()
+     grace_minutes = request.form.get('grace_minutes', type=int) or 5
++    early_minutes = request.form.get('early_minutes', type=int)
++    if early_minutes is None:
++        early_minutes = 15
+ 
+     if not (name and event_date and window_start and window_end):
+         flash(_t('يرجى تعبئة جميع الحقول بشكل صحيح (تأكد من صيغة التاريخ)',
+@@ -109,7 +112,7 @@ def admin_new():
+     event = EventCheckin(
+         name=name, event_date=event_date,
+         window_start=window_start, window_end=window_end,
+-        grace_minutes=grace_minutes,
++        grace_minutes=grace_minutes, early_minutes=early_minutes,
+     )
+     db.add(event)
+     db.commit()
+@@ -133,6 +136,9 @@ def admin_edit(event_id):
+     window_start = request.form.get('window_start', '').strip()
+     window_end = request.form.get('window_end', '').strip()
+     grace_minutes = request.form.get('grace_minutes', type=int) or 5
++    early_minutes = request.form.get('early_minutes', type=int)
++    if early_minutes is None:
++        early_minutes = 15
+ 
+     if not (name and event_date and window_start and window_end):
+         flash(_t('يرجى تعبئة جميع الحقول بشكل صحيح (تأكد من صيغة التاريخ)',
+@@ -144,6 +150,7 @@ def admin_edit(event_id):
+     event.window_start = window_start
+     event.window_end = window_end
+     event.grace_minutes = grace_minutes
++    event.early_minutes = early_minutes
+     db.commit()
+     flash(_t('تم حفظ التعديلات', 'Changes saved'), 'success')
+     return redirect(url_for('checkin.admin_detail', event_id=event.id))
+@@ -359,15 +366,17 @@ def public_checkin(event_id):
+     now_min = now.hour * 60 + now.minute
+     start_min = _hhmm_to_minutes(event.window_start)
+     end_min = _hhmm_to_minutes(event.window_end)
++    early_open_min = start_min - (event.early_minutes or 0)
+     grace_end_min = end_min + (event.grace_minutes or 0)
+ 
+     if today_str != event.event_date:
+         return render_template('checkin/checkin.html', event=event,
+                                 result={'ok': False, 'message': _t('هذا الرمز غير صالح اليوم', 'This code is not valid today')})
+ 
+-    if now_min < start_min:
++    if now_min < early_open_min:
++        open_time = f'{early_open_min // 60:02d}:{early_open_min % 60:02d}'
+         return render_template('checkin/checkin.html', event=event,
+-                                result={'ok': False, 'message': _t(f'التسجيل يبدأ الساعة {event.window_start}', f'Check-in opens at {event.window_start}')})
++                                result={'ok': False, 'message': _t(f'التسجيل يبدأ الساعة {open_time}', f'Check-in opens at {open_time}')})
+ 
+     if now_min <= end_min:
+         attendee.status = 'on_time'
+diff --git a/templates/checkin/admin/detail.html b/templates/checkin/admin/detail.html
+index 30ae70d..bdda762 100644
+--- a/templates/checkin/admin/detail.html
++++ b/templates/checkin/admin/detail.html
+@@ -11,6 +11,7 @@
+     </h1>
+     <div style="font-size:.84rem;color:#6b7280;margin-top:4px">
+       {{ event.event_date }} &middot; {{ 'من' if ar else 'From' }} {{ event.window_start }} {{ 'إلى' if ar else 'to' }} {{ event.window_end }}
++      &middot; {{ 'مبكر' if ar else 'Early' }} {{ event.early_minutes or 0 }}{{ 'د' if ar else 'min' }}
+       &middot; {{ 'سماح' if ar else 'Grace' }} {{ event.grace_minutes }} {{ 'د' if ar else 'min' }}
+     </div>
+   </div>
+diff --git a/templates/checkin/admin/form.html b/templates/checkin/admin/form.html
+index 169e177..600c992 100644
+--- a/templates/checkin/admin/form.html
++++ b/templates/checkin/admin/form.html
+@@ -31,6 +31,11 @@
+       <input type="time" name="window_end" class="form-control" required value="{{ event.window_end if is_edit else '09:20' }}">
+     </div>
+   </div>
++  <div class="mb-3">
++    <label class="form-label fw-semibold">{{ 'دقائق السماح للحضور المبكر' if ar else 'Early check-in allowance (minutes)' }}</label>
++    <input type="number" name="early_minutes" class="form-control" value="{{ event.early_minutes if is_edit else 15 }}" min="0" max="120" style="max-width:120px">
++    <div class="form-text">{{ 'يُسمح بتسجيل الحضور قبل وقت البداية بهذه المدة، ويُحسب حضوراً بالوقت' if ar else 'Check-in is accepted this many minutes before the start time, and still counts as on-time' }}</div>
++  </div>
+   <div class="mb-3">
+     <label class="form-label fw-semibold">{{ 'دقائق السماح للمتأخرين' if ar else 'Grace minutes for late arrivals' }}</label>
+     <input type="number" name="grace_minutes" class="form-control" value="{{ event.grace_minutes if is_edit else 5 }}" min="0" max="60" style="max-width:120px">

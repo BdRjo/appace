@@ -32,6 +32,11 @@
     </div>
   </div>
   <div class="mb-3">
+    <label class="form-label fw-semibold">{{ 'دقائق السماح للحضور المبكر' if ar else 'Early check-in allowance (minutes)' }}</label>
+    <input type="number" name="early_minutes" class="form-control" value="{{ event.early_minutes if is_edit else 15 }}" min="0" max="120" style="max-width:120px">
+    <div class="form-text">{{ 'يُسمح بتسجيل الحضور قبل وقت البداية بهذه المدة، ويُحسب حضوراً بالوقت' if ar else 'Check-in is accepted this many minutes before the start time, and still counts as on-time' }}</div>
+  </div>
+  <div class="mb-3">
     <label class="form-label fw-semibold">{{ 'دقائق السماح للمتأخرين' if ar else 'Grace minutes for late arrivals' }}</label>
     <input type="number" name="grace_minutes" class="form-control" value="{{ event.grace_minutes if is_edit else 5 }}" min="0" max="60" style="max-width:120px">
     <div class="form-text">{{ 'بعد هذه المدة، الرمز يصبح غير فعال ويُعتبر الموظف غائباً' if ar else 'After this, the code stops working and the person is marked absent' }}</div>

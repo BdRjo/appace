@@ -100,6 +100,9 @@ def admin_new():
     window_start = request.form.get('window_start', '').strip()
     window_end = request.form.get('window_end', '').strip()
     grace_minutes = request.form.get('grace_minutes', type=int) or 5
+    early_minutes = request.form.get('early_minutes', type=int)
+    if early_minutes is None:
+        early_minutes = 15
 
     if not (name and event_date and window_start and window_end):
         flash(_t('يرجى تعبئة جميع الحقول بشكل صحيح (تأكد من صيغة التاريخ)',
@@ -109,7 +112,7 @@ def admin_new():
     event = EventCheckin(
         name=name, event_date=event_date,
         window_start=window_start, window_end=window_end,
-        grace_minutes=grace_minutes,
+        grace_minutes=grace_minutes, early_minutes=early_minutes,
     )
     db.add(event)
     db.commit()
@@ -133,6 +136,9 @@ def admin_edit(event_id):
     window_start = request.form.get('window_start', '').strip()
     window_end = request.form.get('window_end', '').strip()
     grace_minutes = request.form.get('grace_minutes', type=int) or 5
+    early_minutes = request.form.get('early_minutes', type=int)
+    if early_minutes is None:
+        early_minutes = 15
 
     if not (name and event_date and window_start and window_end):
         flash(_t('يرجى تعبئة جميع الحقول بشكل صحيح (تأكد من صيغة التاريخ)',
@@ -144,6 +150,7 @@ def admin_edit(event_id):
     event.window_start = window_start
     event.window_end = window_end
     event.grace_minutes = grace_minutes
+    event.early_minutes = early_minutes
     db.commit()
     flash(_t('تم حفظ التعديلات', 'Changes saved'), 'success')
     return redirect(url_for('checkin.admin_detail', event_id=event.id))
@@ -359,15 +366,17 @@ def public_checkin(event_id):
     now_min = now.hour * 60 + now.minute
     start_min = _hhmm_to_minutes(event.window_start)
     end_min = _hhmm_to_minutes(event.window_end)
+    early_open_min = start_min - (event.early_minutes or 0)
     grace_end_min = end_min + (event.grace_minutes or 0)
 
     if today_str != event.event_date:
         return render_template('checkin/checkin.html', event=event,
                                 result={'ok': False, 'message': _t('هذا الرمز غير صالح اليوم', 'This code is not valid today')})
 
-    if now_min < start_min:
+    if now_min < early_open_min:
+        open_time = f'{early_open_min // 60:02d}:{early_open_min % 60:02d}'
         return render_template('checkin/checkin.html', event=event,
-                                result={'ok': False, 'message': _t(f'التسجيل يبدأ الساعة {event.window_start}', f'Check-in opens at {event.window_start}')})
+                                result={'ok': False, 'message': _t(f'التسجيل يبدأ الساعة {open_time}', f'Check-in opens at {open_time}')})
 
     if now_min <= end_min:
         attendee.status = 'on_time'

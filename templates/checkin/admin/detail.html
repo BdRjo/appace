@@ -11,6 +11,7 @@
     </h1>
     <div style="font-size:.84rem;color:#6b7280;margin-top:4px">
       {{ event.event_date }} &middot; {{ 'من' if ar else 'From' }} {{ event.window_start }} {{ 'إلى' if ar else 'to' }} {{ event.window_end }}
+      &middot; {{ 'مبكر' if ar else 'Early' }} {{ event.early_minutes or 0 }}{{ 'د' if ar else 'min' }}
       &middot; {{ 'سماح' if ar else 'Grace' }} {{ event.grace_minutes }} {{ 'د' if ar else 'min' }}
     </div>
   </div>
