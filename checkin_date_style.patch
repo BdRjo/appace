@@ -1,0 +1,13 @@
+diff --git a/templates/checkin/checkin.html b/templates/checkin/checkin.html
+index b12b305..b5f0b0b 100644
+--- a/templates/checkin/checkin.html
++++ b/templates/checkin/checkin.html
+@@ -13,7 +13,7 @@
+          display: flex; align-items: center; justify-content: center; padding: 16px; }
+   .card-box { max-width: 420px; width: 100%; background: #fff; border-radius: 20px; box-shadow: 0 10px 40px rgba(8,145,178,.14); padding: 32px 26px; text-align: center; }
+   .card-box h1 { font-size: 1.15rem; font-weight: 800; color: #fcad8d; margin-bottom: 4px; }
+-  .card-box .sub { font-size: .84rem; color: #142e63; margin-bottom: 22px; }
++  .card-box .sub { font-size: 1.05rem; font-weight: 800; color: #0c1e4a; margin-bottom: 22px; }
+   .code-input { font-size: 1.6rem; font-weight: 900; letter-spacing: 6px; text-align: center; text-transform: uppercase;
+                 border-radius: 12px; border: 2px solid #a5f3fc; padding: 12px; width: 100%; }
+   .code-input:focus { border-color: #c75116; outline: none; box-shadow: 0 0 0 3px #a5f3fc55; }
