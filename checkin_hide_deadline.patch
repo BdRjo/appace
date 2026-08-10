@@ -1,0 +1,13 @@
+diff --git a/templates/checkin/checkin.html b/templates/checkin/checkin.html
+index 3781acf..b12b305 100644
+--- a/templates/checkin/checkin.html
++++ b/templates/checkin/checkin.html
+@@ -37,7 +37,7 @@
+   {% endif %}
+   <h1 class="mt-2">{{ event.name }}</h1>
+   <div class="sub">
+-    {{ event.event_date }} &middot; {{ 'من' if ar else 'From' }} {{ event.window_start }} {{ 'إلى' if ar else 'to' }} {{ event.window_end }}
++    {{ event.event_date }} &middot; {{ 'الساعة' if ar else 'At' }} {{ event.window_start }}
+   </div>
+ 
+   {% if result and result.ok %}
