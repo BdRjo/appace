@@ -880,25 +880,25 @@ def send_event_checkin_code(email: str, name: str, code: str, event_name: str, e
     if lang == 'en':
         content = f"""
 <p style="color:#4a5568;margin:0 0 20px">Hello {display_name}, you're invited to: <strong>{event_name}</strong></p>
-<p style="color:#4a5568;margin:0 0 16px">Date: <strong>{event_date}</strong> — Check-in window: <strong>{window_start} to {window_end}</strong></p>
+<p style="color:#4a5568;margin:0 0 16px">Date: <strong>{event_date}</strong> — Time: <strong>{window_start}</strong></p>
 <div style="background:#ecfeff;border:2px dashed #0891b2;border-radius:12px;padding:20px;text-align:center;margin-bottom:20px">
   <div style="font-size:32px;font-weight:900;letter-spacing:6px;color:#0e7490">{code}</div>
 </div>
 {link_html}
-<p style="color:#999;font-size:12px;margin-top:16px">This code is valid only during the check-in window above. Please arrive on time — a short grace period requires stating a reason for lateness.</p>"""
+<p style="color:#999;font-size:12px;margin-top:16px">Please arrive on time — a short grace period requires stating a reason for lateness.</p>"""
         subj = f'Check-in code — {event_name}'
-        txt  = f'Your check-in code for {event_name} ({event_date}, {window_start}-{window_end}): {code}'
+        txt  = f'Your check-in code for {event_name} ({event_date}, {window_start}): {code}'
     else:
         content = f"""
 <p style="color:#4a5568;margin:0 0 20px">مرحباً {display_name}، أنت مدعو إلى: <strong>{event_name}</strong></p>
-<p style="color:#4a5568;margin:0 0 16px">التاريخ: <strong>{event_date}</strong> — نافذة تسجيل الحضور: <strong>من {window_start} إلى {window_end}</strong></p>
+<p style="color:#4a5568;margin:0 0 16px">التاريخ: <strong>{event_date}</strong> — الساعة: <strong>{window_start}</strong></p>
 <div style="background:#ecfeff;border:2px dashed #0891b2;border-radius:12px;padding:20px;text-align:center;margin-bottom:20px">
   <div style="font-size:32px;font-weight:900;letter-spacing:6px;color:#0e7490">{code}</div>
 </div>
 {link_html}
-<p style="color:#999;font-size:12px;margin-top:16px">هذا الرمز صالح فقط خلال نافذة التسجيل أعلاه. الرجاء الحضور بالوقت المحدد — بعد انتهاء الوقت بفترة سماح قصيرة سيُطلب منك ذكر سبب التأخير.</p>"""
+<p style="color:#999;font-size:12px;margin-top:16px">الرجاء الحضور بالوقت المحدد — التأخير عن الوقت يتطلب ذكر السبب.</p>"""
         subj = f'رمز تسجيل الحضور — {event_name}'
-        txt  = f'رمز تسجيل حضورك لـ {event_name} ({event_date}, {window_start}-{window_end}): {code}'
+        txt  = f'رمز تسجيل حضورك لـ {event_name} ({event_date}, {window_start}): {code}'
 
     return _send(email, display_name, subj, _html_wrapper(content, subj, lang), txt, sync=True)
 
