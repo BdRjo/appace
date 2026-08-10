@@ -264,8 +264,20 @@ def admin_attendees_add(event_id):
             if name:
                 pairs.append((name, email))
 
+    # Track emails already in this event (case-insensitive) so a duplicate
+    # row in the import — or one that overlaps someone already added —
+    # doesn't get a second code.
+    seen_emails = {a.email.strip().lower() for a in event.attendees if a.email}
+
     added = 0
+    skipped_duplicates = 0
     for name, email in pairs:
+        email_key = (email or '').strip().lower()
+        if email_key and email_key in seen_emails:
+            skipped_duplicates += 1
+            continue
+        if email_key:
+            seen_emails.add(email_key)
         code = _gen_code()
         while code in existing_codes:
             code = _gen_code()
@@ -273,7 +285,11 @@ def admin_attendees_add(event_id):
         db.add(EventAttendee(event_id=event.id, name=name, email=email, code=code))
         added += 1
     db.commit()
-    flash(_t(f'تمت إضافة {added} مدعو', f'Added {added} attendees'), 'success')
+
+    msg = _t(f'تمت إضافة {added} مدعو', f'Added {added} attendees')
+    if skipped_duplicates:
+        msg += _t(f' (تم تجاهل {skipped_duplicates} بريد مكرر)', f' ({skipped_duplicates} duplicate emails skipped)')
+    flash(msg, 'success')
     return redirect(url_for('checkin.admin_detail', event_id=event.id))
 
 
