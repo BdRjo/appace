@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{%- set ar = (current_lang == 'ar') -%}
+
+{% block title %}{{ survey.name }} — {{ 'الردود' if ar else 'Responses' }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <h1 style="font-size:1.3rem;font-weight:700;margin:0">
+    <i class="bi bi-bar-chart me-2" style="color:#7c3aed"></i>{{ survey.name }} — {{ 'الردود' if ar else 'Responses' }} ({{ response_rows|length }})
+  </h1>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('surveys.admin_responses_export', survey_id=survey.id) }}" class="btn btn-sm" style="border:1.5px solid #d1d5db;border-radius:8px;font-weight:600">
+      <i class="bi bi-download me-1"></i>{{ 'تصدير CSV' if ar else 'Export CSV' }}
+    </a>
+    <a href="{{ url_for('surveys.admin_builder', survey_id=survey.id) }}" class="btn btn-sm" style="border:1.5px solid #d1d5db;border-radius:8px;font-weight:600">
+      <i class="bi bi-arrow-right me-1"></i>{{ 'رجوع' if ar else 'Back' }}
+    </a>
+  </div>
+</div>
+
+{% if not response_rows %}
+<div class="text-center text-muted" style="padding:40px">{{ 'لا توجد ردود بعد' if ar else 'No responses yet' }}</div>
+{% else %}
+
+<!-- Per-question summary for choice/scale questions -->
+{% for q in survey.questions %}
+{% if q.id in summary %}
+<div style="background:#fff;border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.05)">
+  <div style="font-weight:700;margin-bottom:10px">{{ q.question_text }}</div>
+  {% set total = summary[q.id].values() | sum %}
+  {% for opt, count in summary[q.id].items() %}
+  <div class="d-flex align-items-center gap-2 mb-1" style="font-size:.86rem">
+    <div style="width:140px;flex-shrink:0">{{ opt }}</div>
+    <div style="flex:1;background:#f5f3ff;border-radius:6px;height:18px;overflow:hidden">
+      <div style="background:#7c3aed;height:100%;width:{{ (count/total*100) if total else 0 }}%"></div>
+    </div>
+    <div style="width:40px;text-align:end;font-weight:600">{{ count }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endfor %}
+
+<!-- Raw responses table -->
+<div class="table-responsive mt-4">
+  <table class="table table-bordered" style="background:#fff;font-size:.86rem">
+    <thead style="background:#f5f3ff">
+      <tr>
+        <th>{{ 'المستجيب' if ar else 'Respondent' }}</th>
+        <th>{{ 'التاريخ' if ar else 'Date' }}</th>
+        {% for q in survey.questions %}
+        <th>{{ q.question_text }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for r, ans_map in response_rows %}
+      <tr>
+        <td>{{ r.respondent_name or '—' }}</td>
+        <td style="direction:ltr;text-align:end">{{ r.submitted_at.strftime('%Y-%m-%d %H:%M') if r.submitted_at else '' }}</td>
+        {% for q in survey.questions %}
+        <td>{{ ans_map.get(q.id, '') }}</td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

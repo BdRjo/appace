@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+{%- set ar = (current_lang == 'ar') -%}
+
+{% block title %}{{ survey.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.q-card { background:#fff; border:1.5px solid #e5e7eb; border-radius:12px; padding:16px; margin-bottom:14px; }
+.q-card.q-required { border-inline-start:4px solid #7c3aed; }
+.q-toolbar { display:flex; gap:6px; align-items:center; }
+.q-toolbar button { background:#f5f3ff; color:#7c3aed; border:none; border-radius:6px; width:28px; height:28px; }
+.q-toolbar button.danger { background:#fef2f2; color:#dc2626; }
+.opt-row { display:flex; gap:6px; align-items:center; margin-bottom:6px; }
+.type-badge { font-size:.72rem; font-weight:700; padding:2px 8px; border-radius:12px; background:#f5f3ff; color:#7c3aed; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+  <div class="flex-grow-1" style="max-width:600px">
+    <input type="text" id="surveyName" class="form-control form-control-lg fw-bold border-0 px-0" value="{{ survey.name }}" style="font-size:1.3rem;box-shadow:none">
+    <textarea id="surveyDesc" class="form-control border-0 px-0 mt-1" rows="1" placeholder="{{ 'وصف الاستمارة (اختياري)' if ar else 'Form description (optional)' }}" style="font-size:.86rem;color:#6b7280;box-shadow:none;resize:none">{{ survey.description or '' }}</textarea>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('surveys.admin_responses', survey_id=survey.id) }}" class="btn btn-sm" style="border:1.5px solid #d1d5db;border-radius:8px;font-weight:600">
+      <i class="bi bi-bar-chart me-1"></i>{{ 'الردود' if ar else 'Responses' }} ({{ survey.responses|length }})
+    </a>
+    <a href="{{ url_for('surveys.admin_list') }}" class="btn btn-sm" style="border:1.5px solid #d1d5db;border-radius:8px;font-weight:600">
+      <i class="bi bi-arrow-right me-1"></i>{{ 'رجوع' if ar else 'Back' }}
+    </a>
+    <form method="POST" action="{{ url_for('surveys.admin_delete', survey_id=survey.id) }}"
+          onsubmit="return confirm('{{ 'حذف هذه الاستمارة وكل ردودها؟ لا يمكن التراجع.' if ar else 'Delete this form and all its responses? This cannot be undone.' }}')">
+      <button type="submit" class="btn btn-sm" style="background:#fef2f2;color:#dc2626;border:none;border-radius:8px;font-weight:600">
+        <i class="bi bi-trash"></i>
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- Publish settings -->
+<div style="background:#f5f3ff;border-radius:12px;padding:14px 18px;margin-bottom:18px">
+  <div class="row g-3 align-items-center">
+    <div class="col-auto">
+      <label class="d-flex align-items-center gap-2" style="cursor:pointer;font-weight:700">
+        <input type="checkbox" id="isPublished" {{ 'checked' if survey.is_published }}>
+        {{ 'نشر الاستمارة' if ar else 'Publish form' }}
+      </label>
+    </div>
+    <div class="col-auto">
+      <label class="d-flex align-items-center gap-2" style="cursor:pointer">
+        <input type="checkbox" id="requireCode" {{ 'checked' if survey.require_code }}>
+        {{ 'يتطلب رمز دخول' if ar else 'Require access code' }}
+      </label>
+    </div>
+    <div class="col-auto">
+      <label class="d-flex align-items-center gap-2" style="cursor:pointer">
+        <input type="checkbox" id="collectName" {{ 'checked' if survey.collect_name }}>
+        {{ 'اطلب اسم المستجيب' if ar else 'Ask respondent name' }}
+      </label>
+    </div>
+  </div>
+  {% if survey.is_published %}
+  <div class="d-flex gap-2 align-items-center flex-wrap mt-3">
+    <input type="text" id="fillUrlBox" value="{{ fill_url }}" readonly
+           style="flex:1;min-width:220px;border:1px solid #ddd6fe;border-radius:8px;padding:7px 12px;font-family:monospace;font-size:.82rem;direction:ltr">
+    <button type="button" class="btn btn-sm" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;font-weight:700" onclick="copyFillUrl()">
+      <i class="bi bi-clipboard me-1"></i>{{ 'نسخ الرابط' if ar else 'Copy Link' }}
+    </button>
+    {% if survey.require_code %}
+    <span style="font-size:.86rem;font-weight:700;color:#7c3aed">
+      <i class="bi bi-key-fill me-1"></i>{{ 'الرمز:' if ar else 'Code:' }} <span id="accessCodeDisplay" style="font-family:monospace">{{ survey.access_code or '—' }}</span>
+    </span>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<!-- Questions -->
+<div id="questionsList"></div>
+
+<div class="d-flex gap-2 mb-4">
+  <select id="newQType" class="form-select" style="max-width:220px">
+    <option value="short_text">{{ 'إجابة قصيرة' if ar else 'Short answer' }}</option>
+    <option value="paragraph">{{ 'فقرة' if ar else 'Paragraph' }}</option>
+    <option value="multiple_choice">{{ 'اختيار واحد' if ar else 'Multiple choice' }}</option>
+    <option value="checkboxes">{{ 'مربعات اختيار' if ar else 'Checkboxes' }}</option>
+    <option value="dropdown">{{ 'قائمة منسدلة' if ar else 'Dropdown' }}</option>
+    <option value="linear_scale">{{ 'مقياس خطي' if ar else 'Linear scale' }}</option>
+    <option value="date">{{ 'تاريخ' if ar else 'Date' }}</option>
+    <option value="time">{{ 'وقت' if ar else 'Time' }}</option>
+  </select>
+  <button type="button" class="btn" style="background:#f5f3ff;color:#7c3aed;border:1.5px dashed #7c3aed;border-radius:8px;font-weight:700;padding:8px 20px" onclick="addQuestion()">
+    <i class="bi bi-plus-circle me-1"></i>{{ 'إضافة سؤال' if ar else 'Add Question' }}
+  </button>
+</div>
+
+<div class="position-sticky bottom-0 bg-white py-3" style="border-top:1px solid #eee">
+  <button type="button" class="btn" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;font-weight:700;padding:10px 30px" onclick="saveSurvey()">
+    <i class="bi bi-check2 me-1"></i>{{ 'حفظ' if ar else 'Save' }}
+  </button>
+  <span id="saveStatus" style="margin-inline-start:10px;font-size:.86rem;font-weight:600"></span>
+</div>
+
+<script>
+const ar = {{ 'true' if ar else 'false' }};
+const TYPE_LABELS = {
+  short_text: ar ? 'إجابة قصيرة' : 'Short answer',
+  paragraph: ar ? 'فقرة' : 'Paragraph',
+  multiple_choice: ar ? 'اختيار واحد' : 'Multiple choice',
+  checkboxes: ar ? 'مربعات اختيار' : 'Checkboxes',
+  dropdown: ar ? 'قائمة منسدلة' : 'Dropdown',
+  linear_scale: ar ? 'مقياس خطي' : 'Linear scale',
+  date: ar ? 'تاريخ' : 'Date',
+  time: ar ? 'وقت' : 'Time',
+};
+const CHOICE_TYPES = ['multiple_choice', 'checkboxes', 'dropdown'];
+
+let questions = [];
+// Build from server data safely
+questions = [
+  {% for q in survey.questions %}
+  {
+    id: {{ q.id }},
+    type: {{ q.question_type | tojson }},
+    text: {{ q.question_text | tojson }},
+    required: {{ 'true' if q.required else 'false' }},
+    options: {{ q.options_list | tojson }},
+    scale_min: {{ q.scale_min or 1 }},
+    scale_max: {{ q.scale_max or 5 }},
+    scale_min_label: {{ (q.scale_min_label or '') | tojson }},
+    scale_max_label: {{ (q.scale_max_label or '') | tojson }},
+  },
+  {% endfor %}
+];
+
+function render() {
+  const container = document.getElementById('questionsList');
+  container.innerHTML = '';
+  questions.forEach((q, idx) => {
+    const card = document.createElement('div');
+    card.className = 'q-card' + (q.required ? ' q-required' : '');
+    card.dataset.idx = idx;
+
+    let optionsHtml = '';
+    if (CHOICE_TYPES.includes(q.type)) {
+      optionsHtml = '<div class="opt-list">' + q.options.map((opt, oi) =>
+        `<div class="opt-row">
+           <span style="width:18px;color:#9ca3af">${q.type === 'checkboxes' ? '☐' : '○'}</span>
+           <input type="text" class="form-control form-control-sm opt-input" value="${opt.replace(/"/g,'&quot;')}" oninput="updateOption(${idx},${oi},this.value)">
+           <button type="button" class="btn btn-sm" style="color:#dc2626" onclick="removeOption(${idx},${oi})"><i class="bi bi-x"></i></button>
+         </div>`
+      ).join('') + '</div>' +
+      `<button type="button" class="btn btn-sm mt-1" style="color:#7c3aed;font-size:.82rem" onclick="addOption(${idx})">
+         <i class="bi bi-plus"></i> ${ar ? 'إضافة خيار' : 'Add option'}
+       </button>`;
+    } else if (q.type === 'linear_scale') {
+      optionsHtml = `
+        <div class="d-flex gap-2 align-items-center flex-wrap mt-2">
+          <input type="number" class="form-control form-control-sm" style="width:70px" value="${q.scale_min}" min="0" max="10" onchange="updateField(${idx},'scale_min',parseInt(this.value))">
+          <span>${ar ? 'إلى' : 'to'}</span>
+          <input type="number" class="form-control form-control-sm" style="width:70px" value="${q.scale_max}" min="1" max="10" onchange="updateField(${idx},'scale_max',parseInt(this.value))">
+          <input type="text" class="form-control form-control-sm" style="width:160px" placeholder="${ar ? 'تسمية البداية (اختياري)' : 'Low label (optional)'}" value="${(q.scale_min_label||'').replace(/"/g,'&quot;')}" oninput="updateField(${idx},'scale_min_label',this.value)">
+          <input type="text" class="form-control form-control-sm" style="width:160px" placeholder="${ar ? 'تسمية النهاية (اختياري)' : 'High label (optional)'}" value="${(q.scale_max_label||'').replace(/"/g,'&quot;')}" oninput="updateField(${idx},'scale_max_label',this.value)">
+        </div>`;
+    }
+
+    card.innerHTML = `
+      <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+        <select class="form-select form-select-sm" style="max-width:200px" onchange="updateField(${idx},'type',this.value)">
+          ${Object.entries(TYPE_LABELS).map(([k,v]) => `<option value="${k}" ${q.type===k?'selected':''}>${v}</option>`).join('')}
+        </select>
+        <div class="q-toolbar">
+          <label class="d-flex align-items-center gap-1" style="font-size:.8rem;cursor:pointer">
+            <input type="checkbox" ${q.required?'checked':''} onchange="updateField(${idx},'required',this.checked)">
+            ${ar ? 'إجباري' : 'Required'}
+          </label>
+          <button type="button" onclick="moveQuestion(${idx},-1)" title="${ar?'أعلى':'Up'}"><i class="bi bi-arrow-up"></i></button>
+          <button type="button" onclick="moveQuestion(${idx},1)" title="${ar?'أسفل':'Down'}"><i class="bi bi-arrow-down"></i></button>
+          <button type="button" class="danger" onclick="removeQuestion(${idx})" title="${ar?'حذف':'Delete'}"><i class="bi bi-trash"></i></button>
+        </div>
+      </div>
+      <input type="text" class="form-control mb-1" placeholder="${ar ? 'نص السؤال' : 'Question text'}" value="${q.text.replace(/"/g,'&quot;')}" oninput="updateField(${idx},'text',this.value)">
+      ${optionsHtml}
+    `;
+    container.appendChild(card);
+  });
+}
+
+function updateField(idx, field, value) {
+  questions[idx][field] = value;
+  if (field === 'type') render();
+}
+function updateOption(idx, oi, value) { questions[idx].options[oi] = value; }
+function addOption(idx) {
+  questions[idx].options.push((ar ? 'خيار ' : 'Option ') + (questions[idx].options.length + 1));
+  render();
+}
+function removeOption(idx, oi) { questions[idx].options.splice(oi, 1); render(); }
+function moveQuestion(idx, dir) {
+  const target = idx + dir;
+  if (target < 0 || target >= questions.length) return;
+  [questions[idx], questions[target]] = [questions[target], questions[idx]];
+  render();
+}
+function removeQuestion(idx) {
+  if (!confirm(ar ? 'حذف هذا السؤال؟' : 'Delete this question?')) return;
+  questions.splice(idx, 1);
+  render();
+}
+function addQuestion() {
+  const type = document.getElementById('newQType').value;
+  const q = { id: null, type, text: '', required: false, options: [], scale_min: 1, scale_max: 5, scale_min_label: '', scale_max_label: '' };
+  if (CHOICE_TYPES.includes(type)) q.options = [ar ? 'خيار 1' : 'Option 1'];
+  questions.push(q);
+  render();
+}
+
+function copyFillUrl() {
+  const box = document.getElementById('fillUrlBox');
+  box.select();
+  navigator.clipboard.writeText(box.value).catch(() => document.execCommand('copy'));
+}
+
+function saveSurvey() {
+  const statusEl = document.getElementById('saveStatus');
+  statusEl.textContent = ar ? 'جارٍ الحفظ...' : 'Saving...';
+  statusEl.style.color = '#6b7280';
+  fetch('{{ url_for("surveys.admin_save", survey_id=survey.id) }}', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: document.getElementById('surveyName').value,
+      description: document.getElementById('surveyDesc').value,
+      is_published: document.getElementById('isPublished').checked,
+      require_code: document.getElementById('requireCode').checked,
+      collect_name: document.getElementById('collectName').checked,
+      questions: questions,
+    })
+  })
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) {
+        statusEl.textContent = ar ? 'تم الحفظ ✓' : 'Saved ✓';
+        statusEl.style.color = '#047857';
+        setTimeout(() => location.reload(), 700);
+      } else {
+        statusEl.textContent = d.error || (ar ? 'حدث خطأ' : 'Error');
+        statusEl.style.color = '#dc2626';
+      }
+    })
+    .catch(() => {
+      statusEl.textContent = ar ? 'فشل الاتصال بالخادم' : 'Connection error';
+      statusEl.style.color = '#dc2626';
+    });
+}
+
+render();
+</script>
+{% endblock %}

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+{%- set ar = (current_lang == 'ar') -%}
+<html lang="{{ current_lang }}" dir="{{ 'rtl' if ar else 'ltr' }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{ survey.name }}</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  body { font-family: {{ "'Tajawal', " if ar }}sans-serif; background: linear-gradient(160deg,#f5f3ff,#faf5ff 60%,#fff); min-height: 100vh;
+         display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .card-box { max-width: 420px; width: 100%; background: #fff; border-radius: 20px; box-shadow: 0 10px 40px rgba(124,58,237,.14); padding: 32px 26px; text-align: center; }
+  .card-box h1 { font-size: 1.1rem; font-weight: 800; color: #6d28d9; margin-bottom: 4px; }
+  .card-box .sub { font-size: .84rem; color: #6b7280; margin-bottom: 22px; }
+  .code-input { font-size: 1.6rem; font-weight: 900; letter-spacing: 6px; text-align: center; text-transform: uppercase;
+                border-radius: 12px; border: 2px solid #ddd6fe; padding: 12px; width: 100%; }
+  .code-input:focus { border-color: #7c3aed; outline: none; box-shadow: 0 0 0 3px #ddd6fe55; }
+  .btn-submit { background: linear-gradient(135deg,#a78bfa,#7c3aed); color: #fff; border: none; border-radius: 12px;
+                padding: 12px; font-weight: 800; font-size: 1rem; width: 100%; margin-top: 14px; }
+  .error-box { background: #fef2f2; border: 1.5px solid #fca5a5; color: #b91c1c; border-radius: 12px; padding: 14px; margin-bottom: 14px; font-size: .86rem; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="card-box">
+  {% if config and config.school_logo_b64 %}
+  {%- set _logo = config.school_logo_b64 -%}
+  {%- set _logo_src = _logo if _logo.startswith('data:') else ('data:image/png;base64,' ~ _logo) -%}
+  <img src="{{ _logo_src }}" alt="Logo" style="max-height:64px;max-width:180px;object-fit:contain;margin-bottom:6px">
+  {% else %}
+  <i class="bi bi-ui-checks-grid" style="font-size:2rem;color:#7c3aed"></i>
+  {% endif %}
+  <h1 class="mt-2">{{ survey.name }}</h1>
+  {% if survey.description %}<div class="sub">{{ survey.description }}</div>{% endif %}
+
+  {% if error %}<div class="error-box"><i class="bi bi-x-circle-fill me-1"></i>{{ error }}</div>{% endif %}
+
+  <form method="POST">
+    <input type="text" name="code" class="code-input" maxlength="10" placeholder="{{ 'الرمز' if ar else 'CODE' }}" autofocus required>
+    <button type="submit" class="btn-submit"><i class="bi bi-unlock me-1"></i>{{ 'دخول' if ar else 'Enter' }}</button>
+  </form>
+</div>
+</body>
+</html>

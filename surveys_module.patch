@@ -1,0 +1,1161 @@
+diff --git a/app.py b/app.py
+index c0ddff2..317f751 100644
+--- a/app.py
++++ b/app.py
+@@ -121,6 +121,7 @@ def create_app():
+     from routes.mobile_api import mobile_api_bp
+     from routes.download_data import dl_bp
+     from routes.checkin       import checkin_bp
++    from routes.surveys       import surveys_bp
+ 
+     for bp in [auth_bp, reservations_bp, venues_bp, admin_bp, api_bp,
+                locations_bp, venues_mgmt_bp, users_bp, reports_bp,
+@@ -128,7 +129,7 @@ def create_app():
+                calendar_bp, settings_bp, cp_bp, bo_bp, groups_bp,
+                public_cal_bp,
+                announcements_bp, interviews_bp, sas_bp, mobile_api_bp, dl_bp,
+-               checkin_bp]:
++               checkin_bp, surveys_bp]:
+         app.register_blueprint(bp)        
+ 
+     # Jinja filters
+diff --git a/models/database.py b/models/database.py
+index 707b697..3be8417 100644
+--- a/models/database.py
++++ b/models/database.py
+@@ -1313,3 +1313,79 @@ class EventAttendee(Base):
+     code_sent      = Column(Boolean, default=False)
+     created_at     = Column(DateTime, default=datetime.now)
+     event          = relationship('EventCheckin', back_populates='attendees')
++
++
++# ===========================================================================
++# SURVEYS / FORMS (Google-Forms-style builder)
++# ===========================================================================
++
++class Survey(Base):
++    """A survey/form: a set of questions, published or draft, optionally
++    gated by an access code (like the event check-in codes) or open to
++    anyone with the link."""
++    __tablename__ = 'surveys'
++    id             = Column(Integer, primary_key=True)
++    name           = Column(String(200), nullable=False)
++    description    = Column(Text)
++    is_published   = Column(Boolean, default=False)
++    require_code   = Column(Boolean, default=False)
++    access_code    = Column(String(20))
++    collect_name   = Column(Boolean, default=False)   # ask the respondent's name before filling
++    created_at     = Column(DateTime, default=datetime.now)
++    questions      = relationship('SurveyQuestion', back_populates='survey',
++                                   cascade='all, delete-orphan', order_by='SurveyQuestion.order_num')
++    responses      = relationship('SurveyResponse', back_populates='survey', cascade='all, delete-orphan')
++
++
++class SurveyQuestion(Base):
++    """One question on a survey. question_type is one of: short_text,
++    paragraph, multiple_choice, checkboxes, dropdown, linear_scale, date,
++    time. options_json holds a JSON list of choice labels for the
++    choice-based types."""
++    __tablename__ = 'survey_questions'
++    id              = Column(Integer, primary_key=True)
++    survey_id       = Column(Integer, ForeignKey('surveys.id'), nullable=False)
++    order_num       = Column(Integer, default=0)
++    question_type   = Column(String(30), nullable=False)
++    question_text   = Column(String(500), nullable=False)
++    required        = Column(Boolean, default=False)
++    options_json    = Column(Text)
++    scale_min       = Column(Integer, default=1)
++    scale_max       = Column(Integer, default=5)
++    scale_min_label = Column(String(100))
++    scale_max_label = Column(String(100))
++    survey          = relationship('Survey', back_populates='questions')
++
++    @property
++    def options_list(self):
++        """Parsed choice options as a plain Python list (empty if none)."""
++        if not self.options_json:
++            return []
++        try:
++            import json
++            return json.loads(self.options_json)
++        except Exception:
++            return []
++
++
++class SurveyResponse(Base):
++    """One completed submission of a survey."""
++    __tablename__ = 'survey_responses'
++    id              = Column(Integer, primary_key=True)
++    survey_id       = Column(Integer, ForeignKey('surveys.id'), nullable=False)
++    respondent_name = Column(String(200))
++    submitted_at    = Column(DateTime, default=datetime.now)
++    survey          = relationship('Survey', back_populates='responses')
++    answers         = relationship('SurveyAnswer', back_populates='response', cascade='all, delete-orphan')
++
++
++class SurveyAnswer(Base):
++    """One answer within a response. For checkboxes (multi-select),
++    answer_text holds a JSON list; every other type stores plain text."""
++    __tablename__ = 'survey_answers'
++    id           = Column(Integer, primary_key=True)
++    response_id  = Column(Integer, ForeignKey('survey_responses.id'), nullable=False)
++    question_id  = Column(Integer, ForeignKey('survey_questions.id'), nullable=False)
++    answer_text  = Column(Text)
++    response     = relationship('SurveyResponse', back_populates='answers')
++    question     = relationship('SurveyQuestion')
+diff --git a/routes/surveys.py b/routes/surveys.py
+new file mode 100644
+index 0000000..7c2751a
+--- /dev/null
++++ b/routes/surveys.py
+@@ -0,0 +1,389 @@
++"""
++routes/surveys.py — Survey / Form Builder
++Google-Forms-style form builder: admin creates a survey (blank or from a
++template), adds questions of various types, publishes it either open to
++anyone with the link or gated behind an access code (same idea as the
++event check-in codes), and reviews/export responses afterward.
++"""
++import json
++import random
++import string
++from datetime import datetime
++
++from flask import (Blueprint, render_template, redirect, url_for, request,
++                    flash, jsonify, abort, session, Response)
++
++from utils.helpers import get_db, admin_required
++from utils.i18n import t, get_lang
++from models.database import Survey, SurveyQuestion, SurveyResponse, SurveyAnswer, SASConfig
++
++surveys_bp = Blueprint('surveys', __name__, url_prefix='/surveys')
++
++QUESTION_TYPES = ['short_text', 'paragraph', 'multiple_choice', 'checkboxes',
++                   'dropdown', 'linear_scale', 'date', 'time']
++CHOICE_TYPES = {'multiple_choice', 'checkboxes', 'dropdown'}
++
++
++def _t(ar_text, en_text):
++    return ar_text if get_lang() == 'ar' else en_text
++
++
++def _gen_code(length=6):
++    alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
++    return ''.join(random.choices(alphabet, k=length))
++
++
++def _get_school_config():
++    db = get_db()
++    return db.query(SASConfig).first()
++
++
++# ===========================================================================
++# READY-MADE TEMPLATES
++# ===========================================================================
++
++SURVEY_TEMPLATES = {
++    'employee_satisfaction': {
++        'name_ar': 'استبيان رضا الموظفين', 'name_en': 'Employee Satisfaction Survey',
++        'desc_ar': 'قياس رضا الموظفين عن بيئة العمل وجوانب التحسين الممكنة.',
++        'desc_en': 'Measure employee satisfaction and identify areas to improve.',
++        'questions': [
++            {'type': 'short_text', 'text_ar': 'القسم / الإدارة', 'text_en': 'Department', 'required': False},
++            {'type': 'linear_scale', 'text_ar': 'ما مدى رضاك العام عن بيئة العمل؟', 'text_en': 'Overall, how satisfied are you with the work environment?',
++             'required': True, 'scale_min': 1, 'scale_max': 5,
++             'min_label_ar': 'غير راضٍ', 'max_label_ar': 'راضٍ جداً', 'min_label_en': 'Not satisfied', 'max_label_en': 'Very satisfied'},
++            {'type': 'multiple_choice', 'text_ar': 'هل تشعر أن جهودك مُقدَّرة؟', 'text_en': 'Do you feel your efforts are recognized?',
++             'required': True, 'options_ar': ['نعم دائماً', 'أحياناً', 'نادراً', 'أبداً'],
++             'options_en': ['Always', 'Sometimes', 'Rarely', 'Never']},
++            {'type': 'checkboxes', 'text_ar': 'أي الجوانب تحتاج تحسيناً؟ (اختر كل ما ينطبق)', 'text_en': 'Which areas need improvement? (select all that apply)',
++             'required': False,
++             'options_ar': ['التواصل الداخلي', 'فرص التطوير المهني', 'بيئة العمل المادية', 'التقدير والمكافآت', 'التوازن بين العمل والحياة'],
++             'options_en': ['Internal communication', 'Professional development', 'Physical workspace', 'Recognition & rewards', 'Work-life balance']},
++            {'type': 'multiple_choice', 'text_ar': 'هل توصي بالعمل هنا لصديق؟', 'text_en': 'Would you recommend working here to a friend?',
++             'required': True, 'options_ar': ['نعم', 'ربما', 'لا'], 'options_en': ['Yes', 'Maybe', 'No']},
++            {'type': 'paragraph', 'text_ar': 'أي ملاحظات أو اقتراحات إضافية؟', 'text_en': 'Any additional comments or suggestions?', 'required': False},
++        ],
++    },
++    'event_evaluation': {
++        'name_ar': 'تقييم فعالية', 'name_en': 'Event Evaluation',
++        'desc_ar': 'تقييم فعالية أو اجتماع بعد انتهائه.',
++        'desc_en': 'Evaluate an event or meeting after it ends.',
++        'questions': [
++            {'type': 'linear_scale', 'text_ar': 'كيف تقيّم الفعالية بشكل عام؟', 'text_en': 'How would you rate the event overall?',
++             'required': True, 'scale_min': 1, 'scale_max': 5,
++             'min_label_ar': 'ضعيف', 'max_label_ar': 'ممتاز', 'min_label_en': 'Poor', 'max_label_en': 'Excellent'},
++            {'type': 'multiple_choice', 'text_ar': 'هل كان تنظيم الوقت مناسباً؟', 'text_en': 'Was the timing well organized?',
++             'required': True, 'options_ar': ['نعم', 'إلى حد ما', 'لا'], 'options_en': ['Yes', 'Somewhat', 'No']},
++            {'type': 'checkboxes', 'text_ar': 'ما الذي أعجبك بالفعالية؟', 'text_en': 'What did you like about the event?',
++             'required': False,
++             'options_ar': ['المحتوى', 'المتحدثون', 'التنظيم', 'المكان', 'التفاعل'],
++             'options_en': ['Content', 'Speakers', 'Organization', 'Venue', 'Interaction']},
++            {'type': 'dropdown', 'text_ar': 'هل ستحضر فعالية مشابهة مستقبلاً؟', 'text_en': 'Would you attend a similar event in the future?',
++             'required': True, 'options_ar': ['بالتأكيد', 'ربما', 'غير محتمل'], 'options_en': ['Definitely', 'Maybe', 'Unlikely']},
++            {'type': 'paragraph', 'text_ar': 'أي اقتراحات لتحسين الفعاليات القادمة؟', 'text_en': 'Suggestions to improve future events?', 'required': False},
++        ],
++    },
++    'general_feedback': {
++        'name_ar': 'استبيان عام', 'name_en': 'General Feedback',
++        'desc_ar': 'استبيان بسيط لجمع ملاحظات عامة.',
++        'desc_en': 'A simple form to collect general feedback.',
++        'questions': [
++            {'type': 'short_text', 'text_ar': 'الاسم (اختياري)', 'text_en': 'Name (optional)', 'required': False},
++            {'type': 'linear_scale', 'text_ar': 'تقييمك العام', 'text_en': 'Overall rating',
++             'required': True, 'scale_min': 1, 'scale_max': 5,
++             'min_label_ar': 'ضعيف', 'max_label_ar': 'ممتاز', 'min_label_en': 'Poor', 'max_label_en': 'Excellent'},
++            {'type': 'paragraph', 'text_ar': 'ملاحظاتك', 'text_en': 'Your feedback', 'required': True},
++        ],
++    },
++}
++
++
++# ===========================================================================
++# ADMIN
++# ===========================================================================
++
++@surveys_bp.route('/admin')
++@admin_required
++def admin_list():
++    db = get_db()
++    surveys = db.query(Survey).order_by(Survey.created_at.desc()).all()
++    return render_template('surveys/admin/list.html', surveys=surveys)
++
++
++@surveys_bp.route('/admin/new', methods=['GET', 'POST'])
++@admin_required
++def admin_new():
++    if request.method == 'GET':
++        return render_template('surveys/admin/new.html', templates=SURVEY_TEMPLATES)
++
++    db = get_db()
++    lang = get_lang()
++    name = request.form.get('name', '').strip()
++    template_key = request.form.get('template', '')
++
++    if template_key and template_key in SURVEY_TEMPLATES:
++        tpl = SURVEY_TEMPLATES[template_key]
++        survey = Survey(
++            name=name or (tpl['name_ar'] if lang == 'ar' else tpl['name_en']),
++            description=tpl['desc_ar'] if lang == 'ar' else tpl['desc_en'],
++        )
++        db.add(survey)
++        db.flush()
++        for i, q in enumerate(tpl['questions']):
++            options = q.get('options_ar' if lang == 'ar' else 'options_en')
++            db.add(SurveyQuestion(
++                survey_id=survey.id, order_num=i,
++                question_type=q['type'],
++                question_text=q['text_ar'] if lang == 'ar' else q['text_en'],
++                required=q.get('required', False),
++                options_json=json.dumps(options, ensure_ascii=False) if options else None,
++                scale_min=q.get('scale_min', 1), scale_max=q.get('scale_max', 5),
++                scale_min_label=(q.get('min_label_ar') if lang == 'ar' else q.get('min_label_en')) or None,
++                scale_max_label=(q.get('max_label_ar') if lang == 'ar' else q.get('max_label_en')) or None,
++            ))
++    else:
++        if not name:
++            flash(_t('يرجى إدخال اسم الاستمارة', 'Please enter a form name'), 'danger')
++            return redirect(url_for('surveys.admin_new'))
++        survey = Survey(name=name)
++        db.add(survey)
++
++    db.commit()
++    flash(_t('تم إنشاء الاستمارة', 'Form created'), 'success')
++    return redirect(url_for('surveys.admin_builder', survey_id=survey.id))
++
++
++@surveys_bp.route('/admin/<int:survey_id>')
++@admin_required
++def admin_builder(survey_id):
++    db = get_db()
++    survey = db.get(Survey, survey_id)
++    if not survey:
++        abort(404)
++    fill_url = url_for('surveys.public_survey', survey_id=survey.id, _external=True)
++    return render_template('surveys/admin/builder.html', survey=survey, fill_url=fill_url,
++                            question_types=QUESTION_TYPES)
++
++
++@surveys_bp.route('/admin/<int:survey_id>/save', methods=['POST'])
++@admin_required
++def admin_save(survey_id):
++    db = get_db()
++    survey = db.get(Survey, survey_id)
++    if not survey:
++        return jsonify({'ok': False, 'error': 'Not found'}), 404
++    data = request.get_json(silent=True)
++    if not data:
++        return jsonify({'ok': False, 'error': 'Invalid data'}), 400
++
++    survey.name = (data.get('name') or '').strip() or survey.name
++    survey.description = (data.get('description') or '').strip()
++    survey.is_published = bool(data.get('is_published', False))
++    survey.require_code = bool(data.get('require_code', False))
++    survey.collect_name = bool(data.get('collect_name', False))
++    if survey.require_code and not survey.access_code:
++        survey.access_code = _gen_code()
++
++    # Update existing questions in place (preserves their id, so existing
++    # responses stay correctly linked), add new ones, delete removed ones.
++    incoming_ids = set()
++    for idx, q in enumerate(data.get('questions', [])):
++        qid = q.get('id')
++        options = q.get('options') or []
++        options_json = json.dumps(options, ensure_ascii=False) if options else None
++        sq = None
++        if qid:
++            sq = db.get(SurveyQuestion, qid)
++            if not sq or sq.survey_id != survey.id:
++                sq = None
++        if not sq:
++            sq = SurveyQuestion(survey_id=survey.id)
++            db.add(sq)
++            db.flush()
++        sq.order_num = idx
++        sq.question_type = q.get('type', 'short_text')
++        sq.question_text = (q.get('text') or '').strip()
++        sq.required = bool(q.get('required', False))
++        sq.options_json = options_json
++        sq.scale_min = q.get('scale_min', 1)
++        sq.scale_max = q.get('scale_max', 5)
++        sq.scale_min_label = q.get('scale_min_label') or None
++        sq.scale_max_label = q.get('scale_max_label') or None
++        incoming_ids.add(sq.id)
++
++    for sq in list(survey.questions):
++        if sq.id not in incoming_ids:
++            db.delete(sq)
++
++    db.commit()
++    return jsonify({'ok': True, 'access_code': survey.access_code})
++
++
++@surveys_bp.route('/admin/<int:survey_id>/delete', methods=['POST'])
++@admin_required
++def admin_delete(survey_id):
++    db = get_db()
++    survey = db.get(Survey, survey_id)
++    if not survey:
++        abort(404)
++    db.delete(survey)
++    db.commit()
++    flash(_t('تم حذف الاستمارة', 'Form deleted'), 'success')
++    return redirect(url_for('surveys.admin_list'))
++
++
++@surveys_bp.route('/admin/<int:survey_id>/responses')
++@admin_required
++def admin_responses(survey_id):
++    db = get_db()
++    survey = db.get(Survey, survey_id)
++    if not survey:
++        abort(404)
++    responses = (
++        db.query(SurveyResponse)
++        .filter(SurveyResponse.survey_id == survey.id)
++        .order_by(SurveyResponse.submitted_at.desc())
++        .all()
++    )
++
++    def _display_value(answer_text):
++        if not answer_text:
++            return ''
++        if answer_text.startswith('['):
++            try:
++                return ', '.join(json.loads(answer_text))
++            except Exception:
++                return answer_text
++        return answer_text
++
++    # Pre-build a {question_id: display string} map per response, so the
++    # template never needs to parse JSON itself.
++    response_rows = []
++    for r in responses:
++        ans_map = {a.question_id: _display_value(a.answer_text) for a in r.answers}
++        response_rows.append((r, ans_map))
++
++    summary = {}
++    for q in survey.questions:
++        if q.question_type in CHOICE_TYPES or q.question_type == 'linear_scale':
++            counts = {}
++            for r in responses:
++                for a in r.answers:
++                    if a.question_id != q.id or not a.answer_text:
++                        continue
++                    if a.answer_text.startswith('['):
++                        try:
++                            vals = json.loads(a.answer_text)
++                        except Exception:
++                            vals = [a.answer_text]
++                    else:
++                        vals = [a.answer_text]
++                    for v in vals:
++                        counts[v] = counts.get(v, 0) + 1
++            summary[q.id] = counts
++    return render_template('surveys/admin/responses.html', survey=survey, response_rows=response_rows, summary=summary)
++
++
++@surveys_bp.route('/admin/<int:survey_id>/responses/export')
++@admin_required
++def admin_responses_export(survey_id):
++    import csv
++    import io
++
++    db = get_db()
++    survey = db.get(Survey, survey_id)
++    if not survey:
++        abort(404)
++    responses = (
++        db.query(SurveyResponse)
++        .filter(SurveyResponse.survey_id == survey.id)
++        .order_by(SurveyResponse.submitted_at.asc())
++        .all()
++    )
++
++    buf = io.StringIO()
++    buf.write('\ufeff')
++    writer = csv.writer(buf)
++    writer.writerow(['Respondent', 'Submitted At'] + [q.question_text for q in survey.questions])
++    for r in responses:
++        ans_by_q = {a.question_id: a.answer_text for a in r.answers}
++        row = [r.respondent_name or '', r.submitted_at.strftime('%Y-%m-%d %H:%M') if r.submitted_at else '']
++        for q in survey.questions:
++            val = ans_by_q.get(q.id, '') or ''
++            if val.startswith('['):
++                try:
++                    val = ', '.join(json.loads(val))
++                except Exception:
++                    pass
++            row.append(val)
++        writer.writerow(row)
++
++    filename = f'survey_export_{survey.id}.csv'
++    return Response(buf.getvalue(), mimetype='text/csv',
++                     headers={'Content-Disposition': f'attachment; filename="{filename}"'})
++
++
++# ===========================================================================
++# PUBLIC (no login)
++# ===========================================================================
++
++@surveys_bp.route('/<int:survey_id>', methods=['GET', 'POST'])
++def public_survey(survey_id):
++    db = get_db()
++    survey = db.get(Survey, survey_id)
++    if not survey or not survey.is_published:
++        abort(404)
++    cfg = _get_school_config()
++
++    session_key = f'survey_{survey.id}_verified'
++    if survey.require_code and not session.get(session_key):
++        error = None
++        if request.method == 'POST':
++            code = request.form.get('code', '').strip().upper()
++            if code and code == (survey.access_code or '').upper():
++                session[session_key] = True
++                return redirect(url_for('surveys.public_survey', survey_id=survey.id))
++            error = _t('الرمز غير صحيح', 'Invalid code')
++        return render_template('surveys/gate.html', survey=survey, config=cfg, error=error)
++
++    return render_template('surveys/fill.html', survey=survey, config=cfg, error=None)
++
++
++@surveys_bp.route('/<int:survey_id>/submit', methods=['POST'])
++def public_submit(survey_id):
++    db = get_db()
++    survey = db.get(Survey, survey_id)
++    if not survey or not survey.is_published:
++        abort(404)
++    session_key = f'survey_{survey.id}_verified'
++    if survey.require_code and not session.get(session_key):
++        abort(403)
++
++    respondent_name = request.form.get('respondent_name', '').strip() if survey.collect_name else None
++    response = SurveyResponse(survey_id=survey.id, respondent_name=respondent_name or None)
++    db.add(response)
++    db.flush()
++
++    missing_required = False
++    for q in survey.questions:
++        field_name = f'q_{q.id}'
++        if q.question_type == 'checkboxes':
++            values = request.form.getlist(field_name)
++            answer_text = json.dumps(values, ensure_ascii=False) if values else None
++        else:
++            val = request.form.get(field_name, '').strip()
++            answer_text = val or None
++        if q.required and not answer_text:
++            missing_required = True
++        if answer_text:
++            db.add(SurveyAnswer(response_id=response.id, question_id=q.id, answer_text=answer_text))
++
++    if missing_required:
++        db.rollback()
++        cfg = _get_school_config()
++        return render_template('surveys/fill.html', survey=survey, config=cfg,
++                                error=_t('يرجى تعبئة كل الأسئلة الإجبارية', 'Please fill in all required questions'))
++
++    db.commit()
++    cfg = _get_school_config()
++    return render_template('surveys/thanks.html', survey=survey, config=cfg)
+diff --git a/templates/base.html b/templates/base.html
+index 9438af6..20864c2 100644
+--- a/templates/base.html
++++ b/templates/base.html
+@@ -539,6 +539,9 @@ html[dir="rtl"] .ticker-overflow {
+   <a href="{{ url_for('checkin.admin_list') }}" class="nav-link {% if request.blueprint=='checkin' %}active{% endif %}" hx-boost="false">
+     <i class="bi bi-calendar-check"></i>{% if current_lang=='en' %}Event Check-in{% else %}تسجيل حضور الفعاليات{% endif %}
+   </a>
++  <a href="{{ url_for('surveys.admin_list') }}" class="nav-link {% if request.blueprint=='surveys' %}active{% endif %}" hx-boost="false">
++    <i class="bi bi-ui-checks-grid"></i>{% if current_lang=='en' %}Forms & Surveys{% else %}الاستمارات والاستبيانات{% endif %}
++  </a>
+   <!-- SAS — Student Attendance Management -->
+   <div class="section-label">{% if current_lang=='en' %}📋 Attendance{% else %}📋 إدارة الدوام{% endif %}</div>
+   <a href="{{ url_for('sas.admin_dashboard') }}" class="nav-link {% if request.endpoint=='sas.admin_dashboard' %}active{% endif %}" hx-boost="false">
+diff --git a/templates/surveys/admin/builder.html b/templates/surveys/admin/builder.html
+new file mode 100644
+index 0000000..31f6610
+--- /dev/null
++++ b/templates/surveys/admin/builder.html
+@@ -0,0 +1,259 @@
++{% extends "base.html" %}
++{%- set ar = (current_lang == 'ar') -%}
++
++{% block title %}{{ survey.name }}{% endblock %}
++
++{% block extra_css %}
++<style>
++.q-card { background:#fff; border:1.5px solid #e5e7eb; border-radius:12px; padding:16px; margin-bottom:14px; }
++.q-card.q-required { border-inline-start:4px solid #7c3aed; }
++.q-toolbar { display:flex; gap:6px; align-items:center; }
++.q-toolbar button { background:#f5f3ff; color:#7c3aed; border:none; border-radius:6px; width:28px; height:28px; }
++.q-toolbar button.danger { background:#fef2f2; color:#dc2626; }
++.opt-row { display:flex; gap:6px; align-items:center; margin-bottom:6px; }
++.type-badge { font-size:.72rem; font-weight:700; padding:2px 8px; border-radius:12px; background:#f5f3ff; color:#7c3aed; }
++</style>
++{% endblock %}
++
++{% block content %}
++<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
++  <div class="flex-grow-1" style="max-width:600px">
++    <input type="text" id="surveyName" class="form-control form-control-lg fw-bold border-0 px-0" value="{{ survey.name }}" style="font-size:1.3rem;box-shadow:none">
++    <textarea id="surveyDesc" class="form-control border-0 px-0 mt-1" rows="1" placeholder="{{ 'وصف الاستمارة (اختياري)' if ar else 'Form description (optional)' }}" style="font-size:.86rem;color:#6b7280;box-shadow:none;resize:none">{{ survey.description or '' }}</textarea>
++  </div>
++  <div class="d-flex gap-2">
++    <a href="{{ url_for('surveys.admin_responses', survey_id=survey.id) }}" class="btn btn-sm" style="border:1.5px solid #d1d5db;border-radius:8px;font-weight:600">
++      <i class="bi bi-bar-chart me-1"></i>{{ 'الردود' if ar else 'Responses' }} ({{ survey.responses|length }})
++    </a>
++    <a href="{{ url_for('surveys.admin_list') }}" class="btn btn-sm" style="border:1.5px solid #d1d5db;border-radius:8px;font-weight:600">
++      <i class="bi bi-arrow-right me-1"></i>{{ 'رجوع' if ar else 'Back' }}
++    </a>
++    <form method="POST" action="{{ url_for('surveys.admin_delete', survey_id=survey.id) }}"
++          onsubmit="return confirm('{{ 'حذف هذه الاستمارة وكل ردودها؟ لا يمكن التراجع.' if ar else 'Delete this form and all its responses? This cannot be undone.' }}')">
++      <button type="submit" class="btn btn-sm" style="background:#fef2f2;color:#dc2626;border:none;border-radius:8px;font-weight:600">
++        <i class="bi bi-trash"></i>
++      </button>
++    </form>
++  </div>
++</div>
++
++<!-- Publish settings -->
++<div style="background:#f5f3ff;border-radius:12px;padding:14px 18px;margin-bottom:18px">
++  <div class="row g-3 align-items-center">
++    <div class="col-auto">
++      <label class="d-flex align-items-center gap-2" style="cursor:pointer;font-weight:700">
++        <input type="checkbox" id="isPublished" {{ 'checked' if survey.is_published }}>
++        {{ 'نشر الاستمارة' if ar else 'Publish form' }}
++      </label>
++    </div>
++    <div class="col-auto">
++      <label class="d-flex align-items-center gap-2" style="cursor:pointer">
++        <input type="checkbox" id="requireCode" {{ 'checked' if survey.require_code }}>
++        {{ 'يتطلب رمز دخول' if ar else 'Require access code' }}
++      </label>
++    </div>
++    <div class="col-auto">
++      <label class="d-flex align-items-center gap-2" style="cursor:pointer">
++        <input type="checkbox" id="collectName" {{ 'checked' if survey.collect_name }}>
++        {{ 'اطلب اسم المستجيب' if ar else 'Ask respondent name' }}
++      </label>
++    </div>
++  </div>
++  {% if survey.is_published %}
++  <div class="d-flex gap-2 align-items-center flex-wrap mt-3">
++    <input type="text" id="fillUrlBox" value="{{ fill_url }}" readonly
++           style="flex:1;min-width:220px;border:1px solid #ddd6fe;border-radius:8px;padding:7px 12px;font-family:monospace;font-size:.82rem;direction:ltr">
++    <button type="button" class="btn btn-sm" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;font-weight:700" onclick="copyFillUrl()">
++      <i class="bi bi-clipboard me-1"></i>{{ 'نسخ الرابط' if ar else 'Copy Link' }}
++    </button>
++    {% if survey.require_code %}
++    <span style="font-size:.86rem;font-weight:700;color:#7c3aed">
++      <i class="bi bi-key-fill me-1"></i>{{ 'الرمز:' if ar else 'Code:' }} <span id="accessCodeDisplay" style="font-family:monospace">{{ survey.access_code or '—' }}</span>
++    </span>
++    {% endif %}
++  </div>
++  {% endif %}
++</div>
++
++<!-- Questions -->
++<div id="questionsList"></div>
++
++<div class="d-flex gap-2 mb-4">
++  <select id="newQType" class="form-select" style="max-width:220px">
++    <option value="short_text">{{ 'إجابة قصيرة' if ar else 'Short answer' }}</option>
++    <option value="paragraph">{{ 'فقرة' if ar else 'Paragraph' }}</option>
++    <option value="multiple_choice">{{ 'اختيار واحد' if ar else 'Multiple choice' }}</option>
++    <option value="checkboxes">{{ 'مربعات اختيار' if ar else 'Checkboxes' }}</option>
++    <option value="dropdown">{{ 'قائمة منسدلة' if ar else 'Dropdown' }}</option>
++    <option value="linear_scale">{{ 'مقياس خطي' if ar else 'Linear scale' }}</option>
++    <option value="date">{{ 'تاريخ' if ar else 'Date' }}</option>
++    <option value="time">{{ 'وقت' if ar else 'Time' }}</option>
++  </select>
++  <button type="button" class="btn" style="background:#f5f3ff;color:#7c3aed;border:1.5px dashed #7c3aed;border-radius:8px;font-weight:700;padding:8px 20px" onclick="addQuestion()">
++    <i class="bi bi-plus-circle me-1"></i>{{ 'إضافة سؤال' if ar else 'Add Question' }}
++  </button>
++</div>
++
++<div class="position-sticky bottom-0 bg-white py-3" style="border-top:1px solid #eee">
++  <button type="button" class="btn" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;font-weight:700;padding:10px 30px" onclick="saveSurvey()">
++    <i class="bi bi-check2 me-1"></i>{{ 'حفظ' if ar else 'Save' }}
++  </button>
++  <span id="saveStatus" style="margin-inline-start:10px;font-size:.86rem;font-weight:600"></span>
++</div>
++
++<script>
++const ar = {{ 'true' if ar else 'false' }};
++const TYPE_LABELS = {
++  short_text: ar ? 'إجابة قصيرة' : 'Short answer',
++  paragraph: ar ? 'فقرة' : 'Paragraph',
++  multiple_choice: ar ? 'اختيار واحد' : 'Multiple choice',
++  checkboxes: ar ? 'مربعات اختيار' : 'Checkboxes',
++  dropdown: ar ? 'قائمة منسدلة' : 'Dropdown',
++  linear_scale: ar ? 'مقياس خطي' : 'Linear scale',
++  date: ar ? 'تاريخ' : 'Date',
++  time: ar ? 'وقت' : 'Time',
++};
++const CHOICE_TYPES = ['multiple_choice', 'checkboxes', 'dropdown'];
++
++let questions = [];
++// Build from server data safely
++questions = [
++  {% for q in survey.questions %}
++  {
++    id: {{ q.id }},
++    type: {{ q.question_type | tojson }},
++    text: {{ q.question_text | tojson }},
++    required: {{ 'true' if q.required else 'false' }},
++    options: {{ q.options_list | tojson }},
++    scale_min: {{ q.scale_min or 1 }},
++    scale_max: {{ q.scale_max or 5 }},
++    scale_min_label: {{ (q.scale_min_label or '') | tojson }},
++    scale_max_label: {{ (q.scale_max_label or '') | tojson }},
++  },
++  {% endfor %}
++];
++
++function render() {
++  const container = document.getElementById('questionsList');
++  container.innerHTML = '';
++  questions.forEach((q, idx) => {
++    const card = document.createElement('div');
++    card.className = 'q-card' + (q.required ? ' q-required' : '');
++    card.dataset.idx = idx;
++
++    let optionsHtml = '';
++    if (CHOICE_TYPES.includes(q.type)) {
++      optionsHtml = '<div class="opt-list">' + q.options.map((opt, oi) =>
++        `<div class="opt-row">
++           <span style="width:18px;color:#9ca3af">${q.type === 'checkboxes' ? '☐' : '○'}</span>
++           <input type="text" class="form-control form-control-sm opt-input" value="${opt.replace(/"/g,'&quot;')}" oninput="updateOption(${idx},${oi},this.value)">
++           <button type="button" class="btn btn-sm" style="color:#dc2626" onclick="removeOption(${idx},${oi})"><i class="bi bi-x"></i></button>
++         </div>`
++      ).join('') + '</div>' +
++      `<button type="button" class="btn btn-sm mt-1" style="color:#7c3aed;font-size:.82rem" onclick="addOption(${idx})">
++         <i class="bi bi-plus"></i> ${ar ? 'إضافة خيار' : 'Add option'}
++       </button>`;
++    } else if (q.type === 'linear_scale') {
++      optionsHtml = `
++        <div class="d-flex gap-2 align-items-center flex-wrap mt-2">
++          <input type="number" class="form-control form-control-sm" style="width:70px" value="${q.scale_min}" min="0" max="10" onchange="updateField(${idx},'scale_min',parseInt(this.value))">
++          <span>${ar ? 'إلى' : 'to'}</span>
++          <input type="number" class="form-control form-control-sm" style="width:70px" value="${q.scale_max}" min="1" max="10" onchange="updateField(${idx},'scale_max',parseInt(this.value))">
++          <input type="text" class="form-control form-control-sm" style="width:160px" placeholder="${ar ? 'تسمية البداية (اختياري)' : 'Low label (optional)'}" value="${(q.scale_min_label||'').replace(/"/g,'&quot;')}" oninput="updateField(${idx},'scale_min_label',this.value)">
++          <input type="text" class="form-control form-control-sm" style="width:160px" placeholder="${ar ? 'تسمية النهاية (اختياري)' : 'High label (optional)'}" value="${(q.scale_max_label||'').replace(/"/g,'&quot;')}" oninput="updateField(${idx},'scale_max_label',this.value)">
++        </div>`;
++    }
++
++    card.innerHTML = `
++      <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
++        <select class="form-select form-select-sm" style="max-width:200px" onchange="updateField(${idx},'type',this.value)">
++          ${Object.entries(TYPE_LABELS).map(([k,v]) => `<option value="${k}" ${q.type===k?'selected':''}>${v}</option>`).join('')}
++        </select>
++        <div class="q-toolbar">
++          <label class="d-flex align-items-center gap-1" style="font-size:.8rem;cursor:pointer">
++            <input type="checkbox" ${q.required?'checked':''} onchange="updateField(${idx},'required',this.checked)">
++            ${ar ? 'إجباري' : 'Required'}
++          </label>
++          <button type="button" onclick="moveQuestion(${idx},-1)" title="${ar?'أعلى':'Up'}"><i class="bi bi-arrow-up"></i></button>
++          <button type="button" onclick="moveQuestion(${idx},1)" title="${ar?'أسفل':'Down'}"><i class="bi bi-arrow-down"></i></button>
++          <button type="button" class="danger" onclick="removeQuestion(${idx})" title="${ar?'حذف':'Delete'}"><i class="bi bi-trash"></i></button>
++        </div>
++      </div>
++      <input type="text" class="form-control mb-1" placeholder="${ar ? 'نص السؤال' : 'Question text'}" value="${q.text.replace(/"/g,'&quot;')}" oninput="updateField(${idx},'text',this.value)">
++      ${optionsHtml}
++    `;
++    container.appendChild(card);
++  });
++}
++
++function updateField(idx, field, value) {
++  questions[idx][field] = value;
++  if (field === 'type') render();
++}
++function updateOption(idx, oi, value) { questions[idx].options[oi] = value; }
++function addOption(idx) {
++  questions[idx].options.push((ar ? 'خيار ' : 'Option ') + (questions[idx].options.length + 1));
++  render();
++}
++function removeOption(idx, oi) { questions[idx].options.splice(oi, 1); render(); }
++function moveQuestion(idx, dir) {
++  const target = idx + dir;
++  if (target < 0 || target >= questions.length) return;
++  [questions[idx], questions[target]] = [questions[target], questions[idx]];
++  render();
++}
++function removeQuestion(idx) {
++  if (!confirm(ar ? 'حذف هذا السؤال؟' : 'Delete this question?')) return;
++  questions.splice(idx, 1);
++  render();
++}
++function addQuestion() {
++  const type = document.getElementById('newQType').value;
++  const q = { id: null, type, text: '', required: false, options: [], scale_min: 1, scale_max: 5, scale_min_label: '', scale_max_label: '' };
++  if (CHOICE_TYPES.includes(type)) q.options = [ar ? 'خيار 1' : 'Option 1'];
++  questions.push(q);
++  render();
++}
++
++function copyFillUrl() {
++  const box = document.getElementById('fillUrlBox');
++  box.select();
++  navigator.clipboard.writeText(box.value).catch(() => document.execCommand('copy'));
++}
++
++function saveSurvey() {
++  const statusEl = document.getElementById('saveStatus');
++  statusEl.textContent = ar ? 'جارٍ الحفظ...' : 'Saving...';
++  statusEl.style.color = '#6b7280';
++  fetch('{{ url_for("surveys.admin_save", survey_id=survey.id) }}', {
++    method: 'POST',
++    headers: { 'Content-Type': 'application/json' },
++    body: JSON.stringify({
++      name: document.getElementById('surveyName').value,
++      description: document.getElementById('surveyDesc').value,
++      is_published: document.getElementById('isPublished').checked,
++      require_code: document.getElementById('requireCode').checked,
++      collect_name: document.getElementById('collectName').checked,
++      questions: questions,
++    })
++  })
++    .then(r => r.json())
++    .then(d => {
++      if (d.ok) {
++        statusEl.textContent = ar ? 'تم الحفظ ✓' : 'Saved ✓';
++        statusEl.style.color = '#047857';
++        setTimeout(() => location.reload(), 700);
++      } else {
++        statusEl.textContent = d.error || (ar ? 'حدث خطأ' : 'Error');
++        statusEl.style.color = '#dc2626';
++      }
++    })
++    .catch(() => {
++      statusEl.textContent = ar ? 'فشل الاتصال بالخادم' : 'Connection error';
++      statusEl.style.color = '#dc2626';
++    });
++}
++
++render();
++</script>
++{% endblock %}
+diff --git a/templates/surveys/admin/list.html b/templates/surveys/admin/list.html
+new file mode 100644
+index 0000000..07ea758
+--- /dev/null
++++ b/templates/surveys/admin/list.html
+@@ -0,0 +1,55 @@
++{% extends "base.html" %}
++{%- set ar = (current_lang == 'ar') -%}
++
++{% block title %}{{ 'الاستمارات والاستبيانات' if ar else 'Forms & Surveys' }}{% endblock %}
++
++{% block content %}
++<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
++  <h1 style="font-size:1.3rem;font-weight:700;margin:0">
++    <i class="bi bi-ui-checks-grid me-2" style="color:#7c3aed"></i>{{ 'الاستمارات والاستبيانات' if ar else 'Forms & Surveys' }}
++  </h1>
++  <a href="{{ url_for('surveys.admin_new') }}" class="btn btn-sm" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;font-weight:700;padding:8px 18px">
++    <i class="bi bi-plus-circle me-1"></i>{{ 'استمارة جديدة' if ar else 'New Form' }}
++  </a>
++</div>
++
++{% if surveys %}
++<div class="table-responsive">
++  <table class="table table-hover align-middle" style="background:#fff;border-radius:12px;overflow:hidden">
++    <thead style="background:#f5f3ff">
++      <tr>
++        <th>{{ 'الاسم' if ar else 'Name' }}</th>
++        <th>{{ 'الحالة' if ar else 'Status' }}</th>
++        <th>{{ 'الأسئلة' if ar else 'Questions' }}</th>
++        <th>{{ 'الردود' if ar else 'Responses' }}</th>
++        <th></th>
++      </tr>
++    </thead>
++    <tbody>
++      {% for s in surveys %}
++      <tr>
++        <td style="font-weight:600">{{ s.name }}</td>
++        <td>
++          {% if s.is_published %}<span style="color:#047857;font-weight:700"><i class="bi bi-check-circle-fill me-1"></i>{{ 'منشورة' if ar else 'Published' }}</span>
++          {% else %}<span style="color:#6b7280"><i class="bi bi-pencil me-1"></i>{{ 'مسودة' if ar else 'Draft' }}</span>{% endif %}
++          {% if s.require_code %}<span style="margin-inline-start:6px;font-size:.72rem;color:#7c3aed"><i class="bi bi-key-fill"></i></span>{% endif %}
++        </td>
++        <td>{{ s.questions|length }}</td>
++        <td>{{ s.responses|length }}</td>
++        <td>
++          <a href="{{ url_for('surveys.admin_builder', survey_id=s.id) }}" class="btn btn-sm" style="background:#f5f3ff;color:#7c3aed;border:none;border-radius:6px;font-weight:600">
++            {{ 'تحرير' if ar else 'Edit' }}
++          </a>
++          <a href="{{ url_for('surveys.admin_responses', survey_id=s.id) }}" class="btn btn-sm" style="background:#ecfeff;color:#0e7490;border:none;border-radius:6px;font-weight:600">
++            {{ 'الردود' if ar else 'Responses' }}
++          </a>
++        </td>
++      </tr>
++      {% endfor %}
++    </tbody>
++  </table>
++</div>
++{% else %}
++<div class="text-center text-muted" style="padding:40px">{{ 'لا توجد استمارات بعد' if ar else 'No forms yet' }}</div>
++{% endif %}
++{% endblock %}
+diff --git a/templates/surveys/admin/new.html b/templates/surveys/admin/new.html
+new file mode 100644
+index 0000000..7c09647
+--- /dev/null
++++ b/templates/surveys/admin/new.html
+@@ -0,0 +1,36 @@
++{% extends "base.html" %}
++{%- set ar = (current_lang == 'ar') -%}
++
++{% block title %}{{ 'استمارة جديدة' if ar else 'New Form' }}{% endblock %}
++
++{% block content %}
++<h1 style="font-size:1.3rem;font-weight:700;margin-bottom:16px">
++  <i class="bi bi-plus-circle me-2" style="color:#7c3aed"></i>{{ 'استمارة جديدة' if ar else 'New Form' }}
++</h1>
++
++<div style="max-width:640px">
++  <h6 class="fw-bold mb-2">{{ 'ابدأ من قالب جاهز' if ar else 'Start from a template' }}</h6>
++  <div class="row g-2 mb-4">
++    {% for key, tpl in templates.items() %}
++    <div class="col-12 col-md-6">
++      <form method="POST">
++        <input type="hidden" name="template" value="{{ key }}">
++        <button type="submit" class="w-100 text-start border rounded p-3" style="background:#fff;cursor:pointer;border-color:#e5e7eb !important">
++          <div style="font-weight:700;color:#7c3aed">{{ tpl.name_ar if ar else tpl.name_en }}</div>
++          <div style="font-size:.8rem;color:#6b7280;margin-top:4px">{{ tpl.desc_ar if ar else tpl.desc_en }}</div>
++          <div style="font-size:.74rem;color:#9ca3af;margin-top:6px">{{ tpl.questions|length }} {{ 'أسئلة' if ar else 'questions' }}</div>
++        </button>
++      </form>
++    </div>
++    {% endfor %}
++  </div>
++
++  <h6 class="fw-bold mb-2">{{ 'أو ابدأ من الصفر' if ar else 'Or start blank' }}</h6>
++  <form method="POST" class="d-flex gap-2">
++    <input type="text" name="name" class="form-control" placeholder="{{ 'اسم الاستمارة' if ar else 'Form name' }}" required>
++    <button type="submit" class="btn" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;font-weight:700;padding:8px 20px;white-space:nowrap">
++      {{ 'إنشاء' if ar else 'Create' }}
++    </button>
++  </form>
++</div>
++{% endblock %}
+diff --git a/templates/surveys/admin/responses.html b/templates/surveys/admin/responses.html
+new file mode 100644
+index 0000000..834ab02
+--- /dev/null
++++ b/templates/surveys/admin/responses.html
+@@ -0,0 +1,70 @@
++{% extends "base.html" %}
++{%- set ar = (current_lang == 'ar') -%}
++
++{% block title %}{{ survey.name }} — {{ 'الردود' if ar else 'Responses' }}{% endblock %}
++
++{% block content %}
++<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
++  <h1 style="font-size:1.3rem;font-weight:700;margin:0">
++    <i class="bi bi-bar-chart me-2" style="color:#7c3aed"></i>{{ survey.name }} — {{ 'الردود' if ar else 'Responses' }} ({{ response_rows|length }})
++  </h1>
++  <div class="d-flex gap-2">
++    <a href="{{ url_for('surveys.admin_responses_export', survey_id=survey.id) }}" class="btn btn-sm" style="border:1.5px solid #d1d5db;border-radius:8px;font-weight:600">
++      <i class="bi bi-download me-1"></i>{{ 'تصدير CSV' if ar else 'Export CSV' }}
++    </a>
++    <a href="{{ url_for('surveys.admin_builder', survey_id=survey.id) }}" class="btn btn-sm" style="border:1.5px solid #d1d5db;border-radius:8px;font-weight:600">
++      <i class="bi bi-arrow-right me-1"></i>{{ 'رجوع' if ar else 'Back' }}
++    </a>
++  </div>
++</div>
++
++{% if not response_rows %}
++<div class="text-center text-muted" style="padding:40px">{{ 'لا توجد ردود بعد' if ar else 'No responses yet' }}</div>
++{% else %}
++
++<!-- Per-question summary for choice/scale questions -->
++{% for q in survey.questions %}
++{% if q.id in summary %}
++<div style="background:#fff;border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.05)">
++  <div style="font-weight:700;margin-bottom:10px">{{ q.question_text }}</div>
++  {% set total = summary[q.id].values() | sum %}
++  {% for opt, count in summary[q.id].items() %}
++  <div class="d-flex align-items-center gap-2 mb-1" style="font-size:.86rem">
++    <div style="width:140px;flex-shrink:0">{{ opt }}</div>
++    <div style="flex:1;background:#f5f3ff;border-radius:6px;height:18px;overflow:hidden">
++      <div style="background:#7c3aed;height:100%;width:{{ (count/total*100) if total else 0 }}%"></div>
++    </div>
++    <div style="width:40px;text-align:end;font-weight:600">{{ count }}</div>
++  </div>
++  {% endfor %}
++</div>
++{% endif %}
++{% endfor %}
++
++<!-- Raw responses table -->
++<div class="table-responsive mt-4">
++  <table class="table table-bordered" style="background:#fff;font-size:.86rem">
++    <thead style="background:#f5f3ff">
++      <tr>
++        <th>{{ 'المستجيب' if ar else 'Respondent' }}</th>
++        <th>{{ 'التاريخ' if ar else 'Date' }}</th>
++        {% for q in survey.questions %}
++        <th>{{ q.question_text }}</th>
++        {% endfor %}
++      </tr>
++    </thead>
++    <tbody>
++      {% for r, ans_map in response_rows %}
++      <tr>
++        <td>{{ r.respondent_name or '—' }}</td>
++        <td style="direction:ltr;text-align:end">{{ r.submitted_at.strftime('%Y-%m-%d %H:%M') if r.submitted_at else '' }}</td>
++        {% for q in survey.questions %}
++        <td>{{ ans_map.get(q.id, '') }}</td>
++        {% endfor %}
++      </tr>
++      {% endfor %}
++    </tbody>
++  </table>
++</div>
++{% endif %}
++{% endblock %}
+diff --git a/templates/surveys/fill.html b/templates/surveys/fill.html
+new file mode 100644
+index 0000000..f0f6171
+--- /dev/null
++++ b/templates/surveys/fill.html
+@@ -0,0 +1,113 @@
++<!DOCTYPE html>
++{%- set ar = (current_lang == 'ar') -%}
++<html lang="{{ current_lang }}" dir="{{ 'rtl' if ar else 'ltr' }}">
++<head>
++<meta charset="UTF-8">
++<meta name="viewport" content="width=device-width,initial-scale=1">
++<title>{{ survey.name }}</title>
++<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
++<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css">
++<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
++<style>
++  body { font-family: {{ "'Tajawal', " if ar }}sans-serif; background: linear-gradient(160deg,#f5f3ff,#faf5ff 60%,#fff); min-height: 100vh; padding: 24px 16px; }
++  .wrap { max-width: 640px; margin: 0 auto; }
++  .header-card { background: #fff; border-top: 10px solid #7c3aed; border-radius: 16px; padding: 26px; margin-bottom: 18px; box-shadow: 0 6px 24px rgba(124,58,237,.10); text-align: center; }
++  .header-card h1 { font-size: 1.3rem; font-weight: 800; color: #1f2937; margin: 8px 0 4px; }
++  .header-card .desc { font-size: .88rem; color: #6b7280; }
++  .q-card { background: #fff; border-radius: 14px; padding: 20px; margin-bottom: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.05); }
++  .q-title { font-weight: 700; font-size: 1rem; margin-bottom: 12px; }
++  .q-title .req { color: #dc2626; }
++  .opt-label { display: flex; align-items: center; gap: 10px; padding: 8px 4px; cursor: pointer; }
++  .opt-label input { width: 18px; height: 18px; accent-color: #7c3aed; flex-shrink: 0; }
++  .scale-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
++  .scale-item { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: .78rem; color: #6b7280; }
++  .scale-item input { width: 20px; height: 20px; accent-color: #7c3aed; }
++  .btn-submit { background: linear-gradient(135deg,#a78bfa,#7c3aed); color: #fff; border: none; border-radius: 12px;
++                padding: 13px; font-weight: 800; font-size: 1rem; width: 100%; margin-top: 6px; }
++  .error-box { background: #fef2f2; border: 1.5px solid #fca5a5; color: #b91c1c; border-radius: 12px; padding: 14px; margin-bottom: 14px; font-size: .86rem; font-weight: 600; }
++</style>
++</head>
++<body>
++<div class="wrap">
++  <div class="header-card">
++    {% if config and config.school_logo_b64 %}
++    {%- set _logo = config.school_logo_b64 -%}
++    {%- set _logo_src = _logo if _logo.startswith('data:') else ('data:image/png;base64,' ~ _logo) -%}
++    <img src="{{ _logo_src }}" alt="Logo" style="max-height:56px;max-width:160px;object-fit:contain">
++    {% else %}
++    <i class="bi bi-ui-checks-grid" style="font-size:1.8rem;color:#7c3aed"></i>
++    {% endif %}
++    <h1>{{ survey.name }}</h1>
++    {% if survey.description %}<div class="desc">{{ survey.description }}</div>{% endif %}
++  </div>
++
++  {% if error %}<div class="error-box"><i class="bi bi-x-circle-fill me-1"></i>{{ error }}</div>{% endif %}
++
++  <form method="POST" action="{{ url_for('surveys.public_submit', survey_id=survey.id) }}">
++    {% if survey.collect_name %}
++    <div class="q-card">
++      <div class="q-title">{{ 'الاسم' if ar else 'Name' }}</div>
++      <input type="text" name="respondent_name" class="form-control" placeholder="{{ 'اكتب اسمك' if ar else 'Your name' }}">
++    </div>
++    {% endif %}
++
++    {% for q in survey.questions %}
++    <div class="q-card">
++      <div class="q-title">{{ q.question_text }}{% if q.required %} <span class="req">*</span>{% endif %}</div>
++
++      {% if q.question_type == 'short_text' %}
++        <input type="text" name="q_{{ q.id }}" class="form-control" {{ 'required' if q.required }}>
++
++      {% elif q.question_type == 'paragraph' %}
++        <textarea name="q_{{ q.id }}" class="form-control" rows="3" {{ 'required' if q.required }}></textarea>
++
++      {% elif q.question_type == 'multiple_choice' %}
++        {% for opt in q.options_list %}
++        <label class="opt-label">
++          <input type="radio" name="q_{{ q.id }}" value="{{ opt }}" {{ 'required' if q.required }}>
++          {{ opt }}
++        </label>
++        {% endfor %}
++
++      {% elif q.question_type == 'checkboxes' %}
++        {% for opt in q.options_list %}
++        <label class="opt-label">
++          <input type="checkbox" name="q_{{ q.id }}" value="{{ opt }}">
++          {{ opt }}
++        </label>
++        {% endfor %}
++
++      {% elif q.question_type == 'dropdown' %}
++        <select name="q_{{ q.id }}" class="form-select" {{ 'required' if q.required }}>
++          <option value="" disabled selected>{{ 'اختر...' if ar else 'Choose...' }}</option>
++          {% for opt in q.options_list %}
++          <option value="{{ opt }}">{{ opt }}</option>
++          {% endfor %}
++        </select>
++
++      {% elif q.question_type == 'linear_scale' %}
++        <div class="scale-row">
++          {% if q.scale_min_label %}<span style="font-size:.78rem;color:#6b7280;max-width:80px">{{ q.scale_min_label }}</span>{% endif %}
++          {% for n in range(q.scale_min, q.scale_max + 1) %}
++          <div class="scale-item">
++            <span>{{ n }}</span>
++            <input type="radio" name="q_{{ q.id }}" value="{{ n }}" {{ 'required' if q.required }}>
++          </div>
++          {% endfor %}
++          {% if q.scale_max_label %}<span style="font-size:.78rem;color:#6b7280;max-width:80px;text-align:end">{{ q.scale_max_label }}</span>{% endif %}
++        </div>
++
++      {% elif q.question_type == 'date' %}
++        <input type="date" name="q_{{ q.id }}" class="form-control" {{ 'required' if q.required }}>
++
++      {% elif q.question_type == 'time' %}
++        <input type="time" name="q_{{ q.id }}" class="form-control" {{ 'required' if q.required }}>
++      {% endif %}
++    </div>
++    {% endfor %}
++
++    <button type="submit" class="btn-submit"><i class="bi bi-send me-1"></i>{{ 'إرسال' if ar else 'Submit' }}</button>
++  </form>
++</div>
++</body>
++</html>
+diff --git a/templates/surveys/gate.html b/templates/surveys/gate.html
+new file mode 100644
+index 0000000..273e3b0
+--- /dev/null
++++ b/templates/surveys/gate.html
+@@ -0,0 +1,45 @@
++<!DOCTYPE html>
++{%- set ar = (current_lang == 'ar') -%}
++<html lang="{{ current_lang }}" dir="{{ 'rtl' if ar else 'ltr' }}">
++<head>
++<meta charset="UTF-8">
++<meta name="viewport" content="width=device-width,initial-scale=1">
++<title>{{ survey.name }}</title>
++<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
++<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css">
++<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
++<style>
++  body { font-family: {{ "'Tajawal', " if ar }}sans-serif; background: linear-gradient(160deg,#f5f3ff,#faf5ff 60%,#fff); min-height: 100vh;
++         display: flex; align-items: center; justify-content: center; padding: 16px; }
++  .card-box { max-width: 420px; width: 100%; background: #fff; border-radius: 20px; box-shadow: 0 10px 40px rgba(124,58,237,.14); padding: 32px 26px; text-align: center; }
++  .card-box h1 { font-size: 1.1rem; font-weight: 800; color: #6d28d9; margin-bottom: 4px; }
++  .card-box .sub { font-size: .84rem; color: #6b7280; margin-bottom: 22px; }
++  .code-input { font-size: 1.6rem; font-weight: 900; letter-spacing: 6px; text-align: center; text-transform: uppercase;
++                border-radius: 12px; border: 2px solid #ddd6fe; padding: 12px; width: 100%; }
++  .code-input:focus { border-color: #7c3aed; outline: none; box-shadow: 0 0 0 3px #ddd6fe55; }
++  .btn-submit { background: linear-gradient(135deg,#a78bfa,#7c3aed); color: #fff; border: none; border-radius: 12px;
++                padding: 12px; font-weight: 800; font-size: 1rem; width: 100%; margin-top: 14px; }
++  .error-box { background: #fef2f2; border: 1.5px solid #fca5a5; color: #b91c1c; border-radius: 12px; padding: 14px; margin-bottom: 14px; font-size: .86rem; font-weight: 600; }
++</style>
++</head>
++<body>
++<div class="card-box">
++  {% if config and config.school_logo_b64 %}
++  {%- set _logo = config.school_logo_b64 -%}
++  {%- set _logo_src = _logo if _logo.startswith('data:') else ('data:image/png;base64,' ~ _logo) -%}
++  <img src="{{ _logo_src }}" alt="Logo" style="max-height:64px;max-width:180px;object-fit:contain;margin-bottom:6px">
++  {% else %}
++  <i class="bi bi-ui-checks-grid" style="font-size:2rem;color:#7c3aed"></i>
++  {% endif %}
++  <h1 class="mt-2">{{ survey.name }}</h1>
++  {% if survey.description %}<div class="sub">{{ survey.description }}</div>{% endif %}
++
++  {% if error %}<div class="error-box"><i class="bi bi-x-circle-fill me-1"></i>{{ error }}</div>{% endif %}
++
++  <form method="POST">
++    <input type="text" name="code" class="code-input" maxlength="10" placeholder="{{ 'الرمز' if ar else 'CODE' }}" autofocus required>
++    <button type="submit" class="btn-submit"><i class="bi bi-unlock me-1"></i>{{ 'دخول' if ar else 'Enter' }}</button>
++  </form>
++</div>
++</body>
++</html>
+diff --git a/templates/surveys/thanks.html b/templates/surveys/thanks.html
+new file mode 100644
+index 0000000..b1749c7
+--- /dev/null
++++ b/templates/surveys/thanks.html
+@@ -0,0 +1,27 @@
++<!DOCTYPE html>
++{%- set ar = (current_lang == 'ar') -%}
++<html lang="{{ current_lang }}" dir="{{ 'rtl' if ar else 'ltr' }}">
++<head>
++<meta charset="UTF-8">
++<meta name="viewport" content="width=device-width,initial-scale=1">
++<title>{{ survey.name }}</title>
++<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
++<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css">
++<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
++<style>
++  body { font-family: {{ "'Tajawal', " if ar }}sans-serif; background: linear-gradient(160deg,#f5f3ff,#faf5ff 60%,#fff); min-height: 100vh;
++         display: flex; align-items: center; justify-content: center; padding: 16px; }
++  .card-box { max-width: 420px; width: 100%; background: #fff; border-radius: 20px; box-shadow: 0 10px 40px rgba(124,58,237,.14); padding: 36px 26px; text-align: center; }
++  .icn { font-size: 2.4rem; color: #7c3aed; }
++  h1 { font-size: 1.15rem; font-weight: 800; color: #1f2937; margin: 12px 0 6px; }
++  .sub { font-size: .86rem; color: #6b7280; }
++</style>
++</head>
++<body>
++<div class="card-box">
++  <i class="bi bi-check-circle-fill icn"></i>
++  <h1>{{ 'شكراً لك!' if ar else 'Thank you!' }}</h1>
++  <div class="sub">{{ 'تم إرسال ردك بنجاح.' if ar else 'Your response has been recorded.' }}</div>
++</div>
++</body>
++</html>

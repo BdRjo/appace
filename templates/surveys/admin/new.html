@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{%- set ar = (current_lang == 'ar') -%}
+
+{% block title %}{{ 'استمارة جديدة' if ar else 'New Form' }}{% endblock %}
+
+{% block content %}
+<h1 style="font-size:1.3rem;font-weight:700;margin-bottom:16px">
+  <i class="bi bi-plus-circle me-2" style="color:#7c3aed"></i>{{ 'استمارة جديدة' if ar else 'New Form' }}
+</h1>
+
+<div style="max-width:640px">
+  <h6 class="fw-bold mb-2">{{ 'ابدأ من قالب جاهز' if ar else 'Start from a template' }}</h6>
+  <div class="row g-2 mb-4">
+    {% for key, tpl in templates.items() %}
+    <div class="col-12 col-md-6">
+      <form method="POST">
+        <input type="hidden" name="template" value="{{ key }}">
+        <button type="submit" class="w-100 text-start border rounded p-3" style="background:#fff;cursor:pointer;border-color:#e5e7eb !important">
+          <div style="font-weight:700;color:#7c3aed">{{ tpl.name_ar if ar else tpl.name_en }}</div>
+          <div style="font-size:.8rem;color:#6b7280;margin-top:4px">{{ tpl.desc_ar if ar else tpl.desc_en }}</div>
+          <div style="font-size:.74rem;color:#9ca3af;margin-top:6px">{{ tpl.questions|length }} {{ 'أسئلة' if ar else 'questions' }}</div>
+        </button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+
+  <h6 class="fw-bold mb-2">{{ 'أو ابدأ من الصفر' if ar else 'Or start blank' }}</h6>
+  <form method="POST" class="d-flex gap-2">
+    <input type="text" name="name" class="form-control" placeholder="{{ 'اسم الاستمارة' if ar else 'Form name' }}" required>
+    <button type="submit" class="btn" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;font-weight:700;padding:8px 20px;white-space:nowrap">
+      {{ 'إنشاء' if ar else 'Create' }}
+    </button>
+  </form>
+</div>
+{% endblock %}

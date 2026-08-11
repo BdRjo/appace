@@ -1313,3 +1313,79 @@ class EventAttendee(Base):
     code_sent      = Column(Boolean, default=False)
     created_at     = Column(DateTime, default=datetime.now)
     event          = relationship('EventCheckin', back_populates='attendees')
+
+
+# ===========================================================================
+# SURVEYS / FORMS (Google-Forms-style builder)
+# ===========================================================================
+
+class Survey(Base):
+    """A survey/form: a set of questions, published or draft, optionally
+    gated by an access code (like the event check-in codes) or open to
+    anyone with the link."""
+    __tablename__ = 'surveys'
+    id             = Column(Integer, primary_key=True)
+    name           = Column(String(200), nullable=False)
+    description    = Column(Text)
+    is_published   = Column(Boolean, default=False)
+    require_code   = Column(Boolean, default=False)
+    access_code    = Column(String(20))
+    collect_name   = Column(Boolean, default=False)   # ask the respondent's name before filling
+    created_at     = Column(DateTime, default=datetime.now)
+    questions      = relationship('SurveyQuestion', back_populates='survey',
+                                   cascade='all, delete-orphan', order_by='SurveyQuestion.order_num')
+    responses      = relationship('SurveyResponse', back_populates='survey', cascade='all, delete-orphan')
+
+
+class SurveyQuestion(Base):
+    """One question on a survey. question_type is one of: short_text,
+    paragraph, multiple_choice, checkboxes, dropdown, linear_scale, date,
+    time. options_json holds a JSON list of choice labels for the
+    choice-based types."""
+    __tablename__ = 'survey_questions'
+    id              = Column(Integer, primary_key=True)
+    survey_id       = Column(Integer, ForeignKey('surveys.id'), nullable=False)
+    order_num       = Column(Integer, default=0)
+    question_type   = Column(String(30), nullable=False)
+    question_text   = Column(String(500), nullable=False)
+    required        = Column(Boolean, default=False)
+    options_json    = Column(Text)
+    scale_min       = Column(Integer, default=1)
+    scale_max       = Column(Integer, default=5)
+    scale_min_label = Column(String(100))
+    scale_max_label = Column(String(100))
+    survey          = relationship('Survey', back_populates='questions')
+
+    @property
+    def options_list(self):
+        """Parsed choice options as a plain Python list (empty if none)."""
+        if not self.options_json:
+            return []
+        try:
+            import json
+            return json.loads(self.options_json)
+        except Exception:
+            return []
+
+
+class SurveyResponse(Base):
+    """One completed submission of a survey."""
+    __tablename__ = 'survey_responses'
+    id              = Column(Integer, primary_key=True)
+    survey_id       = Column(Integer, ForeignKey('surveys.id'), nullable=False)
+    respondent_name = Column(String(200))
+    submitted_at    = Column(DateTime, default=datetime.now)
+    survey          = relationship('Survey', back_populates='responses')
+    answers         = relationship('SurveyAnswer', back_populates='response', cascade='all, delete-orphan')
+
+
+class SurveyAnswer(Base):
+    """One answer within a response. For checkboxes (multi-select),
+    answer_text holds a JSON list; every other type stores plain text."""
+    __tablename__ = 'survey_answers'
+    id           = Column(Integer, primary_key=True)
+    response_id  = Column(Integer, ForeignKey('survey_responses.id'), nullable=False)
+    question_id  = Column(Integer, ForeignKey('survey_questions.id'), nullable=False)
+    answer_text  = Column(Text)
+    response     = relationship('SurveyResponse', back_populates='answers')
+    question     = relationship('SurveyQuestion')

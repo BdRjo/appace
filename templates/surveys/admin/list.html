@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{%- set ar = (current_lang == 'ar') -%}
+
+{% block title %}{{ 'الاستمارات والاستبيانات' if ar else 'Forms & Surveys' }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <h1 style="font-size:1.3rem;font-weight:700;margin:0">
+    <i class="bi bi-ui-checks-grid me-2" style="color:#7c3aed"></i>{{ 'الاستمارات والاستبيانات' if ar else 'Forms & Surveys' }}
+  </h1>
+  <a href="{{ url_for('surveys.admin_new') }}" class="btn btn-sm" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;font-weight:700;padding:8px 18px">
+    <i class="bi bi-plus-circle me-1"></i>{{ 'استمارة جديدة' if ar else 'New Form' }}
+  </a>
+</div>
+
+{% if surveys %}
+<div class="table-responsive">
+  <table class="table table-hover align-middle" style="background:#fff;border-radius:12px;overflow:hidden">
+    <thead style="background:#f5f3ff">
+      <tr>
+        <th>{{ 'الاسم' if ar else 'Name' }}</th>
+        <th>{{ 'الحالة' if ar else 'Status' }}</th>
+        <th>{{ 'الأسئلة' if ar else 'Questions' }}</th>
+        <th>{{ 'الردود' if ar else 'Responses' }}</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in surveys %}
+      <tr>
+        <td style="font-weight:600">{{ s.name }}</td>
+        <td>
+          {% if s.is_published %}<span style="color:#047857;font-weight:700"><i class="bi bi-check-circle-fill me-1"></i>{{ 'منشورة' if ar else 'Published' }}</span>
+          {% else %}<span style="color:#6b7280"><i class="bi bi-pencil me-1"></i>{{ 'مسودة' if ar else 'Draft' }}</span>{% endif %}
+          {% if s.require_code %}<span style="margin-inline-start:6px;font-size:.72rem;color:#7c3aed"><i class="bi bi-key-fill"></i></span>{% endif %}
+        </td>
+        <td>{{ s.questions|length }}</td>
+        <td>{{ s.responses|length }}</td>
+        <td>
+          <a href="{{ url_for('surveys.admin_builder', survey_id=s.id) }}" class="btn btn-sm" style="background:#f5f3ff;color:#7c3aed;border:none;border-radius:6px;font-weight:600">
+            {{ 'تحرير' if ar else 'Edit' }}
+          </a>
+          <a href="{{ url_for('surveys.admin_responses', survey_id=s.id) }}" class="btn btn-sm" style="background:#ecfeff;color:#0e7490;border:none;border-radius:6px;font-weight:600">
+            {{ 'الردود' if ar else 'Responses' }}
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="text-center text-muted" style="padding:40px">{{ 'لا توجد استمارات بعد' if ar else 'No forms yet' }}</div>
+{% endif %}
+{% endblock %}
