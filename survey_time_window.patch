@@ -1,0 +1,185 @@
+diff --git a/models/database.py b/models/database.py
+index 072b1c1..5568a5a 100644
+--- a/models/database.py
++++ b/models/database.py
+@@ -658,6 +658,9 @@ def get_engine():
+             ('sas_semesters', 'end_date',   'VARCHAR(10)'),
+             # Configurable early check-in allowance (v88)
+             ('event_checkins', 'early_minutes', 'INTEGER DEFAULT 15'),
++            # Optional entry time-window for surveys (v89)
++            ('surveys', 'opens_at', 'TIMESTAMP'),
++            ('surveys', 'closes_at', 'TIMESTAMP'),
+         ]
+         for tbl, col, cdef in safe_cols:
+             try:
+@@ -1331,6 +1334,8 @@ class Survey(Base):
+     require_code   = Column(Boolean, default=False)
+     access_code    = Column(String(20))
+     collect_name   = Column(Boolean, default=False)   # ask the respondent's name before filling
++    opens_at       = Column(DateTime)   # optional — form only accepts entries after this (Jordan local time)
++    closes_at      = Column(DateTime)   # optional — form stops accepting entries after this
+     created_at     = Column(DateTime, default=datetime.now)
+     questions      = relationship('SurveyQuestion', back_populates='survey',
+                                    cascade='all, delete-orphan', order_by='SurveyQuestion.order_num')
+diff --git a/routes/surveys.py b/routes/surveys.py
+index 570eec3..b9b4ee8 100644
+--- a/routes/surveys.py
++++ b/routes/surveys.py
+@@ -8,7 +8,7 @@ event check-in codes), and reviews/export responses afterward.
+ import json
+ import random
+ import string
+-from datetime import datetime
++from datetime import datetime, timedelta, timezone
+ 
+ from flask import (Blueprint, render_template, redirect, url_for, request,
+                     flash, jsonify, abort, session, Response)
+@@ -24,6 +24,19 @@ QUESTION_TYPES = ['short_text', 'paragraph', 'multiple_choice', 'checkboxes',
+ CHOICE_TYPES = {'multiple_choice', 'checkboxes', 'dropdown'}
+ 
+ 
++def _now_amman():
++    """Current wall-clock time in Jordan (Asia/Amman, UTC+3, no DST) as a
++    naive datetime — regardless of what timezone the server's OS clock is
++    actually set to (same approach used for event check-in)."""
++    try:
++        from zoneinfo import ZoneInfo
++        aware = datetime.now(ZoneInfo('Asia/Amman'))
++    except Exception:
++        aware = datetime.now(timezone.utc) + timedelta(hours=3)
++    return aware.replace(tzinfo=None)
++
++
++
+ def _t(ar_text, en_text):
+     return ar_text if get_lang() == 'ar' else en_text
+ 
+@@ -184,6 +197,18 @@ def admin_save(survey_id):
+     if survey.require_code and not survey.access_code:
+         survey.access_code = _gen_code()
+ 
++    def _parse_dt(val):
++        # Comes from <input type="datetime-local"> as "YYYY-MM-DDTHH:MM"
++        if not val:
++            return None
++        try:
++            return datetime.strptime(val, '%Y-%m-%dT%H:%M')
++        except ValueError:
++            return None
++
++    survey.opens_at = _parse_dt(data.get('opens_at'))
++    survey.closes_at = _parse_dt(data.get('closes_at'))
++
+     # Update existing questions in place (preserves their id, so existing
+     # responses stay correctly linked), add new ones, delete removed ones.
+     incoming_ids = set()
+@@ -503,6 +528,18 @@ def admin_responses_export(survey_id):
+ # PUBLIC (no login)
+ # ===========================================================================
+ 
++def _window_error(survey, now):
++    """Return an error message if the survey isn't currently within its
++    optional entry time-window, else None."""
++    if survey.opens_at and now < survey.opens_at:
++        opens_str = survey.opens_at.strftime('%Y-%m-%d %H:%M')
++        return _t(f'لم يبدأ استقبال الردود بعد — يبدأ بتاريخ {opens_str}',
++                  f'Not open yet — opens {opens_str}')
++    if survey.closes_at and now > survey.closes_at:
++        return _t('انتهت مهلة استقبال الردود لهذه الاستمارة', 'This form is no longer accepting responses')
++    return None
++
++
+ @surveys_bp.route('/<int:survey_id>', methods=['GET', 'POST'])
+ def public_survey(survey_id):
+     db = get_db()
+@@ -511,6 +548,10 @@ def public_survey(survey_id):
+         abort(404)
+     cfg = _get_school_config()
+ 
++    window_error = _window_error(survey, _now_amman())
++    if window_error:
++        return render_template('surveys/closed.html', survey=survey, config=cfg, message=window_error)
++
+     session_key = f'survey_{survey.id}_invite_id'
+     if survey.require_code and not session.get(session_key):
+         error = None
+@@ -540,6 +581,11 @@ def public_submit(survey_id):
+     if not survey or not survey.is_published:
+         abort(404)
+ 
++    cfg = _get_school_config()
++    window_error = _window_error(survey, _now_amman())
++    if window_error:
++        return render_template('surveys/closed.html', survey=survey, config=cfg, message=window_error)
++
+     session_key = f'survey_{survey.id}_invite_id'
+     invite = None
+     if survey.require_code:
+diff --git a/templates/surveys/admin/builder.html b/templates/surveys/admin/builder.html
+index 58b1a7b..19afd38 100644
+--- a/templates/surveys/admin/builder.html
++++ b/templates/surveys/admin/builder.html
+@@ -59,6 +59,21 @@
+       </label>
+     </div>
+   </div>
++  <div class="row g-3 align-items-center mt-1">
++    <div class="col-auto">
++      <label class="form-label mb-0" style="font-size:.8rem;font-weight:700">{{ 'يفتح الإدخال من (اختياري)' if ar else 'Opens at (optional)' }}</label>
++      <input type="datetime-local" id="opensAt" class="form-control form-control-sm"
++             value="{{ survey.opens_at.strftime('%Y-%m-%dT%H:%M') if survey.opens_at else '' }}">
++    </div>
++    <div class="col-auto">
++      <label class="form-label mb-0" style="font-size:.8rem;font-weight:700">{{ 'يغلق الإدخال في (اختياري)' if ar else 'Closes at (optional)' }}</label>
++      <input type="datetime-local" id="closesAt" class="form-control form-control-sm"
++             value="{{ survey.closes_at.strftime('%Y-%m-%dT%H:%M') if survey.closes_at else '' }}">
++    </div>
++    <div class="col-12" style="font-size:.76rem;color:#6b7280">
++      {{ 'اتركهما فارغين لعدم تقييد وقت الإدخال.' if ar else 'Leave both empty for no time restriction.' }}
++    </div>
++  </div>
+   <div class="d-flex gap-2 align-items-center flex-wrap mt-3">
+     <input type="text" id="fillUrlBox" value="{{ fill_url }}" readonly
+            style="flex:1;min-width:220px;border:1px solid #ddd6fe;border-radius:8px;padding:7px 12px;font-family:monospace;font-size:.82rem;direction:ltr">
+@@ -343,6 +358,8 @@ function saveSurvey() {
+       is_published: document.getElementById('isPublished').checked,
+       require_code: document.getElementById('requireCode').checked,
+       collect_name: document.getElementById('collectName').checked,
++      opens_at: document.getElementById('opensAt').value,
++      closes_at: document.getElementById('closesAt').value,
+       questions: questions,
+     })
+   })
+diff --git a/templates/surveys/closed.html b/templates/surveys/closed.html
+new file mode 100644
+index 0000000..5ae9371
+--- /dev/null
++++ b/templates/surveys/closed.html
+@@ -0,0 +1,27 @@
++<!DOCTYPE html>
++{%- set ar = (current_lang == 'ar') -%}
++<html lang="{{ current_lang }}" dir="{{ 'rtl' if ar else 'ltr' }}">
++<head>
++<meta charset="UTF-8">
++<meta name="viewport" content="width=device-width,initial-scale=1">
++<title>{{ survey.name }}</title>
++<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
++<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css">
++<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
++<style>
++  body { font-family: {{ "'Tajawal', " if ar }}sans-serif; background: linear-gradient(160deg,#f5f3ff,#faf5ff 60%,#fff); min-height: 100vh;
++         display: flex; align-items: center; justify-content: center; padding: 16px; }
++  .card-box { max-width: 420px; width: 100%; background: #fff; border-radius: 20px; box-shadow: 0 10px 40px rgba(124,58,237,.14); padding: 36px 26px; text-align: center; }
++  .icn { font-size: 2.4rem; color: #9ca3af; }
++  h1 { font-size: 1.1rem; font-weight: 800; color: #1f2937; margin: 12px 0 6px; }
++  .sub { font-size: .86rem; color: #6b7280; }
++</style>
++</head>
++<body>
++<div class="card-box">
++  <i class="bi bi-hourglass-split icn"></i>
++  <h1>{{ survey.name }}</h1>
++  <div class="sub">{{ message }}</div>
++</div>
++</body>
++</html>

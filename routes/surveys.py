@@ -8,7 +8,7 @@ event check-in codes), and reviews/export responses afterward.
 import json
 import random
 import string
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from flask import (Blueprint, render_template, redirect, url_for, request,
                     flash, jsonify, abort, session, Response)
@@ -22,6 +22,19 @@ surveys_bp = Blueprint('surveys', __name__, url_prefix='/surveys')
 QUESTION_TYPES = ['short_text', 'paragraph', 'multiple_choice', 'checkboxes',
                    'dropdown', 'linear_scale', 'date', 'time']
 CHOICE_TYPES = {'multiple_choice', 'checkboxes', 'dropdown'}
+
+
+def _now_amman():
+    """Current wall-clock time in Jordan (Asia/Amman, UTC+3, no DST) as a
+    naive datetime — regardless of what timezone the server's OS clock is
+    actually set to (same approach used for event check-in)."""
+    try:
+        from zoneinfo import ZoneInfo
+        aware = datetime.now(ZoneInfo('Asia/Amman'))
+    except Exception:
+        aware = datetime.now(timezone.utc) + timedelta(hours=3)
+    return aware.replace(tzinfo=None)
+
 
 
 def _t(ar_text, en_text):
@@ -183,6 +196,18 @@ def admin_save(survey_id):
     survey.collect_name = bool(data.get('collect_name', False))
     if survey.require_code and not survey.access_code:
         survey.access_code = _gen_code()
+
+    def _parse_dt(val):
+        # Comes from <input type="datetime-local"> as "YYYY-MM-DDTHH:MM"
+        if not val:
+            return None
+        try:
+            return datetime.strptime(val, '%Y-%m-%dT%H:%M')
+        except ValueError:
+            return None
+
+    survey.opens_at = _parse_dt(data.get('opens_at'))
+    survey.closes_at = _parse_dt(data.get('closes_at'))
 
     # Update existing questions in place (preserves their id, so existing
     # responses stay correctly linked), add new ones, delete removed ones.
@@ -503,6 +528,18 @@ def admin_responses_export(survey_id):
 # PUBLIC (no login)
 # ===========================================================================
 
+def _window_error(survey, now):
+    """Return an error message if the survey isn't currently within its
+    optional entry time-window, else None."""
+    if survey.opens_at and now < survey.opens_at:
+        opens_str = survey.opens_at.strftime('%Y-%m-%d %H:%M')
+        return _t(f'لم يبدأ استقبال الردود بعد — يبدأ بتاريخ {opens_str}',
+                  f'Not open yet — opens {opens_str}')
+    if survey.closes_at and now > survey.closes_at:
+        return _t('انتهت مهلة استقبال الردود لهذه الاستمارة', 'This form is no longer accepting responses')
+    return None
+
+
 @surveys_bp.route('/<int:survey_id>', methods=['GET', 'POST'])
 def public_survey(survey_id):
     db = get_db()
@@ -510,6 +547,10 @@ def public_survey(survey_id):
     if not survey or not survey.is_published:
         abort(404)
     cfg = _get_school_config()
+
+    window_error = _window_error(survey, _now_amman())
+    if window_error:
+        return render_template('surveys/closed.html', survey=survey, config=cfg, message=window_error)
 
     session_key = f'survey_{survey.id}_invite_id'
     if survey.require_code and not session.get(session_key):
@@ -539,6 +580,11 @@ def public_submit(survey_id):
     survey = db.get(Survey, survey_id)
     if not survey or not survey.is_published:
         abort(404)
+
+    cfg = _get_school_config()
+    window_error = _window_error(survey, _now_amman())
+    if window_error:
+        return render_template('surveys/closed.html', survey=survey, config=cfg, message=window_error)
 
     session_key = f'survey_{survey.id}_invite_id'
     invite = None

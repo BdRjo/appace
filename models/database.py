@@ -658,6 +658,9 @@ def get_engine():
             ('sas_semesters', 'end_date',   'VARCHAR(10)'),
             # Configurable early check-in allowance (v88)
             ('event_checkins', 'early_minutes', 'INTEGER DEFAULT 15'),
+            # Optional entry time-window for surveys (v89)
+            ('surveys', 'opens_at', 'TIMESTAMP'),
+            ('surveys', 'closes_at', 'TIMESTAMP'),
         ]
         for tbl, col, cdef in safe_cols:
             try:
@@ -1331,6 +1334,8 @@ class Survey(Base):
     require_code   = Column(Boolean, default=False)
     access_code    = Column(String(20))
     collect_name   = Column(Boolean, default=False)   # ask the respondent's name before filling
+    opens_at       = Column(DateTime)   # optional — form only accepts entries after this (Jordan local time)
+    closes_at      = Column(DateTime)   # optional — form stops accepting entries after this
     created_at     = Column(DateTime, default=datetime.now)
     questions      = relationship('SurveyQuestion', back_populates='survey',
                                    cascade='all, delete-orphan', order_by='SurveyQuestion.order_num')

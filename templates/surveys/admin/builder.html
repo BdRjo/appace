@@ -59,6 +59,21 @@
       </label>
     </div>
   </div>
+  <div class="row g-3 align-items-center mt-1">
+    <div class="col-auto">
+      <label class="form-label mb-0" style="font-size:.8rem;font-weight:700">{{ 'يفتح الإدخال من (اختياري)' if ar else 'Opens at (optional)' }}</label>
+      <input type="datetime-local" id="opensAt" class="form-control form-control-sm"
+             value="{{ survey.opens_at.strftime('%Y-%m-%dT%H:%M') if survey.opens_at else '' }}">
+    </div>
+    <div class="col-auto">
+      <label class="form-label mb-0" style="font-size:.8rem;font-weight:700">{{ 'يغلق الإدخال في (اختياري)' if ar else 'Closes at (optional)' }}</label>
+      <input type="datetime-local" id="closesAt" class="form-control form-control-sm"
+             value="{{ survey.closes_at.strftime('%Y-%m-%dT%H:%M') if survey.closes_at else '' }}">
+    </div>
+    <div class="col-12" style="font-size:.76rem;color:#6b7280">
+      {{ 'اتركهما فارغين لعدم تقييد وقت الإدخال.' if ar else 'Leave both empty for no time restriction.' }}
+    </div>
+  </div>
   <div class="d-flex gap-2 align-items-center flex-wrap mt-3">
     <input type="text" id="fillUrlBox" value="{{ fill_url }}" readonly
            style="flex:1;min-width:220px;border:1px solid #ddd6fe;border-radius:8px;padding:7px 12px;font-family:monospace;font-size:.82rem;direction:ltr">
@@ -343,6 +358,8 @@ function saveSurvey() {
       is_published: document.getElementById('isPublished').checked,
       require_code: document.getElementById('requireCode').checked,
       collect_name: document.getElementById('collectName').checked,
+      opens_at: document.getElementById('opensAt').value,
+      closes_at: document.getElementById('closesAt').value,
       questions: questions,
     })
   })
