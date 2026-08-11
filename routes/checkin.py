@@ -85,6 +85,20 @@ def admin_list():
     return render_template('checkin/admin/list.html', events=events)
 
 
+@checkin_bp.route('/admin/<int:event_id>/delete', methods=['POST'])
+@admin_required
+def admin_delete_event(event_id):
+    """Delete an event and all its attendees/codes (cascade)."""
+    db = get_db()
+    event = db.get(EventCheckin, event_id)
+    if not event:
+        abort(404)
+    db.delete(event)  # EventCheckin.attendees has cascade='all, delete-orphan'
+    db.commit()
+    flash(_t('تم حذف الفعالية', 'Event deleted'), 'success')
+    return redirect(url_for('checkin.admin_list'))
+
+
 def _normalize_date(date_str):
     """Coerce a date string to canonical YYYY-MM-DD regardless of what
     format the browser's date picker actually submitted (some older/mobile

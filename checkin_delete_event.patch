@@ -1,0 +1,59 @@
+diff --git a/routes/checkin.py b/routes/checkin.py
+index 15256e5..82a6b11 100644
+--- a/routes/checkin.py
++++ b/routes/checkin.py
+@@ -85,6 +85,20 @@ def admin_list():
+     return render_template('checkin/admin/list.html', events=events)
+ 
+ 
++@checkin_bp.route('/admin/<int:event_id>/delete', methods=['POST'])
++@admin_required
++def admin_delete_event(event_id):
++    """Delete an event and all its attendees/codes (cascade)."""
++    db = get_db()
++    event = db.get(EventCheckin, event_id)
++    if not event:
++        abort(404)
++    db.delete(event)  # EventCheckin.attendees has cascade='all, delete-orphan'
++    db.commit()
++    flash(_t('تم حذف الفعالية', 'Event deleted'), 'success')
++    return redirect(url_for('checkin.admin_list'))
++
++
+ def _normalize_date(date_str):
+     """Coerce a date string to canonical YYYY-MM-DD regardless of what
+     format the browser's date picker actually submitted (some older/mobile
+diff --git a/templates/checkin/admin/detail.html b/templates/checkin/admin/detail.html
+index 7a91fa6..00614ea 100644
+--- a/templates/checkin/admin/detail.html
++++ b/templates/checkin/admin/detail.html
+@@ -28,6 +28,12 @@
+     <a href="{{ url_for('checkin.admin_list') }}" class="btn btn-sm" style="border:1.5px solid #d1d5db;border-radius:8px;font-weight:600">
+       <i class="bi bi-arrow-right me-1"></i>{{ 'رجوع' if ar else 'Back' }}
+     </a>
++    <form method="POST" action="{{ url_for('checkin.admin_delete_event', event_id=event.id) }}" style="display:inline"
++          onsubmit="return confirm('{{ 'حذف هذه الفعالية وكل المدعوين والرموز فيها؟ لا يمكن التراجع.' if ar else 'Delete this event and all its attendees/codes? This cannot be undone.' }}')">
++      <button type="submit" class="btn btn-sm" style="background:#fef2f2;color:#dc2626;border:none;border-radius:8px;font-weight:600">
++        <i class="bi bi-trash me-1"></i>{{ 'حذف الفعالية' if ar else 'Delete Event' }}
++      </button>
++    </form>
+   </div>
+ </div>
+ 
+diff --git a/templates/checkin/admin/list.html b/templates/checkin/admin/list.html
+index 7b0a3b5..03a5d70 100644
+--- a/templates/checkin/admin/list.html
++++ b/templates/checkin/admin/list.html
+@@ -36,6 +36,12 @@
+           <a href="{{ url_for('checkin.admin_detail', event_id=e.id) }}" class="btn btn-sm" style="background:#ecfeff;color:#0e7490;border:none;border-radius:6px;font-weight:600">
+             {{ 'إدارة' if ar else 'Manage' }}
+           </a>
++          <form method="POST" action="{{ url_for('checkin.admin_delete_event', event_id=e.id) }}" style="display:inline"
++                onsubmit="return confirm('{{ ('حذف فعالية \"' ~ e.name ~ '\" وكل المدعوين والرموز فيها؟ لا يمكن التراجع.') if ar else ('Delete \"' ~ e.name ~ '\" and all its attendees/codes? This cannot be undone.') }}')">
++            <button type="submit" class="btn btn-sm" style="background:#fef2f2;color:#dc2626;border:none;border-radius:6px;font-weight:600">
++              <i class="bi bi-trash"></i>
++            </button>
++          </form>
+         </td>
+       </tr>
+       {% endfor %}
