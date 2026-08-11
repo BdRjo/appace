@@ -318,6 +318,29 @@ def admin_attendee_delete(event_id, aid):
     return jsonify({'ok': True})
 
 
+@checkin_bp.route('/admin/<int:event_id>/attendees/bulk-delete', methods=['POST'])
+@admin_required
+def admin_attendees_bulk_delete(event_id):
+    """Delete several selected attendees at once (checkboxes on the detail page)."""
+    db = get_db()
+    event = db.get(EventCheckin, event_id)
+    if not event:
+        abort(404)
+    selected_ids = request.form.getlist('attendee_ids', type=int)
+    if not selected_ids:
+        flash(_t('لم يتم تحديد أي مدعو', 'No attendees selected'), 'danger')
+        return redirect(url_for('checkin.admin_detail', event_id=event.id))
+
+    deleted = (
+        db.query(EventAttendee)
+        .filter(EventAttendee.event_id == event.id, EventAttendee.id.in_(selected_ids))
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+    flash(_t(f'تم حذف {deleted} مدعو', f'{deleted} attendees deleted'), 'success')
+    return redirect(url_for('checkin.admin_detail', event_id=event.id))
+
+
 @checkin_bp.route('/admin/<int:event_id>/send-codes', methods=['POST'])
 @admin_required
 def admin_send_codes(event_id):

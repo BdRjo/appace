@@ -1,0 +1,72 @@
+diff --git a/routes/checkin.py b/routes/checkin.py
+index 82a6b11..36d8047 100644
+--- a/routes/checkin.py
++++ b/routes/checkin.py
+@@ -318,6 +318,29 @@ def admin_attendee_delete(event_id, aid):
+     return jsonify({'ok': True})
+ 
+ 
++@checkin_bp.route('/admin/<int:event_id>/attendees/bulk-delete', methods=['POST'])
++@admin_required
++def admin_attendees_bulk_delete(event_id):
++    """Delete several selected attendees at once (checkboxes on the detail page)."""
++    db = get_db()
++    event = db.get(EventCheckin, event_id)
++    if not event:
++        abort(404)
++    selected_ids = request.form.getlist('attendee_ids', type=int)
++    if not selected_ids:
++        flash(_t('لم يتم تحديد أي مدعو', 'No attendees selected'), 'danger')
++        return redirect(url_for('checkin.admin_detail', event_id=event.id))
++
++    deleted = (
++        db.query(EventAttendee)
++        .filter(EventAttendee.event_id == event.id, EventAttendee.id.in_(selected_ids))
++        .delete(synchronize_session=False)
++    )
++    db.commit()
++    flash(_t(f'تم حذف {deleted} مدعو', f'{deleted} attendees deleted'), 'success')
++    return redirect(url_for('checkin.admin_detail', event_id=event.id))
++
++
+ @checkin_bp.route('/admin/<int:event_id>/send-codes', methods=['POST'])
+ @admin_required
+ def admin_send_codes(event_id):
+diff --git a/templates/checkin/admin/detail.html b/templates/checkin/admin/detail.html
+index 00614ea..718620d 100644
+--- a/templates/checkin/admin/detail.html
++++ b/templates/checkin/admin/detail.html
+@@ -148,12 +148,19 @@
+   <form id="selectSendForm" method="POST" action="{{ url_for('checkin.admin_send_codes', event_id=event.id) }}">
+   <div class="d-flex justify-content-between align-items-center flex-wrap gap-2" style="padding:12px 16px">
+     <div style="font-size:.82rem;color:#6b7280">
+-      <i class="bi bi-info-circle me-1"></i>{{ 'علّم من تريد ثم اضغط إرسال — أو سيب الكل بدون تحديد لاستخدام الأزرار أعلاه' if ar else 'Check specific people then send — or use the buttons above for everyone' }}
++      <i class="bi bi-info-circle me-1"></i>{{ 'علّم من تريد ثم اضغط إرسال أو حذف — أو سيب الكل بدون تحديد لاستخدام الأزرار أعلاه' if ar else 'Check specific people then send or delete — or use the buttons above for everyone' }}
++    </div>
++    <div class="d-flex gap-2">
++      <button type="submit" class="btn btn-sm" style="background:#0e7490;color:#fff;border:none;border-radius:8px;font-weight:700;padding:6px 16px"
++              onclick="return document.querySelectorAll('.attendee-check:checked').length > 0 || alert('{{ 'علّم مدعو واحد على الأقل' if ar else 'Select at least one attendee' }}')">
++        <i class="bi bi-send me-1"></i>{{ 'إرسال للمحدَّدين فقط' if ar else 'Send to Selected Only' }}
++      </button>
++      <button type="submit" formaction="{{ url_for('checkin.admin_attendees_bulk_delete', event_id=event.id) }}"
++              class="btn btn-sm" style="background:#fef2f2;color:#dc2626;border:none;border-radius:8px;font-weight:700;padding:6px 16px"
++              onclick="return document.querySelectorAll('.attendee-check:checked').length > 0 ? confirm('{{ 'حذف المدعوين المحدَّدين؟ لا يمكن التراجع.' if ar else 'Delete the selected attendees? This cannot be undone.' }}') : (alert('{{ 'علّم مدعو واحد على الأقل' if ar else 'Select at least one attendee' }}'), false)">
++        <i class="bi bi-trash me-1"></i>{{ 'حذف المحدَّدين' if ar else 'Delete Selected' }}
++      </button>
+     </div>
+-    <button type="submit" class="btn btn-sm" style="background:#0e7490;color:#fff;border:none;border-radius:8px;font-weight:700;padding:6px 16px"
+-            onclick="return document.querySelectorAll('.attendee-check:checked').length > 0 || alert('{{ 'علّم مدعو واحد على الأقل' if ar else 'Select at least one attendee' }}')">
+-      <i class="bi bi-send me-1"></i>{{ 'إرسال للمحدَّدين فقط' if ar else 'Send to Selected Only' }}
+-    </button>
+   </div>
+   <div class="table-responsive">
+     <table class="table table-hover align-middle mb-0">
+@@ -174,7 +181,7 @@
+         {% set st = resolve_status(a) %}
+         <tr>
+           <td style="padding:10px 16px">
+-            <input type="checkbox" class="attendee-check" name="attendee_ids" value="{{ a.id }}" {{ 'disabled' if not a.email }}>
++            <input type="checkbox" class="attendee-check" name="attendee_ids" value="{{ a.id }}">
+           </td>
+           <td style="font-weight:600">{{ a.name }}</td>
+           <td style="font-size:.84rem;direction:ltr;text-align:end">{{ a.email or '-' }}</td>
