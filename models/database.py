@@ -1335,6 +1335,7 @@ class Survey(Base):
     questions      = relationship('SurveyQuestion', back_populates='survey',
                                    cascade='all, delete-orphan', order_by='SurveyQuestion.order_num')
     responses      = relationship('SurveyResponse', back_populates='survey', cascade='all, delete-orphan')
+    invites        = relationship('SurveyInvite', back_populates='survey', cascade='all, delete-orphan')
 
 
 class SurveyQuestion(Base):
@@ -1389,3 +1390,19 @@ class SurveyAnswer(Base):
     answer_text  = Column(Text)
     response     = relationship('SurveyResponse', back_populates='answers')
     question     = relationship('SurveyQuestion')
+
+
+class SurveyInvite(Base):
+    """One invited respondent for a code-gated survey, with their own
+    unique code (same idea as EventAttendee for check-in events). Used only
+    when Survey.require_code is True."""
+    __tablename__ = 'survey_invites'
+    id          = Column(Integer, primary_key=True)
+    survey_id   = Column(Integer, ForeignKey('surveys.id'), nullable=False)
+    name        = Column(String(200), nullable=False)
+    email       = Column(String(200))
+    code        = Column(String(20), nullable=False)
+    code_sent   = Column(Boolean, default=False)
+    used_at     = Column(DateTime)   # set once this code has submitted a response
+    created_at  = Column(DateTime, default=datetime.now)
+    survey      = relationship('Survey', back_populates='invites')

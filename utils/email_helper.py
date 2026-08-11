@@ -871,6 +871,36 @@ def send_reset_code(email: str, code: str, lang: str = 'ar') -> bool:
     return _send(email, '', subj, _html_wrapper(content, subj, lang), txt, sync=True)
 
 
+def send_survey_invite_code(email: str, name: str, code: str, survey_name: str,
+                              fill_url: str = '', lang: str = 'ar') -> bool:
+    """Send an invited respondent their access code for a code-gated survey."""
+    display_name = name or email
+    link_html = f'<p style="text-align:center;margin:12px 0 0"><a href="{fill_url}" style="color:#7c3aed;font-weight:700;text-decoration:none">{fill_url}</a></p>' if fill_url else ''
+
+    if lang == 'en':
+        content = f"""
+<p style="color:#4a5568;margin:0 0 20px">Hello {display_name}, you're invited to complete: <strong>{survey_name}</strong></p>
+<div style="background:#f5f3ff;border:2px dashed #7c3aed;border-radius:12px;padding:20px;text-align:center;margin-bottom:20px">
+  <div style="font-size:32px;font-weight:900;letter-spacing:6px;color:#6d28d9">{code}</div>
+</div>
+{link_html}
+<p style="color:#999;font-size:12px;margin-top:16px">This code can only be used once. Please keep it private.</p>"""
+        subj = f'Survey access code — {survey_name}'
+        txt = f'Your access code for {survey_name}: {code}'
+    else:
+        content = f"""
+<p style="color:#4a5568;margin:0 0 20px">مرحباً {display_name}، أنت مدعو لتعبئة: <strong>{survey_name}</strong></p>
+<div style="background:#f5f3ff;border:2px dashed #7c3aed;border-radius:12px;padding:20px;text-align:center;margin-bottom:20px">
+  <div style="font-size:32px;font-weight:900;letter-spacing:6px;color:#6d28d9">{code}</div>
+</div>
+{link_html}
+<p style="color:#999;font-size:12px;margin-top:16px">هذا الرمز صالح للاستخدام مرة واحدة فقط. الرجاء المحافظة على سريته.</p>"""
+        subj = f'رمز الدخول للاستبيان — {survey_name}'
+        txt = f'رمز دخولك لاستبيان {survey_name}: {code}'
+
+    return _send(email, display_name, subj, _html_wrapper(content, subj, lang), txt, sync=True)
+
+
 def send_event_checkin_code(email: str, name: str, code: str, event_name: str, event_date: str,
                               window_start: str, window_end: str, checkin_url: str = '', lang: str = 'ar') -> bool:
     """Send an attendee their one-time check-in code for a meeting/event."""

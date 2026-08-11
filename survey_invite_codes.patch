@@ -1,0 +1,489 @@
+diff --git a/models/database.py b/models/database.py
+index 3be8417..072b1c1 100644
+--- a/models/database.py
++++ b/models/database.py
+@@ -1335,6 +1335,7 @@ class Survey(Base):
+     questions      = relationship('SurveyQuestion', back_populates='survey',
+                                    cascade='all, delete-orphan', order_by='SurveyQuestion.order_num')
+     responses      = relationship('SurveyResponse', back_populates='survey', cascade='all, delete-orphan')
++    invites        = relationship('SurveyInvite', back_populates='survey', cascade='all, delete-orphan')
+ 
+ 
+ class SurveyQuestion(Base):
+@@ -1389,3 +1390,19 @@ class SurveyAnswer(Base):
+     answer_text  = Column(Text)
+     response     = relationship('SurveyResponse', back_populates='answers')
+     question     = relationship('SurveyQuestion')
++
++
++class SurveyInvite(Base):
++    """One invited respondent for a code-gated survey, with their own
++    unique code (same idea as EventAttendee for check-in events). Used only
++    when Survey.require_code is True."""
++    __tablename__ = 'survey_invites'
++    id          = Column(Integer, primary_key=True)
++    survey_id   = Column(Integer, ForeignKey('surveys.id'), nullable=False)
++    name        = Column(String(200), nullable=False)
++    email       = Column(String(200))
++    code        = Column(String(20), nullable=False)
++    code_sent   = Column(Boolean, default=False)
++    used_at     = Column(DateTime)   # set once this code has submitted a response
++    created_at  = Column(DateTime, default=datetime.now)
++    survey      = relationship('Survey', back_populates='invites')
+diff --git a/routes/surveys.py b/routes/surveys.py
+index 7c2751a..570eec3 100644
+--- a/routes/surveys.py
++++ b/routes/surveys.py
+@@ -15,7 +15,7 @@ from flask import (Blueprint, render_template, redirect, url_for, request,
+ 
+ from utils.helpers import get_db, admin_required
+ from utils.i18n import t, get_lang
+-from models.database import Survey, SurveyQuestion, SurveyResponse, SurveyAnswer, SASConfig
++from models.database import Survey, SurveyQuestion, SurveyResponse, SurveyAnswer, SurveyInvite, SASConfig
+ 
+ surveys_bp = Blueprint('surveys', __name__, url_prefix='/surveys')
+ 
+@@ -216,7 +216,183 @@ def admin_save(survey_id):
+             db.delete(sq)
+ 
+     db.commit()
+-    return jsonify({'ok': True, 'access_code': survey.access_code})
++    return jsonify({'ok': True})
++
++
++def _normalize_text(s):
++    """Lowercase, collapse whitespace, and strip invisible Unicode marks
++    that often sneak into text copy-pasted from Excel/Word."""
++    if not s:
++        return ''
++    for ch in ('\u200b', '\u200c', '\u200d', '\u200e', '\u200f', '\ufeff'):
++        s = s.replace(ch, '')
++    return ' '.join(s.split()).lower()
++
++
++def _parse_name_email_rows(uploaded_file, bulk_text):
++    """Parse either an uploaded .xlsx/.xls/.csv file or pasted 'Name,Email'
++    lines into a list of (name, email) pairs. Accepts the Arabic comma "،"
++    and semicolon "؛" as separators too."""
++    if uploaded_file and uploaded_file.filename:
++        filename = uploaded_file.filename.lower()
++        rows = []
++        if filename.endswith('.csv'):
++            import csv as csv_mod
++            text_stream = uploaded_file.stream.read().decode('utf-8-sig', errors='ignore')
++            for parts in csv_mod.reader(text_stream.splitlines()):
++                if parts:
++                    rows.append(parts)
++        elif filename.endswith('.xlsx') or filename.endswith('.xls'):
++            import openpyxl
++            wb = openpyxl.load_workbook(uploaded_file, data_only=True, read_only=True)
++            ws = wb.worksheets[0]
++            for row in ws.iter_rows(values_only=True):
++                rows.append(['' if c is None else str(c) for c in row])
++        else:
++            return []
++        pairs = []
++        for r in rows:
++            name = (r[0] if len(r) > 0 else '').strip()
++            email = (r[1] if len(r) > 1 else '').strip()
++            if not name:
++                continue
++            if email and '@' not in email:
++                continue  # looks like a header row
++            pairs.append((name, email))
++        return pairs
++
++    pairs = []
++    for line in (bulk_text or '').splitlines():
++        line = line.strip()
++        if not line:
++            continue
++        normalized = line.replace('\t', ',').replace('،', ',').replace('؛', ',')
++        parts = [p.strip() for p in normalized.split(',')]
++        name = parts[0] if parts else ''
++        email = parts[1] if len(parts) > 1 else ''
++        if name:
++            pairs.append((name, email))
++    return pairs
++
++
++@surveys_bp.route('/admin/<int:survey_id>/invites/add', methods=['POST'])
++@admin_required
++def admin_invites_add(survey_id):
++    db = get_db()
++    survey = db.get(Survey, survey_id)
++    if not survey:
++        abort(404)
++
++    try:
++        pairs = _parse_name_email_rows(request.files.get('file'), request.form.get('bulk_text', ''))
++    except Exception as e:
++        flash(_t(f'تعذرت قراءة الملف: {e}', f'Could not read the file: {e}'), 'danger')
++        return redirect(url_for('surveys.admin_builder', survey_id=survey.id))
++
++    existing_codes = {i.code for i in survey.invites}
++    seen_emails = {_normalize_text(i.email) for i in survey.invites if i.email}
++    seen_names = {_normalize_text(i.name) for i in survey.invites if not i.email}
++
++    added = 0
++    skipped_duplicates = 0
++    for name, email in pairs:
++        email_key = _normalize_text(email)
++        name_key = _normalize_text(name)
++        if email_key and email_key in seen_emails:
++            skipped_duplicates += 1
++            continue
++        if not email_key and name_key in seen_names:
++            skipped_duplicates += 1
++            continue
++        if email_key:
++            seen_emails.add(email_key)
++        else:
++            seen_names.add(name_key)
++        code = _gen_code()
++        while code in existing_codes:
++            code = _gen_code()
++        existing_codes.add(code)
++        db.add(SurveyInvite(survey_id=survey.id, name=name, email=email, code=code))
++        added += 1
++    db.commit()
++
++    msg = _t(f'تمت إضافة {added} مدعو', f'Added {added} invitees')
++    if skipped_duplicates:
++        msg += _t(f' (تم تجاهل {skipped_duplicates} صف مكرر)', f' ({skipped_duplicates} duplicate rows skipped)')
++    flash(msg, 'success')
++    return redirect(url_for('surveys.admin_builder', survey_id=survey.id))
++
++
++@surveys_bp.route('/admin/<int:survey_id>/invites/<int:iid>/delete', methods=['POST'])
++@admin_required
++def admin_invite_delete(survey_id, iid):
++    db = get_db()
++    inv = db.get(SurveyInvite, iid)
++    if inv and inv.survey_id == survey_id:
++        db.delete(inv)
++        db.commit()
++    return jsonify({'ok': True})
++
++
++@surveys_bp.route('/admin/<int:survey_id>/invites/bulk-delete', methods=['POST'])
++@admin_required
++def admin_invites_bulk_delete(survey_id):
++    db = get_db()
++    survey = db.get(Survey, survey_id)
++    if not survey:
++        abort(404)
++    selected_ids = request.form.getlist('invite_ids', type=int)
++    if not selected_ids:
++        flash(_t('لم يتم تحديد أي مدعو', 'No invitees selected'), 'danger')
++        return redirect(url_for('surveys.admin_builder', survey_id=survey.id))
++    deleted = (
++        db.query(SurveyInvite)
++        .filter(SurveyInvite.survey_id == survey.id, SurveyInvite.id.in_(selected_ids))
++        .delete(synchronize_session=False)
++    )
++    db.commit()
++    flash(_t(f'تم حذف {deleted} مدعو', f'{deleted} invitees deleted'), 'success')
++    return redirect(url_for('surveys.admin_builder', survey_id=survey.id))
++
++
++@surveys_bp.route('/admin/<int:survey_id>/invites/send-codes', methods=['POST'])
++@admin_required
++def admin_invites_send_codes(survey_id):
++    db = get_db()
++    survey = db.get(Survey, survey_id)
++    if not survey:
++        abort(404)
++
++    from utils.email_helper import send_survey_invite_code
++    lang = get_lang()
++    fill_url = url_for('surveys.public_survey', survey_id=survey.id, _external=True)
++
++    selected_ids = request.form.getlist('invite_ids', type=int)
++    if selected_ids:
++        targets = [i for i in survey.invites if i.id in selected_ids and i.email]
++    else:
++        only_unsent = request.form.get('only_unsent', '1') == '1'
++        targets = [i for i in survey.invites if (not only_unsent or not i.code_sent) and i.email]
++
++    sent, failed = 0, 0
++    for inv in targets:
++        try:
++            ok = send_survey_invite_code(inv.email, inv.name, inv.code, survey.name, fill_url, lang)
++        except Exception:
++            ok = False
++        if ok:
++            inv.code_sent = True
++            sent += 1
++        else:
++            failed += 1
++    db.commit()
++
++    msg = _t(f'تم إرسال {sent} رمز بنجاح', f'{sent} codes sent successfully')
++    if failed:
++        msg += _t(f'، وفشل إرسال {failed}', f', {failed} failed')
++        msg += _t(' — راجع صفحة سجل البريد لسبب الفشل', ' — check Email Logs for the reason')
++    flash(msg, 'success' if not failed else 'warning')
++    return redirect(url_for('surveys.admin_builder', survey_id=survey.id))
+ 
+ 
+ @surveys_bp.route('/admin/<int:survey_id>/delete', methods=['POST'])
+@@ -335,15 +511,23 @@ def public_survey(survey_id):
+         abort(404)
+     cfg = _get_school_config()
+ 
+-    session_key = f'survey_{survey.id}_verified'
++    session_key = f'survey_{survey.id}_invite_id'
+     if survey.require_code and not session.get(session_key):
+         error = None
+         if request.method == 'POST':
+             code = request.form.get('code', '').strip().upper()
+-            if code and code == (survey.access_code or '').upper():
+-                session[session_key] = True
++            invite = (
++                db.query(SurveyInvite)
++                .filter(SurveyInvite.survey_id == survey.id, SurveyInvite.code == code)
++                .first()
++            )
++            if not invite:
++                error = _t('الرمز غير صحيح', 'Invalid code')
++            elif invite.used_at:
++                error = _t('تم استخدام هذا الرمز مسبقاً', 'This code has already been used')
++            else:
++                session[session_key] = invite.id
+                 return redirect(url_for('surveys.public_survey', survey_id=survey.id))
+-            error = _t('الرمز غير صحيح', 'Invalid code')
+         return render_template('surveys/gate.html', survey=survey, config=cfg, error=error)
+ 
+     return render_template('surveys/fill.html', survey=survey, config=cfg, error=None)
+@@ -355,11 +539,18 @@ def public_submit(survey_id):
+     survey = db.get(Survey, survey_id)
+     if not survey or not survey.is_published:
+         abort(404)
+-    session_key = f'survey_{survey.id}_verified'
+-    if survey.require_code and not session.get(session_key):
+-        abort(403)
+ 
+-    respondent_name = request.form.get('respondent_name', '').strip() if survey.collect_name else None
++    session_key = f'survey_{survey.id}_invite_id'
++    invite = None
++    if survey.require_code:
++        invite_id = session.get(session_key)
++        invite = db.get(SurveyInvite, invite_id) if invite_id else None
++        if not invite or invite.survey_id != survey.id or invite.used_at:
++            abort(403)
++
++    respondent_name = invite.name if invite else (
++        request.form.get('respondent_name', '').strip() if survey.collect_name else None
++    )
+     response = SurveyResponse(survey_id=survey.id, respondent_name=respondent_name or None)
+     db.add(response)
+     db.flush()
+@@ -384,6 +575,10 @@ def public_submit(survey_id):
+         return render_template('surveys/fill.html', survey=survey, config=cfg,
+                                 error=_t('يرجى تعبئة كل الأسئلة الإجبارية', 'Please fill in all required questions'))
+ 
++    if invite:
++        invite.used_at = datetime.now()
++        session.pop(session_key, None)
++
+     db.commit()
+     cfg = _get_school_config()
+     return render_template('surveys/thanks.html', survey=survey, config=cfg)
+diff --git a/templates/surveys/admin/builder.html b/templates/surveys/admin/builder.html
+index 31f6610..58b1a7b 100644
+--- a/templates/surveys/admin/builder.html
++++ b/templates/surveys/admin/builder.html
+@@ -48,33 +48,142 @@
+     </div>
+     <div class="col-auto">
+       <label class="d-flex align-items-center gap-2" style="cursor:pointer">
+-        <input type="checkbox" id="requireCode" {{ 'checked' if survey.require_code }}>
+-        {{ 'يتطلب رمز دخول' if ar else 'Require access code' }}
++        <input type="checkbox" id="requireCode" onchange="toggleInviteSection()" {{ 'checked' if survey.require_code }}>
++        {{ 'يتطلب رمز دخول (لكل مدعو رمزه الخاص)' if ar else 'Require access code (each invitee gets their own)' }}
+       </label>
+     </div>
+     <div class="col-auto">
+       <label class="d-flex align-items-center gap-2" style="cursor:pointer">
+         <input type="checkbox" id="collectName" {{ 'checked' if survey.collect_name }}>
+-        {{ 'اطلب اسم المستجيب' if ar else 'Ask respondent name' }}
++        {{ 'اطلب اسم المستجيب (عند عدم استخدام الرموز)' if ar else "Ask respondent name (when not using codes)" }}
+       </label>
+     </div>
+   </div>
+-  {% if survey.is_published %}
+   <div class="d-flex gap-2 align-items-center flex-wrap mt-3">
+     <input type="text" id="fillUrlBox" value="{{ fill_url }}" readonly
+            style="flex:1;min-width:220px;border:1px solid #ddd6fe;border-radius:8px;padding:7px 12px;font-family:monospace;font-size:.82rem;direction:ltr">
+     <button type="button" class="btn btn-sm" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;font-weight:700" onclick="copyFillUrl()">
+       <i class="bi bi-clipboard me-1"></i>{{ 'نسخ الرابط' if ar else 'Copy Link' }}
+     </button>
+-    {% if survey.require_code %}
+-    <span style="font-size:.86rem;font-weight:700;color:#7c3aed">
+-      <i class="bi bi-key-fill me-1"></i>{{ 'الرمز:' if ar else 'Code:' }} <span id="accessCodeDisplay" style="font-family:monospace">{{ survey.access_code or '—' }}</span>
+-    </span>
+-    {% endif %}
++  </div>
++  {% if not survey.is_published %}
++  <div style="font-size:.8rem;color:#92400e;background:#fffbeb;border-radius:8px;padding:8px 12px;margin-top:8px">
++    <i class="bi bi-exclamation-triangle me-1"></i>{{ 'الاستمارة مسودة حالياً — فعّل "نشر الاستمارة" واضغط حفظ حتى يعمل الرابط' if ar else 'This form is still a draft — check "Publish form" and Save for the link to work' }}
++  </div>
++  {% endif %}
++</div>
++
++<!-- Invitees (only relevant when an access code is required) -->
++<div id="inviteSection" style="display:{{ 'block' if survey.require_code else 'none' }}">
++  <div style="background:#fff;border-radius:12px;padding:18px;box-shadow:0 2px 12px rgba(0,0,0,.06);margin-bottom:18px">
++    <h6 class="fw-bold mb-2"><i class="bi bi-person-plus me-1"></i>{{ 'إضافة مدعوين' if ar else 'Add Invitees' }}</h6>
++    <form method="POST" action="{{ url_for('surveys.admin_invites_add', survey_id=survey.id) }}" enctype="multipart/form-data">
++      <div class="mb-2">
++        <label class="form-label fw-semibold" style="font-size:.85rem">{{ 'رفع ملف (Excel أو CSV)' if ar else 'Upload File (Excel or CSV)' }}</label>
++        <input type="file" name="file" accept=".xlsx,.xls,.csv" class="form-control form-control-sm">
++        <div class="form-text">{{ 'عمود أول: الاسم، عمود ثاني: البريد الإلكتروني.' if ar else 'Column A: name, Column B: email.' }}</div>
++      </div>
++      <div class="text-center my-2" style="font-size:.78rem;color:#9ca3af">{{ 'أو' if ar else 'or' }}</div>
++      <div class="mb-2">
++        <label class="form-label fw-semibold" style="font-size:.85rem">{{ 'لصق يدوي' if ar else 'Paste Manually' }}</label>
++        <textarea name="bulk_text" rows="4" class="form-control" placeholder="{{ 'أحمد محمد, ahmad@example.com' if ar else 'Ahmad Mohammad, ahmad@example.com' }}"></textarea>
++      </div>
++      <button type="submit" class="btn btn-sm mt-1" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;font-weight:700;padding:7px 18px">
++        <i class="bi bi-plus-circle me-1"></i>{{ 'إضافة' if ar else 'Add' }}
++      </button>
++    </form>
++  </div>
++
++  {% if survey.invites %}
++  <div style="background:#fff;border-radius:12px;padding:18px;box-shadow:0 2px 12px rgba(0,0,0,.06);margin-bottom:18px">
++    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
++      <div style="font-size:.8rem;color:#6b7280">
++        {{ survey.invites|selectattr('code_sent')|list|length }} / {{ survey.invites|length }} {{ 'تم الإرسال لهم' if ar else 'sent' }}
++      </div>
++      <div class="d-flex gap-2">
++        <form method="POST" action="{{ url_for('surveys.admin_invites_send_codes', survey_id=survey.id) }}">
++          <input type="hidden" name="only_unsent" value="1">
++          <button type="submit" class="btn btn-sm" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;font-weight:700;padding:6px 14px">
++            <i class="bi bi-send me-1"></i>{{ 'إرسال لمن لم يُرسل له' if ar else 'Send to Unsent' }}
++          </button>
++        </form>
++        <form method="POST" action="{{ url_for('surveys.admin_invites_send_codes', survey_id=survey.id) }}" onsubmit="return confirm('{{ 'إعادة الإرسال للجميع؟' if ar else 'Resend to everyone?' }}')">
++          <input type="hidden" name="only_unsent" value="0">
++          <button type="submit" class="btn btn-sm" style="border:1.5px solid #d1d5db;border-radius:8px;font-weight:600;padding:6px 14px">
++            <i class="bi bi-arrow-repeat me-1"></i>{{ 'إعادة الإرسال للجميع' if ar else 'Resend All' }}
++          </button>
++        </form>
++      </div>
++    </div>
++  </div>
++
++  <div style="background:#fff;border-radius:12px;padding:0;box-shadow:0 2px 12px rgba(0,0,0,.06);margin-bottom:18px">
++    <form id="selectSendForm" method="POST" action="{{ url_for('surveys.admin_invites_send_codes', survey_id=survey.id) }}">
++      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2" style="padding:12px 16px">
++        <div style="font-size:.82rem;color:#6b7280">
++          <i class="bi bi-info-circle me-1"></i>{{ 'علّم من تريد ثم اضغط إرسال أو حذف' if ar else 'Check specific people then send or delete' }}
++        </div>
++        <div class="d-flex gap-2">
++          <button type="submit" class="btn btn-sm" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;font-weight:700;padding:6px 16px"
++                  onclick="return document.querySelectorAll('.invite-check:checked').length > 0 || alert('{{ 'علّم مدعو واحد على الأقل' if ar else 'Select at least one invitee' }}')">
++            <i class="bi bi-send me-1"></i>{{ 'إرسال للمحدَّدين' if ar else 'Send Selected' }}
++          </button>
++          <button type="submit" formaction="{{ url_for('surveys.admin_invites_bulk_delete', survey_id=survey.id) }}"
++                  class="btn btn-sm" style="background:#fef2f2;color:#dc2626;border:none;border-radius:8px;font-weight:700;padding:6px 16px"
++                  onclick="return document.querySelectorAll('.invite-check:checked').length > 0 ? confirm('{{ 'حذف المحدَّدين؟' if ar else 'Delete selected?' }}') : (alert('{{ 'علّم مدعو واحد على الأقل' if ar else 'Select at least one invitee' }}'), false)">
++            <i class="bi bi-trash me-1"></i>{{ 'حذف المحدَّدين' if ar else 'Delete Selected' }}
++          </button>
++        </div>
++      </div>
++      <div class="table-responsive">
++        <table class="table table-hover align-middle mb-0">
++          <thead style="background:#f9fafb">
++            <tr>
++              <th style="padding:12px 16px"><input type="checkbox" onclick="document.querySelectorAll('.invite-check').forEach(c => c.checked = this.checked)"></th>
++              <th>{{ 'الاسم' if ar else 'Name' }}</th>
++              <th>{{ 'البريد' if ar else 'Email' }}</th>
++              <th>{{ 'الرمز' if ar else 'Code' }}</th>
++              <th>{{ 'الحالة' if ar else 'Status' }}</th>
++              <th></th>
++            </tr>
++          </thead>
++          <tbody>
++            {% for i in survey.invites %}
++            <tr>
++              <td style="padding:10px 16px"><input type="checkbox" class="invite-check" name="invite_ids" value="{{ i.id }}"></td>
++              <td style="font-weight:600">{{ i.name }}</td>
++              <td style="font-size:.84rem;direction:ltr;text-align:end">{{ i.email or '-' }}</td>
++              <td style="direction:ltr;text-align:end;font-family:monospace;font-weight:700">{{ i.code }}</td>
++              <td>
++                {% if i.used_at %}<span style="color:#047857;font-weight:700"><i class="bi bi-check-circle-fill me-1"></i>{{ 'أجاب' if ar else 'Responded' }}</span>
++                {% else %}<span style="color:#6b7280">{{ 'لم يُجب بعد' if ar else 'Not yet' }}</span>{% endif %}
++              </td>
++              <td>
++                <button type="button" class="btn btn-sm" style="background:#fef2f2;color:#dc2626;border:none;border-radius:6px"
++                        onclick="deleteInvite('{{ url_for('surveys.admin_invite_delete', survey_id=survey.id, iid=i.id) }}')">
++                  <i class="bi bi-trash"></i>
++                </button>
++              </td>
++            </tr>
++            {% endfor %}
++          </tbody>
++        </table>
++      </div>
++    </form>
+   </div>
+   {% endif %}
+ </div>
+ 
++<script>
++function toggleInviteSection() {
++  document.getElementById('inviteSection').style.display = document.getElementById('requireCode').checked ? 'block' : 'none';
++}
++function deleteInvite(url) {
++  if (!confirm('{{ 'حذف هذا المدعو؟' if ar else 'Delete this invitee?' }}')) return;
++  fetch(url, { method: 'POST' }).then(r => r.json()).then(d => { if (d.ok) location.reload(); });
++}
++</script>
++
+ <!-- Questions -->
+ <div id="questionsList"></div>
+ 
+diff --git a/utils/email_helper.py b/utils/email_helper.py
+index 3ee64c5..a764f53 100644
+--- a/utils/email_helper.py
++++ b/utils/email_helper.py
+@@ -871,6 +871,36 @@ def send_reset_code(email: str, code: str, lang: str = 'ar') -> bool:
+     return _send(email, '', subj, _html_wrapper(content, subj, lang), txt, sync=True)
+ 
+ 
++def send_survey_invite_code(email: str, name: str, code: str, survey_name: str,
++                              fill_url: str = '', lang: str = 'ar') -> bool:
++    """Send an invited respondent their access code for a code-gated survey."""
++    display_name = name or email
++    link_html = f'<p style="text-align:center;margin:12px 0 0"><a href="{fill_url}" style="color:#7c3aed;font-weight:700;text-decoration:none">{fill_url}</a></p>' if fill_url else ''
++
++    if lang == 'en':
++        content = f"""
++<p style="color:#4a5568;margin:0 0 20px">Hello {display_name}, you're invited to complete: <strong>{survey_name}</strong></p>
++<div style="background:#f5f3ff;border:2px dashed #7c3aed;border-radius:12px;padding:20px;text-align:center;margin-bottom:20px">
++  <div style="font-size:32px;font-weight:900;letter-spacing:6px;color:#6d28d9">{code}</div>
++</div>
++{link_html}
++<p style="color:#999;font-size:12px;margin-top:16px">This code can only be used once. Please keep it private.</p>"""
++        subj = f'Survey access code — {survey_name}'
++        txt = f'Your access code for {survey_name}: {code}'
++    else:
++        content = f"""
++<p style="color:#4a5568;margin:0 0 20px">مرحباً {display_name}، أنت مدعو لتعبئة: <strong>{survey_name}</strong></p>
++<div style="background:#f5f3ff;border:2px dashed #7c3aed;border-radius:12px;padding:20px;text-align:center;margin-bottom:20px">
++  <div style="font-size:32px;font-weight:900;letter-spacing:6px;color:#6d28d9">{code}</div>
++</div>
++{link_html}
++<p style="color:#999;font-size:12px;margin-top:16px">هذا الرمز صالح للاستخدام مرة واحدة فقط. الرجاء المحافظة على سريته.</p>"""
++        subj = f'رمز الدخول للاستبيان — {survey_name}'
++        txt = f'رمز دخولك لاستبيان {survey_name}: {code}'
++
++    return _send(email, display_name, subj, _html_wrapper(content, subj, lang), txt, sync=True)
++
++
+ def send_event_checkin_code(email: str, name: str, code: str, event_name: str, event_date: str,
+                               window_start: str, window_end: str, checkin_url: str = '', lang: str = 'ar') -> bool:
+     """Send an attendee their one-time check-in code for a meeting/event."""

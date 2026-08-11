@@ -48,32 +48,141 @@
     </div>
     <div class="col-auto">
       <label class="d-flex align-items-center gap-2" style="cursor:pointer">
-        <input type="checkbox" id="requireCode" {{ 'checked' if survey.require_code }}>
-        {{ 'يتطلب رمز دخول' if ar else 'Require access code' }}
+        <input type="checkbox" id="requireCode" onchange="toggleInviteSection()" {{ 'checked' if survey.require_code }}>
+        {{ 'يتطلب رمز دخول (لكل مدعو رمزه الخاص)' if ar else 'Require access code (each invitee gets their own)' }}
       </label>
     </div>
     <div class="col-auto">
       <label class="d-flex align-items-center gap-2" style="cursor:pointer">
         <input type="checkbox" id="collectName" {{ 'checked' if survey.collect_name }}>
-        {{ 'اطلب اسم المستجيب' if ar else 'Ask respondent name' }}
+        {{ 'اطلب اسم المستجيب (عند عدم استخدام الرموز)' if ar else "Ask respondent name (when not using codes)" }}
       </label>
     </div>
   </div>
-  {% if survey.is_published %}
   <div class="d-flex gap-2 align-items-center flex-wrap mt-3">
     <input type="text" id="fillUrlBox" value="{{ fill_url }}" readonly
            style="flex:1;min-width:220px;border:1px solid #ddd6fe;border-radius:8px;padding:7px 12px;font-family:monospace;font-size:.82rem;direction:ltr">
     <button type="button" class="btn btn-sm" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;font-weight:700" onclick="copyFillUrl()">
       <i class="bi bi-clipboard me-1"></i>{{ 'نسخ الرابط' if ar else 'Copy Link' }}
     </button>
-    {% if survey.require_code %}
-    <span style="font-size:.86rem;font-weight:700;color:#7c3aed">
-      <i class="bi bi-key-fill me-1"></i>{{ 'الرمز:' if ar else 'Code:' }} <span id="accessCodeDisplay" style="font-family:monospace">{{ survey.access_code or '—' }}</span>
-    </span>
-    {% endif %}
+  </div>
+  {% if not survey.is_published %}
+  <div style="font-size:.8rem;color:#92400e;background:#fffbeb;border-radius:8px;padding:8px 12px;margin-top:8px">
+    <i class="bi bi-exclamation-triangle me-1"></i>{{ 'الاستمارة مسودة حالياً — فعّل "نشر الاستمارة" واضغط حفظ حتى يعمل الرابط' if ar else 'This form is still a draft — check "Publish form" and Save for the link to work' }}
   </div>
   {% endif %}
 </div>
+
+<!-- Invitees (only relevant when an access code is required) -->
+<div id="inviteSection" style="display:{{ 'block' if survey.require_code else 'none' }}">
+  <div style="background:#fff;border-radius:12px;padding:18px;box-shadow:0 2px 12px rgba(0,0,0,.06);margin-bottom:18px">
+    <h6 class="fw-bold mb-2"><i class="bi bi-person-plus me-1"></i>{{ 'إضافة مدعوين' if ar else 'Add Invitees' }}</h6>
+    <form method="POST" action="{{ url_for('surveys.admin_invites_add', survey_id=survey.id) }}" enctype="multipart/form-data">
+      <div class="mb-2">
+        <label class="form-label fw-semibold" style="font-size:.85rem">{{ 'رفع ملف (Excel أو CSV)' if ar else 'Upload File (Excel or CSV)' }}</label>
+        <input type="file" name="file" accept=".xlsx,.xls,.csv" class="form-control form-control-sm">
+        <div class="form-text">{{ 'عمود أول: الاسم، عمود ثاني: البريد الإلكتروني.' if ar else 'Column A: name, Column B: email.' }}</div>
+      </div>
+      <div class="text-center my-2" style="font-size:.78rem;color:#9ca3af">{{ 'أو' if ar else 'or' }}</div>
+      <div class="mb-2">
+        <label class="form-label fw-semibold" style="font-size:.85rem">{{ 'لصق يدوي' if ar else 'Paste Manually' }}</label>
+        <textarea name="bulk_text" rows="4" class="form-control" placeholder="{{ 'أحمد محمد, ahmad@example.com' if ar else 'Ahmad Mohammad, ahmad@example.com' }}"></textarea>
+      </div>
+      <button type="submit" class="btn btn-sm mt-1" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;font-weight:700;padding:7px 18px">
+        <i class="bi bi-plus-circle me-1"></i>{{ 'إضافة' if ar else 'Add' }}
+      </button>
+    </form>
+  </div>
+
+  {% if survey.invites %}
+  <div style="background:#fff;border-radius:12px;padding:18px;box-shadow:0 2px 12px rgba(0,0,0,.06);margin-bottom:18px">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div style="font-size:.8rem;color:#6b7280">
+        {{ survey.invites|selectattr('code_sent')|list|length }} / {{ survey.invites|length }} {{ 'تم الإرسال لهم' if ar else 'sent' }}
+      </div>
+      <div class="d-flex gap-2">
+        <form method="POST" action="{{ url_for('surveys.admin_invites_send_codes', survey_id=survey.id) }}">
+          <input type="hidden" name="only_unsent" value="1">
+          <button type="submit" class="btn btn-sm" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;font-weight:700;padding:6px 14px">
+            <i class="bi bi-send me-1"></i>{{ 'إرسال لمن لم يُرسل له' if ar else 'Send to Unsent' }}
+          </button>
+        </form>
+        <form method="POST" action="{{ url_for('surveys.admin_invites_send_codes', survey_id=survey.id) }}" onsubmit="return confirm('{{ 'إعادة الإرسال للجميع؟' if ar else 'Resend to everyone?' }}')">
+          <input type="hidden" name="only_unsent" value="0">
+          <button type="submit" class="btn btn-sm" style="border:1.5px solid #d1d5db;border-radius:8px;font-weight:600;padding:6px 14px">
+            <i class="bi bi-arrow-repeat me-1"></i>{{ 'إعادة الإرسال للجميع' if ar else 'Resend All' }}
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div style="background:#fff;border-radius:12px;padding:0;box-shadow:0 2px 12px rgba(0,0,0,.06);margin-bottom:18px">
+    <form id="selectSendForm" method="POST" action="{{ url_for('surveys.admin_invites_send_codes', survey_id=survey.id) }}">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2" style="padding:12px 16px">
+        <div style="font-size:.82rem;color:#6b7280">
+          <i class="bi bi-info-circle me-1"></i>{{ 'علّم من تريد ثم اضغط إرسال أو حذف' if ar else 'Check specific people then send or delete' }}
+        </div>
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-sm" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;font-weight:700;padding:6px 16px"
+                  onclick="return document.querySelectorAll('.invite-check:checked').length > 0 || alert('{{ 'علّم مدعو واحد على الأقل' if ar else 'Select at least one invitee' }}')">
+            <i class="bi bi-send me-1"></i>{{ 'إرسال للمحدَّدين' if ar else 'Send Selected' }}
+          </button>
+          <button type="submit" formaction="{{ url_for('surveys.admin_invites_bulk_delete', survey_id=survey.id) }}"
+                  class="btn btn-sm" style="background:#fef2f2;color:#dc2626;border:none;border-radius:8px;font-weight:700;padding:6px 16px"
+                  onclick="return document.querySelectorAll('.invite-check:checked').length > 0 ? confirm('{{ 'حذف المحدَّدين؟' if ar else 'Delete selected?' }}') : (alert('{{ 'علّم مدعو واحد على الأقل' if ar else 'Select at least one invitee' }}'), false)">
+            <i class="bi bi-trash me-1"></i>{{ 'حذف المحدَّدين' if ar else 'Delete Selected' }}
+          </button>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead style="background:#f9fafb">
+            <tr>
+              <th style="padding:12px 16px"><input type="checkbox" onclick="document.querySelectorAll('.invite-check').forEach(c => c.checked = this.checked)"></th>
+              <th>{{ 'الاسم' if ar else 'Name' }}</th>
+              <th>{{ 'البريد' if ar else 'Email' }}</th>
+              <th>{{ 'الرمز' if ar else 'Code' }}</th>
+              <th>{{ 'الحالة' if ar else 'Status' }}</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for i in survey.invites %}
+            <tr>
+              <td style="padding:10px 16px"><input type="checkbox" class="invite-check" name="invite_ids" value="{{ i.id }}"></td>
+              <td style="font-weight:600">{{ i.name }}</td>
+              <td style="font-size:.84rem;direction:ltr;text-align:end">{{ i.email or '-' }}</td>
+              <td style="direction:ltr;text-align:end;font-family:monospace;font-weight:700">{{ i.code }}</td>
+              <td>
+                {% if i.used_at %}<span style="color:#047857;font-weight:700"><i class="bi bi-check-circle-fill me-1"></i>{{ 'أجاب' if ar else 'Responded' }}</span>
+                {% else %}<span style="color:#6b7280">{{ 'لم يُجب بعد' if ar else 'Not yet' }}</span>{% endif %}
+              </td>
+              <td>
+                <button type="button" class="btn btn-sm" style="background:#fef2f2;color:#dc2626;border:none;border-radius:6px"
+                        onclick="deleteInvite('{{ url_for('surveys.admin_invite_delete', survey_id=survey.id, iid=i.id) }}')">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+function toggleInviteSection() {
+  document.getElementById('inviteSection').style.display = document.getElementById('requireCode').checked ? 'block' : 'none';
+}
+function deleteInvite(url) {
+  if (!confirm('{{ 'حذف هذا المدعو؟' if ar else 'Delete this invitee?' }}')) return;
+  fetch(url, { method: 'POST' }).then(r => r.json()).then(d => { if (d.ok) location.reload(); });
+}
+</script>
 
 <!-- Questions -->
 <div id="questionsList"></div>

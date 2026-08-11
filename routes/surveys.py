@@ -15,7 +15,7 @@ from flask import (Blueprint, render_template, redirect, url_for, request,
 
 from utils.helpers import get_db, admin_required
 from utils.i18n import t, get_lang
-from models.database import Survey, SurveyQuestion, SurveyResponse, SurveyAnswer, SASConfig
+from models.database import Survey, SurveyQuestion, SurveyResponse, SurveyAnswer, SurveyInvite, SASConfig
 
 surveys_bp = Blueprint('surveys', __name__, url_prefix='/surveys')
 
@@ -216,7 +216,183 @@ def admin_save(survey_id):
             db.delete(sq)
 
     db.commit()
-    return jsonify({'ok': True, 'access_code': survey.access_code})
+    return jsonify({'ok': True})
+
+
+def _normalize_text(s):
+    """Lowercase, collapse whitespace, and strip invisible Unicode marks
+    that often sneak into text copy-pasted from Excel/Word."""
+    if not s:
+        return ''
+    for ch in ('\u200b', '\u200c', '\u200d', '\u200e', '\u200f', '\ufeff'):
+        s = s.replace(ch, '')
+    return ' '.join(s.split()).lower()
+
+
+def _parse_name_email_rows(uploaded_file, bulk_text):
+    """Parse either an uploaded .xlsx/.xls/.csv file or pasted 'Name,Email'
+    lines into a list of (name, email) pairs. Accepts the Arabic comma "،"
+    and semicolon "؛" as separators too."""
+    if uploaded_file and uploaded_file.filename:
+        filename = uploaded_file.filename.lower()
+        rows = []
+        if filename.endswith('.csv'):
+            import csv as csv_mod
+            text_stream = uploaded_file.stream.read().decode('utf-8-sig', errors='ignore')
+            for parts in csv_mod.reader(text_stream.splitlines()):
+                if parts:
+                    rows.append(parts)
+        elif filename.endswith('.xlsx') or filename.endswith('.xls'):
+            import openpyxl
+            wb = openpyxl.load_workbook(uploaded_file, data_only=True, read_only=True)
+            ws = wb.worksheets[0]
+            for row in ws.iter_rows(values_only=True):
+                rows.append(['' if c is None else str(c) for c in row])
+        else:
+            return []
+        pairs = []
+        for r in rows:
+            name = (r[0] if len(r) > 0 else '').strip()
+            email = (r[1] if len(r) > 1 else '').strip()
+            if not name:
+                continue
+            if email and '@' not in email:
+                continue  # looks like a header row
+            pairs.append((name, email))
+        return pairs
+
+    pairs = []
+    for line in (bulk_text or '').splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        normalized = line.replace('\t', ',').replace('،', ',').replace('؛', ',')
+        parts = [p.strip() for p in normalized.split(',')]
+        name = parts[0] if parts else ''
+        email = parts[1] if len(parts) > 1 else ''
+        if name:
+            pairs.append((name, email))
+    return pairs
+
+
+@surveys_bp.route('/admin/<int:survey_id>/invites/add', methods=['POST'])
+@admin_required
+def admin_invites_add(survey_id):
+    db = get_db()
+    survey = db.get(Survey, survey_id)
+    if not survey:
+        abort(404)
+
+    try:
+        pairs = _parse_name_email_rows(request.files.get('file'), request.form.get('bulk_text', ''))
+    except Exception as e:
+        flash(_t(f'تعذرت قراءة الملف: {e}', f'Could not read the file: {e}'), 'danger')
+        return redirect(url_for('surveys.admin_builder', survey_id=survey.id))
+
+    existing_codes = {i.code for i in survey.invites}
+    seen_emails = {_normalize_text(i.email) for i in survey.invites if i.email}
+    seen_names = {_normalize_text(i.name) for i in survey.invites if not i.email}
+
+    added = 0
+    skipped_duplicates = 0
+    for name, email in pairs:
+        email_key = _normalize_text(email)
+        name_key = _normalize_text(name)
+        if email_key and email_key in seen_emails:
+            skipped_duplicates += 1
+            continue
+        if not email_key and name_key in seen_names:
+            skipped_duplicates += 1
+            continue
+        if email_key:
+            seen_emails.add(email_key)
+        else:
+            seen_names.add(name_key)
+        code = _gen_code()
+        while code in existing_codes:
+            code = _gen_code()
+        existing_codes.add(code)
+        db.add(SurveyInvite(survey_id=survey.id, name=name, email=email, code=code))
+        added += 1
+    db.commit()
+
+    msg = _t(f'تمت إضافة {added} مدعو', f'Added {added} invitees')
+    if skipped_duplicates:
+        msg += _t(f' (تم تجاهل {skipped_duplicates} صف مكرر)', f' ({skipped_duplicates} duplicate rows skipped)')
+    flash(msg, 'success')
+    return redirect(url_for('surveys.admin_builder', survey_id=survey.id))
+
+
+@surveys_bp.route('/admin/<int:survey_id>/invites/<int:iid>/delete', methods=['POST'])
+@admin_required
+def admin_invite_delete(survey_id, iid):
+    db = get_db()
+    inv = db.get(SurveyInvite, iid)
+    if inv and inv.survey_id == survey_id:
+        db.delete(inv)
+        db.commit()
+    return jsonify({'ok': True})
+
+
+@surveys_bp.route('/admin/<int:survey_id>/invites/bulk-delete', methods=['POST'])
+@admin_required
+def admin_invites_bulk_delete(survey_id):
+    db = get_db()
+    survey = db.get(Survey, survey_id)
+    if not survey:
+        abort(404)
+    selected_ids = request.form.getlist('invite_ids', type=int)
+    if not selected_ids:
+        flash(_t('لم يتم تحديد أي مدعو', 'No invitees selected'), 'danger')
+        return redirect(url_for('surveys.admin_builder', survey_id=survey.id))
+    deleted = (
+        db.query(SurveyInvite)
+        .filter(SurveyInvite.survey_id == survey.id, SurveyInvite.id.in_(selected_ids))
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+    flash(_t(f'تم حذف {deleted} مدعو', f'{deleted} invitees deleted'), 'success')
+    return redirect(url_for('surveys.admin_builder', survey_id=survey.id))
+
+
+@surveys_bp.route('/admin/<int:survey_id>/invites/send-codes', methods=['POST'])
+@admin_required
+def admin_invites_send_codes(survey_id):
+    db = get_db()
+    survey = db.get(Survey, survey_id)
+    if not survey:
+        abort(404)
+
+    from utils.email_helper import send_survey_invite_code
+    lang = get_lang()
+    fill_url = url_for('surveys.public_survey', survey_id=survey.id, _external=True)
+
+    selected_ids = request.form.getlist('invite_ids', type=int)
+    if selected_ids:
+        targets = [i for i in survey.invites if i.id in selected_ids and i.email]
+    else:
+        only_unsent = request.form.get('only_unsent', '1') == '1'
+        targets = [i for i in survey.invites if (not only_unsent or not i.code_sent) and i.email]
+
+    sent, failed = 0, 0
+    for inv in targets:
+        try:
+            ok = send_survey_invite_code(inv.email, inv.name, inv.code, survey.name, fill_url, lang)
+        except Exception:
+            ok = False
+        if ok:
+            inv.code_sent = True
+            sent += 1
+        else:
+            failed += 1
+    db.commit()
+
+    msg = _t(f'تم إرسال {sent} رمز بنجاح', f'{sent} codes sent successfully')
+    if failed:
+        msg += _t(f'، وفشل إرسال {failed}', f', {failed} failed')
+        msg += _t(' — راجع صفحة سجل البريد لسبب الفشل', ' — check Email Logs for the reason')
+    flash(msg, 'success' if not failed else 'warning')
+    return redirect(url_for('surveys.admin_builder', survey_id=survey.id))
 
 
 @surveys_bp.route('/admin/<int:survey_id>/delete', methods=['POST'])
@@ -335,15 +511,23 @@ def public_survey(survey_id):
         abort(404)
     cfg = _get_school_config()
 
-    session_key = f'survey_{survey.id}_verified'
+    session_key = f'survey_{survey.id}_invite_id'
     if survey.require_code and not session.get(session_key):
         error = None
         if request.method == 'POST':
             code = request.form.get('code', '').strip().upper()
-            if code and code == (survey.access_code or '').upper():
-                session[session_key] = True
+            invite = (
+                db.query(SurveyInvite)
+                .filter(SurveyInvite.survey_id == survey.id, SurveyInvite.code == code)
+                .first()
+            )
+            if not invite:
+                error = _t('الرمز غير صحيح', 'Invalid code')
+            elif invite.used_at:
+                error = _t('تم استخدام هذا الرمز مسبقاً', 'This code has already been used')
+            else:
+                session[session_key] = invite.id
                 return redirect(url_for('surveys.public_survey', survey_id=survey.id))
-            error = _t('الرمز غير صحيح', 'Invalid code')
         return render_template('surveys/gate.html', survey=survey, config=cfg, error=error)
 
     return render_template('surveys/fill.html', survey=survey, config=cfg, error=None)
@@ -355,11 +539,18 @@ def public_submit(survey_id):
     survey = db.get(Survey, survey_id)
     if not survey or not survey.is_published:
         abort(404)
-    session_key = f'survey_{survey.id}_verified'
-    if survey.require_code and not session.get(session_key):
-        abort(403)
 
-    respondent_name = request.form.get('respondent_name', '').strip() if survey.collect_name else None
+    session_key = f'survey_{survey.id}_invite_id'
+    invite = None
+    if survey.require_code:
+        invite_id = session.get(session_key)
+        invite = db.get(SurveyInvite, invite_id) if invite_id else None
+        if not invite or invite.survey_id != survey.id or invite.used_at:
+            abort(403)
+
+    respondent_name = invite.name if invite else (
+        request.form.get('respondent_name', '').strip() if survey.collect_name else None
+    )
     response = SurveyResponse(survey_id=survey.id, respondent_name=respondent_name or None)
     db.add(response)
     db.flush()
@@ -383,6 +574,10 @@ def public_submit(survey_id):
         cfg = _get_school_config()
         return render_template('surveys/fill.html', survey=survey, config=cfg,
                                 error=_t('يرجى تعبئة كل الأسئلة الإجبارية', 'Please fill in all required questions'))
+
+    if invite:
+        invite.used_at = datetime.now()
+        session.pop(session_key, None)
 
     db.commit()
     cfg = _get_school_config()
