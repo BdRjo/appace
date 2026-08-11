@@ -1,0 +1,14 @@
+diff --git a/templates/checkin/checkin.html b/templates/checkin/checkin.html
+index b5f0b0b..a3ef799 100644
+--- a/templates/checkin/checkin.html
++++ b/templates/checkin/checkin.html
+@@ -52,6 +52,9 @@
+       </div>
+       <div style="font-size:.86rem;margin-top:4px">{{ result.name }}</div>
+     </div>
++    <a href="{{ url_for('checkin.public_checkin', event_id=event.id) }}" class="btn-submit" style="display:block;text-decoration:none;text-align:center;box-sizing:border-box">
++      <i class="bi bi-arrow-repeat me-1"></i>{{ 'أدخل رمز جديد' if ar else 'Enter Another Code' }}
++    </a>
+ 
+   {% elif result and result.need_reason %}
+     <div class="result-box result-late">
